@@ -668,7 +668,9 @@ function soar(nome, opc = {}) {
   if (!def) { console.warn(`som.js: efeito desconhecido "${nome}"`); return null }
   pedidos[nome] = (pedidos[nome] || 0) + 1
   const ctx = vivo.ctx
-  if (!ctx || ctx.state !== 'running' || pref.mudo) return null
+  // toca com o áudio rodando — ou ainda acordando logo depois do toque (o som sai assim que o relógio do áudio anda)
+  const acordando = !!ctx && ctx.state === 'suspended' && houveToque && !globalThis.document?.hidden
+  if (!ctx || (ctx.state !== 'running' && !acordando) || pref.mudo) return null
   const agora = globalThis.performance?.now() ?? Date.now()
   if (def.unico && ultimoToque[nome] && agora - ultimoToque[nome] < def.unico) return null
   if (def.laco) parar(nome)
@@ -682,7 +684,7 @@ function soar(nome, opc = {}) {
   let voz
   try { voz = montarVoz(ctx, def.musical ? vivo.cad.jingle : vivo.cad.efeitos, nome, vi, { ...opc, humano: true, amostra: am }, quando) } catch (e) { console.warn('som.js: falhou ao montar ' + nome, e); return null }
   vozes.add(voz)
-  voz.relogio = setTimeout(() => encerrar(voz), (voz.fim - ctx.currentTime) * 1000 + 80)
+  voz.relogio = setTimeout(() => encerrar(voz), (voz.fim - ctx.currentTime) * 1000 + (acordando ? 500 : 80))
   tocados[nome] = (tocados[nome] || 0) + 1; ultimoToque[nome] = agora
   const aviso = { nome, quando, variacao: vi, fonte: voz.fonte, grande: !!def.grande, musical: !!def.musical, duracao: voz.fim - voz.t0 }
   for (const f of ouvintes) { try { f(aviso) } catch (e) { console.warn(e) } }
@@ -824,7 +826,6 @@ async function baixar(a, { mono = true, aparar = true } = {}) {
       while (ini < n && Math.abs(d[ini]) < pico * 0.01) ini++
       ini = Math.max(0, ini - Math.floor(sr * 0.001))
       while (fim > ini + 1 && Math.abs(d[fim - 1]) < pico * 0.002) fim--
-      fim = Math.min(n, fim + Math.floor(sr * 0.008))
       if (a.cortarMs > 0) fim = Math.min(fim, ini + Math.floor(sr * a.cortarMs / 1000))
     }
     const len = Math.max(8, fim - ini), buf = ctx.createBuffer(canais, len, sr), nf = Math.min(len >> 1, Math.floor(sr * SUMICO)), ni = Math.min(len >> 1, Math.floor(sr * 0.002))

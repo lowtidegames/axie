@@ -12,7 +12,7 @@ export const BPM = 92
 export const TEMA = Som.TEMA
 const ANTECEDENCIA = 0.1 // s: cada nota é marcada 100 ms antes, pelo relógio do áudio
 const PASSOS = 12 // semicolcheias por compasso
-const NIVEL = 0.029 // ganho do barramento: põe a música ~12 dB abaixo dos efeitos (medido em tests/tela/som.e2e.mjs)
+const NIVEL = 0.0435 // ganho do barramento: põe a música ~12 dB abaixo dos efeitos (medido em tests/tela/som.e2e.mjs)
 const ALVO_RMS_GRAVADA = -31 // dBFS: um arquivo de música gravado é nivelado para o mesmo volume médio da música gerada
 const TROCA_GRAVADA = 0.6 // s de esmaecimento entre música gerada e arquivo
 const LUTA = ['luta', 'tesouraDescendo', 'tesouraCortando']
@@ -70,6 +70,9 @@ const BAIXO = { Dm: 'D3', Gm: 'G2', A7: 'A2', Bb: 'Bb2' } // pizzicato no 1º te
 const ANDA = ['F3', 'A2', 'G#2', 'C#3', 'C3', 'A2', 'Bb2', 'C#3'] // nota de passagem no 3º tempo (o baixo que anda)
 const CORDAS = { Dm: ['A4', 'D5'], Gm: ['G4', 'D5'], A7: ['A4', 'E5'], Bb: ['Bb4', 'F5'] }
 const CASULO = [[[0, 0], [4, 2], [6, 4], [8, 3], [10, 1]], [[0, 2], [4, 0], [6, 'sensivel'], [8, 0]]] // o tema, em graus da escala
+const CAMADA = { cx: 'caixinha', pz: 'baixo', mq: 'maquina', rl: 'relogio', cd: 'cordas' }
+/** As camadas da música: [{ nome, rotulo }] (para ouvir uma por vez com `solo`). */
+export const camadas = () => [['caixinha', 'Caixinha de música'], ['baixo', 'Baixo pizzicato'], ['maquina', 'Tique da máquina de costura'], ['relogio', 'Tique-taque do relógio'], ['cordas', 'Tremor de cordas'], ['coracao', 'Batida de coração']].map(([nome, rotulo]) => ({ nome, rotulo }))
 const ler = (s) => (s.trim() ? s.trim().split(/\s+/).map((x) => { const [n, c, d] = x.split(':'); return { m: Som.midi(n), c: Number(c), d: Number(d) } }) : [])
 for (const f of Object.values(FRASES)) { f.mel = f.mel.map(ler); f.contra = f.contra.map(ler) }
 const m = Som.midi, hzM = Som.hzDoMidi
@@ -108,15 +111,19 @@ function pecas(ctx) {
       }
     }
   })
-  /** Eco curto de sala pequena: poucas reflexões cedo e uma cauda de 0,3 s que escurece. */
+  /** Eco curto de sala pequena: poucas reflexões cedo e uma cauda de 0,3 s que escurece. A força total é 1 (o envio decide o quanto). */
   const sala = novo(0.34, 2, (d, n, c) => {
-    for (const [ms, g] of [[7.1, 0.55], [11.3, -0.46], [17.9, 0.4], [23.7, -0.33], [31.1, 0.27], [41.3, -0.2]]) d[Math.floor((ms + c * 1.9) / 1000 * sr)] += g * (c ? 0.85 : 1)
-    let y = 0
+    const cauda = new Float32Array(n)
+    let y = 0, ec = 0, er = 0
     for (let i = Math.floor(0.018 * sr); i < n; i++) {
       const t = i / sr
       y += ((r() * 2 - 1) - y) * (0.5 - 0.3 * Math.min(1, t / 0.3))
-      d[i] += y * 0.32 * Math.exp(-(t - 0.018) / 0.065) * Math.min(1, (0.34 - t) / 0.03)
+      cauda[i] = y * Math.exp(-(t - 0.018) / 0.065) * Math.min(1, (0.34 - t) / 0.03); ec += cauda[i] * cauda[i]
     }
+    const reflexoes = [[7.1, 0.55], [11.3, -0.46], [17.9, 0.4], [23.7, -0.33], [31.1, 0.27], [41.3, -0.2]]
+    for (const [, g] of reflexoes) er += g * g
+    for (const [ms, g] of reflexoes) d[Math.floor((ms + c * 1.9) / 1000 * sr)] += g * Math.sqrt(0.6 / er) // 60% da força nas reflexões…
+    for (let i = 0; i < n; i++) d[i] += cauda[i] * Math.sqrt(0.4 / ec) // …e 40% na cauda, em qualquer taxa de amostragem
   })
   p = {
     maquinaA: estalo(0.045, [[3300, 1.6, 1], [5200, 1, 0.5]], 170), maquinaB: estalo(0.045, [[2600, 1.6, 1], [4400, 1, 0.5]], 150),
@@ -166,7 +173,7 @@ class Gerador {
     this.degrau = 0; this.degrauAtual = 0; this.tCor = null; this.tr = 0; this.dp = 60 / MOMENTOS[this.base].bpm / 4
     this.eventos = null; this.aoFinal = o.aoFinal; this.aoVirar = o.aoVirar
     const g = (v) => { const n = ctx.createGain(); n.gain.value = v; return n }
-    this.mix = g(NIVEL); this.caixa = g(1); this.corda = g(1); this.seco = g(1); this.envio = g(0.2); this.envio2 = g(0.09); this.direto = g(NIVEL)
+    this.mix = g(NIVEL); this.caixa = g(1); this.corda = g(1); this.seco = g(1); this.envio = g(0.22); this.envio2 = g(0.1); this.direto = g(NIVEL)
     this.sala = ctx.createConvolver(); this.sala.normalize = false; this.sala.buffer = this.pc.sala
     this.caixa.connect(this.mix); this.corda.connect(this.mix); this.seco.connect(this.mix)
     this.caixa.connect(this.envio); this.corda.connect(this.envio2); this.envio.connect(this.sala); this.envio2.connect(this.sala); this.sala.connect(this.mix)
@@ -187,6 +194,7 @@ class Gerador {
   /** Virada do compasso: é aqui (e só aqui) que as camadas trocam. */
   virar(t) {
     const antes = this.base
+    this.compassos++ // compassos começados: muda junto com a troca de camada
     if (this.pend) {
       const p = this.pend; this.pend = null
       const recomeca = !!this.final || (p.base !== this.base && (p.base === 'costura' || this.base === 'costura'))
@@ -216,7 +224,7 @@ class Gerador {
     if (M.caixinha) {
       for (const n of fr.mel[b]) {
         const forte = n.c === 0 ? 1 : n.c % 2 === 0 ? 0.9 : 0.8, vel = arco * forte * (0.94 + 0.12 * rnd())
-        const enfeite = n.d >= 2 && rnd() < 0.1
+        const enfeite = b >= 2 && n.d >= 2 && rnd() < 0.1 // o tema (2 primeiros compassos da frase) nunca leva enfeite
         if (enfeite) poe(n.c, { k: 'cx', f: hzM(n.m + tr - 1), vel: vel * 0.4, queda: 0.25 }) // apojatura: meio tom abaixo
         poe(n.c, { k: 'cx', f: hzM(n.m + tr), vel, queda: 0.9, atraso: enfeite ? 0.05 : 0 })
         if (n.d >= 2 && rnd() < 0.08) poe(n.c, { k: 'cx', f: hzM(n.m + tr + 12), vel: vel * 0.22, queda: 0.6, simples: true })
@@ -243,6 +251,7 @@ class Gerador {
 
   soar(e, t) {
     const ctx = this.ctx, quando = t + (e.atraso ?? 0) + (this.rnd() - 0.5) * 0.004
+    if (this.so && !this.so.has(CAMADA[e.k])) return // ouvir uma camada sozinha (folha de sons)
     if (e.k === 'cx') Som.caixinha(ctx, this.caixa, e.f, quando, { vel: e.vel, queda: e.queda, simples: e.simples, cents: (this.rnd() * 2 - 1) * 6 })
     else if (e.k === 'pz') pizzicato(ctx, this.corda, e.f, quando, e.vel)
     else if (e.k === 'mq' || e.k === 'rl') amostra(ctx, this.seco, e.b, quando, e.vel)
@@ -266,15 +275,15 @@ class Gerador {
       if (this.p === 0) this.soar({ k: 'cx', f: hzM(62 + Som.grau(d + (par ? 4 : 0)) - (par ? 12 : 0)), vel: 0.45, queda: 0.9, simples: true }, t)
     }
     if (this.abafado && !this.final && this.tCor !== null) {
-      while (this.tCor < t + this.dp) { if (this.tCor >= t - 1e-4 && !this.mudo) amostra(this.ctx, this.direto, this.pc.coracao, this.tCor, 0.95); this.tCor += 60 / 70 }
+      while (this.tCor < t + this.dp) { if (this.tCor >= t - 1e-4 && !this.mudo && (!this.so || this.so.has('coracao'))) amostra(this.ctx, this.direto, this.pc.coracao, this.tCor, 0.75); this.tCor += 60 / 70 }
     }
     this.t += this.dp
-    if (++this.p === PASSOS) { this.p = 0; this.cf++; this.compassos++ }
+    if (++this.p === PASSOS) { this.p = 0; this.cf++ }
   }
 }
 
 // ------------------------------------------------------------------ ao vivo
-const E = { ger: null, relogio: null, querTocar: null, gravada: null, parando: null }
+const E = { ger: null, relogio: null, querTocar: null, gravada: null, parando: null, so: null }
 function ciclo() {
   const ctx = Som.contexto(), g = E.ger
   if (!g || !ctx || ctx.state !== 'running') return
@@ -318,6 +327,7 @@ function comecar(nome) {
     aoVirar: (g, t) => { Som.afinar(g.tr); trocarGravada(g, t) },
   })
   if (MOMENTOS[nome]?.modificador || MOMENTOS[nome]?.final) E.ger.pedir(nome)
+  E.ger.so = E.so
   E.ger.mix.gain.setValueAtTime(0, ctx.currentTime); E.ger.mix.gain.linearRampToValueAtTime(NIVEL, ctx.currentTime + 0.25)
   E.querTocar = null
   if (!E.relogio) E.relogio = setInterval(ciclo, 25)
@@ -341,6 +351,8 @@ export function momento(nome) {
 }
 /** Costura: o tema sobe um degrau da escala a cada parte aberta (vale a partir do próximo tempo). */
 export function degrau(n) { if (E.ger && Number.isFinite(n)) E.ger.degrau = Math.max(0, Math.min(14, Math.round(n))); return E.ger?.degrau ?? 0 }
+/** Folha de sons: ouvir só algumas camadas (ex.: solo(['baixo'])); solo(null) volta a tocar todas. */
+export function solo(lista) { E.so = lista && lista.length ? new Set(lista) : null; if (E.ger) E.ger.so = E.so; return E.so ? [...E.so] : null }
 /** Para a música com um esmaecimento. */
 export function parar(ms = 600) {
   E.querTocar = null
@@ -399,6 +411,7 @@ export function fabricar(nome, compassos = 16, ctxOffline, opcoes = {}) {
     aoFinal: (qual, t) => Som.fabricar(qual, 0, ctxOffline, { quando: t }),
   })
   if (M.modificador) g.tCor = t0
+  if (opcoes.so) g.so = new Set(opcoes.so)
   for (let c = 0; c < compassos; c++) {
     if (M.casulo && opcoes.sobe !== false) g.degrau = Math.min(7, Math.floor(c / 2))
     if (M.final && c === 2) g.pedir(nome)

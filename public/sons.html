@@ -94,11 +94,12 @@
 
   <h2>Música (gerada na hora)</h2>
   <p class="apagado">Valsa em ré menor, 3 por 4, 92 batidas por minuto. A troca de momento acontece sempre na virada do compasso. <span id="estadoMusica" class="etiqueta">parada</span></p>
-  <div class="fila" style="margin-bottom:12px">
+  <div class="fila" style="margin-bottom:8px">
     <button id="btnPararMusica" type="button">Parar a música</button>
     <button id="btnDegrau" type="button">Costura: subir um degrau</button>
     <button id="btnAbaixar" type="button">Abaixar 6 dB por 400 ms</button>
   </div>
+  <div id="camadas" class="fila" style="margin-bottom:12px" role="group" aria-label="Ouvir uma camada sozinha"><span class="apagado">Camadas (ouvir uma sozinha):</span></div>
   <section id="musica" class="momentos"></section>
 
   <h2>Efeitos (um por acontecimento)</h2>
@@ -233,6 +234,14 @@ $('#btnParar').addEventListener('click', () => { pararLuta(); Som.parar(); Music
 $('#btnPararMusica').addEventListener('click', () => Musica.parar())
 $('#btnDegrau').addEventListener('click', () => { if (Musica.estado().camada !== 'costura') Musica.momento('costura'); else Musica.degrau(Musica.estado().degrau + 1) })
 $('#btnAbaixar').addEventListener('click', () => Musica.abaixar(6, 400))
+{ // camadas: tocar todas ou uma sozinha (o relógio e as cordas só existem nos momentos da Tesoura; o coração, no Último Fio)
+  const box = $('#camadas'), botoes = []
+  const marca = (qual) => { for (const [b, n] of botoes) b.setAttribute('aria-pressed', String(n === qual)) }
+  const novo = (rotulo, nome) => { const b = el('button', null, rotulo); b.type = 'button'; b.dataset.camada = nome ?? ''; botoes.push([b, nome]); box.append(b); b.addEventListener('click', () => { Musica.solo(nome ? [nome] : null); marca(nome) }) }
+  novo('Todas', null)
+  for (const c of Musica.camadas()) novo(c.rotulo, c.nome)
+  marca(null)
+}
 setInterval(() => {
   const e = Som.estado(), m = Musica.estado(), s = $('#estadoSom')
   s.textContent = !e.iniciado ? 'Som desligado: toque em qualquer botão' : !e.rodando ? 'Som em pausa' : `Som ligado · ${e.vozes} de 16 vozes${e.mudo ? ' · mudo' : ''}`
@@ -357,12 +366,13 @@ $('#btnLuta').addEventListener('click', tocarLuta)
 
 // ------------------------------------------------------------------ montar a folha
 refletir()
-await Som.carregarManifesto()
-await Som.carregarAmostras()
-const e0 = Som.estado().amostras
-$('#notaAmostras').textContent = e0.prontas + e0.falhas === 0 ? '(nenhuma no manifesto ainda: tudo é feito por código)' : `(${e0.prontas} pronta${e0.prontas === 1 ? '' : 's'}${e0.falhas ? `, ${e0.falhas} não carregou` : ''})`
 const lista = Som.tabela()
 F.pronto = (async () => {
+  await Som.carregarManifesto()
+  await Som.carregarAmostras()
+  refletir()
+  const e0 = Som.estado().amostras
+  $('#notaAmostras').textContent = e0.prontas + e0.falhas === 0 ? '(nenhuma no manifesto ainda: tudo é feito por código)' : `(${e0.prontas} pronta${e0.prontas === 1 ? '' : 's'}${e0.falhas ? `, ${e0.falhas} não carregou` : ''})`
   let i = 0
   for (const t of lista) { await cartaoDoEfeito(t); $('#progresso').textContent = `Fabricando e medindo… ${++i} de ${lista.length}`; await new Promise((ok) => setTimeout(ok, 0)) }
   pintarFontes()

@@ -27,9 +27,10 @@ export const PARAMS_SERVIDOR = {
   renovarSessaoMs: 60 * 1000, // renova a sessão no banco no máximo uma vez por minuto (menos escrita)
   abandonoMin: 30, // luta aberta sem pedido do dono por mais que isto: derrota por abandono no próximo pedido da conta
   lutasEncerradasPorConta: 200, // lutas encerradas guardadas por conta (replay); as mais antigas além disso saem do banco (S2-2)
+  lutasNoHistoricoDoBoneco: 100, // eventos "lutou" guardados por boneco (histórico); os mais antigos saem (tarefa 16)
 }
-// Ponto de encaixe da economia (NÃO fazer sem o "sim" do dono): custo da costura, energia para abrir luta,
-// custo de desistir (A6) e prêmio entram em shared/config.js, não aqui.
+// Economia (energia para abrir luta, A6) fica em shared/config.js (ECONOMIA_DO_BETA), não aqui. Custo da costura e
+// prêmio: só com o "sim" do dono.
 
 export const CABECALHOS_DE_SEGURANCA = {
   'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
@@ -105,6 +106,17 @@ const semMapeado = (endereco) => {
   return ip.startsWith('::ffff:') && ip.includes('.') ? ip.slice(7) : ip
 }
 
+/**
+ * Forma única do IP (tarefa 16): IPv4 mapeado vira IPv4; IPv6 vira a forma curta em minúsculas (a mesma que o socket
+ * mostra: "0:0:0:0:0:0:0:1" → "::1"). Não normaliza (ex.: com zona "%eth0") → null.
+ */
+export function ipCanonico(endereco) {
+  const ip = semMapeado(endereco)
+  if (isIP(ip) === 4) return ip
+  if (isIP(ip) !== 6) return null
+  try { return semMapeado(new URL(`http://[${ip}]`).hostname.slice(1, -1)) } catch { return null }
+}
+
 /** IP do pedido. IPv4 inteiro; IPv6 pelo /64 (os 4 primeiros grupos). */
 export function chaveDoIp(endereco) {
   const ip = semMapeado(endereco)
@@ -126,8 +138,13 @@ export function chaveDoBloco48(endereco) {
 export function proxiesDoAmbiente(env = process.env, log = console.log) {
   if (env.TRUST_PROXY !== '1') return new Set()
   const lista = String(env.TRUST_PROXY_IPS ?? '').split(',').map((x) => semMapeado(x.trim())).filter(Boolean)
-  const validos = lista.filter((ip) => isIP(ip))
-  if (validos.length !== lista.length) log('AVISO: TRUST_PROXY_IPS tem item que não é IP; ignorado.')
+  const validos = []
+  for (const item of lista) {
+    const ip = ipCanonico(item)
+    if (ip) validos.push(ip)
+    else if (isIP(item)) log(`AVISO: TRUST_PROXY_IPS: não consegui normalizar ${item.slice(0, 60)}; ignorado (escreva sem zona, ex.: ::1).`)
+    else log('AVISO: TRUST_PROXY_IPS tem item que não é IP; ignorado.')
+  }
   if (!validos.length) log('AVISO: TRUST_PROXY=1 sem TRUST_PROXY_IPS: X-Forwarded-For será ignorado (vale o IP da conexão).')
   return new Set(validos)
 }
@@ -139,14 +156,14 @@ export function proxiesDoAmbiente(env = process.env, log = console.log) {
  * cliente inventa).
  */
 export function ipDoCliente(req, proxies) {
-  const doSocket = semMapeado(req.socket?.remoteAddress)
+  const doSocket = ipCanonico(req.socket?.remoteAddress) ?? semMapeado(req.socket?.remoteAddress)
   if (!proxies || !proxies.has(doSocket)) return doSocket
   const xff = req.headers['x-forwarded-for']
   if (!xff) return doSocket
-  const lista = (Array.isArray(xff) ? xff.join(',') : String(xff)).split(',').map((x) => semMapeado(x.trim()))
+  const lista = (Array.isArray(xff) ? xff.join(',') : String(xff)).split(',').map((x) => ipCanonico(x.trim()))
   for (let i = lista.length - 1; i >= 0; i--) {
     const ip = lista[i]
-    if (isIP(ip) && !proxies.has(ip)) return ip
+    if (ip && !proxies.has(ip)) return ip
   }
   return doSocket
 }
@@ -325,7 +342,7 @@ const TOKEN = /^Bearer ([A-Za-z0-9_-]{43})$/
  */
 export function criarTratador({ jogo, agora = Date.now, log = console.log, limites = {}, banco = null, proxies }) {
   const P = { ...PARAMS_SERVIDOR, ...limites }
-  const confiaveis = proxies === undefined ? proxiesDoAmbiente(process.env, log) : new Set([...proxies].map(semMapeado))
+  const confiaveis = proxies === undefined ? proxiesDoAmbiente(process.env, log) : new Set([...proxies].map((p) => ipCanonico(p) ?? semMapeado(p)))
   const tipos = { nova: P.contasPorIp, nova48: P.contasPorBloco48, conta: P.pedidosPorConta, ip: P.pedidosPorIp, ip48: P.pedidosPorBloco48 }
   const mem = Object.fromEntries(Object.entries(tipos).map(([k, cfg]) => [k, criarLimite(cfg, agora)]))
   const naMemoria = (chave, cfg, tipo) => mem[tipo](chave)

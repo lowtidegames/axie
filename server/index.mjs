@@ -25,7 +25,8 @@ export async function iniciar({
   const jogo = criarJogo(db, {
     agora, soLeitura, tempoDoTurnoMs: P.tempoDoTurnoMs, folgaDoRelogioMs: P.folgaDoRelogioMs, maxBonecosPorConta: P.maxBonecosPorConta,
     paginaDeBonecos: P.paginaDeBonecos, validadeDaSessaoH: P.validadeDaSessaoH, renovarSessaoMs: P.renovarSessaoMs, abandonoMin: P.abandonoMin,
-    lutasEncerradasPorConta: P.lutasEncerradasPorConta,
+    lutasEncerradasPorConta: P.lutasEncerradasPorConta, lutasNoHistoricoDoBoneco: P.lutasNoHistoricoDoBoneco, log,
+    ...(limites.energiaPorDia === undefined ? {} : { energiaPorDia: limites.energiaPorDia }), // só testes; o número é de shared/config.js
   })
   const tratar = criarTratador({ jogo, agora, log, limites, banco: db, ...(proxies === undefined ? {} : { proxies }) })
   const servidor = createServer({ requestTimeout: 15_000, headersTimeout: 10_000 }, tratar)

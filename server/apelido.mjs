@@ -10,8 +10,16 @@ export function limparApelido(s) {
   return String(s).normalize('NFKC').replace(/\s+/gu, ' ').trim()
 }
 
-/** Forma de comparar (vai para o índice único). */
+/**
+ * Forma de comparar (vai para o índice único). Desde a v4 (tarefa 16): "rn" vale "m" (na tela parecem iguais) e
+ * ponto, traço, _ e espaço nas PONTAS não contam (".Ana_" é "Ana").
+ */
 export function chaveDoApelido(s) {
+  return chaveDoApelidoV3(s).replace(/rn/g, 'm').replace(/^[ ._-]+|[ ._-]+$/g, '')
+}
+
+/** Forma de comparar da migração v3 (congelada: migração antiga não muda). */
+export function chaveDoApelidoV3(s) {
   return limparApelido(s).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[i1]/g, 'l').replace(/0/g, 'o')
 }
 

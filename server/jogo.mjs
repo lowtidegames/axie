@@ -8,7 +8,7 @@ import {
   PARAMS_COSTURA, PARTES_DO_BONECO, aposentar, chancesDaCostura, costurar, custoDaCostura, gerarBonecoInicial,
   nivelDeRemendo, paraLuta, podeAposentar, podeCosturar, registrarLuta,
 } from '../shared/costura.js'
-import { BONECOS_PRONTOS } from '../shared/config.js'
+import { BONECOS_PRONTOS, ECONOMIA_DO_BETA } from '../shared/config.js'
 import { transacao } from './db.mjs'
 import { chaveDoApelido } from './apelido.mjs'
 
@@ -86,17 +86,24 @@ function posicaoDoCursor(cursor) {
   return Number(m[1])
 }
 
+/** Um dia em ms. A energia recarrega na virada do dia em UTC (00:00 UTC = 21:00 BRT), pelo relógio do servidor. */
+const DIA_MS = 86_400_000
+const diaUtc = (t) => Math.floor(t / DIA_MS)
+
 /**
  * opcoes: agora (relógio), tempoDoTurnoMs, folgaDoRelogioMs, maxBonecosPorConta, paginaDeBonecos, validadeDaSessaoH,
  * renovarSessaoMs, abandonoMin, lutasEncerradasPorConta (as mais antigas além disso saem do banco),
- * soLeitura (função: SAVE_SO_LEITURA ligado → GET não grava nada).
+ * lutasNoHistoricoDoBoneco (eventos "lutou" guardados por boneco), energiaPorDia (padrão: shared/config.js),
+ * soLeitura (função: SAVE_SO_LEITURA ligado → GET não grava nada), log (erros do servidor; nunca token).
  */
 export function criarJogo(db, {
   agora = Date.now, tempoDoTurnoMs = 20_000, folgaDoRelogioMs = 1_500, maxBonecosPorConta = 60, paginaDeBonecos = 50,
   validadeDaSessaoH = 720, renovarSessaoMs = 60_000, abandonoMin = 30, lutasEncerradasPorConta = 200, soLeitura = () => false,
+  lutasNoHistoricoDoBoneco = 100, energiaPorDia = ECONOMIA_DO_BETA.energiaPorDia, log = console.log,
 } = {}) {
   const validadeMs = validadeDaSessaoH * 3_600_000
   const abandonoMs = abandonoMin * 60_000
+  const custoDaAventura = ECONOMIA_DO_BETA.energiaPorLutaDaAventura
   const q = {
     sessao: db.prepare('SELECT s.usada_em, c.id, c.apelido FROM sessoes s JOIN contas c ON c.id = s.conta_id WHERE s.token_hash = ?'),
     novaSessao: db.prepare('INSERT INTO sessoes (token_hash, conta_id, criada_em, usada_em) VALUES (?, ?, ?, ?)'),
@@ -104,7 +111,13 @@ export function criarJogo(db, {
     apagarSessao: db.prepare('DELETE FROM sessoes WHERE token_hash = ?'),
     novaConta: db.prepare('INSERT INTO contas (apelido, apelido_norm, token_hash, criada_em) VALUES (?, ?, ?, ?)'),
     apelidoUsado: db.prepare('SELECT 1 FROM contas WHERE apelido_norm = ?'),
-    conta: db.prepare('SELECT id, apelido, fase_liberada FROM contas WHERE id = ?'),
+    conta: db.prepare('SELECT id, apelido, fase_liberada, energia_dia, energia_gasta, vitorias_seguidas FROM contas WHERE id = ?'),
+    // A6 (tarefa 16): gasta energia só se couber no dia de hoje (dia novo começa do zero). 0 linhas = sem energia.
+    gastarEnergia: db.prepare(`UPDATE contas SET
+        energia_gasta = CASE WHEN energia_dia = ? THEN energia_gasta + ? ELSE ? END,
+        energia_dia = ?
+      WHERE id = ? AND (CASE WHEN energia_dia = ? THEN energia_gasta ELSE 0 END) + ? <= ?`),
+    sequencia: db.prepare('UPDATE contas SET vitorias_seguidas = CASE WHEN ? THEN vitorias_seguidas + 1 ELSE 0 END WHERE id = ?'),
     liberarFase: db.prepare('UPDATE contas SET fase_liberada = MAX(fase_liberada, ?) WHERE id = ?'),
     boneco: db.prepare('SELECT * FROM bonecos WHERE id = ? AND conta_id = ?'),
     paginaDeBonecos: db.prepare('SELECT * FROM bonecos WHERE conta_id = ? AND n > ? ORDER BY n LIMIT ?'),
@@ -117,6 +130,9 @@ export function criarJogo(db, {
     liberar: db.prepare('UPDATE bonecos SET ocupado_por = NULL, versao = versao + 1 WHERE ocupado_por = ? AND conta_id = ?'),
     evento: db.prepare('INSERT INTO eventos_bonecos (boneco_id, conta_id, tipo, dados, em) VALUES (?, ?, ?, ?, ?)'),
     eventos: db.prepare('SELECT tipo, dados, em FROM eventos_bonecos WHERE boneco_id = ? AND conta_id = ? ORDER BY id'),
+    // teto do histórico: eventos "lutou" do boneco além dos mais novos saem (o nascimento, a costura e a aposentadoria ficam)
+    lutasAlemDoHistorico: db.prepare(`DELETE FROM eventos_bonecos WHERE id IN (
+      SELECT id FROM eventos_bonecos WHERE boneco_id = ? AND tipo = 'lutou' ORDER BY id DESC LIMIT -1 OFFSET ?)`),
     lutaAberta: db.prepare("SELECT * FROM lutas WHERE conta_id = ? AND status = 'aberta'"),
     luta: db.prepare('SELECT * FROM lutas WHERE id = ? AND conta_id = ?'),
     novaLuta: db.prepare(`INSERT INTO lutas (id, conta_id, modo, fase, robo, semente, time_a, time_b, bonecos_a, estado, seq, prazo, status, criada_em, versao_motor, tocada_em)
@@ -192,6 +208,24 @@ export function criarJogo(db, {
 
   // ---------------------------------------------------------------- conta
 
+  /** Energia da Aventura como a tela mostra: { atual, maximo, recarregaEm (ISO, próxima virada do dia UTC) }. */
+  function energiaDaConta(conta, t = agora()) {
+    const hoje = diaUtc(t)
+    const gasta = conta.energia_dia === hoje ? conta.energia_gasta : 0
+    return { atual: Math.max(0, energiaPorDia - gasta), maximo: energiaPorDia, recarregaEm: new Date((hoje + 1) * DIA_MS).toISOString() }
+  }
+
+  /** Gasta a energia de abrir uma luta da Aventura. Chamar DENTRO da transação que cria a luta. Sem energia: 409. */
+  function gastarEnergia(contaId) {
+    const hoje = diaUtc(agora())
+    const r = q.gastarEnergia.run(hoje, custoDaAventura, custoDaAventura, hoje, contaId, hoje, custoDaAventura, energiaPorDia)
+    if (Number(r.changes) !== 1) throw semEnergia(contaId)
+  }
+  const semEnergia = (contaId) => {
+    const energia = energiaDaConta(q.conta.get(contaId))
+    return erro(409, 'SEM_ENERGIA', 'Sua energia acabou por hoje. Ela volta inteira na virada do dia.', { energia })
+  }
+
   /** Conta nova com os 9 bonecos de teste (face = pronto; forro sorteado com semente do servidor). Devolve o token (só agora). */
   function criarConta(apelido) {
     const token = randomBytes(32).toString('base64url')
@@ -253,6 +287,8 @@ export function criarJogo(db, {
     return {
       conta: { id: conta.id, apelido: conta.apelido },
       faseLiberada: conta.fase_liberada,
+      energia: energiaDaConta(conta),
+      vitoriasSeguidas: conta.vitorias_seguidas,
       colecao: { total, vivos, aposentados: total - vivos, maxVivos: maxBonecosPorConta },
       bonecos: pagina.bonecos,
       proximo: pagina.proximo,
@@ -300,6 +336,11 @@ export function criarJogo(db, {
     const g = JSON.parse(linha.estado)
     if (g.times) return g // estado inteiro (luta aberta, ou encerrada antes do S2-2)
     const r = reproduzir({ semente: linha.semente, timeA: JSON.parse(linha.time_a), timeB: JSON.parse(linha.time_b), comandos: comandosGuardados(g) })
+    if (!r.ok) {
+      // nunca mostrar luta pela metade: o motor recusou um comando guardado (banco mexido ou motor mudou sem versão)
+      log(`ERRO luta ${linha.id}: o replay não refaz (comando ${r.indice}: ${r.codigo})`)
+      throw erro(500, 'LUTA_ILEGIVEL', 'Não consegui remontar esta luta. Ela ficou guardada; avise a equipe.')
+    }
     const e = r.estado
     const res = linha.resultado ? JSON.parse(linha.resultado) : null
     if (!e.fim && res) {
@@ -357,6 +398,8 @@ export function criarJogo(db, {
       q.apagarLuta.run(id)
     }
     if (linha.modo === 'aventura' && res.vencedor === EU) q.liberarFase.run(Math.min(linha.fase + 1, FASES_DA_AVENTURA.length), linha.conta_id)
+    // sequência de vitórias da Aventura: qualquer derrota (inclusive desistir e abandonar) zera
+    if (linha.modo === 'aventura') q.sequencia.run(res.vencedor === EU ? 1 : 0, linha.conta_id)
     const ids = JSON.parse(linha.bonecos_a)
     ids.forEach((id, i) => {
       const lugar = `${EU}${i}`
@@ -372,6 +415,7 @@ export function criarJogo(db, {
         // boneco não pode mais registrar luta (não deveria acontecer): só o evento fica
       }
       evento(id, linha.conta_id, 'lutou', { luta: linha.id, modo: linha.modo, venceu, maiorGolpe: maior })
+      q.lutasAlemDoHistorico.run(id, lutasNoHistoricoDoBoneco)
     })
   }
 
@@ -470,8 +514,10 @@ export function criarJogo(db, {
     if (modo === 'aventura') {
       const f = FASES_DA_AVENTURA[fase - 1]
       if (!f) throw erro(400, 'FASE_INVALIDA', 'Essa fase não existe.')
-      const liberada = q.conta.get(contaId).fase_liberada
+      const daConta = q.conta.get(contaId)
+      const liberada = daConta.fase_liberada
       if (fase > liberada) throw erro(409, 'FASE_BLOQUEADA', `Vença a fase ${liberada} para abrir a próxima.`, { faseLiberada: liberada })
+      if (energiaDaConta(daConta).atual < custoDaAventura) throw semEnergia(contaId) // recusa rápida; a trava de verdade é na transação
       roboDaLuta = f.robo
     } else if (!ROBOS.includes(roboDaLuta)) throw erro(400, 'ROBO_INVALIDO', 'Robô desconhecido.')
     const timeB = sortearDiferentes(Object.keys(BONECOS_PRONTOS), 3)
@@ -485,7 +531,10 @@ export function criarJogo(db, {
       time_a: json(defs), time_b: json(timeB), bonecos_a: json(time), seq: 0,
       prazo: e.fim ? null : quando + tempoDoTurnoMs, status: 'aberta', versao_motor: VERSAO_DO_MOTOR, tocada_em: quando,
     }
+    let energia
     transacao(db, () => {
+      // A6: a energia sai na MESMA transação que cria a luta (sem corrida: só quem cabe no UPDATE abre)
+      if (modo === 'aventura') gastarEnergia(contaId)
       try {
         q.novaLuta.run(id, contaId, linha.modo, linha.fase, roboDaLuta, semente, linha.time_a, linha.time_b, linha.bonecos_a, json(e), linha.prazo, quando, VERSAO_DO_MOTOR, quando)
       } catch (x) {
@@ -496,8 +545,9 @@ export function criarJogo(db, {
         if (q.ocupar.run(id, bid, contaId).changes !== 1) throw erro(409, 'BONECO_OCUPADO', 'Esse boneco está ocupado.')
       }
       if (e.fim) encerrar(linha, e, 0)
+      energia = energiaDaConta(q.conta.get(contaId))
     })
-    return respostaDaLuta(linha, e, 0)
+    return { ...respostaDaLuta(linha, e, 0), energia }
   }
 
   function verLuta(contaId, id) {

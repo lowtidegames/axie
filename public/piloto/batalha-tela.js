@@ -1,40 +1,43 @@
-// Piloto — tela "Battle": reproduz a luta que já foi calculada inteira no início (semente + times + planos).
+// Piloto — a LUTA de lado: reproduz a luta que já foi calculada inteira quando começou (luta.js, rodarLuta).
 // Nada aqui decide resultado: a tela só mostra os passos e eventos do motor (shared/batalha.js).
+// Na tela: barras de vida, golpe, Strong!, crítico, queda. Sem textos explicativos por cima.
+// API: criarBatalha({ raiz, opcoes, ganchos }) → { B, comecar({ luta, nomes, defs, tipos }) → Promise (termina no fim da luta),
+//      pular() (vai direto ao fim desta luta), parar(), medir() }
 import { bateForte } from '../../shared/batalha.js'
 import { CARTAS, REGRAS } from '../../shared/config.js'
 import * as Arte from './arte.js'
 import { desenharArena, lugaresDaArena } from './cenas.js'
-import { golpeResistido } from './patrulha.js'
-import { PCT_CANSADO } from './regras-piloto.js'
-import { ELEMENTOS, SOL, TERMOS, nomeDaHabilidade } from './tema.js'
+import { golpeResistido } from './luta.js'
+import { ELEMENTOS } from './tema.js'
 
 const $ = (s, r = document) => r.querySelector(s)
 const VELS = [1, 2, 4]
+const SOL = { desceDe: REGRAS.tesouraInicio - 3, encosta: REGRAS.tesouraInicio }
 const ler = (k, p) => { try { return localStorage.getItem(k) ?? p } catch { return p } }
-const gravar = (k, v) => { try { localStorage.setItem(k, v) } catch {} }
+const gravar = (k, v) => { try { localStorage.setItem(k, v) } catch { /* sem armazenamento */ } }
 class Pulou extends Error {}
 
 export function criarBatalha({ raiz, ganchos, opcoes }) {
   const B = {
-    luta: null, nomes: {}, defs: {}, estado: null, i: -1, vel: VELS.includes(+ler('piloto_vel', '1')) ? +ler('piloto_vel', '1') : 1,
-    pausado: false, pular: false, acabou: false, rodando: false, k: 1, LW: 384, LH: 216, chao: 64, cunha: false, lentoAte: 0, resumo: null,
-    vis: {}, sol: 0, laranja: 0, solAlvo: 0, laranjaAlvo: 0, tremida: 0, ultimoFlash: -1e9, flashes: [], stats: null,
+    luta: null, nomes: {}, defs: {}, tipos: {}, estado: null, i: -1, vel: VELS.includes(+ler('piloto_vel', '2')) ? +ler('piloto_vel', '2') : 2,
+    pular: false, acabou: false, rodando: false, k: 1, LW: 384, LH: 216, chao: 64, cunha: false, lentoAte: 0,
+    vis: {}, sol: 0, laranja: 0, solAlvo: 0, laranjaAlvo: 0, tremida: 0, ultimoFlash: -1e9, flashes: [], sessao: 0,
   }
   const cv = $('#bCanvas', raiz), hud = $('#bHud', raiz), palco = $('#bPalco', raiz)
   const cx = cv.getContext('2d')
+  const tinta = Arte.criarCanvas(64, 64), tx = tinta.getContext('2d')
+  const som = (n) => opcoes.som?.(n)
 
-  // ---------------------------------------------------------------- medidas (múltiplo inteiro)
-  // A câmera fica PERTO: a arena lógica é pequena (até 340×190) e o múltiplo inteiro é o maior que cabe, para a luta
-  // encher a tela (PC 1280×720: ×3, monstros de 192 px; celular 360: ×2 em cunha, monstros de 128 px).
+  // ---------------------------------------------------------------- medidas (múltiplo inteiro; a câmera fica perto)
   function medir() {
     const larg = raiz.clientWidth || window.innerWidth
     const celular = larg < 700
     let k, LW, LH
     if (celular) {
-      k = 2; LW = Math.floor(larg / k); LH = Math.max(176, Math.min(196, Math.floor((window.innerHeight - 330) / k)))
+      k = 2; LW = Math.floor(larg / k); LH = Math.max(176, Math.min(210, Math.floor((window.innerHeight - 260) / k)))
       B.cunha = true; B.chao = LH - 84
     } else {
-      const altDisp = window.innerHeight - 172
+      const altDisp = window.innerHeight - 190
       k = Math.max(2, Math.min(4, Math.floor((larg - 16) / 300), Math.floor(altDisp / 165)))
       LW = Math.min(340, Math.floor((larg - 16) / k)); LH = Math.max(165, Math.min(190, Math.floor(altDisp / k)))
       B.cunha = false; B.chao = 62
@@ -44,46 +47,20 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
     palco.style.width = LW * k + 'px'; palco.style.height = LH * k + 'px'
     cv.style.width = LW * k + 'px'; cv.style.height = LH * k + 'px'
     palco.style.setProperty('--k', k)
-    raiz.classList.toggle('b-celular', celular)
     if (B.estado) { posicionarTodos(true); atualizarHud() }
   }
-  const som = (n) => opcoes.som?.(n)
 
   // ---------------------------------------------------------------- visual de cada monstro
   function alvoDe(id) {
     const b = B.estado.bonecos[id]
     const lug = lugaresDaArena(B.LW, B.LH, { chao: B.chao, cunha: B.cunha })[b.time]
-    const i = B.estado.times[b.time].lugares.indexOf(id)
-    return lug[i]
+    return lug[B.estado.times[b.time].lugares.indexOf(id)]
   }
   function posicionarTodos(ja) {
     for (const id of Object.keys(B.estado.bonecos)) {
-      const a = alvoDe(id), v = (B.vis[id] ??= { x: a.x, y: a.y, pose: 'idle', avanco: 0, recuo: 0, flash: 0, alfa: 1, tomba: 0 })
+      const a = alvoDe(id), v = (B.vis[id] ??= { x: a.x, y: a.y, pose: 'idle', avanco: 0, recuo: 0, flash: 0 })
       v.tx = a.x; v.ty = a.y
       if (ja) { v.x = a.x; v.y = a.y }
-    }
-  }
-
-  function criarHud() {
-    hud.innerHTML = ''
-    for (const id of Object.keys(B.estado.bonecos)) {
-      const b = B.estado.bonecos[id]
-      const el = document.createElement('div')
-      el.className = 'b-mon b-mon--' + b.time
-      el.dataset.id = id
-      const cartas = cartasDe(id)
-      el.innerHTML = `<div class="b-nome">${B.nomes[id]}</div>
-        <div class="b-prontas">${cartas.map((c) => `<img class="b-pronta" data-carta="${c}" alt="${nomeDaHabilidade(c)}" title="${nomeDaHabilidade(c)}" src="${Arte.url(Arte.iconeHabilidade(c))}">`).join('')}</div>
-        <div class="b-vida"><div class="b-vida__barra"><i></i></div><span class="b-vida__num"></span></div>
-        <div class="b-status">${cansadoNoInicio(id) ? `<span class="b-tired" title="Started at ${PCT_CANSADO}% HP">Tired</span>` : ''}<span class="b-guard" hidden></span><span class="b-exp" hidden title="Exposed">Exposed</span><span class="b-veil" hidden title="Veil">Veil</span></div>
-        <div class="b-selo" hidden>LAST STAND</div>`
-      hud.appendChild(el)
-    }
-    for (const t of ['A', 'B']) {
-      const o = document.createElement('div')
-      o.className = 'b-glow b-glow--' + t
-      o.innerHTML = `<span class="b-glow__rot">Glow</span>` + Array.from({ length: REGRAS.linhaMaxima }, () => '<i></i>').join('')
-      hud.appendChild(o)
     }
   }
   /** Começou a luta cansado? (o motor pôs a vida inicial abaixo da máxima: regra de cansaço do piloto) */
@@ -91,13 +68,19 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
     const b = B.luta?.inicial?.bonecos?.[id]
     return !!b && b.time === 'A' && b.vida < b.vidaMax
   }
-  function cartasDe(id) {
-    const vistas = []
-    for (const c of Object.values(B.estado.cartas)) if (c.dono === id && !vistas.includes(c.carta)) vistas.push(c.carta)
-    const ordem = { cabeca: 0, bracos: 1, pernas: 2 }
-    return vistas.sort((a, b) => ordem[CARTAS[a].parte] - ordem[CARTAS[b].parte])
+  function criarHud() {
+    hud.innerHTML = ''
+    for (const id of Object.keys(B.estado.bonecos)) {
+      const b = B.estado.bonecos[id]
+      const el = document.createElement('div')
+      el.className = 'b-mon b-mon--' + b.time
+      el.dataset.id = id
+      el.innerHTML = `<div class="b-nome">${B.nomes[id]}</div>
+        <div class="b-vida"><img class="b-el px" src="${Arte.url(Arte.iconeElemento(b.tipo))}" alt="${ELEMENTOS[b.tipo].nome}"><div class="b-vida__barra"><i></i></div></div>
+        ${cansadoNoInicio(id) ? '<span class="b-tired">Tired</span>' : ''}`
+      hud.appendChild(el)
+    }
   }
-
   function atualizarHud() {
     const e = B.estado, k = B.k
     for (const el of hud.querySelectorAll('.b-mon')) {
@@ -107,36 +90,9 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
       const pct = b.vidaMax ? b.vida / b.vidaMax : 0
       el.querySelector('.b-vida__barra i').style.width = (pct * 100).toFixed(1) + '%'
       el.querySelector('.b-vida__barra').classList.toggle('baixa', pct <= 0.3)
-      el.querySelector('.b-vida__num').textContent = b.estado === 'caido' ? 'Out' : `${b.vida}`
-      const g = el.querySelector('.b-guard')
-      g.hidden = !(b.escudo > 0); g.textContent = b.escudo
-      el.querySelector('.b-exp').hidden = !(b.fioSoltoAte >= e.turno && b.estado === 'vivo')
-      el.querySelector('.b-veil').hidden = !b.veu
-      el.querySelector('.b-selo').hidden = b.estado !== 'fio'
       el.classList.toggle('caido', b.estado === 'caido')
-      el.classList.toggle('fio', b.estado === 'fio')
-      const mao = new Set(e.times[b.time].mao.map((cid) => e.cartas[cid]).filter((c) => c && c.dono === id).map((c) => c.carta))
-      for (const im of el.querySelectorAll('.b-pronta')) im.classList.toggle('acesa', mao.has(im.dataset.carta) && b.estado !== 'caido')
-    }
-    const lista = $('#bLista', raiz)
-    lista.innerHTML = ['A', 'B'].map((t) => `<div class="b-lista__time"><h3>${t === 'A' ? 'Your patrol' : 'The guard'}</h3>` + e.times[t].lugares.map((id, i) => {
-      const b = e.bonecos[id]
-      const st = [cansadoNoInicio(id) ? '<span class="b-tired">Tired</span>' : '', b.escudo > 0 ? `<span class="b-guard">${b.escudo}</span>` : '', b.fioSoltoAte >= e.turno && b.estado === 'vivo' ? '<span class="b-exp">Exposed</span>' : '', b.veu ? '<span class="b-veil">Veil</span>' : '', b.estado === 'fio' ? '<span class="b-exp">Last Stand</span>' : ''].join('')
-      return `<div class="b-lista__m${b.estado === 'caido' ? ' caido' : ''}"><img src="${Arte.url(Arte.iconeElemento(b.tipo))}" alt=""><b>${B.nomes[id]}</b><small>${['Front', 'Middle', 'Back'][i]}</small><span>${b.estado === 'caido' ? 'Out' : b.vida + '/' + b.vidaMax}</span>${st}</div>`
-    }).join('') + '</div>').join('')
-    for (const t of ['A', 'B']) {
-      const o = hud.querySelector('.b-glow--' + t)
-      ;[...o.querySelectorAll('i')].forEach((i, n) => i.classList.toggle('on', n < e.times[t].linha))
     }
     const turno = Math.max(1, e.turno)
-    $('#bTurno', raiz).textContent = `Turn ${turno}/${REGRAS.turnoFinal}`
-    $('#bVez', raiz).textContent = e.vez === 'A' ? 'Your patrol acts' : 'The guard acts'
-    $('#bSol', raiz).textContent = turno >= SOL.encosta ? 'Sundown! Everyone tires.' : turno >= SOL.desceDe ? `Sundown in ${SOL.encosta - turno}` : 'Sun is high'
-    raiz.classList.toggle('b-sundown', turno >= SOL.encosta)
-    alvoSol(turno)
-    ganchos?.mudou?.()
-  }
-  function alvoSol(turno) {
     if (turno < SOL.desceDe) { B.solAlvo = 0; B.laranjaAlvo = 0 }
     else if (turno < SOL.encosta) { B.solAlvo = (turno - SOL.desceDe + 1) / (SOL.encosta - SOL.desceDe + 1); B.laranjaAlvo = 0.25 * B.solAlvo }
     else { B.solAlvo = 1; B.laranjaAlvo = 1 }
@@ -148,7 +104,7 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
   function desenhar(t) {
     const dt = Math.min(100, t - ultimo); ultimo = t
     for (const f of quadros) f(dt)
-    if (!B.estado) return
+    if (!B.estado || raiz.hidden) return
     const menos = opcoes.menosAnimacao()
     const pass = (a, b, r) => a + (b - a) * Math.min(1, r)
     B.sol = menos ? B.solAlvo : pass(B.sol, B.solAlvo, dt / 500)
@@ -164,29 +120,27 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
       const dir = b.time === 'A' ? 1 : -1
       if (v.recuo > 0) v.recuo = Math.max(0, v.recuo - dt / 30)
       const x = Math.round(v.x + dir * (v.avanco - (menos ? 0 : v.recuo))), y = Math.round(v.y)
-      // sombra
       cx.fillStyle = 'rgba(43,30,58,0.28)'
       cx.fillRect(x - 14, y - 2, 28, 3); cx.fillRect(x - 10, y - 3, 20, 5)
       cx.save()
       cx.globalAlpha = b.estado === 'caido' ? 0.35 : 1
       cx.translate(x, y - 60 + voa + resp + (b.estado === 'caido' ? 6 : 0))
       if (dir < 0) { cx.scale(-1, 1); cx.translate(-32, 0) } else cx.translate(-32, 0)
-      if (b.estado === 'fio') { // aura branca pulsando devagar (parada com Reduced motion)
-        const a = menos ? 0.45 : 0.3 + 0.25 * (0.5 + 0.5 * Math.sin(t / 380))
-        cx.globalAlpha = a; cx.fillStyle = '#FFFFFF'
-        for (let yy = 6; yy < 62; yy += 2) { const w = 20 + Math.round(6 * Math.sin(yy / 9)); cx.fillRect(32 - w, yy, w * 2, 2) }
-        cx.globalAlpha = 1
-      }
       cx.drawImage(sprite, 0, 0, 64, 64)
-      if (v.flash > 0 && !menos) { cx.globalCompositeOperation = 'source-atop'; cx.globalAlpha = 0.75; cx.fillStyle = '#FFFFFF'; cx.fillRect(0, 0, 64, 64); cx.globalCompositeOperation = 'source-over' }
+      // branco só em cima do desenho do monstro (nunca um quadrado por cima da cena): o golpe acende; a última chance pulsa
+      const branco = v.flash > 0 && !menos ? 0.75 : b.estado === 'fio' ? (menos ? 0.4 : 0.25 + 0.3 * (0.5 + 0.5 * Math.sin(t / 380))) : 0
+      if (branco) {
+        tx.globalCompositeOperation = 'source-over'; tx.clearRect(0, 0, 64, 64); tx.drawImage(sprite, 0, 0, 64, 64)
+        tx.globalCompositeOperation = 'source-atop'; tx.fillStyle = '#FFFFFF'; tx.fillRect(0, 0, 64, 64)
+        cx.globalAlpha = branco; cx.drawImage(tinta, 0, 0); cx.globalAlpha = 1
+      }
       cx.restore()
       if (v.flash > 0) v.flash -= dt
     }
     // tremida (até 6 px por até 120 ms; nunca com Reduced motion)
     if (B.tremida > 0 && !menos) {
       B.tremida -= dt
-      const m = 6
-      const dx = Math.round((Math.random() * 2 - 1) * m), dy = Math.round((Math.random() * 2 - 1) * m / 2)
+      const dx = Math.round((Math.random() * 2 - 1) * 6), dy = Math.round((Math.random() * 2 - 1) * 3)
       palco.style.transform = `translate(${dx}px, ${dy}px)`
       ganchos?.tremeu?.(Math.max(Math.abs(dx), Math.abs(dy)))
     } else { B.tremida = 0; palco.style.transform = '' }
@@ -194,20 +148,20 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
   function laco(t) { desenhar(t); requestAnimationFrame(laco) }
   requestAnimationFrame(laco)
 
-  // ---------------------------------------------------------------- tempo (velocidade, Pause, Skip)
+  // ---------------------------------------------------------------- tempo (velocidade e pulo)
   function espera(ms) {
     return new Promise((ok, falha) => {
       let resta = ms
       const f = (dt) => {
         if (B.pular) { quadros.delete(f); falha(new Pulou()); return }
-        if (!B.pausado) resta -= dt * B.vel * (performance.now() < B.lentoAte ? 0.25 : 1)
+        resta -= dt * B.vel * (performance.now() < B.lentoAte ? 0.25 : 1)
         if (resta <= 0) { quadros.delete(f); ok() }
       }
       quadros.add(f)
     })
   }
 
-  // ---------------------------------------------------------------- efeitos de tela
+  // ---------------------------------------------------------------- efeitos
   function noAlvo(id, html, cls, atraso = 0) {
     const v = B.vis[id]; if (!v) return
     const el = document.createElement('div')
@@ -228,81 +182,8 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
     B.flashes.push(agora)
     B.vis[id].flash = 80
   }
-  function faixa(cartaId, de) {
-    const f = $('#bFaixa', raiz)
-    const c = CARTAS[cartaId]
-    f.className = 'b-faixa b-faixa--' + B.estado.bonecos[de].time
-    f.style.setProperty('--cor', ELEMENTOS[c.tipo].cor)
-    f.innerHTML = `<img src="${Arte.url(Arte.iconeElemento(c.tipo))}" alt=""><b>${nomeDaHabilidade(cartaId)}</b><small>${B.nomes[de]}</small>`
-    f.hidden = false
-  }
-  const esconderFaixa = () => { $('#bFaixa', raiz).hidden = true }
   const icone = (t) => `<img class="b-ico" src="${Arte.url(Arte.iconeElemento(t))}" alt="${ELEMENTOS[t].nome}">`
-
-  // ---------------------------------------------------------------- um passo
-  async function passo(p) {
-    const evs = p.eventos
-    const c = p.cmd
-    if (c.tipo === 'jogar') {
-      const ec = evs.find((x) => x.t === 'carta')
-      const de = ec.de, carta = ec.id
-      faixa(carta, de)
-      await espera(350)
-      const v = B.vis[de]
-      v.pose = 'attack'; v.avanco = 10
-      await espera(180)
-      let atraso = 0, critico = false, ultimoFio = null, bateu = null
-      for (const ev of evs) {
-        if (ev.t === 'dano') {
-          const alvo = B.estado.bonecos[ev.alvo]
-          const forte = !ev.refletido && ev.carta && bateForte(CARTAS[ev.carta].tipo, alvo.tipo)
-          const resistido = golpeResistido(ev, alvo.tipo, B.luta.regras)
-          let h = `<b>${ev.valor}</b>`
-          if (resistido) h = '<small class="resistido">Resisted</small>' + h
-          if (ev.escudo) h += `<small>${ev.escudo} blocked</small>`
-          if (ev.critico) h = `<em>Critical!</em>` + h
-          if (forte) h = `<em class="forte">${icone(CARTAS[ev.carta].tipo)} Strong! ${icone(alvo.tipo)}</em>` + h
-          noAlvo(ev.alvo, h, 'b-pop--dano' + (ev.critico ? ' b-pop--crit' : '') + (forte ? ' b-pop--forte' : '') + (resistido ? ' b-pop--resiste' : '') + (ev.refletido ? ' b-pop--ref' : ''), atraso)
-          if (ev.valor > 0) { flash(ev.alvo); B.vis[ev.alvo].recuo = 5 }
-          if (ev.critico) critico = true
-          if (!ev.refletido) bateu = ev.critico ? 'critico' : forte && bateu !== 'critico' ? 'forte' : bateu ?? 'golpe'
-          B.stats.dano[B.estado.bonecos[ev.de]?.time ?? 'x'] = (B.stats.dano[B.estado.bonecos[ev.de]?.time ?? 'x'] ?? 0) + ev.valor
-          if (ev.de && B.estado.bonecos[ev.de].time === 'A' && ev.valor > B.stats.maior.valor) B.stats.maior = { valor: ev.valor, carta: ev.carta }
-          atraso += 120
-        } else if (ev.t === 'errou') { noAlvo(ev.alvo, '<b>MISS!</b>', 'b-pop--miss', atraso); atraso += 120; som('miss') }
-        else if (ev.t === 'cura') { noAlvo(ev.alvo, `<b>+${ev.valor}</b>`, 'b-pop--cura', atraso); som('cura') }
-        else if (ev.t === 'escudo') { noAlvo(ev.alvo, `<b>+${ev.valor}</b><small>Guard</small>`, 'b-pop--guard', atraso); som('guard') }
-        else if (ev.t === 'caiu') som('queda')
-        else if (ev.t === 'veu') noAlvo(ev.alvo, '<b>Veil</b>', 'b-pop--veil', atraso)
-        else if (ev.t === 'fioSolto') noAlvo(ev.alvo, '<b>Exposed</b>', 'b-pop--exp', atraso + 200)
-        else if (ev.t === 'quebraEscudo') noAlvo(ev.alvo, '<b>Guard broken</b>', 'b-pop--exp', atraso)
-        else if (ev.t === 'autoDano') noAlvo(ev.alvo, `<b>-${ev.valor}</b>`, 'b-pop--dano', atraso)
-        else if (ev.t === 'ultimoFio') ultimoFio = ev.alvo
-        else if (ev.t === 'linha' && ev.time !== c.time) noAlvo(B.estado.times[ev.time].lugares[0], '<b>-Glow</b>', 'b-pop--exp', atraso)
-      }
-      if (bateu) som(bateu)
-      if (critico) { await espera(150); B.tremida = 120 } // crítico: pausa curta e tremida (tremida fora com Reduced motion)
-      mostrar(p.estado)
-      if (ultimoFio) await ultimoFioPico(ultimoFio)
-      await espera(560)
-      v.pose = 'idle'; v.avanco = 0
-      esconderFaixa()
-      await espera(160)
-    } else if (c.tipo === 'passar') {
-      const turno = evs.find((x) => x.t === 'turno')
-      for (const ev of evs) { if (ev.t === 'tesoura') noAlvo(ev.alvo, `<b>-${ev.valor}</b><small>Sundown</small>`, 'b-pop--sol'); else if (ev.t === 'caiu') som('queda') }
-      const eraDia = B.estado.turno < SOL.encosta
-      mostrar(p.estado)
-      if (eraDia && p.estado.turno >= SOL.encosta) { som('sundown'); selo('SUNDOWN', 'b-selao--sol') }
-      if (turno) { const ch = $('#bChip', raiz); ch.textContent = `Turn ${p.estado.turno} · ${turno.time === 'A' ? 'Your patrol' : 'The guard'}`; ch.hidden = false; ch.classList.remove('anim'); void ch.offsetWidth; ch.classList.add('anim') }
-      await espera(evs.some((x) => x.t === 'tesoura') ? 800 : 500)
-    } else {
-      mostrar(p.estado)
-      await espera(120)
-    }
-  }
-
-  /** Selo grande no meio do palco (Last Stand, Sundown). Some sozinho. */
+  /** Selo grande no meio do palco (Sundown). Some sozinho. */
   function selo(texto, cls) {
     const el = document.createElement('div')
     el.className = 'b-selao ' + cls
@@ -310,120 +191,103 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
     palco.appendChild(el)
     setTimeout(() => el.remove(), 1300)
   }
-  /** Last Stand: câmera lenta de 0,4 s (o relógio da luta anda a 1/4). Com Reduced motion vira uma pausa de 0,4 s, sem efeito. */
-  async function ultimoFioPico(id) {
-    som('laststand')
-    selo('LAST STAND', 'b-selao--fio')
-    noAlvo(id, '<b>Still standing!</b>', 'b-pop--fio')
-    const real = () => new Promise((ok) => setTimeout(ok, 400))
-    if (opcoes.menosAnimacao()) { await real(); return }
-    B.lentoAte = performance.now() + 400
-    palco.classList.add('lento')
-    await real()
-    palco.classList.remove('lento')
-  }
 
+  // ---------------------------------------------------------------- um passo
+  async function passo(p) {
+    const evs = p.eventos, c = p.cmd
+    if (c.tipo === 'jogar') {
+      const de = evs.find((x) => x.t === 'carta').de
+      const v = B.vis[de]
+      v.pose = 'attack'; v.avanco = 10
+      await espera(200)
+      let atraso = 0, critico = false, bateu = null
+      for (const ev of evs) {
+        if (ev.t === 'dano') {
+          const alvo = B.estado.bonecos[ev.alvo]
+          const forte = !ev.refletido && ev.carta && bateForte(CARTAS[ev.carta].tipo, alvo.tipo)
+          const resistido = golpeResistido(ev, alvo.tipo, B.luta.regras)
+          let h = `<b>${ev.valor}</b>`
+          if (resistido) h = '<small class="resistido">Resisted</small>' + h
+          if (ev.critico) h = '<em>Critical!</em>' + h
+          if (forte) h = `<em class="forte">${icone(CARTAS[ev.carta].tipo)} Strong!</em>` + h
+          noAlvo(ev.alvo, h, 'b-pop--dano' + (ev.critico ? ' b-pop--crit' : '') + (forte ? ' b-pop--forte' : '') + (resistido ? ' b-pop--resiste' : '') + (ev.refletido ? ' b-pop--ref' : ''), atraso)
+          if (ev.valor > 0) { flash(ev.alvo); B.vis[ev.alvo].recuo = 5 }
+          if (ev.critico) critico = true
+          if (!ev.refletido) bateu = ev.critico ? 'critico' : forte && bateu !== 'critico' ? 'forte' : bateu ?? 'golpe'
+          atraso += 120
+        } else if (ev.t === 'errou') { noAlvo(ev.alvo, '<b>MISS</b>', 'b-pop--miss', atraso); atraso += 120; som('miss') }
+        else if (ev.t === 'cura') { noAlvo(ev.alvo, `<b>+${ev.valor}</b>`, 'b-pop--cura', atraso); som('cura') }
+        else if (ev.t === 'escudo') som('guard')
+        else if (ev.t === 'autoDano') noAlvo(ev.alvo, `<b>${ev.valor}</b>`, 'b-pop--dano b-pop--ref', atraso)
+        else if (ev.t === 'ultimoFio') som('laststand')
+        else if (ev.t === 'caiu') som('queda')
+      }
+      if (bateu) som(bateu)
+      if (critico) { await espera(150); B.tremida = 120 } // crítico: pausa curta e tremida (tremida fora com Reduced motion)
+      mostrar(p.estado)
+      await espera(520)
+      v.pose = 'idle'; v.avanco = 0
+      await espera(140)
+    } else if (c.tipo === 'passar') {
+      for (const ev of evs) { if (ev.t === 'tesoura') noAlvo(ev.alvo, `<b>${ev.valor}</b>`, 'b-pop--sol'); else if (ev.t === 'caiu') som('queda') }
+      const eraDia = B.estado.turno < SOL.encosta
+      mostrar(p.estado)
+      if (eraDia && p.estado.turno >= SOL.encosta) { som('sundown'); selo('SUNDOWN', 'b-selao--sol') }
+      await espera(evs.some((x) => x.t === 'tesoura') ? 700 : 350)
+    } else {
+      mostrar(p.estado)
+      await espera(100)
+    }
+  }
   function mostrar(estado) {
     B.estado = estado
     posicionarTodos(false)
     atualizarHud()
   }
 
-  // ---------------------------------------------------------------- começar / fim
-  async function comecar({ luta, resumo, nomes, defs, tipos, vel = null }) {
-    B.luta = luta; B.resumo = resumo ?? null; B.nomes = nomes; B.defs = defs; B.tipos = tipos
-    if (VELS.includes(vel)) B.vel = vel
-    raiz.classList.remove('pausado', 'b-sundown'); palco.classList.remove('lento'); B.lentoAte = 0
+  // ---------------------------------------------------------------- começar (a promessa termina quando a luta acaba na tela)
+  async function comecar({ luta, nomes, defs, tipos }) {
+    B.luta = luta; B.nomes = nomes; B.defs = defs; B.tipos = tipos
     for (const el of palco.querySelectorAll('.b-selao')) el.remove()
-    B.i = -1; B.pular = false; B.pausado = false; B.acabou = false; B.vis = {}; B.sol = 0; B.laranja = 0
-    B.stats = { dano: {}, maior: { valor: 0, carta: null } }
+    B.i = -1; B.pular = false; B.acabou = false; B.vis = {}; B.sol = 0; B.laranja = 0
     B.estado = null
-    hud.innerHTML = ''
     medir()
     B.estado = luta.inicial
-    $('#bFim', raiz).hidden = true; $('#bNoite', raiz).hidden = true; $('#bChip', raiz).hidden = true
-    esconderFaixa()
     posicionarTodos(true)
     criarHud()
     atualizarHud()
     atualizarBotoes()
     B.rodando = true
-    const minhaVez = (B.sessao = (B.sessao ?? 0) + 1)
+    const minhaVez = ++B.sessao
     try {
-      await espera(600)
+      await espera(400)
       for (let i = 0; i < luta.passos.length; i++) {
-        if (B.sessao !== minhaVez) return
+        if (B.sessao !== minhaVez) return false
         B.i = i
         await passo(luta.passos[i])
       }
     } catch (e) { if (!(e instanceof Pulou)) throw e }
-    if (B.sessao !== minhaVez) return
-    // Skip ou fim: mostra o último estado e soma os números que faltaram
-    if (B.pular) {
-      B.stats = { dano: {}, maior: { valor: 0, carta: null } }
-      for (const p of luta.passos) for (const ev of p.eventos) if (ev.t === 'dano' && ev.de) {
-        const t = luta.inicial.bonecos[ev.de].time
-        B.stats.dano[t] = (B.stats.dano[t] ?? 0) + ev.valor
-        if (t === 'A' && ev.valor > B.stats.maior.valor) B.stats.maior = { valor: ev.valor, carta: ev.carta }
-      }
+    if (B.sessao !== minhaVez) return false
+    if (B.pular) { // pulo: mostra o último estado
       for (const v of Object.values(B.vis)) { v.pose = 'idle'; v.avanco = 0 }
-      esconderFaixa(); $('#bChip', raiz).hidden = true
       B.i = luta.passos.length - 1
       mostrar(luta.passos[luta.passos.length - 1].estado)
       B.pular = false
     }
-    await mostrarFim()
-  }
-
-  async function mostrarFim() {
-    const r = B.luta.resultado
-    const e = B.estado
-    const caiuTudo = (t) => e.times[t].lugares.every((id) => e.bonecos[id].estado === 'caido')
-    const noite = r.turno >= REGRAS.turnoFinal && !caiuTudo('A') && !caiuTudo('B')
-    if (noite) {
-      const n = $('#bNoite', raiz)
-      n.hidden = false
-      const pA = Math.round((r.pct.A / 3) * 100), pB = Math.round((r.pct.B / 3) * 100)
-      n.innerHTML = `<h3>Nightfall</h3><p>${TERMOS.nightfall.replace(/^Nightfall: a/, 'A')}</p>
-        <div class="b-noite__barras"><div><span>Your patrol</span><div class="b-noite__b"><i style="--p:${pA}%"></i></div><b>${pA}%</b></div>
-        <div><span>The guard</span><div class="b-noite__b b"><i style="--p:${pB}%"></i></div><b>${pB}%</b></div></div>`
-      try { await espera(1600) } catch {}
-      n.hidden = true
-    }
     B.acabou = true; B.rodando = false
-    const venceu = r.vencedor === 'A'
-    const motivo = noite ? 'Nightfall: higher team HP % wins.' : r.motivo === 'desempate' ? 'Both teams fell together: a coin decided it.' : r.motivo === 'tesoura' ? (venceu ? 'The Sundown wore the guard out.' : 'The Sundown wore your patrol out.') : venceu ? 'The whole guard is out.' : 'Your whole patrol is out.'
-    const f = $('#bFim', raiz)
-    f.className = 'b-fim ' + (venceu ? 'vitoria' : 'derrota')
-    $('#bFimTit', raiz).textContent = venceu ? 'Victory!' : 'Defeat'
-    $('#bFimMot', raiz).textContent = motivo
-    $('#bN1', raiz).textContent = r.turno
-    $('#bN2', raiz).textContent = B.resumo ? B.resumo.forteDados : B.stats.dano.A ?? 0
-    $('#bN2r', raiz).textContent = B.resumo ? 'Strong hits' : 'Damage dealt'
-    $('#bN3', raiz).textContent = B.stats.maior.valor
-    $('#bN3r', raiz).textContent = B.stats.maior.carta ? `Biggest hit · ${nomeDaHabilidade(B.stats.maior.carta)}` : 'Biggest hit'
-    f.hidden = false
-    atualizarBotoes()
-    som(venceu ? 'vitoria' : 'derrota')
-    ganchos?.fim?.(r)
+    return true
   }
 
   function atualizarBotoes() {
     for (const b of raiz.querySelectorAll('[data-vel]')) b.setAttribute('aria-pressed', String(+b.dataset.vel === B.vel))
-    const p = $('#bPausa', raiz)
-    p.textContent = B.pausado ? 'Play' : 'Pause'
-    p.setAttribute('aria-pressed', String(B.pausado))
-    $('#bPular', raiz).disabled = B.acabou
-    p.disabled = B.acabou
   }
-
   for (const b of raiz.querySelectorAll('[data-vel]')) b.addEventListener('click', () => { B.vel = +b.dataset.vel; gravar('piloto_vel', B.vel); atualizarBotoes() })
-  $('#bPausa', raiz).addEventListener('click', () => { if (B.acabou) return; B.pausado = !B.pausado; raiz.classList.toggle('pausado', B.pausado); atualizarBotoes() })
-  $('#bPular', raiz).addEventListener('click', () => { if (!B.rodando || B.acabou) return; B.pausado = false; raiz.classList.remove('pausado'); B.pular = true; atualizarBotoes() })
   window.addEventListener('resize', () => { if (!raiz.hidden) medir() })
+  atualizarBotoes()
 
   return {
     B, comecar, medir,
-    parar() { B.sessao = (B.sessao ?? 0) + 1; B.rodando = false; quadros.clear() },
+    pular() { if (B.rodando && !B.acabou) B.pular = true },
+    parar() { B.sessao++; B.rodando = false; quadros.clear() },
   }
 }

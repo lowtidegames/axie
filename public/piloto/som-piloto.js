@@ -62,7 +62,6 @@ export function criarSom() {
   const SONS = {
     botao: () => nota({ f: 660, f2: 880, dur: 0.06, tipo: 'triangle', vol: 0.22 }),
     troca: () => { nota({ f: 392, f2: 587, dur: 0.09, tipo: 'triangle', vol: 0.3 }); ruido({ dur: 0.07, f: 2400, q: 0.8, vol: 0.12 }) },
-    vira: () => { nota({ f: 988, dur: 0.05, tipo: 'square', vol: 0.12 }); nota({ f: 1319, dur: 0.07, tipo: 'square', vol: 0.12, em: 0.05 }) },
     pega: () => nota({ f: 520, dur: 0.05, tipo: 'sine', vol: 0.25 }),
     golpe: () => { ruido({ dur: 0.09, f: 900, f2: 300, q: 0.9, vol: 0.4 }); nota({ f: 170, f2: 70, dur: 0.1, tipo: 'sine', vol: 0.45 }) },
     forte: () => { ruido({ dur: 0.12, f: 1400, f2: 400, q: 0.8, vol: 0.42 }); nota({ f: 190, f2: 60, dur: 0.14, tipo: 'sine', vol: 0.5 }); sino(12, 0.03, 0.3, 0.16); sino(19, 0.1, 0.3, 0.24) },
@@ -73,23 +72,14 @@ export function criarSom() {
     guard: () => { nota({ f: 523, dur: 0.1, tipo: 'sine', vol: 0.25 }); nota({ f: 784, dur: 0.14, tipo: 'sine', vol: 0.2, em: 0.04 }) },
     cura: () => { sino(12, 0, 0.22, 0.14); sino(16, 0.07, 0.22, 0.14); sino(19, 0.14, 0.22, 0.2) },
     sundown: () => { nota({ f: NOTA(7), dur: 0.5, tipo: 'triangle', vol: 0.26 }); nota({ f: NOTA(3), dur: 0.6, tipo: 'triangle', vol: 0.26, em: 0.28 }); nota({ f: NOTA(-2), dur: 0.9, tipo: 'triangle', vol: 0.26, em: 0.6 }) },
-    racao: () => { ruido({ dur: 0.05, f: 3000, q: 1.5, vol: 0.2 }); nota({ f: 740, f2: 520, dur: 0.07, tipo: 'triangle', vol: 0.2 }) },
-    marcha: () => { for (let i = 0; i < 3; i++) { nota({ f: NOTA([0, 7, 12][i]), dur: 0.16, tipo: 'square', vol: 0.13, em: i * 0.12 }); ruido({ dur: 0.05, f: 200, q: 0.7, vol: 0.3, em: i * 0.12 }) } },
-    rufar: () => { for (let i = 0; i < 6; i++) ruido({ dur: 0.04, f: 260, q: 0.9, vol: 0.12 + i * 0.03, em: i * 0.07 }) },
     carimboV: () => { ruido({ dur: 0.1, f: 260, q: 0.6, vol: 0.6, tipo: 'lowpass' }); nota({ f: 120, f2: 55, dur: 0.14, tipo: 'sine', vol: 0.6 }); sino(12, 0.06, 0.3, 0.14); sino(16, 0.14, 0.3, 0.14); sino(19, 0.22, 0.34, 0.3) },
     carimboD: () => { ruido({ dur: 0.1, f: 220, q: 0.6, vol: 0.6, tipo: 'lowpass' }); nota({ f: 110, f2: 50, dur: 0.16, tipo: 'sine', vol: 0.6 }); nota({ f: NOTA(3), dur: 0.16, tipo: 'triangle', vol: 0.22, em: 0.07 }); nota({ f: NOTA(-1), dur: 0.3, tipo: 'triangle', vol: 0.22, em: 0.2 }) },
-    sequencia: () => { for (let i = 0; i < 4; i++) sino([12, 16, 19, 24][i], i * 0.07, 0.26, 0.2) },
-    tira: () => { ruido({ dur: 0.3, f: 800, f2: 2600, q: 1.2, vol: 0.18 }); for (let i = 0; i < 4; i++) nota({ f: NOTA([0, 4, 7, 12][i]), dur: 0.14, tipo: 'triangle', vol: 0.24, em: 0.1 + i * 0.09 }) },
-    conta: () => nota({ f: 1175, dur: 0.03, tipo: 'square', vol: 0.07 }),
     ovoCai: () => { nota({ f: 220, f2: 110, dur: 0.1, tipo: 'sine', vol: 0.45 }); ruido({ dur: 0.05, f: 700, q: 1, vol: 0.2 }) },
     ovoRacha: () => { for (let i = 0; i < 3; i++) ruido({ dur: 0.035, f: 3200 + i * 500, q: 3, vol: 0.34, em: i * 0.05 }); nota({ f: 880, f2: 1320, dur: 0.08, tipo: 'sine', vol: 0.14, em: 0.12 }) },
     ovoNasce: () => { ruido({ dur: 0.2, f: 2500, f2: 600, q: 0.7, vol: 0.4 }); for (let i = 0; i < 5; i++) sino([7, 12, 16, 19, 24][i], 0.08 + i * 0.08, 0.28, i === 4 ? 0.5 : 0.16) },
-    renome: () => { for (let i = 0; i < 5; i++) sino([12, 14, 16, 19, 24][i], i * 0.06, 0.24, i === 4 ? 0.45 : 0.12) },
-    titulo: () => { nota({ f: NOTA(7), dur: 0.14, tipo: 'square', vol: 0.12 }); nota({ f: NOTA(12), dur: 0.14, tipo: 'square', vol: 0.12, em: 0.14 }); nota({ f: NOTA(16), dur: 0.4, tipo: 'square', vol: 0.12, em: 0.28 }); sino(28, 0.28, 0.2, 0.5) },
+    festa: () => { nota({ f: NOTA(7), dur: 0.14, tipo: 'square', vol: 0.12 }); nota({ f: NOTA(12), dur: 0.14, tipo: 'square', vol: 0.12, em: 0.14 }); nota({ f: NOTA(16), dur: 0.4, tipo: 'square', vol: 0.12, em: 0.28 }); sino(28, 0.28, 0.2, 0.5) },
     vitoria: () => { for (let i = 0; i < 4; i++) nota({ f: NOTA([7, 12, 16, 19][i]), dur: i === 3 ? 0.5 : 0.13, tipo: 'triangle', vol: 0.3, em: i * 0.12 }) },
     derrota: () => { for (let i = 0; i < 3; i++) nota({ f: NOTA([7, 3, 0][i]), dur: i === 2 ? 0.5 : 0.18, tipo: 'triangle', vol: 0.26, em: i * 0.18 }) },
-    cartao: () => { ruido({ dur: 0.06, f: 4000, q: 2, vol: 0.3 }); sino(24, 0.05, 0.2, 0.2) },
-    nao: () => { nota({ f: 196, dur: 0.1, tipo: 'square', vol: 0.12 }); nota({ f: 165, dur: 0.14, tipo: 'square', vol: 0.12, em: 0.1 }) },
   }
 
   // ---------------------------------------------------------------- musiquinha medieval alegre, em laço curto (flauta + bordão)

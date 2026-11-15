@@ -1,18 +1,16 @@
-// Piloto (idle por patrulhas) — teste de tela da página separada public/piloto/, servida como arquivos parados numa SUBPASTA
-// (como a página de teste). Celular 360×740 (toque) e PC 1280×720. Confere: abre na Road (2 lugares abertos, 3 "coming soon",
-// saco de Rations, mapa vivo); folha Patrol Orders (guarda, trio, troca por toque e arrasto, ícones "Strong vs / Weak to" que
-// viram ao trocar monstro, tática, ordem das habilidades, avisos honestos, placar histórico); Send patrol gasta 5 Rations e
-// mostra 1 luta + 4 carimbos + tira; mesma semente = mesmo resultado; a tentativa anterior fica ao lado da nova; ficha com
-// título e Renome subindo; cartão PNG; Pause, 4×, Skip, Reduced motion sem tremida nem flash (e com ele desligado: tremida
-// ≤ 6 px, flash ≤ 3/s); som só depois do 1º toque e mudo; cena do ovo até o fim com o filhote na conta; nada cortado nem
-// sobreposto; toque ≥ 44 px; zero erro de console, zero 404, só pede arquivos de public/ e shared/. Fotos em tests/tela/fotos/piloto/.
-// Tarefa 34 (regras provisórias do piloto, decisão do dono 15/11 14:04): aviso "Pilot rules"; golpe Strong = +75% e resistido
-// = −40%, conferidos nos eventos do motor; "Resists N" na folha; cansaço depois de 5 lutas no dia (selo, aviso da patrulha, vida
-// inicial 75%, "Tired fights: N" na tira); "New day" zera o cansaço e devolve as Rations.
+// Piloto (o jogo simples, docs/ideias/jogo-simples.md) — teste de tela da página separada public/piloto/, servida como arquivos
+// parados numa SUBPASTA (como a página de teste). Celular 360×740 (toque) e PC 1280×720. Cinco telas: Egg, Team, Hunt (com a
+// luta), Result e Collection. Confere: os 3 ovos com as chances do motor à vista ANTES de abrir, revelação em até 4 s e o
+// monstro na coleção; montar o time por toque e arrasto; Hunt gasta 1 de energia por luta e para quando acaba; Stop para;
+// sair da tela resolve as lutas que faltam; mesma semente = mesmo resultado; vencer abre o próximo lugar; cansaço depois de
+// 7 lutas no dia e vida inicial de 75%; New day devolve; golpe Strong ×1,75 e resistido ×0,60 nos eventos do motor; ficha
+// simples; cruzar mostra as chances antes e o filhote entra na coleção; mudo; Reduced motion sem tremida nem flash (sem ele:
+// tremida ≤ 6 px, flash ≤ 3/s); nada cortado nem sobreposto; toque ≥ 44 px; zero erro de console, zero 404, só pede arquivos
+// de public/ e shared/, funciona em subpasta. Fotos em tests/tela/fotos/piloto/.
 // Rode pela trava:  node tools/trava-robos.mjs rodar "timeout 700 node tests/tela/piloto.e2e.mjs"
 import { createRequire } from 'node:module'
 import { createServer } from 'node:http'
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -22,6 +20,10 @@ const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const FOTOS = path.join(RAIZ, 'tests', 'tela', 'fotos', 'piloto')
 const SUB = '/algum-nome/'
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.woff2': 'font/woff2' }
+// as fotos que ficam guardadas (as outras telas/formatos são conferidos sem foto)
+const GUARDAR = new Set(['egg-celular', 'egg-open-celular', 'team-celular', 'hunt-celular', 'hunt-pc', 'battle-celular', 'result-celular', 'collection-pc', 'breed-celular'])
+// sementes fixas: os mesmos ovos e as mesmas lutas sempre
+const Q = '?semente=s1&ovo=o1'
 
 const falhas = []
 const falha = (m) => { falhas.push(m); console.log('FALHA: ' + m) }
@@ -54,8 +56,12 @@ function vigiar(page, erros, ruins) {
   page.on('requestfailed', (r) => ruins.push(`falhou ${r.url()}`))
 }
 
-async function foto(page, nome) {
-  const arq = path.join(FOTOS, nome + '.png')
+async function foto(page, nome, { ja = false } = {}) {
+  const pasta = GUARDAR.has(nome) ? FOTOS : process.env.PILOTO_FOTOS_EXTRA // as outras só saem se pedir uma pasta à parte
+  if (!pasta) return
+  // a foto espera a festa acabar (faíscas, aviso que some sozinho e entradas), para mostrar a tela parada
+  if (!ja) await page.waitForFunction(() => !document.querySelector('#festa i') && (document.querySelector('#avisoFlutua')?.hidden ?? true) && document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getComputedTiming().iterations === Infinity), null, { timeout: 8000 }).catch(() => {})
+  const arq = path.join(pasta, nome + '.png')
   await page.screenshot({ path: arq })
   const kb = (await stat(arq)).size / 1024
   confere(kb < 400, `foto ${nome}.png com ${kb.toFixed(0)} KB (< 400)`)
@@ -65,27 +71,28 @@ async function foto(page, nome) {
 async function conferirLayout(page, onde) {
   const r = await page.evaluate(() => {
     const vw = document.documentElement.clientWidth
-    const vis = (el) => { const b = el.getBoundingClientRect(); const s = getComputedStyle(el); return b.width > 0 && b.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && !el.closest('[hidden]') && !el.closest('details:not([open]) > :not(summary)') }
+    const vis = (el) => { const b = el.getBoundingClientRect(); const s = getComputedStyle(el); return b.width > 0 && b.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && !el.closest('[hidden]') }
     const out = { rolagem: document.documentElement.scrollWidth - vw, pequenos: [], cortados: [], sobrepostos: [], fora: [] }
     // com a ficha aberta, só ela conta (o fundo escuro cobre o resto)
     const ficha = document.querySelector('#gFundo:not([hidden])')
-    const bts = [...(ficha ?? document).querySelectorAll('button')].filter(vis).filter((b) => !b.closest('.b-fim[hidden]'))
+    const bts = [...(ficha ?? document).querySelectorAll('button')].filter(vis)
+    const nome = (b) => b.id || b.textContent.trim().replace(/\s+/g, ' ').slice(0, 18) || b.className
     for (const b of bts) {
       const q = b.getBoundingClientRect()
-      if (q.width < 44 - 0.5 || q.height < 44 - 0.5) out.pequenos.push(`${b.id || b.className || b.textContent.trim()} ${q.width.toFixed(0)}×${q.height.toFixed(0)}`)
-      if (b.scrollWidth > b.clientWidth + 1) out.cortados.push(b.id || b.textContent.trim())
-      if (q.right > vw + 0.5 || q.left < -0.5) out.fora.push(b.id || b.textContent.trim())
+      if (q.width < 44 - 0.5 || q.height < 44 - 0.5) out.pequenos.push(`${nome(b)} ${q.width.toFixed(0)}×${q.height.toFixed(0)}`)
+      if (b.scrollWidth > b.clientWidth + 1) out.cortados.push(nome(b))
+      if (q.right > vw + 0.5 || q.left < -0.5) out.fora.push(nome(b))
     }
-    const caixas = bts.map((b) => ({ b, q: b.getBoundingClientRect() })).filter(({ b }) => !b.closest('.b-fim') || !document.querySelector('.b-fim[hidden]'))
-    for (let i = 0; i < caixas.length; i++) for (let j = i + 1; j < caixas.length; j++) {
-      const a = caixas[i].q, c = caixas[j].q
-      if (caixas[i].b.contains(caixas[j].b) || caixas[j].b.contains(caixas[i].b)) continue
+    // as barras presas embaixo (abas do celular, botão principal do Team e do Breed) passam POR CIMA da lista, de propósito
+    const fixo = (b) => b.closest('.barra-baixo') || b.closest('.abas')
+    for (let i = 0; i < bts.length; i++) for (let j = i + 1; j < bts.length; j++) {
+      if (bts[i].contains(bts[j]) || bts[j].contains(bts[i]) || fixo(bts[i]) || fixo(bts[j])) continue
+      const a = bts[i].getBoundingClientRect(), c = bts[j].getBoundingClientRect()
       const ix = Math.min(a.right, c.right) - Math.max(a.left, c.left), iy = Math.min(a.bottom, c.bottom) - Math.max(a.top, c.top)
-      // a barra do "Send patrol" fica presa embaixo e passa POR CIMA da folha (de propósito); o fundo do fim cobre a luta
-      const fixo = (b) => b.closest('.t-lutar') || b.closest('.b-fim')
-      if (ix > 1 && iy > 1 && !fixo(caixas[i].b) && !fixo(caixas[j].b)) out.sobrepostos.push(`${caixas[i].b.id || caixas[i].b.textContent.trim().slice(0, 14)} × ${caixas[j].b.id || caixas[j].b.textContent.trim().slice(0, 14)}`)
+      if (ix > 1 && iy > 1) out.sobrepostos.push(`${nome(bts[i])} × ${nome(bts[j])}`)
     }
-    for (const el of (ficha ?? document).querySelectorAll('h2, h3, .b-faixa b, .b-nums b, .t-ficha > b, .o-nomeparcial b, .r-placar, .f-e, .f-hist b, .c-racoes, .c-renome')) if (vis(el) && el.scrollWidth > el.clientWidth + 1) out.cortados.push(el.textContent.trim())
+    for (const el of (ficha ?? document).querySelectorAll('h1, h2, .card b, .card .selo, .card__l, .c-lugar b, .r-num b, .energia, .marca b, .marca small, .aba, .o-chances li, .b-rotulo, .g-partes b')) if (vis(el) && el.scrollWidth > el.clientWidth + 1) out.cortados.push(el.textContent.trim())
+    // o botão principal de cada tela tem de estar inteiro dentro da largura
     return out
   })
   confere(r.rolagem <= 0, `${onde}: sem rolagem para o lado (${r.rolagem})`)
@@ -95,15 +102,19 @@ async function conferirLayout(page, onde) {
   confere(r.fora.length === 0, `${onde}: nenhum botão fora da tela` + (r.fora.length ? ' → ' + r.fora.slice(0, 4).join(', ') : ''))
 }
 
-async function abrir(ctx, erros, ruins, q = '') {
+async function abrir(ctx, erros, ruins, q = Q) {
   const page = await ctx.newPage(); vigiar(page, erros, ruins)
   await page.goto(base + q)
   await page.waitForFunction(() => window.__piloto?.pronto, null, { timeout: 20000 })
   return page
 }
-const P = (page) => page.evaluate(() => window.__piloto.patrulha())
+const C = (page) => page.evaluate(() => window.__piloto.conta())
+const H = (page) => page.evaluate(() => window.__piloto.caca())
+const cena = (page) => page.evaluate(() => window.__piloto.cena)
+const texto = async (page, sel) => (await page.locator(sel).first().textContent()).replace(/\s+/g, ' ').trim()
+
 /**
- * Confere nos EVENTOS do motor as lutas da patrulha atual: cada golpe de carta sem outro modificador (sem crítico, alvo não
+ * Confere nos EVENTOS do motor as lutas da caçada atual: cada golpe de carta sem outro modificador (sem crítico, alvo não
  * Exposed, sem bordado de dano, carta sem bônus) tem o dano bruto = base × mult × (1 − armadura), com mult = 1,75 no Strong,
  * 0,60 no resistido e 1 no resto. Devolve as contagens e quantos golpes Strong NÃO bateriam com o +25% de sempre.
  */
@@ -111,10 +122,10 @@ const conferirMultiplicadores = (page) => page.evaluate(async () => {
   const { CARTAS } = await import(new URL('../../shared/config.js', location.href).href)
   const { bateForte } = await import(new URL('../../shared/batalha.js', location.href).href)
   const out = { forte: 0, resistido: 0, neutro: 0, erros: [], forteNaoBateCom25: 0, regras: null }
-  for (let i = 0; i < 5; i++) {
-    const luta = window.__piloto.lutaDaPatrulha(i)
+  for (let i = 0; i < 40; i++) {
+    const luta = window.__piloto.lutaDaCaca(i)
     if (!luta) continue
-    out.regras = luta.regras
+    out.regras ??= { bonusDeTipo: luta.regras.bonusDeTipo, resistencia: luta.regras.resistencia }
     luta.passos.forEach((p, k) => {
       const antes = k === 0 ? luta.inicial : luta.passos[k - 1].estado
       for (const ev of p.eventos) {
@@ -139,489 +150,325 @@ const conferirMultiplicadores = (page) => page.evaluate(async () => {
   }
   return out
 })
-const C = (page) => page.evaluate(() => window.__piloto.conta())
-const nomesDoTrio = (page) => page.locator('#tSlots .t-ficha > b').allTextContents()
-const bordaDe = (page, pos) => page.evaluate((p) => { const s = document.querySelector(`#tSlots .t-slot[data-pos="${p}"]`); return s.querySelector('.f-edge').getAttribute('aria-label') + ' | ' + [...s.querySelectorAll('.f-pip')].map((x) => (x.classList.contains('on') ? 1 : 0)).join('') }, pos)
 
 async function rodar(fmt) {
-  console.log(`\n=== ${fmt.nome} (${fmt.w}x${fmt.h}) ===`)
-  const ctx = await browser.newContext({ viewport: { width: fmt.w, height: fmt.h }, hasTouch: fmt.toque, isMobile: fmt.toque, deviceScaleFactor: 1, reducedMotion: 'no-preference', acceptDownloads: true })
+  console.log(`\n=== ${fmt.nome} ${fmt.w}×${fmt.h} ===`)
   const erros = [], ruins = []
+  const novoCtx = () => browser.newContext({ viewport: { width: fmt.w, height: fmt.h }, hasTouch: fmt.toque, isMobile: fmt.toque, deviceScaleFactor: 1, reducedMotion: 'no-preference' })
   const clique = async (page, sel) => (fmt.toque ? page.locator(sel).first().tap() : page.locator(sel).first().click())
   const pc = !fmt.toque
-  const sufixo = pc ? 'pc' : 'celular'
-  /** Manda a patrulha e leva até a tira final (pulando a luta e os carimbos). */
-  const patrulhaRapida = async (page) => {
-    await clique(page, '#btLutar')
+  /** Abre os 3 ovos do começo (devolve o que nasceu) e fica na tela Team. */
+  async function abrirOsOvos(page) {
+    const nascidos = []
+    for (let i = 0; i < 3; i++) {
+      await page.waitForFunction(() => window.__piloto.ovo().fase === 'pronto', null, { timeout: 10000 })
+      await clique(page, '#oAbrir')
+      await page.waitForFunction(() => window.__piloto.ovo().fase === 'aberto', null, { timeout: 10000 })
+      nascidos.push(await page.evaluate(() => window.__piloto.ovo()))
+      await clique(page, '#oSeguir')
+    }
+    await page.waitForSelector('#time:not([hidden])')
+    return nascidos
+  }
+  /** Caça até a energia acabar sem assistir: começa e sai da tela (as lutas que faltam são resolvidas na hora). */
+  async function cacarTudo(page) {
+    await clique(page, '.aba[data-cena="caca"]')
+    await page.waitForSelector('#caca:not([hidden])')
+    await clique(page, '#btCacar')
     await page.waitForSelector('#luta:not([hidden])')
-    await clique(page, '#bPular')
-    await page.waitForSelector('#bFim:not([hidden])', { timeout: 20000 })
-    await clique(page, '#bSeguir')
-    await page.waitForSelector('#relato:not([hidden])')
-    await clique(page, '#rPular')
-    await page.waitForFunction(() => window.__piloto.patrulha().fase === 'fim', null, { timeout: 20000 })
-    await page.waitForSelector('#rTiras:not([hidden])')
+    await clique(page, '.aba[data-cena="colecao"]')
+    await page.waitForFunction(() => !window.__piloto.caca().rodando, null, { timeout: 30000 })
   }
 
-  // ---- 1. abre na Road (subpasta): 2 lugares abertos, 3 "coming soon", Rations 20/20, mudo antes do 1º toque, mapa vivo
+  // ================================================================ 1. EGG: a primeira coisa do jogo
+  const ctx = await novoCtx()
   const page = await abrir(ctx, erros, ruins)
-  confere(await page.isVisible('#mapa'), 'abre na tela Road (a casa do piloto)')
-  const som0 = await page.evaluate(() => window.__piloto.som())
-  confere(!som0.destravado && !som0.ligado && som0.tocados === 0 && som0.musica === 0, 'nenhum som (nem música) antes do primeiro toque do jogador')
-  confere((await page.locator('#mLista .m-item').count()) === 5, 'mapa com os 5 lugares')
-  const nomes = await page.locator('#mLista b').allTextContents()
-  // nomes: o dono mandou trocar "Hearthfield" (provisório agora: Hollyfield); os lugares abertos do piloto são o 2 e o 4 (medição do motor)
-  confere(['Hollyfield', 'Millbrook', 'Thornwood Edge', 'Stonebridge Watch', 'Crownhold Keep'].every((n, i) => nomes[i]?.includes(n)), 'nomes dos lugares: ' + nomes.join(' | '))
-  confere((await page.locator('#mLista .m-item.aberta').count()) === 2, 'dois lugares abertos à escolha')
-  const guardasNaLista = await page.locator('#mLista .m-item.aberta').evaluateAll((l) => l.map((x) => x.querySelectorAll('.m-guarda img').length))
-  confere(guardasNaLista.join(',') === '3,3', 'cada lugar aberto mostra os 3 ícones de elemento da guarda')
-  confere((await page.locator('#mMarcas button.m-marca.aberta').count()) === 2 && (await page.locator('#mMarcas .m-marca.aberta em img').count()) === 6, 'no mapa: 2 marcadores abertos com os ícones da guarda')
-  confere((await page.locator('#cRacoes').textContent()).replace(/\s+/g, '') === '20/20Rations', 'saco de Rations 20/20 no topo')
-  const cabecalho = await page.locator('.topo').textContent()
-  const corpo = await page.locator('body').innerText()
-  confere(/The Lantern Road/.test(cabecalho) && !/placeholder/i.test(cabecalho), 'cabeçalho com o nome provisório e sem "placeholder art"')
-  confere(!/King's Road|Keeper|Hearthfield/.test(corpo) && /The Lantern Road/.test(await page.title()), 'nenhum nome antigo na tela (King\'s Road, Keeper, Hearthfield)')
-  const avisoRegras = await page.locator('#avisoRegras').textContent()
-  confere((await page.isVisible('#avisoRegras')) && avisoRegras === 'Pilot rules — battle numbers here are being tested.', 'aviso discreto e honesto no topo: ' + avisoRegras)
-  confere(!/\b(best|yield|earn|profit)\b/i.test(avisoRegras), 'o aviso das regras não fala em "best", "yield" nem "earn"')
-  confere(await page.isVisible('#btNovoDia') && (await page.locator('#btNovoDia').textContent()).trim() === 'New day', 'botão "New day" na Road (para testar o cansaço)')
-  const q1 = await page.evaluate(() => document.querySelector('#mCanvas').toDataURL())
-  await page.waitForTimeout(700)
-  const q2 = await page.evaluate(() => document.querySelector('#mCanvas').toDataURL())
-  confere(q1 !== q2, 'o mapa tem vida parado (o desenho muda sozinho)')
-  await clique(page, '#mLista .m-item[data-i="2"]')
-  confere(/coming soon/i.test(await page.locator('#mAviso').textContent()), 'lugar 3: "coming soon"')
-  await conferirLayout(page, 'Road')
-  await foto(page, 'road-' + sufixo)
-  if (pc) { // foco de teclado visível
-    await page.keyboard.press('Tab')
-    const foco = await page.evaluate(() => { const s = getComputedStyle(document.activeElement); return { tag: document.activeElement.tagName, estilo: s.outlineStyle, larg: parseFloat(s.outlineWidth) } })
-    confere(foco.tag === 'BUTTON' && foco.estilo !== 'none' && foco.larg >= 2, `foco de teclado visível (${foco.tag}, contorno ${foco.larg}px ${foco.estilo})`)
+  confere((await cena(page)) === 'ovo' && (await page.locator('#ovo').isVisible()), 'a primeira tela é o ovo')
+  confere(!(await page.locator('#abas').isVisible()), 'antes de abrir os ovos não há outras telas')
+  confere(/Pilot — numbers are being tested\./.test(await texto(page, '#avisoRegras')), 'aviso curto "Pilot — numbers are being tested."')
+  const c0 = await C(page)
+  confere(c0.ovos === 3 && c0.monstros.length === 0 && c0.energia === 20, `conta nova: 3 ovos, nenhum monstro, energia 20 (${c0.ovos}, ${c0.monstros.length}, ${c0.energia})`)
+  // as chances na tela ANTES de abrir = as do motor (nada escrito à mão)
+  const chances = await page.evaluate(async () => {
+    const { PARAMS_COSTURA } = await import(new URL('../../shared/costura.js', location.href).href)
+    const tela = Object.fromEntries([...document.querySelectorAll('#oChances li')].map((li) => [li.dataset.rar, li.querySelector('b').textContent]))
+    const motor = Object.fromEntries(Object.entries(PARAMS_COSTURA.chancesDeRaridade).map(([k, v]) => [k, `${Math.round(v * 1000) / 10}%`]))
+    return { tela, motor, vis: !document.querySelector('#oChances').hidden && !document.querySelector('#oAntes').hidden, soma: Object.values(PARAMS_COSTURA.chancesDeRaridade).reduce((a, b) => a + b, 0) }
+  })
+  confere(chances.vis && Object.keys(chances.motor).length === 4 && JSON.stringify(chances.tela) === JSON.stringify(chances.motor) && Math.abs(chances.soma - 1) < 1e-9, 'as 4 chances de raridade aparecem ANTES de abrir e são as do motor: ' + JSON.stringify(chances.tela))
+  confere((await texto(page, '#oResta')) === 'Egg 1 of 3', '"Egg 1 of 3"')
+  await conferirLayout(page, 'Egg')
+  await foto(page, `egg-${fmt.nome}`)
+  const somAntes = await page.evaluate(() => window.__piloto.som())
+  confere(!somAntes.destravado && somAntes.tocados === 0, 'nenhum som antes do 1º toque')
+  // abre o 1º ovo: revelação curta, o monstro entra na coleção
+  await clique(page, '#oAbrir')
+  await page.waitForFunction(() => window.__piloto.ovo().fase === 'aberto', null, { timeout: 10000 })
+  const o1 = await page.evaluate(() => window.__piloto.ovo())
+  const c1 = await C(page)
+  confere(o1.ms <= 4000, `revelação do ovo em até 4 s (${o1.ms} ms)`)
+  confere(c1.monstros.length === 1 && c1.monstros[0].nome === o1.ultimo.nome && c1.ovos === 2, `o monstro entra na coleção: ${o1.ultimo.nome} (${o1.ultimo.raridade})`)
+  confere((await texto(page, '#oNome')) === o1.ultimo.nome && (await page.locator(`#oInfo .rar[data-rar="${o1.ultimo.raridade}"]`).count()) === 1, 'a tela mostra o nome, o elemento e a raridade que o motor sorteou')
+  confere((await page.locator('#oMonstro').isVisible()) && /Next egg \(2 left\)/.test(await texto(page, '#oSeguir')), 'o monstro aparece e o botão leva ao próximo ovo')
+  await conferirLayout(page, 'Egg aberto')
+  await foto(page, `egg-open-${fmt.nome}`)
+  const somDepois = await page.evaluate(() => window.__piloto.som())
+  confere(somDepois.destravado && (somDepois.porNome.ovoRacha ?? 0) >= 1 && (somDepois.porNome.ovoNasce ?? 0) >= 1, 'som do ovo depois do toque (racha e nasce)')
+  await clique(page, '#oSeguir')
+  const resto = []
+  for (let i = 0; i < 2; i++) {
+    await page.waitForFunction(() => window.__piloto.ovo().fase === 'pronto', null, { timeout: 10000 })
+    confere(await page.locator('#oChances').isVisible(), `ovo ${i + 2}: chances à vista antes de abrir`)
+    await clique(page, '#oAbrir')
+    await page.waitForFunction(() => window.__piloto.ovo().fase === 'aberto', null, { timeout: 10000 })
+    resto.push(await page.evaluate(() => window.__piloto.ovo()))
+    if (i === 1) confere(/starter monsters joined your collection/.test(await texto(page, '#oGanhou')) && /Build your team/.test(await texto(page, '#oSeguir')), 'depois do 3º ovo: a coleção inicial entra e o botão leva ao time')
+    await clique(page, '#oSeguir')
   }
-  await clique(page, '#mLista .m-item[data-i="1"]')
   await page.waitForSelector('#time:not([hidden])')
+  const c2 = await C(page)
+  const nascidos = [o1, ...resto].map((o) => o.ultimo)
+  confere(c2.comecou && c2.ovos === 0 && c2.monstros.length === 9, `3 ovos abertos + coleção inicial = ${c2.monstros.length} monstros`)
+  confere(c2.trio.join() === nascidos.map((n) => n.uid).join(), 'o time já vem com os 3 que nasceram dos ovos')
+  confere(await page.locator('#abas').isVisible(), 'as outras telas aparecem depois dos ovos')
 
-  // ---- 2. Patrol Orders: guarda à vista, roda, trio, troca de posição por toque, ícones que viram, lugar, ordem, Off, tática
-  confere((await page.locator('#tRivais .t-rival-mon').count()) === 3, 'guarda do lugar à vista (3)')
-  const rivais = await page.locator('#tRivais .t-ficha > b').allTextContents()
-  confere(rivais.join(',') === 'Wispurr,Ramblehorn,Breezle', 'guarda de Millbrook: ' + rivais.join(', '))
-  confere((await page.locator('#tRoda .roda__el').count()) === 6 && (await page.locator('#tFrases li').count()) === 6, 'roda dos 6 elementos com as frases')
-  const trio0 = await nomesDoTrio(page)
-  // a conta do piloto mudou (medição do motor): o trio de partida é Ramblehorn, Wispurr, Snapcoal
-  confere(trio0.join(',') === 'Ramblehorn,Wispurr,Snapcoal', 'trio do jogador: ' + trio0.join(', '))
-  confere((await page.locator('#tBancoLista .t-mon').count()) === 6, 'os 6 monstros da conta do piloto à escolha')
-  const bordas0 = await page.locator('#tSlots .f-edge').evaluateAll((l) => l.map((x) => x.getAttribute('aria-label')))
-  // regra mudou (tarefa 34): entrou a linha "Resists N" (de quantos da guarda ele recebe menos dano), então 3 linhas e 27 ícones
-  confere(bordas0.length === 3 && bordas0.every((t) => /^Strong vs [0-3], Weak to [0-3], Resists [0-3]$/.test(t)), 'cada monstro com "Strong vs N · Weak to N · Resists N": ' + bordas0.join(' | '))
-  confere((await page.locator('#tSlots .f-pip').count()) === 27, 'ícones de elemento da guarda em cada linha de vantagem (3 × 3 × 3)')
-  confere((await page.locator('#tSlots .f-e--resiste').count()) === 3 && /Resists \d/.test(await page.locator('#fBorda').textContent()), 'linha "Resists" em cada monstro e no total da folha')
-  const cans0 = await page.locator('#tSlots .cansaco').allTextContents()
-  confere(cans0.length === 3 && cans0.every((t) => t === 'Fights today 0/5'), 'cada monstro do trio com "Fights today 0/5": ' + cans0.join(' | '))
-  confere(/No one in this trio gets tired in this patrol\./.test(await page.locator('#fCansaco').textContent()), 'aviso de cansaço da patrulha: ninguém cansa ainda')
-  const folha = await page.locator('#time').innerText()
-  confere(/Type edge only, not a win chance\. Pilot rules: Strong hits \+75%, resisted hits −40%\./.test(folha), 'texto fixo "Type edge only, not a win chance. Pilot rules: Strong hits +75%, resisted hits −40%."')
-  confere(/5 fights, 5 Rations/.test(folha) && /The result of each fight is decided when it starts\./.test(folha), 'avisos: quanto a ordem gasta e quando a luta é decidida')
-  confere(/Send patrol\s*\(uses 5 Rations\)/.test(folha), 'botão "Send patrol (uses 5 Rations)"')
-  confere(!/\b(best|yield|earn|profit)\b/i.test(folha), 'folha sem "best", "yield", "earn" nem promessa de ganho')
-  confere(/History: no fights yet/.test(await page.locator('#fHist').textContent()), 'placar histórico rotulado (ainda sem lutas)')
-  await conferirLayout(page, 'Patrol Orders')
-  await foto(page, 'orders-' + sufixo)
-  await clique(page, '#tSlots .t-slot[data-pos="0"] .t-mon')
-  await clique(page, '#tSlots .t-slot[data-pos="2"] .t-mon')
-  const trio1 = await nomesDoTrio(page)
-  confere(trio1.join(',') === 'Snapcoal,Wispurr,Ramblehorn', 'tocar dois troca Front e Back: ' + trio1.join(', '))
-  if (pc) { // arrastar (mouse) troca também
-    const a = await page.locator('#tSlots .t-slot[data-pos="0"] .t-mon').boundingBox(), b = await page.locator('#tSlots .t-slot[data-pos="2"] .t-mon').boundingBox()
-    await page.mouse.move(a.x + 40, a.y + 40); await page.mouse.down(); await page.mouse.move(a.x + 20, a.y + 60, { steps: 4 }); await page.mouse.move(b.x + 40, b.y + 40, { steps: 6 }); await page.mouse.up()
-    const trio2 = await nomesDoTrio(page)
-    confere(trio2.join(',') === 'Ramblehorn,Wispurr,Snapcoal', 'arrastar troca de volta: ' + trio2.join(', '))
-  } else { await clique(page, '#tSlots .t-slot[data-pos="0"] .t-mon'); await clique(page, '#tSlots .t-slot[data-pos="2"] .t-mon') }
-  // trocar o MONSTRO: os ícones viram na hora, com som e um pequeno pulo
-  const antes = await bordaDe(page, 0)
-  const viraAntes = await page.evaluate(() => window.__piloto.som().porNome.vira ?? 0)
-  await clique(page, '#tBancoLista .t-mon[data-uid="mudo"]')
-  await clique(page, '#tSlots .t-slot[data-pos="0"] .t-mon')
-  const depois = await bordaDe(page, 0)
-  confere((await nomesDoTrio(page))[0] === 'Lanternewt' && antes !== depois, `trocar monstro muda os ícones na hora (${antes} → ${depois})`)
-  confere((await page.locator('#tSlots .t-slot[data-pos="0"].virou').count()) === 1, 'o cartão que mudou vira (animação "virou")')
-  const anim = await page.evaluate(() => ({ e: getComputedStyle(document.querySelector('#tSlots .t-slot[data-pos="0"] .f-e')).animationName, m: getComputedStyle(document.querySelector('#tSlots .t-slot[data-pos="0"] .t-mon img')).animationName }))
-  confere(anim.e === 'vira' && anim.m === 'pulo', `ícone vira e o monstro dá um pulo (${anim.e}, ${anim.m})`)
-  const somA = await page.evaluate(() => window.__piloto.som())
-  confere(somA.destravado && (somA.porNome.vira ?? 0) > viraAntes && (somA.porNome.troca ?? 0) > 0, `som de troca e de ícone virando (${JSON.stringify(somA.porNome)})`)
-  // mudo funciona
-  await clique(page, '#btSom')
-  const m1 = await page.evaluate(() => window.__piloto.som())
-  await clique(page, '#tBancoLista .t-mon[data-uid="brigao"]')
-  await clique(page, '#tSlots .t-slot[data-pos="0"] .t-mon')
-  const m2 = await page.evaluate(() => window.__piloto.som())
-  confere(m1.mudo && m2.tocados === m1.tocados && (await page.getAttribute('#btSom', 'aria-pressed')) === 'false' && (await page.evaluate(() => localStorage.getItem('piloto_mudo'))) === '1', `mudo: nada toca e fica guardado (${m1.tocados} → ${m2.tocados})`)
-  await clique(page, '#btSom')
-  confere((await page.evaluate(() => window.__piloto.som().mudo)) === false && (await nomesDoTrio(page))[0] === 'Ramblehorn', 'som ligado de novo; trio de volta')
-  // o outro lugar: outra guarda, e os ícones se refazem
-  await clique(page, '.f-lugar[data-n="4"]')
-  const rivais4 = await page.locator('#tRivais .t-ficha > b').allTextContents()
-  confere(rivais4.join(',') === 'Wispurr,Breezle,Cindertusk' && /Stonebridge Watch/.test(await page.locator('#fTitulo').textContent()), 'trocar de lugar na folha: guarda de Stonebridge Watch: ' + rivais4.join(', '))
-  await clique(page, '.f-lugar[data-n="2"]')
-  // ordem das habilidades (a lista mudou de lugar: agora fica dobrada em "Skill order", dentro da folha)
-  await clique(page, '#fHab summary')
-  const hab = '#fHabs .f-habmon[data-pos="1"] .t-hab li'
-  const ordem0 = await page.locator(hab).evaluateAll((l) => l.map((x) => x.dataset.carta))
-  await clique(page, `${hab} >> nth=0 >> [data-acao="desce"]`)
-  const ordem1 = await page.locator(hab).evaluateAll((l) => l.map((x) => x.dataset.carta))
-  confere(ordem1[0] === ordem0[1] && ordem1[1] === ordem0[0], 'tocar ▼ desce a habilidade: ' + ordem1.join(' > '))
-  await clique(page, `${hab} >> nth=2 >> [data-acao="liga"]`)
-  confere((await page.locator(`${hab}.off`).count()) === 1, 'tocar On/Off desliga a habilidade (Off)')
-  await clique(page, `${hab} >> nth=2 >> [data-acao="liga"]`)
-  confere((await page.locator(`${hab}.off`).count()) === 0, 'e liga de novo')
-  await conferirLayout(page, 'Patrol Orders (Skill order aberto)')
-  await clique(page, '.t-tat[data-t="focus"]')
-  confere((await page.getAttribute('.t-tat[data-t="focus"]', 'aria-checked')) === 'true', 'tática Focus escolhida')
-  confere(/decided when it starts/.test(await page.locator('#time .decidido').textContent()), 'linha "The result of each fight is decided when it starts."')
-  await page.waitForFunction(() => window.__piloto.som().musica > 0, null, { timeout: 8000 }).catch(() => {})
-  confere((await page.evaluate(() => window.__piloto.som().musica)) > 0, 'a musiquinha toca depois do primeiro toque')
-  await page.close()
+  // ================================================================ 2. TEAM
+  const cartoes = await page.evaluate(() => [...document.querySelectorAll('#tSlots .t-slot')].map((s) => ({ pos: s.querySelector('.t-pos').textContent, nome: s.querySelector('.card b')?.textContent, img: !!s.querySelector('.card img.card__img'), el: !!s.querySelector('.card__l img'), rar: s.querySelector('.rar')?.dataset.rar, selo: s.querySelector('.selo')?.textContent })))
+  confere(cartoes.map((x) => x.pos).join() === 'Front,Middle,Back', '3 lugares: Front, Middle, Back')
+  confere(cartoes.every((x, i) => x.nome === nascidos[i].nome && x.img && x.el && x.rar === nascidos[i].raridade && x.selo === 'Fights today 0/7'), 'cada monstro mostra só desenho, nome, elemento, raridade e "Fights today 0/7"')
+  confere((await page.locator('#tBanco .card').count()) === 9, 'a coleção inteira embaixo (9)')
+  const txtTime = await page.locator('#time').innerText()
+  confere(!/Strong vs|Weak to|Resists|Rush|Focus|Skill order|Tactic|Patrol|Renown|\bbest\b|yield|\bearn/i.test(txtTime), 'Team sem tática, sem ordem de habilidades e sem "Strong vs / Weak to / Resists"')
+  // toque: um monstro da coleção, depois um lugar
+  const fora = c2.monstros.find((m) => !c2.trio.includes(m.uid))
+  await clique(page, `#tBanco .card[data-uid="${fora.uid}"]`)
+  await clique(page, '#tSlots .t-slot[data-pos="1"] .card')
+  let trio = (await C(page)).trio
+  confere(trio[1] === fora.uid && trio[0] === c2.trio[0] && trio[2] === c2.trio[2], 'tocar num monstro e depois num lugar põe ele lá')
+  // toque: dois lugares trocam entre si
+  await clique(page, '#tSlots .t-slot[data-pos="0"] .card')
+  await clique(page, '#tSlots .t-slot[data-pos="2"] .card')
+  trio = (await C(page)).trio
+  confere(trio[0] === c2.trio[2] && trio[2] === c2.trio[0], 'tocar em dois lugares troca os dois')
+  if (pc) { // arrastar (mouse) também põe
+    const a = await page.locator(`#tBanco .card[data-uid="${c2.trio[1]}"]`).boundingBox(), b = await page.locator('#tSlots .t-slot[data-pos="1"]').boundingBox()
+    await page.mouse.move(a.x + 40, a.y + 40); await page.mouse.down(); await page.mouse.move(a.x + 20, a.y + 60, { steps: 4 }); await page.mouse.move(b.x + 40, b.y + 60, { steps: 6 }); await page.mouse.up()
+    trio = (await C(page)).trio
+    confere(trio[1] === c2.trio[1], 'arrastar um monstro até um lugar põe ele lá')
+  }
+  await conferirLayout(page, 'Team')
+  await foto(page, `team-${fmt.nome}`)
+  await page.close(); await ctx.close()
 
-  // ---- 3. Send patrol: 1ª luta assistida em 2×; Pause para; 4× até o fim; tremida e flash dentro do limite
-  const p2 = await abrir(ctx, erros, ruins, '?cena=time&semente=e2e-a')
-  await clique(p2, '#btLutar')
+  // ================================================================ 3. HUNT + luta + 4. RESULT (assistindo, com Stop)
+  const ctxB = await novoCtx()
+  const p2 = await abrir(ctxB, erros, ruins)
+  const nasc2 = await abrirOsOvos(p2)
+  confere(nasc2.map((o) => `${o.ultimo.nome}:${o.ultimo.raridade}`).join() === nascidos.map((n) => `${n.nome}:${n.raridade}`).join(), 'mesma semente dos ovos = os mesmos 3 monstros: ' + nasc2.map((o) => `${o.ultimo.nome} (${o.ultimo.raridade})`).join(', '))
+  await clique(p2, '#tCacar')
+  await p2.waitForSelector('#caca:not([hidden])')
+  const lugares = await p2.evaluate(() => [...document.querySelectorAll('#cLugares .c-lugar')].map((b) => ({ nome: b.querySelector('b').textContent, aberto: !b.disabled, guarda: b.querySelectorAll('.c-guarda img').length, sel: b.getAttribute('aria-pressed') })))
+  confere(lugares.length === 5 && lugares.map((l) => l.aberto).join() === 'true,false,false,false,false', '5 lugares em fila, só o 1º aberto no começo')
+  confere(lugares.every((l) => l.guarda === 3), 'cada lugar mostra os 3 elementos da guarda')
+  confere(/^20\/20$/.test((await texto(p2, '#cEnergia')).replace(/\s/g, '')), 'energia 20/20 no topo')
+  confere((await p2.locator('#caca button.bt').count()) === 1 && (await texto(p2, '#btCacar')) === 'Hunt', 'UM botão grande "Hunt"')
+  confere((await p2.locator('#cDecidido').isVisible()) && (await texto(p2, '#cDecidido')) === 'The result of each fight is decided when it starts.', 'aviso "The result of each fight is decided when it starts." (antes da 1ª caçada)')
+  await conferirLayout(p2, 'Hunt')
+  await foto(p2, `hunt-${fmt.nome}`)
+  await clique(p2, '#btCacar')
   await p2.waitForSelector('#luta:not([hidden])')
-  confere(!!(await p2.evaluate(() => window.__piloto.luta?.resultado)), 'o resultado já existe quando a luta começa (decidido no início)')
-  confere((await C(p2)).racoes === 19 && (await p2.locator('#cRacoesNum').textContent()) === '19', 'a 1ª luta gasta 1 Ration (19/20)')
-  const b0 = await p2.evaluate(() => window.__piloto.batalha())
-  confere(b0.vel === 2, 'a 1ª luta da patrulha roda em 2×')
-  confere(/Fight 1 of 5/.test(await p2.locator('#bRotulo').textContent()), 'rótulo "Fight 1 of 5"')
-  const palco = await p2.evaluate(() => { const q = document.querySelector('#bPalco').getBoundingClientRect(); return { w: q.width, h: q.height, vw: innerWidth, vh: innerHeight } })
-  confere(b0.k >= (pc ? 3 : 2) && palco.w <= palco.vw && palco.w >= palco.vw * 0.75, `câmera perto: monstros de ${64 * b0.k} px (×${b0.k}), palco ${palco.w.toFixed(0)}×${palco.h.toFixed(0)} em ${palco.vw}×${palco.vh}`)
-  await p2.waitForFunction(() => window.__piloto.batalha().passo >= 2, null, { timeout: 20000 })
-  await p2.waitForSelector('.b-pop', { timeout: 20000 })
-  await foto(p2, 'battle-' + sufixo)
-  await clique(p2, '#bPausa')
-  const pa = await p2.evaluate(() => window.__piloto.batalha().passo)
-  await p2.waitForTimeout(1500)
-  const pb = await p2.evaluate(() => window.__piloto.batalha().passo)
-  confere(pa === pb && (await p2.evaluate(() => window.__piloto.batalha().pausado)), `Pause para a luta (passo ${pa} → ${pb})`)
-  await conferirLayout(p2, 'Battle')
-  await clique(p2, '#bPausa')
-  await clique(p2, '[data-vel="4"]')
-  const t0 = Date.now()
-  await p2.waitForSelector('#bFim:not([hidden])', { timeout: 120000 })
-  const seg = (Date.now() - t0) / 1000
-  const total = await p2.evaluate(() => window.__piloto.batalha())
-  confere(total.acabou && total.passo === total.total - 1, `luta em 4× chegou ao fim (${total.total} passos, ${seg.toFixed(1)} s)`)
-  confere(await p2.evaluate(() => localStorage.getItem('piloto_vel') === '4'), 'velocidade 4× guardada')
-  const r1 = await p2.evaluate(() => JSON.stringify(window.__piloto.luta.resultado))
-  const fim1 = await p2.locator('#bFimTit').textContent()
-  const venceu = JSON.parse(r1).vencedor === 'A'
-  confere(fim1 === (venceu ? 'Victory!' : 'Defeat'), `tela de fim = resultado do motor (${fim1})`)
-  confere((await p2.locator('.b-nums b').count()) === 3, 'tela de fim com 3 números')
+  const e1 = (await C(p2)).energia
+  confere(e1 === 19, `a 1ª luta gasta 1 de energia ao começar (${e1})`)
+  await p2.waitForSelector('.b-pop--dano', { timeout: 20000 })
+  await p2.waitForSelector('.b-pop--forte', { timeout: 15000 }).catch(() => {}) // a foto prefere um golpe Strong
+  await foto(p2, `battle-${fmt.nome}`, { ja: true })
+  const txtLuta = await p2.locator('#luta').innerText()
+  confere(!/decided|Turn \d|Glow|acts|Sun is high|Exposed|Nightfall/i.test(txtLuta), 'a luta sem textos explicativos por cima')
+  confere((await p2.locator('#bHud .b-vida__barra').count()) === 6, 'barras de vida dos 6 monstros')
+  await conferirLayout(p2, 'luta')
+  await clique(p2, '#luta [data-vel="4"]')
+  confere((await p2.evaluate(() => window.__piloto.batalha().vel)) === 4, 'acelerar: 4×')
+  // o carimbo WIN/LOSS de 1 a 2 s com os pontos
+  await p2.waitForSelector('#bCarimbo:not([hidden])', { timeout: 120000 })
+  const car = { txt: await texto(p2, '#bCarimboTxt'), pts: await texto(p2, '#bCarimboPts') }
+  const h1 = await H(p2)
+  confere(car.txt === (h1.lutas[0].venceu ? 'WIN' : 'LOSS') && car.pts === (h1.lutas[0].venceu ? '+1 pt' : '+0 pts'), `carimbo da 1ª luta = resultado do motor: ${car.txt} ${car.pts}`)
+  await p2.waitForSelector('#bCarimbo', { state: 'hidden', timeout: 5000 })
+  const durCar = await p2.evaluate(() => window.__piloto.carimboMs)
+  confere(durCar >= 1000 && durCar <= 2000, `carimbo fica de 1 a 2 s (${durCar} ms)`)
+  // a caçada segue sozinha: a 2ª luta começa e gasta mais 1
+  await p2.waitForFunction(() => window.__piloto.caca().lutas.length >= 2, null, { timeout: 20000 })
+  confere((await C(p2)).energia === 18, '2ª luta: mais 1 de energia (18)')
+  // Stop para
+  await clique(p2, '#bParar')
+  await p2.waitForSelector('#resultado:not([hidden])', { timeout: 20000 })
+  const h2 = await H(p2), cB = await C(p2)
+  confere(!h2.rodando && h2.lutas.length >= 2 && h2.lutas.length < 20 && cB.energia === 20 - h2.lutas.length, `Stop para a caçada: ${h2.lutas.length} lutas feitas, energia ${cB.energia}`)
+  const v = h2.lutas.filter((l) => l.venceu).length, d = h2.lutas.length - v, pts = h2.lutas.reduce((s, l) => s + l.pontos, 0)
+  await p2.waitForFunction(([a, b, c]) => document.querySelector('#rV').textContent === String(a) && document.querySelector('#rD').textContent === String(b) && document.querySelector('#rP').textContent === String(c), [v, d, pts], { timeout: 5000 }).catch(() => {})
+  confere((await texto(p2, '#rV')) === String(v) && (await texto(p2, '#rD')) === String(d) && (await texto(p2, '#rP')) === String(pts), `resumo de 3 números: ${v} vitórias, ${d} derrotas, ${pts} pontos`)
+  confere((await p2.locator('#resultado .r-num').count()) === 3, 'Result com exatamente 3 números')
+  confere(cB.total.v === v && cB.total.d === d && cB.total.pontos === pts && h2.lutas.every((l) => l.pontos === (l.venceu ? 1 : 0)), 'pontos: vitória no lugar 1 vale 1, derrota vale 0')
   const tm = await p2.evaluate(() => window.__piloto.tremidaMax)
   confere(tm <= 6, `tremida ≤ 6 px (${tm})`)
   const fl = await p2.evaluate(() => window.__piloto.flashes())
-  const rapido = fl.some((t, i) => i > 0 && t - fl[i - 1] < 333)
-  confere(!rapido, `flash ≤ 3 por segundo (${fl.length} flashes)`)
+  confere(!fl.some((t, i) => i > 0 && t - fl[i - 1] < 333), `flash ≤ 3 por segundo (${fl.length} flashes)`)
   const sons = await p2.evaluate(() => window.__piloto.som().porNome)
-  confere((sons.golpe ?? 0) + (sons.forte ?? 0) + (sons.critico ?? 0) > 0 && (sons.vitoria ?? 0) + (sons.derrota ?? 0) === 1, 'a luta tem som (golpes e o fim): ' + JSON.stringify(sons))
-  await conferirLayout(p2, 'Fim da luta')
+  confere(((sons.golpe ?? 0) + (sons.forte ?? 0) + (sons.critico ?? 0)) >= 1 && ((sons.carimboV ?? 0) + (sons.carimboD ?? 0)) >= 1, 'sons da luta: golpe e carimbo')
+  if (h2.abriu) await p2.waitForFunction(() => getComputedStyle(document.querySelector('#rNovo')).opacity === '1' && document.querySelector('#rNovo').getAnimations().every((a) => a.playState === 'finished'), null, { timeout: 5000 })
+  await conferirLayout(p2, 'Result')
+  await foto(p2, `result-${fmt.nome}`)
+  // mudo: nada mais toca
+  await clique(p2, '#btSom')
+  const m1 = await p2.evaluate(() => window.__piloto.som())
+  await clique(p2, '#rTime'); await clique(p2, '.aba[data-cena="caca"]')
+  const m2 = await p2.evaluate(() => window.__piloto.som())
+  confere(m1.mudo && m2.tocados === m1.tocados && (await texto(p2, '#btSom')) === 'Sound: off', 'mudo: nenhum som toca e o botão diz "Sound: off"')
+  await p2.reload(); await p2.waitForFunction(() => window.__piloto?.pronto)
+  confere((await p2.evaluate(() => window.__piloto.som().mudo)) && (await C(p2)).energia === cB.energia, 'o mudo e a conta ficam guardados no aparelho')
+  await p2.close(); await ctxB.close()
 
-  // ---- 4. lutas 2 a 5 em carimbos de ~3 s; o resultado nunca aparece antes do carimbo; tira final; Renome
-  const renome0 = (await C(p2)).renome
-  await clique(p2, '#bSeguir')
-  await p2.waitForSelector('#relato:not([hidden])')
-  const tc = Date.now()
-  confere((await p2.locator('#rCarimbos .r-carimbo').count()) === 5, 'folha do relato com 5 carimbos')
-  await p2.waitForSelector('.r-carimbo[data-i="0"] .r-selo')
-  confere((await p2.locator('.r-carimbo[data-i="0"] .r-selo').textContent()) === (venceu ? 'WIN' : 'LOSS'), 'o carimbo da luta 1 bate com a luta assistida')
-  const cedo = await p2.evaluate(() => ({ selos: document.querySelectorAll('.r-carimbo .r-selo').length, tira: document.querySelector('#rTiras').hidden, estados: [...document.querySelectorAll('.r-carimbo')].map((x) => x.dataset.estado).join(','), feitas: window.__piloto.patrulha().lutas.length }))
-  confere(cedo.selos === 1 && cedo.tira && cedo.feitas <= 2, `o resultado não aparece antes do carimbo (${cedo.estados}; lutas decididas até aqui: ${cedo.feitas})`)
-  await p2.waitForSelector('.r-carimbo[data-i="2"][data-estado="lutando"]', { timeout: 20000 })
-  if (pc) await foto(p2, 'stamps-pc')
-  await conferirLayout(p2, 'Patrol report (carimbos)')
-  await p2.waitForFunction(() => window.__piloto.patrulha().fase === 'fim', null, { timeout: 40000 })
-  const segC = (Date.now() - tc) / 1000
-  confere(segC >= 4 * 2.2 && segC <= 4 * 4.6, `4 carimbos de ~3 s cada (${segC.toFixed(1)} s no total)`)
-  await p2.waitForSelector('#rTiras:not([hidden])')
-  const pat1 = await P(p2)
-  const estados = await p2.locator('.r-carimbo').evaluateAll((l) => l.map((x) => x.dataset.estado))
-  confere(pat1.lutas.length === 5 && estados.join('') === pat1.lutas.map((l) => (l.venceu ? 'v' : 'd')).join(''), `5 lutas feitas = 1 assistida + 4 carimbos (${estados.join(' ')})`)
-  confere((await C(p2)).racoes === 15 && (await p2.locator('#cRacoesNum').textContent()) === '15', 'Send patrol gastou 5 Rations (15/20)')
-  // as regras do piloto estão em uso: os eventos do motor mostram Strong = +75% e resistido = −40%
-  const mult = await conferirMultiplicadores(p2)
+  // ================================================================ regras que continuam: determinismo, energia, cansaço, lugares
+  const umaCacada = async () => {
+    const cx = await novoCtx()
+    const p = await abrir(cx, erros, ruins)
+    await abrirOsOvos(p)
+    await cacarTudo(p)
+    return { cx, p, h: await H(p), c: await C(p) }
+  }
+  const A = await umaCacada(), B = await umaCacada()
+  confere(A.h.lutas.length === 20 && A.c.energia === 0, `Hunt gasta 1 de energia por luta e para quando acaba: ${A.h.lutas.length} lutas, energia ${A.c.energia}`)
+  confere(JSON.stringify(A.h.lutas) === JSON.stringify(B.h.lutas), 'mesma semente = mesmo resultado (20 lutas iguais): ' + A.h.lutas.map((l) => (l.venceu ? 'W' : 'L')).join(''))
+  await B.p.close(); await B.cx.close()
+  const p3 = A.p
+  confere(A.h.lutas.map((l) => l.lutasHoje.join('')).join() === Array.from({ length: 20 }, (_, i) => `${i}${i}${i}`).join(), 'lutas do dia contadas antes de cada luta (0,0,0 … 19,19,19)')
+  // cansaço: as 7 primeiras lutas com a vida cheia; da 8ª em diante o time começa com 75%
+  const vidas = await p3.evaluate(() => [6, 7, 19].map((i) => Object.values(window.__piloto.lutaDaCaca(i).inicial.bonecos).map((b) => ({ t: b.time, v: b.vida, m: b.vidaMax }))))
+  confere(vidas[0].every((b) => b.v === b.m), '7ª luta do dia: todos começam com a vida cheia')
+  for (const k of [1, 2]) confere(vidas[k].filter((b) => b.t === 'A').every((b) => b.v === Math.max(1, Math.round(b.m * 0.75))) && vidas[k].filter((b) => b.t === 'B').every((b) => b.v === b.m), `${k === 1 ? '8ª' : '20ª'} luta do dia: o time cansado começa com 75% da vida; a guarda inteira: ` + vidas[k].map((b) => `${b.t} ${b.v}/${b.m}`).join(' '))
+  // as regras do piloto nos eventos do motor
+  const mult = await conferirMultiplicadores(p3)
   confere(JSON.stringify(mult.regras) === JSON.stringify({ bonusDeTipo: 0.75, resistencia: 0.4 }), 'a luta usa as regras do piloto (bônus 0,75, resistência 0,40): ' + JSON.stringify(mult.regras))
   confere(mult.forte >= 1 && mult.resistido >= 1 && mult.neutro >= 1 && mult.erros.length === 0, `golpes conferidos nos eventos: Strong ×1,75 (${mult.forte}), resistido ×0,60 (${mult.resistido}), normal ×1 (${mult.neutro})` + (mult.erros.length ? ' → ' + mult.erros.slice(0, 3).join(' | ') : ''))
-  confere(mult.forteNaoBateCom25 >= 1, `o Strong não é mais o +25% de sempre (${mult.forteNaoBateCom25} de ${mult.forte} golpes diferem)`)
-  confere(pat1.lutas.every((l) => l.cansados.length === 0) && pat1.lutas.map((l) => l.lutasHoje.join('')).join(',') === '000,111,222,333,444', '1ª patrulha do dia: ninguém cansado; lutas do dia contadas antes de cada luta: ' + pat1.lutas.map((l) => l.lutasHoje.join('')).join(','))
-  const hoje1 = (await C(p2)).hoje
-  confere(['brigao', 'assombrado', 'mordedor'].every((u) => hoje1[u] === 5) && hoje1.mudo === 0, 'cada monstro do trio fez 5 lutas hoje: ' + JSON.stringify(hoje1))
-  confere(!(await p2.locator('#rNova .r-cansadas').count()), 'sem luta cansada, a tira não mostra a linha "Tired fights"')
-  await p2.waitForTimeout(2300) // os números rolam
-  const sonsC = await p2.evaluate(() => window.__piloto.som().porNome)
-  confere((sonsC.carimboV ?? 0) + (sonsC.carimboD ?? 0) === 5 && (sonsC.tira ?? 0) === 1 && (sonsC.renome ?? 0) === 1, 'som de carimbo em cada luta, da tira final e do Renome: ' + JSON.stringify(sonsC))
-  const linha1 = await p2.getAttribute('#rNova', 'aria-label')
-  const v1 = pat1.lutas.filter((l) => l.venceu).length
-  const dados1 = pat1.lutas.reduce((s, l) => s + l.forteDados, 0), lev1 = pat1.lutas.reduce((s, l) => s + l.forteLevados, 0)
-  confere(linha1 === `${v1} W – ${5 - v1} L · Strong hits given ${dados1} · taken ${lev1}`, 'tira final com os números das 5 lutas: ' + linha1)
-  const tiraTxt = (await p2.locator('#rNova').innerText()).replace(/\s+/g, ' ')
-  confere(tiraTxt.includes(`${v1} W – ${5 - v1} L`) && tiraTxt.includes(`Strong hits given ${dados1}`) && tiraTxt.includes(`taken ${lev1}`), 'os números da tira na tela (depois de rolar): ' + tiraTxt.slice(0, 90))
-  const causa = (await p2.locator('#rNova .r-causa').textContent()).trim()
-  confere(causa === pat1.tira.causa && /(landed|took) \d+ Strong hits?|No Strong hits/.test(causa), 'UMA frase de causa tirada dos eventos: ' + causa)
-  confere((await p2.locator('#rNova .r-spots div').count()) === 3 && /Damage taken by spot/i.test(tiraTxt), 'dano levado por posição (Front, Middle, Back)')
-  confere(await p2.isHidden('#rAntes'), '1ª tentativa: ainda não há tira anterior')
-  const renome1 = (await C(p2)).renome
-  confere(renome1 === renome0 + 5 + v1 && (await p2.locator('#cRenomeNum').textContent()) === String(renome1) && (await p2.locator('#rRenomeNum').textContent()) === String(renome1), `Renome sobe com a patrulha (${renome0} → ${renome1}) e aparece no topo`)
-  confere(/small sample/.test(await p2.locator('#rAmostra').textContent()), 'aviso: 5 lutas é amostra pequena')
-  await conferirLayout(p2, 'Patrol report (tira)')
-  // tocar num carimbo abre o replay daquela luta; "Back to report" volta
-  await clique(p2, '.r-carimbo[data-i="2"]')
-  await p2.waitForSelector('#luta:not([hidden])')
-  confere(/Replay · Fight 3 of 5/.test(await p2.locator('#bRotulo').textContent()), 'tocar num carimbo abre o replay daquela luta')
-  await clique(p2, '#bPular')
-  await p2.waitForSelector('#bFim:not([hidden])', { timeout: 20000 })
-  confere((await p2.locator('#bFimTit').textContent()) === (pat1.lutas[2].venceu ? 'Victory!' : 'Defeat'), 'o replay mostra o mesmo resultado do carimbo')
-  await conferirLayout(p2, 'Fim do replay')
-  await clique(p2, '#bTrocar')
-  confere((await p2.isVisible('#relato')) && (await p2.isVisible('#rNova')) && (await C(p2)).racoes === 15, '"Back to report" volta ao relato (replay não gasta Ration)')
-  await p2.close()
-
-  // ---- 5. mesma semente → mesmo resultado; Skip mostra o fim; a tentativa anterior fica ao lado da nova
-  const p3 = await abrir(ctx, erros, ruins, '?cena=time&semente=e2e-a')
-  const hist2 = await p3.locator('#fHist b').textContent()
-  confere(hist2 === `History: ${v1} W – ${5 - v1} L`, 'placar histórico real do trio no lugar: ' + hist2)
-  // cansaço à vista: 5 lutas no dia → "Tired (75% HP)" no trio e na lista; a folha diz que os 3 lutam cansados
-  const cans1 = await p3.locator('#tSlots .cansaco').allTextContents()
-  confere(cans1.length === 3 && cans1.every((t) => t === 'Tired (75% HP)'), 'depois de 5 lutas no dia: selo "Tired (75% HP)" nos 3 do trio: ' + cans1.join(' | '))
-  confere((await p3.locator('#tBancoLista .t-mon.cansado .f-zz').count()) === 3, 'na lista de monstros, os 3 cansados levam a marca "Tired"')
-  const avisoCans = await p3.locator('#fCansaco').textContent()
-  confere(/^3 of 3 will be tired during this patrol: .*Ramblehorn is already tired \(75% HP\)/.test(avisoCans), 'a folha avisa quem luta cansado nesta patrulha: ' + avisoCans)
-  // trocar 1 cansado por um descansado com 0 lutas: a folha conta 2 de 3 (e o descansado não cansa em 5 lutas)
-  await clique(p3, '#tBancoLista .t-mon[data-uid="mudo"]')
-  await clique(p3, '#tSlots .t-slot[data-pos="0"] .t-mon')
-  confere(/^2 of 3 will be tired during this patrol:/.test(await p3.locator('#fCansaco').textContent()) && (await p3.locator('#tSlots .t-slot[data-pos="0"] .cansaco').textContent()) === 'Fights today 0/5', 'com Lanternewt (0 lutas) no Front: "2 of 3" e "Fights today 0/5"')
-  await clique(p3, '#tBancoLista .t-mon[data-uid="brigao"]')
-  await clique(p3, '#tSlots .t-slot[data-pos="0"] .t-mon')
-  await conferirLayout(p3, 'Patrol Orders (cansados)')
-  if (pc) { await p3.waitForTimeout(600); await foto(p3, 'orders-tired-pc') } // espera o cartão terminar de virar
-  // "New day": zera só o cansaço e devolve as Rations (placar, Renome e tiras ficam)
-  const antesDia = await C(p3)
-  await clique(p3, '#fVoltar')
+  confere(mult.forteNaoBateCom25 >= 1, `os golpes Strong não bateriam com o +25% do jogo de sempre (${mult.forteNaoBateCom25})`)
+  // saiu da tela no meio: as lutas restantes foram resolvidas e aparecem no resultado
+  confere((await cena(p3)) === 'colecao' && (await p3.locator('.aba[data-cena="caca"].tem-novo').count()) === 1, 'sair da tela no meio: a caçada termina sozinha e a aba Hunt avisa')
+  await clique(p3, '.aba[data-cena="caca"]')
+  await p3.waitForSelector('#resultado:not([hidden])')
+  const vA = A.h.lutas.filter((l) => l.venceu).length
+  await p3.waitForFunction(([a, b]) => document.querySelector('#rV').textContent === String(a) && document.querySelector('#rD').textContent === String(b), [vA, 20 - vA], { timeout: 5000 }).catch(() => {})
+  confere((await texto(p3, '#rV')) === String(vA) && (await texto(p3, '#rD')) === String(20 - vA), `o resultado mostra as 20 lutas: ${vA} W, ${20 - vA} L`)
+  // vencer abre o próximo lugar, com a festa
+  confere(vA >= 1 && A.c.abertos === 2 && A.h.abriu === 2, `vencer no lugar 1 abre o lugar 2 (${vA} vitórias)`)
+  confere((await p3.locator('#rNovo').isVisible()) && /New place unlocked/.test(await texto(p3, '#rNovo')), 'festa "New place unlocked" no resultado')
+  confere((await p3.locator('#rDeNovo').isDisabled()) && /No energy left/.test(await texto(p3, '#rPorque')), 'sem energia: "Hunt again" desligado, com o motivo')
+  await p3.waitForFunction(() => document.querySelector('#rNovo').getAnimations().every((a) => a.playState === 'finished'), null, { timeout: 5000 })
+  await conferirLayout(p3, 'Result (lugar novo)')
+  await clique(p3, '.aba[data-cena="time"]'); await clique(p3, '.aba[data-cena="caca"]')
+  const lug2 = await p3.evaluate(() => [...document.querySelectorAll('#cLugares .c-lugar')].map((b) => !b.disabled))
+  confere(lug2.join() === 'true,true,false,false,false' && (await p3.locator('#btCacar').isDisabled()), 'Hunt: o lugar 2 abriu; sem energia o botão Hunt fica desligado')
+  // cansaço na tela: Tired nos 3 do time, os outros descansados
+  await clique(p3, '.aba[data-cena="time"]')
+  const selos = await p3.evaluate(() => ({ time: [...document.querySelectorAll('#tSlots .selo')].map((s) => s.textContent), banco: [...document.querySelectorAll('#tBanco .card:not(.no-time) .selo')].map((s) => s.textContent) }))
+  confere(selos.time.join() === 'Tired,Tired,Tired' && selos.banco.length === 6 && selos.banco.every((s) => s === 'Fights today 0/7'), 'depois de 7 lutas no dia o monstro aparece "Tired"; quem não lutou segue "Fights today 0/7"')
+  // New day devolve a energia e o descanso
   await clique(p3, '#btNovoDia')
-  const depoisDia = await C(p3)
-  confere(depoisDia.racoes === 20 && Object.values(depoisDia.hoje).every((n) => n === 0) && depoisDia.dia === antesDia.dia + 1 && (await p3.locator('#cRacoesNum').textContent()) === '20', `"New day" zera o cansaço e devolve as Rations (${antesDia.racoes} → ${depoisDia.racoes}, dia ${antesDia.dia} → ${depoisDia.dia})`)
-  confere(depoisDia.renome === antesDia.renome && depoisDia.tiras.length === antesDia.tiras.length, '"New day" não mexe no Renome nem nas tiras')
-  await clique(p3, '#mLista .m-item[data-i="1"]')
-  await p3.waitForSelector('#time:not([hidden])')
-  confere((await p3.locator('#tSlots .cansaco').allTextContents()).every((t) => t === 'Fights today 0/5'), 'depois do "New day": "Fights today 0/5" de novo')
-  await clique(p3, '#btLutar')
-  await p3.waitForFunction(() => window.__piloto.batalha()?.passo >= 0, null, { timeout: 20000 })
-  await clique(p3, '#bPular')
-  await p3.waitForSelector('#bFim:not([hidden])', { timeout: 20000 })
-  const r2 = await p3.evaluate(() => JSON.stringify(window.__piloto.luta.resultado))
-  confere(r1 === r2, 'mesma semente e mesmo time → mesmo resultado (' + r1 + ')')
-  confere((await p3.locator('#bFimTit').textContent()) === fim1, 'Skip mostra o mesmo fim')
-  await clique(p3, '#bSeguir')
-  await clique(p3, '#rPular')
-  await p3.waitForFunction(() => window.__piloto.patrulha().fase === 'fim', null, { timeout: 20000 })
-  const pat2 = await P(p3)
-  confere(JSON.stringify(pat2.lutas) === JSON.stringify(pat1.lutas), 'mesma semente = as mesmas 5 lutas (patrulha inteira igual)')
-  confere((await C(p3)).racoes === 15, 'a 2ª patrulha (depois do "New day") gastou 5 Rations (15/20)')
-  // 3ª tentativa: só troca a formação (Front ↔ Back) e manda de novo; a anterior fica ao lado
-  await clique(p3, '#rOutro')
-  confere(await p3.isVisible('#time'), '"Change the formation" volta à folha de ordens')
-  await clique(p3, '#tSlots .t-slot[data-pos="0"] .t-mon')
-  await clique(p3, '#tSlots .t-slot[data-pos="2"] .t-mon')
-  confere((await p3.locator('#fHist b').textContent()) === `History: ${2 * v1} W – ${2 * (5 - v1)} L`, 'o histórico soma as duas patrulhas do trio neste lugar')
-  confere(/^3 of 3 will be tired during this patrol:/.test(await p3.locator('#fCansaco').textContent()), 'o trio já fez 5 lutas neste dia: a folha avisa que os 3 lutam cansados')
-  await patrulhaRapida(p3)
-  await p3.waitForTimeout(1700)
-  const pat3 = await P(p3)
-  // a patrulha cansada: o motor começa cada luta com 75% da vida do trio (a guarda inteira) e a tira conta as lutas cansadas
-  confere(pat3.lutas.every((l) => l.cansados.length === 3 && l.lutasHoje.every((n) => n >= 5)), 'patrulha depois de 5 lutas no dia: as 5 lutas com o trio cansado')
-  const vidas = await p3.evaluate(() => { const l = window.__piloto.lutaDaPatrulha(0); return Object.values(l.inicial.bonecos).map((b) => ({ t: b.time, v: b.vida, m: b.vidaMax })) })
-  confere(vidas.filter((b) => b.t === 'A').every((b) => b.v === Math.max(1, Math.round(b.m * 0.75))) && vidas.filter((b) => b.t === 'B').every((b) => b.v === b.m), 'vida inicial do trio cansado = 75% da máxima; a guarda começa inteira: ' + vidas.map((b) => `${b.t} ${b.v}/${b.m}`).join(' '))
-  const linhaCans = (await p3.locator('#rNova .r-cansadas').textContent()).replace(/\s+/g, ' ').trim()
-  confere(pat3.tira.cansadas === 5 && /^Tired fights: 5/.test(linhaCans) && !(await p3.locator('#rAntes .r-cansadas').count()), 'a tira mostra "Tired fights: 5" (a anterior não tinha): ' + linhaCans)
-  const lado = await p3.evaluate(() => { const a = document.querySelector('#rNova').getBoundingClientRect(), b = document.querySelector('#rAntes').getBoundingClientRect(); return { ax: a.left, ar: a.right, ay: a.top, ab: a.bottom, bx: b.left, by: b.top, vis: !document.querySelector('#rAntes').hidden } })
-  confere(lado.vis && (pc ? lado.bx >= lado.ar - 1 && Math.abs(lado.ay - lado.by) < 2 : lado.by >= lado.ab - 1), `a tentativa anterior fica ${pc ? 'ao lado' : 'logo abaixo'} da nova`)
-  confere((await p3.getAttribute('#rAntes', 'aria-label')) === linha1 && /Previous patrol/i.test(await p3.locator('#rAntes').innerText()), 'a tira anterior guarda os números da tentativa anterior: ' + linha1)
-  const linha3 = await p3.getAttribute('#rNova', 'aria-label')
-  const v3 = pat3.lutas.filter((l) => l.venceu).length
-  confere(linha3.startsWith(`${v3} W – ${5 - v3} L`) && /This patrol/i.test(await p3.locator('#rNova').innerText()), 'a tira nova mostra a nova formação: ' + linha3)
-  confere(JSON.stringify(pat3.lutas) !== JSON.stringify(pat1.lutas), 'mudou a formação → as lutas mudaram (mesma semente)')
-  await conferirLayout(p3, 'Patrol report (comparação)')
-  await p3.evaluate((noPc) => { if (noPc) window.scrollTo(0, 0); else document.querySelector('#rNova').scrollIntoView({ block: 'start' }) }, pc)
-  await foto(p3, 'result-compare-' + sufixo)
-  if (!pc) await foto(p3, 'result-tired-celular')
-  const renome3 = (await C(p3)).renome
-  confere(renome3 > renome1 && (await C(p3)).racoes === 10, `Renome só cresce (${renome1} → ${renome3}); Rations 10/20`)
+  const cD = await C(p3)
+  confere(cD.energia === 20 && cD.dia === 2 && cD.monstros.every((m) => m.hoje === 0) && cD.total.v === vA && cD.abertos === 2, '"New day" devolve a energia e o descanso (pontos e lugares ficam)')
+  confere((await p3.locator('#tSlots .selo').allTextContents()).join() === 'Fights today 0/7,Fights today 0/7,Fights today 0/7', 'depois do New day: "Fights today 0/7"')
+  // escolher o lugar 2 e caçar lá: vitória vale 2
+  await clique(p3, '.aba[data-cena="caca"]')
+  await clique(p3, '#cLugares .c-lugar[data-n="2"]')
+  confere((await C(p3)).lugar === 2, 'tocar no lugar aberto escolhe ele')
+  await clique(p3, '#btCacar'); await p3.waitForSelector('#luta:not([hidden])'); await clique(p3, '.aba[data-cena="colecao"]')
+  await p3.waitForFunction(() => !window.__piloto.caca().rodando, null, { timeout: 30000 })
+  const hL2 = await H(p3)
+  confere(hL2.n === 2 && hL2.lutas.length === 20 && hL2.lutas.every((l) => l.pontos === (l.venceu ? 2 : 0)), 'no lugar 2 a vitória vale 2 pontos')
 
-  // ---- 6. ficha do monstro com história, título e Renome; cartão PNG
-  await clique(p3, '#abaMonstros')
-  await p3.waitForSelector('#monstros:not([hidden])')
-  confere((await p3.locator('#gGrade .g-item').count()) === 6, 'tela Monsters com os 6 da conta')
-  await conferirLayout(p3, 'Monsters')
-  await clique(p3, '#gGrade .g-item[data-uid="mordedor"]')
+  // ================================================================ 5. COLLECTION, ficha e Breed
+  await clique(p3, '.aba[data-cena="colecao"]')
+  confere((await p3.locator('#gGrade .card').count()) === 9, 'Collection: grade com os 9 monstros')
+  await conferirLayout(p3, 'Collection')
+  await foto(p3, `collection-${fmt.nome}`)
+  const alvo = (await C(p3)).monstros[0]
+  await clique(p3, `#gGrade .card[data-uid="${alvo.uid}"]`)
   await p3.waitForSelector('#gFundo:not([hidden])')
-  const fichaTxt = (await p3.locator('#gFicha').innerText()).replace(/\s+/g, ' ')
-  const hs = await p3.evaluate(() => window.__piloto.historia('mordedor'))
-  confere(hs.lutas === 15 && fichaTxt.includes(`${hs.v} W – ${hs.d} L`) && fichaTxt.includes('Millbrook'), `ficha com a história: placar ${hs.v} W – ${hs.d} L e placar por lugar`)
-  confere(/Millbrook Veteran/.test(fichaTxt) && hs.titulos.some((t) => t.id === 'veterano'), 'título ganho no piloto: "Millbrook Veteran" (5 lutas no lugar)')
-  confere(fichaTxt.includes(`Renown ${renome3}`) && /never adds power/.test(fichaTxt), 'Renome da conta na ficha, dito como enfeite')
-  await conferirLayout(p3, 'Ficha do monstro')
-  if (pc) await foto(p3, 'monster-card-pc')
-  const [baixou] = await Promise.all([p3.waitForEvent('download', { timeout: 15000 }).catch(() => null), clique(p3, '#gCartao')])
-  await p3.waitForFunction(() => window.__piloto.cartao, null, { timeout: 15000 })
-  const cartao = await p3.evaluate(() => window.__piloto.cartao)
-  confere(cartao.w === 480 && cartao.h === 640 && cartao.url.startsWith('data:image/png;base64,'), `"Share card" gera um PNG ${cartao.w}×${cartao.h}`)
-  confere(!!baixou && /snapcoal-card\.png$/.test(baixou.suggestedFilename()), 'o cartão é baixado: ' + (baixou ? baixou.suggestedFilename() : 'sem download'))
-  const arqCartao = path.join(FOTOS, 'share-card.png')
-  await writeFile(arqCartao, Buffer.from(cartao.url.split(',')[1], 'base64'))
-  const kbC = (await stat(arqCartao)).size / 1024
-  confere(kbC > 3 && kbC < 400, `share-card.png com ${kbC.toFixed(0)} KB (< 400)`)
+  const ficha = await p3.locator('#gFicha').innerText()
+  confere(ficha.includes(alvo.nome) && /Body[\s\S]*Head[\s\S]*Arms[\s\S]*Legs[\s\S]*Mark/.test(ficha) && new RegExp(`${alvo.lutas}\\s*/1,200`).test(ficha) && /0\s*\/5\s*Clutches/.test(ficha.replace(/\n/g, ' ')), `ficha simples: nome, elemento, raridade, 5 partes, lutas ${alvo.lutas}/1,200, Clutches 0/5`)
+  confere(!(await p3.locator('#gRetire').isVisible()) && (await p3.locator('#gBreed').isVisible()), '"Retire" só aparece no fim da vida; "Breed" à mão')
+  confere(!/Strong hits|Renown|Titles|Share|Story/i.test(ficha), 'ficha sem Renome, títulos nem cartão para postar')
+  await conferirLayout(p3, 'ficha')
+  await foto(p3, `card-${fmt.nome}`)
   await p3.keyboard.press('Escape')
-  confere(await p3.isHidden('#gFundo'), 'a ficha fecha com Esc')
-  await clique(p3, '#gGrade .g-item[data-uid="mordedor"]'); await clique(p3, '#gX')
-  confere(await p3.isHidden('#gFundo'), 'a ficha fecha no X')
-  await clique(p3, '#gGrade .g-item[data-uid="mordedor"]'); await p3.mouse.click(4, fmt.h - 4)
-  confere(await p3.isHidden('#gFundo'), 'a ficha fecha clicando fora')
-
-  // ---- 7. Rations acabam: a ordem não sai; "Reset pilot" devolve tudo
-  await clique(p3, '#abaMapa'); await clique(p3, '#mLista .m-item[data-i="1"]')
-  await patrulhaRapida(p3)
-  confere((await C(p3)).racoes === 5, 'a 4ª patrulha deixa 5/20')
-  await clique(p3, '#rDeNovo')
-  await clique(p3, '#bPular')
-  await p3.waitForSelector('#bFim:not([hidden])', { timeout: 20000 })
-  await clique(p3, '#bSeguir'); await clique(p3, '#rPular')
-  await p3.waitForFunction(() => window.__piloto.patrulha().fase === 'fim', null, { timeout: 20000 })
-  await p3.waitForSelector('#rTiras:not([hidden])')
-  confere((await C(p3)).racoes === 0, 'a 5ª patrulha zera o saco (0/20)')
-  confere(await p3.isDisabled('#rDeNovo'), 'sem Rations, "Send again" fica desligado')
-  await clique(p3, '#rOutro')
-  await clique(p3, '#btLutar')
-  await p3.waitForTimeout(300)
-  confere((await p3.isVisible('#time')) && /Not enough Rations/.test(await p3.locator('#fAvisos').textContent()) && (await C(p3)).racoes === 0, 'sem Rations a patrulha não sai, e a folha diz por quê')
-  await clique(p3, '#fVoltar')
-  confere(/Last patrol/.test(await p3.locator('#mUltima').textContent()) && !/\d W/.test(await p3.locator('#mUltima').textContent()), 'a Road lembra a última patrulha sem mostrar o placar')
+  confere(!(await p3.locator('#gFundo').isVisible()), 'a ficha fecha com Esc')
+  await clique(p3, `#gGrade .card[data-uid="${alvo.uid}"]`); await clique(p3, '#gX')
+  confere(!(await p3.locator('#gFundo').isVisible()), 'a ficha fecha no X')
+  await clique(p3, `#gGrade .card[data-uid="${alvo.uid}"]`); await p3.mouse.click(4, 4)
+  confere(!(await p3.locator('#gFundo').isVisible()), 'a ficha fecha clicando fora')
+  // Breed: escolher dois → chances por parte ANTES → ovo → abre como na tela Egg
+  await clique(p3, '#gCruzar')
+  await p3.waitForSelector('#xCruzar:not([hidden])')
+  confere((await p3.locator('#xFazer').isDisabled()) && !(await p3.locator('#xChances').isVisible()), 'Breed: sem dois escolhidos não há botão nem chances')
+  const cM = await C(p3)
+  const [pa, pb] = [cM.monstros[3], cM.monstros[4]]
+  await clique(p3, `#xPais .card[data-uid="${pa.uid}"]`); await clique(p3, `#xPais .card[data-uid="${pb.uid}"]`)
+  const cruza = await p3.evaluate(() => ({ vis: !document.querySelector('#xChances').hidden, linhas: [...document.querySelectorAll('#xChances .x-linha')].map((l) => ({ parte: l.querySelector('b').textContent, soma: [...l.querySelectorAll('em')].reduce((s, e) => s + parseFloat(e.textContent), 0), n: l.querySelectorAll('li').length })) }))
+  confere(cruza.vis && cruza.linhas.map((l) => l.parte).join() === 'Body,Head,Arms,Legs,Mark' && cruza.linhas.every((l) => l.n >= 1 && Math.abs(l.soma - 100) < 0.6), 'Breed: a chance de cada parte na tela ANTES de fazer o ovo (cada parte soma 100%)')
+  confere((await C(p3)).monstros.length === 9 && !(await p3.locator('#xFazer').isDisabled()), 'nada decidido antes de confirmar; o botão liga com dois escolhidos')
+  await conferirLayout(p3, 'Breed')
+  await foto(p3, `breed-${fmt.nome}`)
+  await clique(p3, '#xFazer')
+  await p3.waitForFunction(() => window.__piloto.cena === 'ovo' && window.__piloto.ovo().fase === 'pronto', null, { timeout: 10000 })
+  confere((await p3.evaluate(() => window.__piloto.ovo().modo)) === 'cruza' && (await C(p3)).ovos === 1, 'o cruzamento vira um ovo, que abre na tela Egg')
+  await clique(p3, '#oAbrir')
+  await p3.waitForFunction(() => window.__piloto.ovo().fase === 'aberto', null, { timeout: 10000 })
+  const oF = await p3.evaluate(() => window.__piloto.ovo())
+  const cF = await C(p3)
+  const filho = cF.monstros.find((m) => m.uid === oF.ultimo.uid)
+  confere(oF.ms <= 4000 && cF.monstros.length === 10 && filho && filho.pais.slice().sort().join() === [pa.uid, pb.uid].sort().join(), `o filhote entra na coleção (${oF.ultimo.nome}, ${oF.ms} ms) com os dois pais`)
+  confere(cF.monstros.find((m) => m.uid === pa.uid).voltas === 1 && cF.monstros.find((m) => m.uid === pb.uid).voltas === 1, 'cada pai gastou 1 clutch')
+  await clique(p3, '#oSeguir')
+  await p3.waitForSelector('#colecao:not([hidden])')
+  confere((await p3.locator('#gGrade .card').count()) === 10 && (await p3.locator('#gGrade .card b').allTextContents()).includes(oF.ultimo.nome), 'o filhote aparece na Collection')
+  // textos proibidos em toda a página
+  const tudo = await p3.evaluate(() => document.body.innerText)
+  confere(!/\bbest\b|\byield\b|\bearn/i.test(tudo), 'nada de "best", "yield", "earn"')
+  // Reset pilot: volta ao começo
   await clique(p3, '#btReset'); await clique(p3, '#btReset')
-  const zerado = await C(p3)
-  confere(zerado.racoes === 20 && zerado.renome === 0 && zerado.tiras.length === 0 && (await p3.locator('#cRacoesNum').textContent()) === '20', '"Reset pilot" (2 toques) devolve 20 Rations e zera o piloto')
-  confere(Object.values(zerado.hoje).every((n) => n === 0), '"Reset pilot" zera também as lutas do dia (cansaço)')
-  await p3.close()
+  const cR = await C(p3)
+  confere((await cena(p3)) === 'ovo' && cR.ovos === 3 && cR.monstros.length === 0 && cR.energia === 20, '"Reset pilot" (2 toques) volta ao começo: 3 ovos')
+  await p3.close(); await A.cx.close()
 
-  // ---- 8. Reduced motion: sem tremida e sem flash
-  const p4 = await abrir(ctx, erros, ruins, '?cena=time&semente=e2e-b')
+  // ================================================================ Reduced motion: sem tremida e sem flash
+  const ctxM = await novoCtx()
+  const p4 = await abrir(ctxM, erros, ruins)
   await clique(p4, '#btMenos')
-  confere((await p4.getAttribute('#btMenos', 'aria-pressed')) === 'true', 'botão Reduced motion liga')
-  await clique(p4, '#btLutar')
-  await clique(p4, '[data-vel="4"]')
-  await p4.waitForSelector('#bFim:not([hidden])', { timeout: 120000 })
+  confere((await p4.evaluate(() => window.__piloto.menos())) && (await texto(p4, '#btMenos')) === 'Reduced motion: on', 'Reduced motion ligado')
+  const nasc4 = await abrirOsOvos(p4)
+  confere(nasc4.every((o) => o.ms <= 4000), 'Reduced motion: o ovo abre em até 4 s')
+  confere((await p4.evaluate(() => document.querySelectorAll('#festa i').length)) === 0, 'Reduced motion: nenhuma faísca')
+  await clique(p4, '#tCacar'); await clique(p4, '#btCacar')
+  await p4.waitForSelector('#luta:not([hidden])')
+  await clique(p4, '#luta [data-vel="4"]')
+  await p4.waitForSelector('#bCarimbo:not([hidden])', { timeout: 120000 })
+  const anim = await p4.evaluate(() => getComputedStyle(document.querySelector('#bCarimbo b')).animationName)
+  await clique(p4, '#bParar')
+  await p4.waitForSelector('#resultado:not([hidden])', { timeout: 20000 })
   confere((await p4.evaluate(() => window.__piloto.tremidaMax)) === 0, 'Reduced motion: nenhuma tremida')
   confere((await p4.evaluate(() => window.__piloto.flashes().length)) === 0, 'Reduced motion: nenhum flash')
-  await clique(p4, '#bSeguir')
-  await p4.waitForSelector('.r-carimbo[data-i="1"] .r-selo', { timeout: 20000 })
-  const parado = await p4.evaluate(() => ({ selo: getComputedStyle(document.querySelector('.r-carimbo[data-i="1"] .r-selo')).animationName, folha: getComputedStyle(document.querySelector('#rFolha')).animationName }))
-  confere(parado.selo === 'none' && parado.folha === 'none', 'Reduced motion: o carimbo não pula e a folha não treme')
-  await clique(p4, '#rPular')
-  await p4.waitForFunction(() => window.__piloto.patrulha().fase === 'fim', null, { timeout: 20000 })
-  await clique(p4, '#btMenos')
-  await p4.close()
-
-  // ---- 9. PC: fotos de Sundown e de vitória (semente com vitória e luta longa)
-  if (pc) {
-    // regra mudou (tarefa 34: +75%, resistência e cansaço): a semente "h" deixou de dar vitória; "v9" é uma luta longa com
-    // vitória do trio CANSADO (a patrulha da parte 8 já fez 5 lutas neste dia), com Focus
-    const p5 = await abrir(ctx, erros, ruins, '?cena=time&semente=v9')
-    await clique(p5, '.t-tat[data-t="focus"]')
-    confere((await p5.locator('#tSlots .cansaco.cansado').count()) === 3, 'na foto do Sundown o trio luta cansado (5 lutas no dia)')
-    await clique(p5, '#btLutar')
-    await clique(p5, '[data-vel="4"]')
-    await p5.waitForFunction(() => window.__piloto.batalha().turno >= 9, null, { timeout: 120000 })
-    await p5.waitForTimeout(900)
-    confere(/Sundown/.test(await p5.locator('#bSol').textContent()), 'Sundown aparece do turno 9 em diante')
-    confere((await p5.evaluate(() => window.__piloto.som().porNome.sundown ?? 0)) === 1, 'o Sundown tem o seu som')
-    await foto(p5, 'battle-sundown-pc')
-    await clique(p5, '#bPular')
-    await p5.waitForSelector('#bFim:not([hidden])', { timeout: 20000 })
-    if ((await p5.locator('#bFimTit').textContent()) === 'Victory!') await foto(p5, 'victory-pc')
-    else falha('a semente "v9" devia dar vitória para a foto victory-pc')
-    confere((await p5.locator('.b-tired').count()) >= 3, 'na luta, o selo "Tired" aparece em quem começou cansado')
-    await p5.close()
-    // golpe resistido: "Resisted" pequeno e cinza (o Strong continua grande)
-    const p7 = await abrir(ctx, erros, ruins, '?cena=time&semente=r24')
-    await clique(p7, '.t-tat[data-t="rush"]')
-    await clique(p7, '#btLutar')
-    await clique(p7, '[data-vel="1"]')
-    await p7.waitForSelector('.b-pop--resiste small.resistido', { timeout: 60000 })
-    await foto(p7, 'battle-resisted-pc')
-    const est = await p7.evaluate(() => { const s = document.querySelector('.b-pop--resiste small.resistido'), b = document.querySelector('.b-pop--resiste b'); const cs = getComputedStyle(s); return { txt: s.textContent, fs: parseFloat(cs.fontSize), num: parseFloat(getComputedStyle(b).fontSize), cor: cs.backgroundColor } })
-    const cinza = (() => { const m = est.cor.match(/\d+/g).map(Number); return Math.max(m[0], m[1], m[2]) - Math.min(m[0], m[1], m[2]) <= 24 })()
-    confere(est.txt === 'Resisted' && est.fs <= 12 && est.fs < est.num && cinza, `golpe resistido mostra "Resisted" pequeno e cinza (${est.fs}px, ${est.cor}; número ${est.num}px)`)
-    await clique(p7, '#bPular')
-    await p7.waitForSelector('#bFim:not([hidden])', { timeout: 20000 })
-    await p7.close()
-  }
-
-  // ---- 10. Nest: chances antes, revelação em 5 passos (toque e auto), nome, segredos; o filhote entra na conta e vai na patrulha
-  const p6 = await abrir(ctx, erros, ruins, '?cena=ovo&ovo=e2e-ovo')
-  confere(await p6.isDisabled('#oBreed'), 'sem dois pais, não bota o ovo')
-  await clique(p6, '.o-pai >> nth=0')
-  await clique(p6, '.o-pai >> nth=1')
-  const chances = await p6.locator('#oChances .o-linha').count()
-  const pcts = await p6.locator('#oChances em').allTextContents()
-  confere(chances === 5 && pcts.length >= 5 && pcts.every((x) => /%$/.test(x)), `chances das 5 partes à vista antes de confirmar (${pcts.slice(0, 4).join(' ')})`)
-  confere(/Decided when you confirm/.test(await p6.locator('#oEscolha').innerText()), 'frase "Decided when you confirm" junto do botão')
-  await conferirLayout(p6, 'Nest (escolha)')
-  await clique(p6, '#oBreed')
-  await p6.waitForSelector('#oCena:not([hidden])')
-  for (let i = 0; i < 2; i++) { await clique(p6, '#oProximo'); await p6.waitForTimeout(250) }
-  confere((await p6.evaluate(() => window.__piloto.ovo().passo)) === 2, 'tocar revela passo a passo (mark, legs)')
-  confere((await p6.locator('#oCartas li').count()) === 2 && /Mark:/.test(await p6.locator('#oCartas li >> nth=0').textContent()), 'o cartão da parte aparece com a origem')
-  if (!pc) await foto(p6, 'egg-celular')
-  await clique(p6, '#oAuto')
-  await p6.waitForFunction(() => window.__piloto.ovo().fase === 'fim', null, { timeout: 20000 })
-  const nome = await p6.locator('#oNome').textContent()
-  confere(/^[A-Z][a-z]+-[A-Z][a-z]+-[A-Z][a-z]+$/.test(nome), 'filhote nasce com nome pelos apelidos: ' + nome)
-  confere((await p6.locator('#oCartas li').count()) === 5, 'as 5 partes reveladas (mark, legs, arms, head, body)')
-  confere((await C(p6)).monstros.length === 7 && /Joined your monsters/.test(await p6.locator('#oEntrou').textContent()), 'o filhote entra na conta do piloto ao nascer (7 monstros)')
-  const sonsO = await p6.evaluate(() => window.__piloto.som().porNome)
-  confere((sonsO.ovoRacha ?? 0) === 4 && (sonsO.ovoNasce ?? 0) === 1, 'som do ovo rachando (4) e nascendo (1)')
-  await clique(p6, '#oEspiar')
-  confere((await p6.locator('#oSegredos li').count()) === 5, '"Peek hidden traits" mostra as 5 partes escondidas')
-  await conferirLayout(p6, 'Nest (fim)')
-  await p6.waitForTimeout(700)
-  if (pc) await foto(p6, 'egg-pc')
-  // outro ovo, todo no "auto": a cena inteira em até 6 s
-  await clique(p6, '#oDeNovo')
-  await clique(p6, '.o-pai >> nth=2'); await clique(p6, '.o-pai >> nth=3')
-  const ta = Date.now()
-  await clique(p6, '#oBreed')
-  await p6.waitForFunction(() => window.__piloto.ovo().fase === 'fim', null, { timeout: 20000 })
-  const segO = (Date.now() - ta) / 1000
-  confere(segO <= 6, `ovo no "auto" em até 6 s (${segO.toFixed(1)} s)`)
-  const nome2 = await p6.locator('#oNome').textContent()
-  await clique(p6, '#oTime')
-  await p6.waitForSelector('#time:not([hidden])')
-  confere((await p6.locator('#tBancoLista .t-mon').count()) === 8 && (await p6.locator('#tBancoLista .t-mon small').allTextContents()).includes(nome), 'os filhotes aparecem na lista de monstros da folha (8)')
-  confere((await p6.locator('#tBancoLista .t-mon.sel small').textContent()) === nome2, '"To the patrol" já traz o filhote escolhido')
-  await clique(p6, '#tSlots .t-slot[data-pos="0"] .t-mon')
-  confere((await nomesDoTrio(p6))[0] === nome2, 'o filhote entra no trio (com os ícones de vantagem dele)')
-  await conferirLayout(p6, 'Patrol Orders (com filhotes)')
-  await clique(p6, '#btLutar')
-  await clique(p6, '#bPular')
-  await p6.waitForSelector('#bFim:not([hidden])', { timeout: 20000 })
-  confere(true, 'o filhote luta na patrulha (a luta chega ao fim)')
-  await clique(p6, '#abaMonstros')
-  confere((await p6.locator('#gGrade .g-item b').allTextContents()).includes(nome2) && (await p6.locator('#gGrade .g-item').count()) === 8, 'o filhote aparece em Monsters')
-  await p6.close()
-
-  // ---- 11. só public/ e shared/; zero 404; zero erro
-  const pf = await abrir(ctx, erros, ruins)
-  const fora = await pf.evaluate(() => performance.getEntriesByType('resource').map((e) => new URL(e.name)).filter((u) => u.protocol.startsWith('http')).map((u) => u.pathname).filter((p) => !/\/(public|shared)\//.test(p)))
-  confere(fora.length === 0, 'a página só pede arquivos de public/ e shared/' + (fora.length ? ' → ' + fora.slice(0, 4).join(', ') : ''))
-  const naSub = await pf.evaluate((sub) => performance.getEntriesByType('resource').every((e) => new URL(e.name).pathname.startsWith(sub)), SUB)
-  confere(naSub, 'funciona em subpasta (todo pedido fica dentro dela)')
+  confere(anim === 'aparece', `Reduced motion: o carimbo só aparece, sem batida (${anim})`)
+  // foco de teclado visível
+  await p4.keyboard.press('Tab')
+  const foco = await p4.evaluate(() => { const el = document.activeElement, s = getComputedStyle(el); return { tag: el.tagName, largura: parseFloat(s.outlineWidth), estilo: s.outlineStyle } })
+  confere(foco.tag === 'BUTTON' && foco.largura >= 2 && foco.estilo !== 'none', `foco de teclado visível (${foco.tag}, contorno ${foco.largura}px ${foco.estilo})`)
+  // só public/ e shared/; zero 404; zero erro
+  const pedidos = await p4.evaluate(() => performance.getEntriesByType('resource').map((e) => new URL(e.name)).filter((u) => u.protocol.startsWith('http')).map((u) => u.pathname))
+  const foraDaqui = pedidos.filter((p) => !/\/(public|shared)\//.test(p))
+  confere(foraDaqui.length === 0, 'a página só pede arquivos de public/ e shared/' + (foraDaqui.length ? ' → ' + foraDaqui.slice(0, 4).join(', ') : ''))
+  confere(pedidos.length > 0 && pedidos.every((p) => p.startsWith(SUB)), 'funciona em subpasta (todo pedido fica dentro dela)')
+  await p4.close(); await ctxM.close()
   confere(ruins.length === 0, 'zero pedido com 404 ou falha' + (ruins.length ? ' → ' + ruins.slice(0, 5).join(' | ') : ''))
   confere(erros.length === 0, 'zero erro no console' + (erros.length ? ' → ' + erros.slice(0, 5).join(' | ') : ''))
-  await ctx.close()
 }
 
 try {

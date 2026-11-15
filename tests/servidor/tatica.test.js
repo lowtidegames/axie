@@ -1,11 +1,11 @@
-// Testes do escolhedor da luta automática do piloto (public/piloto/tatica.js). Puro: sem tela.
+// Testes do escolhedor da luta automática (shared/tatica.js; a cópia de public/piloto/tatica.js saiu na tarefa 42). Puro: sem tela.
 // Rodar: npm test  (ou: node --test tests/servidor/tatica.test.js)
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { aplicarNoLugar, comandosValidos, criarLuta, validar } from '../../shared/batalha.js'
 import { BONECOS_PRONTOS, CARTAS } from '../../shared/config.js'
 import { criarRng } from '../../shared/rng.js'
-import { SEGURANCA, TATICAS, cartasDoMonstro, classeDaCarta, escolher, lutaInteira, ordemPadrao, ordemRuim } from '../../public/piloto/tatica.js'
+import { SEGURANCA, TATICAS, cartasDoMonstro, classeDaCarta, escolher, lutaAutomatica, ordemPadrao, ordemRuim } from '../../shared/tatica.js'
 
 const IDS = Object.keys(BONECOS_PRONTOS)
 const trio = (rng) => { const ids = IDS.slice(), t = []; for (let i = 0; i < 3; i++) t.push(ids.splice(rng.inteiro(ids.length), 1)[0]); return t }
@@ -104,11 +104,11 @@ describe('escolhedor do piloto', () => {
   test('luta inteira: mesma semente e mesmos planos dão o mesmo resultado', () => {
     const mk = () => {
       const e = criarLuta({ semente: 'x', timeA: ['embolado', 'mordedor', 'cascudo'], timeB: ['rasgao', 'assombrado', 'desfiado'] })
-      return lutaInteira({ semente: 'mesma', timeA: ['embolado', 'mordedor', 'cascudo'], timeB: ['rasgao', 'assombrado', 'desfiado'], planoA: planoDe(e, 'A', 'guard'), planoB: planoDe(e, 'B', 'rush') })
+      return lutaAutomatica({ semente: 'mesma', timeA: ['embolado', 'mordedor', 'cascudo'], timeB: ['rasgao', 'assombrado', 'desfiado'], ordensA: planoDe(e, 'A', 'guard'), ordensB: planoDe(e, 'B', 'rush') })
     }
     const a = mk(), b = mk()
     assert.deepEqual(a.resultado, b.resultado)
-    assert.deepEqual(a.passos.map((p) => p.cmd), b.passos.map((p) => p.cmd))
-    assert.ok(a.passos.length > 10)
+    assert.deepEqual(a.comandos, b.comandos)
+    assert.ok(a.comandos.length > 10)
   })
 })

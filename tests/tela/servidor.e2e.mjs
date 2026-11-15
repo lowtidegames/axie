@@ -163,7 +163,10 @@ async function rodarFormato(fmt) {
   const ids3 = est0.bonecos.slice(0, 3).map((b) => b.id)
   for (const id of ids3) await clique(`#avTime .mini-cartao[data-id=${id}]`)
   await foto('aventura')
+  confere(/gasta 1 energia/.test(await page.locator('#btnJogarFase').textContent()), 'tarefa 21: "Jogar fase" diz o custo antes do toque (modo servidor)')
   await clique('#btnJogarFase')
+  // tarefa 21: dedos rápidos — mais toques enquanto a luta abre não gastam outra energia (o botão trava até a luta aparecer)
+  await page.evaluate(async () => { const b = document.querySelector('#btnJogarFase'); for (let i = 0; i < 2; i++) { await new Promise((ok) => setTimeout(ok, 40)); b.click() } })
   await page.waitForSelector('#luta:not([hidden])', { timeout: 20000 })
   const en1 = await page.evaluate(() => window.__frayz.P.energia())
   const en1s = (await api('GET', '/api/estado', tk)).json.energia

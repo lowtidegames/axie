@@ -59,6 +59,13 @@ async function rodar(fmt) {
   const page = await ctx.newPage(); vigiar(page, erros, ruins)
   await page.goto(base + SUB)
   await page.waitForSelector('#abaInicio', { timeout: 20000 })
+  // tarefa 21 (regra nova: primeira abertura): na 1ª vez o primeiro boneco chega num casulo; abre tudo e segue para a fase 1
+  await page.waitForSelector('#casulo:not([hidden])', { timeout: 20000 })
+  confere(/primeiro boneco/.test(await page.locator('#casTit').textContent()), 'primeira abertura: o primeiro boneco chega num casulo')
+  await clique(page, '#btnCasTudo')
+  await page.waitForSelector('#btnCasFim:not([hidden])', { timeout: 20000 })
+  await clique(page, '#btnCasFim')
+  await page.waitForSelector('#aventura:not([hidden])', { timeout: 20000 })
   await clique(page, '#abaInicio')
   await page.waitForSelector('.ficha', { timeout: 20000 })
   confere(page.url().startsWith(base + SUB + 'public/'), 'a raiz da subpasta leva ao jogo em ' + page.url().replace(base, ''))

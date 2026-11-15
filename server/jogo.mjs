@@ -113,10 +113,12 @@ export function criarJogo(db, {
     apelidoUsado: db.prepare('SELECT 1 FROM contas WHERE apelido_norm = ?'),
     conta: db.prepare('SELECT id, apelido, fase_liberada, energia_dia, energia_gasta, vitorias_seguidas FROM contas WHERE id = ?'),
     // A6 (tarefa 16): gasta energia só se couber no dia de hoje (dia novo começa do zero). 0 linhas = sem energia.
+    // S3-1 (tarefa 17): o dia gravado vale se for >= hoje (relógio que volta ou 2 processos com relógios diferentes
+    // não zeram o gasto) e só anda para frente; gasto negativo no banco conta como 0.
     gastarEnergia: db.prepare(`UPDATE contas SET
-        energia_gasta = CASE WHEN energia_dia = ? THEN energia_gasta + ? ELSE ? END,
-        energia_dia = ?
-      WHERE id = ? AND (CASE WHEN energia_dia = ? THEN energia_gasta ELSE 0 END) + ? <= ?`),
+        energia_gasta = CASE WHEN energia_dia >= ? THEN MAX(energia_gasta, 0) + ? ELSE ? END,
+        energia_dia = MAX(COALESCE(energia_dia, 0), ?)
+      WHERE id = ? AND (CASE WHEN energia_dia >= ? THEN MAX(energia_gasta, 0) ELSE 0 END) + ? <= ?`),
     sequencia: db.prepare('UPDATE contas SET vitorias_seguidas = CASE WHEN ? THEN vitorias_seguidas + 1 ELSE 0 END WHERE id = ?'),
     liberarFase: db.prepare('UPDATE contas SET fase_liberada = MAX(fase_liberada, ?) WHERE id = ?'),
     boneco: db.prepare('SELECT * FROM bonecos WHERE id = ? AND conta_id = ?'),
@@ -211,8 +213,12 @@ export function criarJogo(db, {
   /** Energia da Aventura como a tela mostra: { atual, maximo, recarregaEm (ISO, próxima virada do dia UTC) }. */
   function energiaDaConta(conta, t = agora()) {
     const hoje = diaUtc(t)
-    const gasta = conta.energia_dia === hoje ? conta.energia_gasta : 0
-    return { atual: Math.max(0, energiaPorDia - gasta), maximo: energiaPorDia, recarregaEm: new Date((hoje + 1) * DIA_MS).toISOString() }
+    // S3-1 (tarefa 17): dia gravado >= hoje ainda vale (relógio que volta); o mostrado fica entre 0 e o máximo.
+    const vale = conta.energia_dia != null && conta.energia_dia >= hoje
+    const gasta = vale ? Math.max(0, Number(conta.energia_gasta) || 0) : 0
+    const dia = vale ? conta.energia_dia : hoje
+    const atual = Math.min(energiaPorDia, Math.max(0, energiaPorDia - gasta))
+    return { atual, maximo: energiaPorDia, recarregaEm: new Date((dia + 1) * DIA_MS).toISOString() }
   }
 
   /** Gasta a energia de abrir uma luta da Aventura. Chamar DENTRO da transação que cria a luta. Sem energia: 409. */

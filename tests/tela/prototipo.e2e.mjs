@@ -63,7 +63,7 @@ async function rodarFormato(fmt) {
     page = await ctx.newPage()
     page.on('console', (m) => { if (m.type() === 'error') erros.push('console: ' + m.text()) })
     page.on('pageerror', (e) => erros.push('erro de página: ' + e.message))
-    await page.goto(`${base}/?teste=1&semente=${semente}&rival=${RIVAL.join(',')}&vel=0.12`)
+    await page.goto(`${base}/public/?teste=1&semente=${semente}&rival=${RIVAL.join(',')}&vel=0.12`)
     await page.waitForSelector('.ficha')
   }
   const toque = async (x, y) => (fmt.toque ? page.touchscreen.tap(x, y) : page.mouse.click(x, y))

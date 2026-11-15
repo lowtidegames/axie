@@ -48,7 +48,7 @@ async function rodarFormato(fmt) {
   page.on('console', (m) => { if (m.type() === 'error') erros.push('console: ' + m.text()) })
   page.on('pageerror', (e) => erros.push('erro de página: ' + e.message))
   const foto = async (nome) => { const arq = path.join(FOTOS, `${fmt.nome}-${nome}.png`); await page.screenshot({ path: arq }); console.log('  foto: ' + path.relative(process.cwd(), arq)) }
-  const abrir = async (aba, extra = '') => { await page.goto(`${base}/?teste=1&recomecar=1&aba=${aba}&vel=0.12&semente=t2${extra}`); await page.waitForSelector(`#${aba}:not([hidden])`) }
+  const abrir = async (aba, extra = '') => { await page.goto(`${base}/public/?teste=1&recomecar=1&aba=${aba}&vel=0.12&semente=t2${extra}`); await page.waitForSelector(`#${aba}:not([hidden])`) }
   const clique = async (sel) => (fmt.toque ? page.locator(sel).first().tap() : page.locator(sel).first().click())
   // carta da mão (leque): no PC um clique na faixa da esquerda; no toque a carta amplia e o botão Jogar escolhe
   const escolherCarta = async (cid) => {

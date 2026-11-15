@@ -34,7 +34,7 @@ async function foto(page, nome) {
 async function abrir(opcoes, extra = '') {
   const ctx = await browser.newContext(opcoes), page = await ctx.newPage(), erros = []
   page.on('pageerror', (e) => erros.push(e.message)); page.on('console', (m) => { if (m.type() === 'error') erros.push(m.text()) })
-  await page.goto(`${base}/?teste=1&semente=fotos-a&rival=${RIVAL}&vel=0.25${extra}`)
+  await page.goto(`${base}/public/?teste=1&semente=fotos-a&rival=${RIVAL}&vel=0.25${extra}`)
   return { ctx, page, erros }
 }
 /** Joga pelo planejador até a vez do jogador no turno pedido (ou até o fim). */

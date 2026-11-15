@@ -30,7 +30,7 @@ async function abrir(ctx, consulta) {
   const page = await ctx.newPage()
   page.on('console', (m) => { if (m.type() === 'error') erros.push('console: ' + m.text()) })
   page.on('pageerror', (e) => erros.push('erro de página: ' + e.message))
-  await page.goto(`${base}/arte.html?${consulta}`)
+  await page.goto(`${base}/public/arte.html?${consulta}`)
   await page.waitForFunction(() => window.__pronto === true, null, { timeout: 30000 })
   return page
 }

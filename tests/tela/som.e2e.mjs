@@ -46,8 +46,8 @@ function vigiar(page) {
 // ------------------------------------------------------------------ só calibrar
 if (process.argv.includes('--calibrar')) {
   const page = await browser.newPage(); vigiar(page)
-  await page.goto(base + '/sons/manifesto.json')
-  const cal = await page.evaluate(async () => (await import('/js/som.js')).calibrar())
+  await page.goto(base + '/public/sons/manifesto.json')
+  const cal = await page.evaluate(async () => (await import('/public/js/som.js')).calibrar())
   const bloco = `/* PICO_BRUTO:INICIO */\nconst PICO_BRUTO = {\n${Object.entries(cal).map(([k, v]) => `  ${k}: [${v.join(', ')}],`).join('\n')}\n}\n/* PICO_BRUTO:FIM */`
   if (process.argv.includes('--gravar')) {
     const arq = path.join(AQUI, '..', '..', 'public', 'js', 'som.js')
@@ -62,7 +62,7 @@ if (process.argv.includes('--calibrar')) {
 /** Devolve funções de medição já dentro da página (window.__m). */
 async function instalarMedidor(page) {
   await page.evaluate(async () => {
-    const Som = await import('/js/som.js'), Musica = await import('/js/musica.js')
+    const Som = await import('/public/js/som.js'), Musica = await import('/public/js/musica.js')
     const SR = 48000, PRE = 0.5, SIL = 0.001 // −60 dBFS
     const db = (x) => 20 * Math.log10(Math.max(x, 1e-9))
     async function fora(dur, montar, cauda = 0.25) {
@@ -204,7 +204,7 @@ const cabecalho = (s) => { console.log('\n=== ' + s + ' ==='); anota(); anota('=
 cabecalho('Folha de sons: nada toca antes do primeiro toque')
 const ctxPc = await browser.newContext({ viewport: { width: 1180, height: 900 }, deviceScaleFactor: 1 })
 let page = await ctxPc.newPage(); vigiar(page)
-await page.goto(base + '/sons.html')
+await page.goto(base + '/public/sons.html')
 await page.evaluate(() => { try { localStorage.removeItem('frayz_som'); localStorage.removeItem('menos_animacao') } catch { /* ok */ } })
 await page.reload()
 await folhaPronta(page)
@@ -504,7 +504,7 @@ cabecalho('Folha no celular (360×740)')
 {
   const ctx = await browser.newContext({ viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 })
   const p = await ctx.newPage(); vigiar(p)
-  await p.goto(base + '/sons.html'); await folhaPronta(p)
+  await p.goto(base + '/public/sons.html'); await folhaPronta(p)
   const r = await p.evaluate(() => {
     const pequenos = [...document.querySelectorAll('button')].filter((b) => { const q = b.getBoundingClientRect(); return q.width < 44 || q.height < 44 }).length
     return { rolagem: document.documentElement.scrollWidth > window.innerWidth + 1, pequenos, iniciado: window.__folha.Som.estado().iniciado }
@@ -526,7 +526,7 @@ cabecalho('Amostras gravadas: manifesto de teste com um WAV escrito pelo própri
   await page.route('**/sons/manifesto.json', (rota) => rota.fulfill({ contentType: 'application/json', body: JSON.stringify(MANIFESTO_DE_TESTE) }))
   await page.route('**/sons/teste-golpe.wav', (rota) => rota.fulfill({ contentType: 'audio/wav', body: WAV_GOLPE }))
   await page.route('**/sons/teste-musica.wav', (rota) => rota.fulfill({ contentType: 'audio/wav', body: WAV_MUSICA }))
-  await page.goto(base + '/sons.html'); await folhaPronta(page); await instalarMedidor(page)
+  await page.goto(base + '/public/sons.html'); await folhaPronta(page); await instalarMedidor(page)
   const r = await page.evaluate(async () => {
     const { Som, SR, fora, forca, medir, mono } = window.__m, s = {}
     s.estado = Som.estado().amostras
@@ -581,12 +581,12 @@ cabecalho('Amostras gravadas: manifesto de teste com um WAV escrito pelo própri
 cabecalho(`Arquivos gravados (public/sons/manifesto.json): ${ARQUIVOS_REAIS} amostras, uma a uma`)
 {
   page = await ctxPc.newPage(); vigiar(page)
-  await page.goto(base + '/sons.html'); await folhaPronta(page); await instalarMedidor(page)
+  await page.goto(base + '/public/sons.html'); await folhaPronta(page); await instalarMedidor(page)
   const arqs = await page.evaluate(async () => {
     const { Som, SR, PRE, fora, medir } = window.__m, saida = []
     await Som.carregarAmostras()
     const alvo = Object.fromEntries(Som.tabela().map((t) => [t.nome, t]))
-    for (const [nome, lista] of Object.entries((await (await fetch('/sons/manifesto.json')).json()).efeitos)) {
+    for (const [nome, lista] of Object.entries((await (await fetch('/public/sons/manifesto.json')).json()).efeitos)) {
       const prontas = Som.amostrasDe(nome)
       for (let i = 0; i < lista.length; i++) {
         const a = prontas[i], r = { nome, i, arquivo: lista[i], estado: a?.estado ?? 'sem', duracao: a?.duracao ?? 0, alvoMs: alvo[nome].ms, alvoPico: alvo[nome].pico }

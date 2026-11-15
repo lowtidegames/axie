@@ -8,10 +8,10 @@ import * as Col from './colecao.js'
 import * as Som from './som.js'
 import * as Musica from './musica.js'
 import { FASES } from './aventura-dados.js'
-import { $, el, desenharBonecoEm, iconeTipo, bonecoCanvas, avisoHub, NOME_LUGAR } from './ui.js'
+import { $, el, desenharBonecoEm, iconeTipo, bonecoCanvas, avisoHub, confirmar, fecharConfirmacao, NOME_LUGAR } from './ui.js'
 import { abrirBoneco, fecharBoneco, ligarColecao, renderColecao, renderMural } from './colecao-ui.js'
-import { fecharCasulo, iniciarCostura, ligarCostura, renderCostura } from './costura-ui.js'
-import { horaDaRecarga, iniciarAventura, ligarAventura, renderAventura } from './aventura-ui.js'
+import { abrirCasuloDe, fecharCasulo, iniciarCostura, ligarCostura, mostrarNascido, renderCostura } from './costura-ui.js'
+import { apontarJogar, horaDaRecarga, iniciarAventura, irParaFase, ligarAventura, renderAventura, travarJogar } from './aventura-ui.js'
 import { abreviar, criarMao } from './pecas/mao.js'
 import { criarCarta } from './pecas/carta.js'
 import { criarCarreteis, criarContador } from './pecas/carreteis.js'
@@ -25,7 +25,7 @@ import { criarPrateleira } from './pecas/prateleira.js'
 import { criarLogotipo } from './pecas/logotipo.js'
 import { corDoTecido, urlDoTecido } from './pecas/arte-adaptador.js'
 import * as arte from './pecas/arte-adaptador.js'
-import { BONUS, FRASE_DO_FIAPO, ICONES, PARES, TEXTO_DA_RODA, bonecoEm, dadosDaCarta, montarFicha } from './pecas/montagens.js'
+import { BONUS, FRASE_DO_FIAPO, ICONES, PARES, TEXTO_DA_RODA, bonecoEm, dadosDaCarta, montarFicha, partesDaFicha } from './pecas/montagens.js'
 
 const url = new URLSearchParams(location.search)
 const TESTE = url.get('teste') === '1'
@@ -68,11 +68,41 @@ function mostrar(qual) {
   const luta = qual === 'luta'
   $('#hub').hidden = luta; $('#luta').hidden = !luta
   document.body.dataset.tela = luta ? 'luta' : qual
-  if (luta) { aplicarFormato(); requestAnimationFrame(() => { arena.medir(); H.mao.medir() }) }
+  if (luta) { aplicarFormato(); requestAnimationFrame(() => { arena.medir(); H.mao.medir() }); historico({ tela: 'luta' }) }
   else { irParaAba(ABAS.includes(qual) ? qual : S.aba); musica('entrada') }
 }
-function irParaAba(aba) {
+// ------------------------------------------------------------------ Voltar do navegador (tarefa 21): um histórico simples do jogo
+// Cada aba e a luta viram um passo do histórico (history.pushState); Voltar fecha a janela aberta, volta à aba anterior
+// ou, na luta, pergunta antes de sair. A primeira página do jogo segura o Voltar (sair do site só pelo próprio navegador, de novo).
+let passoAtual = null
+function historico(passo, substituir = false) {
+  const chave = passo.tela === 'luta' ? 'luta' : 'aba:' + passo.aba
+  if (!substituir && passoAtual === chave) return
+  passoAtual = chave
+  try { (substituir ? history.replaceState : history.pushState).call(history, { frayz: passo }, '') } catch { /* sem histórico */ }
+}
+async function aoVoltar(ev) {
+  const passo = ev.state?.frayz
+  // 1) janela aberta por cima: o Voltar fecha só ela
+  if (fecharConfirmacao() || document.querySelector('.fz-lupa') || fecharCasulo() || fecharBoneco() || (!$('#fichaModal').hidden && (fecharFicha(), true))) {
+    document.querySelector('.fz-lupa') && H.mao?.fecharAmpliada()
+    passoAtual = null; historico(estadoDaTela()); return
+  }
+  // 2) na luta: pergunta antes de sair (Aventura: conta como derrota)
+  if (!$('#luta').hidden) {
+    passoAtual = null; historico({ tela: 'luta' })
+    if ($('#fim').hidden && !S.replay) await pedirParaSair()
+    else sairParaInicio()
+    return
+  }
+  // 3) no hub: a aba anterior
+  if (passo?.aba && ABAS.includes(passo.aba)) { passoAtual = 'aba:' + passo.aba; irParaAba(passo.aba, { semHistorico: true }); return }
+  passoAtual = null; historico(estadoDaTela())
+}
+const estadoDaTela = () => (!$('#luta').hidden ? { tela: 'luta' } : { aba: S.aba })
+function irParaAba(aba, { semHistorico = false } = {}) {
   S.aba = aba
+  if (!semHistorico && !$('#hub').hidden) historico({ aba })
   $('#hub').dataset.formato = formatoDoHub()
   for (const a of ABAS) $('#' + a).hidden = a !== aba
   for (const b of document.querySelectorAll('.aba')) { const on = b.dataset.aba === aba; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)) }
@@ -99,7 +129,7 @@ function alternar(id) {
   const i = S.escolha.indexOf(id)
   if (i >= 0) S.escolha.splice(i, 1)
   else if (S.escolha.length < 3) S.escolha.push(id)
-  else { S.escolha.shift(); S.escolha.push(id) }
+  else { const saiu = S.escolha.shift(); S.escolha.push(id); avisoHub(`${P.fichaDoBoneco(Col.obter(saiu)).nome} saiu do time (cabem 3).`, false) }
   S.aberto = id
   Som.tocar('botao')
   atualizarEscolha()
@@ -136,7 +166,7 @@ function montarListaLivre() {
   const bs = Col.ativos().filter((x) => !Col.casuloFechado(x))
   if (!S.aberto || !bs.some((b) => b.id === S.aberto)) S.aberto = S.escolha[S.escolha.length - 1] ?? bs[0]?.id ?? null
   const itens = bs.map((b) => { const pode = Col.podeLutar(b); return { id: b.id, nome: P.fichaDoBoneco(b).nome, desenho: desenhoDe(b, pc ? 112 : 84), desligado: !pode.ok, motivo: pode.motivo } })
-  H.prateleira = criarPrateleira($('#grade'), itens, { porTabua: pc ? 5 : 3, nomes: pc, classe: 'ficha', aoTocar: alternar, rotulo: 'Seus bonecos' })
+  H.prateleira = criarPrateleira($('#grade'), itens, { porTabua: pc ? 5 : 3, nomes: true, classe: 'ficha', aoTocar: alternar, rotulo: 'Seus bonecos' })
   atualizarEscolha()
 }
 
@@ -145,7 +175,7 @@ function montarInicio() {
   $('#btnLutar').replaceWith(lutar)
   montarListaLivre()
   for (const r of document.querySelectorAll('input[name=robo]')) r.addEventListener('change', () => { S.robo = r.value })
-  $('#btnLutar').addEventListener('click', () => { if (S.escolha.length === 3) iniciarLuta() })
+  $('#btnLutar').addEventListener('click', () => { if (S.escolha.length === 3 && !S.abrindo && $('#luta').hidden) iniciarLuta() })
   $('#btnAssistir').addEventListener('click', colarEAssistir)
 }
 
@@ -168,6 +198,8 @@ function colarEAssistir() {
 
 // ------------------------------------------------------------------ peças da luta (montadas uma vez)
 const formatoDaJanela = () => (window.innerWidth >= 640 ? 'pc' : 'celular')
+/** Celular deitado (ou janela baixa): formato PC, mas a cena é baixa — o bastidor e o aviso do rival sobem para a barra de cima. */
+const deitado = () => formatoDaJanela() === 'pc' && window.innerHeight < 520
 
 function montarPecasDaLuta() {
   // topo: turno numa etiqueta, aviso da Tesoura, fio do tempo
@@ -216,12 +248,13 @@ function montarPecasDaLuta() {
 
 /** PC (≥ 640 px) ou celular: muda o tamanho das peças e onde mora o bastidor. */
 function aplicarFormato() {
-  const f = formatoDaJanela()
-  if ($('#luta').dataset.formato === f) return
-  $('#luta').dataset.formato = f; $('#fim').dataset.formato = f
-  const roda = $('#roda')
-  if (f === 'pc') { $('#arenaBox').append(roda); H.bastidor.el.dataset.lado = 'baixo' }
-  else { $('#blEu').append(roda); H.bastidor.el.dataset.lado = 'cima' }
+  const f = formatoDaJanela(), d = deitado() ? '1' : '0'
+  if ($('#luta').dataset.formato === f && $('#luta').dataset.deitado === d) return
+  $('#luta').dataset.formato = f; $('#fim').dataset.formato = f; $('#luta').dataset.deitado = d
+  const roda = $('#roda'), int = $('#intencao')
+  // tarefa 21: o aviso do rival e o bastidor nunca cobrem os bonecos nem os nomes dos lugares (FRENTE, MEIO, TRÁS)
+  if (d === '1') { $('#tTesoura').after(int); $('#btnMenu').before(roda); H.bastidor.el.dataset.lado = 'baixo' } // deitado: na barra de cima
+  else { $('#arenaBox').append(int); if (f === 'pc') { $('#arenaBox').append(roda); H.bastidor.el.dataset.lado = 'baixo' } else { $('#blEu').append(roda); H.bastidor.el.dataset.lado = 'cima' } }
   requestAnimationFrame(() => H.bastidor.medir?.())
 }
 
@@ -229,7 +262,7 @@ function aplicarFormato() {
 const roboEscolhido = () => document.querySelector('input[name=robo]:checked')?.value ?? 'planejador'
 /** opc: { modo: 'livre'|'aventura', fase, idsA (ids da coleção), timeA/timeB (definições, na revanche), semente, robo } */
 async function iniciarLuta(opc = {}) {
-  if (S.abrindo) return
+  if (S.abrindo) return // tarefa 21: um toque só abre UMA luta (a trava vale até a luta aparecer)
   const modo = opc.modo ?? 'livre', fase = opc.fase ? FASES[opc.fase - 1] : null
   const idsA = opc.idsA ?? S.escolha.slice()
   let timeA = opc.timeA
@@ -239,9 +272,18 @@ async function iniciarLuta(opc = {}) {
   const semente = opc.semente ?? url.get('semente') ?? P.novaSemente()
   const robo = opc.robo ?? (fase ? fase.robo : roboEscolhido())
   // abrir uma luta da Aventura gasta energia (a ponte decide: no aparelho ou no servidor); sem energia a luta não abre e a tela diz quando volta
-  S.abrindo = true
-  let r
-  try { r = await P.abrirLuta({ modo, fase: fase?.n ?? opc.fase ?? null, ids: idsA, timeA, timeB, semente, robo }) } finally { S.abrindo = false }
+  S.abrindo = true; travarBotoesDeAbrir(true)
+  try { await abrirDeVerdade({ opc, modo, fase, idsA, timeA, timeB, semente, robo }) } finally { S.abrindo = false; travarBotoesDeAbrir(false) }
+}
+/** Enquanto a luta abre: Lutar, Jogar fase, Revanche e Próxima fase ficam desligados (um toque só). */
+function travarBotoesDeAbrir(sim) {
+  document.body.classList.toggle('abrindo-luta', sim)
+  travarJogar(sim)
+  if (sim) atualizarBotao($('#btnLutar'), { desligado: true }); else if (!$('#hub').hidden) atualizarEscolha()
+  for (const b of [H.fimBotoes?.revanche, H.fimBotoes?.proxima]) if (b) b.disabled = sim
+}
+async function abrirDeVerdade({ opc, modo, fase, idsA, timeA, timeB, semente, robo }) {
+  const r = await P.abrirLuta({ modo, fase: fase?.n ?? opc.fase ?? null, ids: idsA, timeA, timeB, semente, robo })
   if (!r.ok) {
     if (r.codigo === 'LUTA_ABERTA') { avisoHub('Você tinha uma luta aberta: voltando a ela.', false); await retomar(); return }
     if (!$('#luta').hidden) sairParaInicio(); else irParaAba(modo === 'aventura' ? 'aventura' : S.aba)
@@ -261,7 +303,7 @@ async function retomar() {
   const r = await P.retomarLuta()
   if (!r.ok) { avisoHub(r.motivo); return }
   if (!r.aberta) return
-  S.timeA = null; S.timeB = null; S.semente = null; S.replay = false; S.parar = false
+  S.timeA = r.timeA ?? null; S.timeB = r.timeB ?? null; S.semente = r.semente ?? null; S.replay = false; S.parar = false // local: a ponte devolve os times e a semente
   S.modo = r.modo; S.fase = r.fase ?? null; S.idsA = r.ids ?? null; S.abaDeOrigem = r.modo === 'aventura' ? 'aventura' : 'inicio'
   S.robo = r.robo
   await abrirLuta(r.estado)
@@ -464,7 +506,7 @@ async function passar() {
 
 /** Teclado (guia §9): Espaço passa, T troca, setas escolhem o alvo, Enter joga (1–7 escolhe a carta: a mão cuida). */
 function teclaDaLuta(e) {
-  if ($('#luta').hidden || !$('#fim').hidden || !$('#fichaModal').hidden || document.querySelector('.fz-lupa')) return
+  if ($('#luta').hidden || !$('#fim').hidden || !$('#fichaModal').hidden || document.querySelector('.fz-lupa, #confirma')) return
   if (e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName ?? '')) return
   if (e.key === ' ' && e.target?.tagName !== 'BUTTON') { e.preventDefault(); passar() }
   else if (e.key === 't' || e.key === 'T') { e.preventDefault(); iniciarTroca() }
@@ -497,9 +539,10 @@ function renderTopo(v) {
   $('#tTurno').setAttribute('aria-label', `Turno ${v.turno} de ${P.REGRAS.turnoFinal}`)
   const ts = $('#tTesoura'), ini = P.REGRAS.tesouraInicio, corte = Math.round(P.REGRAS.tesouraCorte * 100), pc = $('#luta').dataset.formato === 'pc'
   let cls = '', txt, dica
-  if (v.turno >= ini) { cls = 'alerta'; txt = pc ? `Tesoura cortando ${corte}%` : `−${corte}%`; dica = `A Tesoura corta ${corte}% da vida máxima de todos a cada turno` }
-  else if (v.turno >= ini - 3) { cls = 'aviso'; txt = pc ? (v.turno === ini - 1 ? 'Tesoura no próximo turno' : `Tesoura no turno ${ini}`) : `${ini}!`; dica = `A Tesoura desce: começa a cortar ${corte}% no turno ${ini}` }
-  else { txt = pc ? `Tesoura no turno ${ini}` : String(ini); dica = `A Tesoura começa a cortar ${corte}% no turno ${ini}` }
+  const curto = !pc || $('#luta').dataset.deitado === '1' // deitado: a barra de cima divide lugar com o aviso do rival
+  if (v.turno >= ini) { cls = 'alerta'; txt = !curto ? `Tesoura cortando ${corte}%` : `−${corte}%`; dica = `A Tesoura corta ${corte}% da vida máxima de todos a cada turno` }
+  else if (v.turno >= ini - 3) { cls = 'aviso'; txt = !curto ? (v.turno === ini - 1 ? 'Tesoura no próximo turno' : `Tesoura no turno ${ini}`) : `${ini}!`; dica = `A Tesoura desce: começa a cortar ${corte}% no turno ${ini}` }
+  else { txt = !curto ? `Tesoura no turno ${ini}` : String(ini); dica = `A Tesoura começa a cortar ${corte}% no turno ${ini}` }
   ts.className = 'fz-luta__tesoura' + (cls ? ' ' + cls : ''); ts.title = dica; ts.setAttribute('aria-label', dica); H.tesoura.textContent = txt
   // a Tesoura desce um degrau (som) e a música acompanha: luta → Tesoura descendo (6–8) → cortando (9+); Último Fio abafa
   if (v.turno !== S.turnoMostrado) {
@@ -600,7 +643,7 @@ function frasesDaIntencao(itens, v) {
 }
 function atualizarIntencao(v) {
   const box = $('#intencao')
-  if (S.modo !== 'aventura' || S.replay || !minhaVez()) { box.hidden = true; arena.setIntencao(null); S.intencao = null; return }
+  if (S.modo !== 'aventura' || S.replay || !minhaVez()) { box.hidden = true; arena.setIntencao(null); S.intencao = null; $('#arenaBox').style.setProperty('--fz-intencao-alto', '0px'); return }
   let r = cacheIntencao.get(S.estado)
   if (r === undefined) { r = P.intencaoDoRival(S.estado, S.robo); if (r !== undefined) cacheIntencao.set(S.estado, r) }
   if (r === undefined) { box.hidden = true; arena.setIntencao(null); S.intencao = null; return } // sem essa informação (luta antiga do servidor)
@@ -611,8 +654,10 @@ function atualizarIntencao(v) {
   arena.setIntencao(porDono)
   box.replaceChildren(); box.hidden = false
   box.append(el('b', null, 'O rival '))
+  const largo = $('#luta').dataset.formato === 'pc' && $('#luta').dataset.deitado !== '1'
   if (!frases.length) box.append('vai passar a vez.')
-  else frases.slice(0, 2).forEach((f, i) => { if (i) box.append(' e '); box.append(f.longo); if (f.dono && f.carta && $('#luta').dataset.formato === 'pc') box.append(el('small', null, ` (${f.carta} de ${v.bonecos[f.dono].nome})`)) })
+  else frases.slice(0, 2).forEach((f, i) => { if (i) box.append(' e '); box.append(f.longo); if (f.dono && f.carta && largo) box.append(el('small', null, ` (${f.carta} de ${v.bonecos[f.dono].nome})`)) })
+  requestAnimationFrame(() => $('#arenaBox').style.setProperty('--fz-intencao-alto', box.hidden || box.parentElement !== $('#arenaBox') ? '0px' : box.offsetHeight + 8 + 'px'))
 }
 
 // ------------------------------------------------------------------ faixas, avisos e a carta jogada
@@ -721,17 +766,21 @@ async function fimDaLuta() {
   const ganhei = r.vencedor === P.EU
   const doServidor = S.replay ? null : await P.replayDaLuta(S.estado) // no servidor a semente só sai agora, depois do fim
   S.ultima = doServidor ?? { semente: S.semente, timeA: S.timeA, timeB: S.timeB, robo: S.robo, comandos: S.estado.comandos.map((c) => ({ ...c })) }
-  let extra = ''
+  let extra = '', liberou = null
   if (!S.registrado && !S.replay) { // Aventura: cada luta gasta 1 Ponto de Costura nos 3 bonecos usados (o motor ou o servidor soma)
     S.registrado = true
+    const antes = Col.aventura().liberada
     await Col.depoisDaLuta({ modo: S.modo, ids: S.idsA ?? [], venceu: ganhei, fase: S.fase, maiorGolpes: [0, 1, 2].map((i) => S.golpes[`A${i}`] ?? 0) })
     if (S.modo === 'aventura') extra = ganhei ? (S.fase >= FASES.length ? 'Aventura completa! O Baú da Costureira está aberto.' : `Fase ${S.fase + 1} liberada.`) : 'Perdeu: a fase continua liberada para tentar de novo.'
+    // a festa da fase nova só quando a coleção diz que ela acabou de abrir (o motor ou o servidor liberou)
+    if (S.modo === 'aventura' && ganhei && S.fase < FASES.length && Col.aventura().liberada > antes) liberou = S.fase + 1
   } else if (S.modo === 'aventura') extra = ganhei ? 'Fase vencida.' : 'A fase continua liberada.'
+  P.esquecerLuta() // a luta acabou: nada a retomar
   arena.comemorar(r.vencedor)
   await esperar(700)
   // derrota: um pico na entrada — o baque mole do pano caindo e, logo depois, o tema descendo (o som segue com "Menos animação")
   if (ganhei) Som.vitoria(); else { Som.tocar('queda'); setTimeout(() => Som.derrota(), 260) }
-  montarFim(r, ganhei, extra)
+  montarFim(r, ganhei, liberou ? '' : extra, liberou)
   const fimEl = $('#fim'); fimEl.classList.remove('fz-fim--entrou'); void fimEl.offsetWidth; fimEl.classList.add('fz-fim--entrou') // a folha cai com um baque (só sem "Menos animação")
   try { S.textoReplay = P.exportarReplay(S.ultima) } catch { S.textoReplay = '' }
   $('#copiaMsg').textContent = ''
@@ -740,8 +789,9 @@ async function fimDaLuta() {
 }
 
 /** A folha do fim: o boneco do golpe final em destaque, o título bordado, 3 números com ícone e os botões. Nada de texto cru do replay. */
-function montarFim(r, ganhei, extra) {
+function montarFim(r, ganhei, extra, liberou = null) {
   const fim = $('#fim'), v = P.visao(S.estado), pc = fim.dataset.formato === 'pc', av = S.modo === 'aventura'
+  clearTimeout(S.tFesta); fim.classList.remove('fz-fim--festa')
   fim.classList.toggle('fz-fim--vitoria', ganhei); fim.classList.toggle('fz-fim--derrota', !ganhei); fim.dataset.res = ganhei ? 'v' : 'd'
   // o boneco do golpe final (do time que venceu)
   const idFinal = S.ultimoGolpe && v.bonecos[S.ultimoGolpe]?.time === r.vencedor ? S.ultimoGolpe : (ganhei && S.heroi) || v.times[r.vencedor].lugares.find((id) => v.bonecos[id].estado !== 'caido') || v.times[r.vencedor].lugares[0]
@@ -760,12 +810,32 @@ function montarFim(r, ganhei, extra) {
   // 3 números com ícone + a vida que sobrou
   const ul = $('#fimResumo'); ul.replaceChildren()
   const m = S.stats.maior
-  for (const [ic, valor, nome, dica] of [
-    [ICONES.tesoura(), r.turno, 'Turnos', `A luta durou ${r.turno} turnos`],
-    [ICONES.agulha(), m ? m.valor : '—', 'Maior golpe', m ? `${m.carta ?? 'Golpe'}${m.critico ? ' (crítico)' : ''}${m.time ? (m.time === P.EU ? ', seu' : ', do rival') : ''}` : 'Maior golpe da luta'],
-    [ICONES.viradas(), S.stats.viradas, 'Viradas', 'Quantas vezes a frente mudou de lado'],
-  ]) { const li = el('li', 'fz-fim__numero'); li.title = dica; li.append(pesponto({ recuo: 4, raio: 40 }), ic, el('b', null, String(valor)), el('span', null, nome)); ul.append(li) }
-  const vida = el('li', 'fz-fim__vida'); vida.append('Vida que sobrou: você ', el('b', null, `${Math.round((r.pct.A * 100) / 3)}%`), ' · rival ', el('b', null, `${Math.round((r.pct.B * 100) / 3)}%`)); ul.append(vida)
+  const deQuem = m?.time ? (m.time === P.EU ? 'seu' : 'do rival') : null // tarefa 21: o maior golpe diz de quem foi
+  const rolar = [] // vitória: os números entram rolando (sem "Menos animação")
+  for (const [ic, valor, nome, dica, dono] of [
+    [ICONES.tesoura(), r.turno, 'Turnos', `A luta durou ${r.turno} turnos`, null],
+    [ICONES.agulha(), m ? m.valor : '—', 'Maior golpe', m ? `${m.carta ?? 'Golpe'}${m.critico ? ' (crítico)' : ''}${deQuem ? ', ' + deQuem : ''}${m.de ? ` (${m.de})` : ''}` : 'Maior golpe da luta', deQuem],
+    [ICONES.viradas(), S.stats.viradas, 'Viradas', 'Quantas vezes a frente mudou de lado', null],
+  ]) {
+    const li = el('li', 'fz-fim__numero'); li.title = dica
+    const b = el('b', null, String(valor)); b.dataset.valor = String(valor)
+    li.append(pesponto({ recuo: 4, raio: 40 }), ic, b, el('span', null, nome))
+    if (dono) { const d = el('small', 'fz-fim__dono', dono); d.dataset.dono = m.time === P.EU ? 'eu' : 'rival'; li.append(d); li.classList.add('fz-fim__numero--dono') }
+    ul.append(li)
+    if (typeof valor === 'number') rolar.push(b)
+  }
+  ul.append(linhaDaVida(r, v, ganhei))
+  if (ganhei && !menos()) rolarNumeros(rolar)
+  // Aventura: a fase nova entra costurada (0,5 s) e a silhueta do próximo rival ("depois vem…"), antes dos botões
+  fim.querySelector('.fz-fim__liberada')?.remove()
+  if (liberou) {
+    fim.querySelector('.fz-fim__liberada')?.remove()
+    H.fimExtra.after(festaDaFase(liberou, pc))
+    if (!menos()) { // a etiqueta conta da fase vencida para a nova enquanto a costura corre
+      const num = fim.querySelector('.fz-fim__fase-num'); num.textContent = String(liberou - 1); setTimeout(() => { num.textContent = String(liberou) }, 260)
+      fim.classList.add('fz-fim--festa'); S.tFesta = setTimeout(() => fim.classList.remove('fz-fim--festa'), 1400)
+    }
+  }
   // botões
   const B = H.fimBotoes
   B.proxima.hidden = !(av && ganhei && S.fase < FASES.length); atualizarBotao(B.proxima, { rotulo: `Fase ${(S.fase ?? 0) + 1}` })
@@ -779,6 +849,47 @@ function montarFim(r, ganhei, extra) {
     arte.pronta.then(() => [...varal.children].forEach((b, i) => { b.style.backgroundImage = `url(${urlDoTecido(P.TIPOS[i % P.TIPOS.length], Math.round(48 * Math.min(2, window.devicePixelRatio || 1)))})` }))
     fim.querySelector('.fz-fim__folha').append(varal)
   }
+}
+
+/** Quantos de pé e quantos no Último Fio, de cada lado (contados na visão do motor), e a vida que sobrou (do resultado). */
+function linhaDaVida(r, v, ganhei) {
+  const conta = (t) => { const ids = v.times[t].lugares; return { pe: ids.filter((id) => v.bonecos[id].estado === 'vivo').length, fio: ids.filter((id) => v.bonecos[id].estado === 'fio').length } }
+  const eu = conta(P.EU), ri = conta(P.RIVAL), pctA = Math.round((r.pct.A * 100) / 3), pctB = Math.round((r.pct.B * 100) / 3)
+  const txt = (c) => `${c.pe} de pé${c.fio ? `, ${c.fio} no Último Fio` : ''}`
+  const li = el('li', 'fz-fim__vida')
+  if (ganhei && eu.pe === 0 && eu.fio > 0) { // venceu sem ninguém com vida: um fio segurou o time (0% seria mentira na festa)
+    li.classList.add('fz-fim__vida--fio')
+    li.append(el('b', null, 'Venceu por um fio!'), ` Seu time: ${eu.fio} no Último Fio · rival: ${txt(ri)}`)
+  } else {
+    li.append('Vida que sobrou: você ', el('b', null, `${pctA}%`), ` (${txt(eu)}) · rival `, el('b', null, `${pctB}%`), ` (${txt(ri)})`)
+  }
+  return li
+}
+/** Os números da vitória entram rolando de 0 até o valor (só desenho: o valor final é o mesmo). */
+function rolarNumeros(bs) {
+  const t0 = performance.now(), dur = 650
+  const passo = (t) => {
+    const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3)
+    for (const b of bs) { const fim = Number(b.dataset.valor); b.textContent = String(k >= 1 ? fim : Math.round(fim * e)) }
+    if (k < 1 && !$('#fim').hidden) requestAnimationFrame(passo); else for (const b of bs) b.textContent = b.dataset.valor
+  }
+  requestAnimationFrame(passo)
+}
+/** A fase nova liberada: etiqueta costurada com o número (a costura corre em 0,5 s) e a silhueta do próximo rival. */
+function festaDaFase(n, pc) {
+  const F = FASES[n - 1], box = el('div', 'fz-fim__liberada'); box.id = 'fimLiberada'
+  const fita = el('div', 'fz-fim__fase')
+  const costura = svg('svg', { class: 'fz-fim__costura', viewBox: '0 0 200 10', preserveAspectRatio: 'none', 'aria-hidden': 'true', focusable: 'false' }, [svg('path', { d: 'M4 5 H196' })])
+  fita.append(el('span', 'fz-fim__fase-rot', 'Fase'), el('b', 'fz-fim__fase-num', String(n)), el('span', 'fz-fim__fase-rot', 'liberada'), costura)
+  fita.setAttribute('aria-label', `Fase ${n} liberada`)
+  box.append(fita)
+  const prox = el('div', 'fz-fim__proximo')
+  const sil = el('div', 'fz-fim__silhueta')
+  if (P.modo() !== 'servidor' && F?.time?.[0]) sil.append(bonecoEm(partesDaFicha(P.ficha(F.time[0])), pc ? 72 : 56)) // no servidor o time é sorteado na hora: um "?
+  else sil.append(el('span', 'fz-fim__misterio', '?'))
+  const tx = el('div', 'fz-fim__proximo-txt'); tx.append(el('small', null, 'depois vem…'), el('b', null, F?.nome ?? `Fase ${n}`))
+  prox.append(sil, tx); box.append(prox)
+  return box
 }
 
 async function copiarReplay() {
@@ -829,6 +940,25 @@ function sairParaInicio() {
   fecharTudo(); arena.marcar({}); arena.setIntencao(null); mostrar(S.abaDeOrigem); document.body.classList.remove('replay')
 }
 
+/** "Sair da luta" (menu ou Voltar do navegador). Aventura: pergunta antes — sair conta como derrota e a energia já foi gasta. */
+async function pedirParaSair() {
+  $('#menu').hidden = true
+  if (S.replay || !S.estado || S.estado.fim || !$('#fim').hidden) { sairParaInicio(); return }
+  if (S.modo !== 'aventura') { sairParaInicio(); return } // Luta livre: não gasta nada, sai direto
+  const estado = S.estado
+  const sim = await confirmar({
+    titulo: 'Sair da luta?', texto: 'Sair agora conta como derrota e a energia desta luta já foi gasta.',
+    linhas: ['A fase continua liberada para tentar de novo.'], sim: 'Sair (derrota)', nao: 'Continuar lutando', perigo: true,
+  })
+  if (!sim || S.estado !== estado || $('#luta').hidden) return
+  S.parar = true; pararRelogio()
+  if (P.lutaDoServidor(estado)) await P.desistir(estado) // o servidor grava a derrota (como Desistir)
+  else P.esquecerLuta()
+  if (!S.registrado) { S.registrado = true; await Col.depoisDaLuta({ modo: S.modo, ids: S.idsA ?? [], venceu: false, fase: S.fase, maiorGolpes: [0, 1, 2].map((i) => S.golpes[`A${i}`] ?? 0) }) }
+  sairParaInicio()
+  avisoHub('Você saiu da luta: contou como derrota. A fase continua liberada.', false)
+}
+
 // ------------------------------------------------------------------ ligações
 function aplicarMudo() {
   const m = Som.estaMudo()
@@ -838,7 +968,7 @@ function aplicarMudo() {
 async function ligar() {
   await P.iniciar() // escolhe o modo: servidor do Frayz respondendo, ou local (arquivo parado, ?modo=local)
   document.body.dataset.modo = P.modo()
-  if (P.modo() === 'local') { if (TESTE && url.get('recomecar') === '1') Col.recomecar(); else await Col.carregar() }
+  if (P.modo() === 'local') { if (TESTE && url.get('recomecar') === '1') { Col.recomecar(); P.esquecerLuta() } else await Col.carregar() }
   montarPecasDaLuta()
   const logo = criarLogotipo({ altura: formatoDoHub() === 'pc' ? 46 : 38 }); $('#logo').replaceChildren(logo.el) // logotipo de retalhos (o fio do z para com "Menos animação")
   arena = new Arena($('#arena'), $('#arenaCamada'))
@@ -848,6 +978,13 @@ async function ligar() {
   for (const b of document.querySelectorAll('.aba')) b.addEventListener('click', () => { Som.tocar('botao'); irParaAba(b.dataset.aba) })
   document.addEventListener('frayz-aba', (e) => irParaAba(e.detail))
   ligarColecao(() => { if (S.aba === 'colecao') renderColecao() })
+  // duas abas (modo local): a outra gravou a coleção → esta recarrega e mostra de novo (nunca grava por cima)
+  Col.aoMudarEmOutraAba(() => {
+    fecharCasulo(); fecharBoneco()
+    if (!$('#hub').hidden) { S.escolha = S.escolha.filter((id) => Col.obter(id)); irParaAba(S.aba, { semHistorico: true }) }
+    const txt = 'O jogo mudou em outra aba: a tela foi atualizada.'
+    if (!$('#luta').hidden) aviso(txt, 'alerta'); else avisoHub(txt, false)
+  })
   ligarCostura((id) => { irParaAba('colecao'); if (id) abrirBoneco(id) })
   ligarAventura(({ fase, ids }) => iniciarLuta({ modo: 'aventura', fase, idsA: ids }))
   iniciarCostura(); iniciarAventura()
@@ -859,9 +996,10 @@ async function ligar() {
   H.passar.addEventListener('click', () => { Som.tocar('botao'); passar() })
   H.trocar.addEventListener('click', () => { Som.tocar('botao'); iniciarTroca() })
   $('#btnMenu').addEventListener('click', () => { const m = $('#menu'); m.hidden = !m.hidden; Som.tocar('botao') })
-  $('#btnSair').addEventListener('click', sairParaInicio)
+  $('#btnSair').addEventListener('click', pedirParaSair)
   $('#btnDesistir').addEventListener('click', desistirDaLuta)
   $('#btnParar').addEventListener('click', () => { S.parar = true; sairParaInicio() })
+  window.addEventListener('popstate', aoVoltar)
   const B = H.fimBotoes
   B.revanche.addEventListener('click', () => { Som.tocar('botao'); $('#fim').hidden = true; iniciarLuta({ timeA: S.timeA, timeB: S.timeB, semente: P.novaSemente(), modo: S.modo, fase: S.fase, idsA: S.idsA ?? undefined, robo: S.robo }) })
   B.proxima.addEventListener('click', () => { Som.tocar('botao'); $('#fim').hidden = true; iniciarLuta({ modo: 'aventura', fase: S.fase + 1, idsA: S.idsA }) })
@@ -899,6 +1037,7 @@ async function ligar() {
   if (!ABAS.includes(aba)) { try { aba = TESTE ? 'inicio' : localStorage.getItem('frayz_aba') } catch { aba = null } }
   S.aba = ABAS.includes(aba) ? aba : 'aventura'
   if (TESTE) ganchoDeTeste()
+  historico({ aba: S.aba }, true) // o primeiro passo do histórico do jogo
   await entrarNoJogo()
 }
 
@@ -930,8 +1069,41 @@ async function entrarNoJogo() {
   $('#colConta').hidden = !ap
   if (ap) $('#colApelido').textContent = ap
   S.escolha = S.escolha.filter((id) => Col.obter(id))
+  const primeira = primeiraVez()
+  if (primeira) S.aba = 'aventura'
   mostrar(S.aba)
-  if (P.modo() === 'servidor' && P.servidor.lutaAberta()) await retomar()
+  if (P.lutaAberta()) { await retomar(); return } // luta aberta (servidor, ou guardada no aparelho no modo local): volta a ela
+  if (primeira) primeiraAbertura()
+}
+
+// ------------------------------------------------------------------ primeira abertura (tarefa 21)
+// A coleção é a MESMA de sempre; só o primeiro boneco chega num casulo que o jogador abre parte por parte (a revelação da
+// costura), e depois a Aventura aponta "Jogar fase 1". Acontece uma vez por aparelho; ?teste=1 pula (?teste=1&primeira=1 força).
+const CHAVE_PRIMEIRA = 'frayz_primeira_abertura'
+function primeiraVez() {
+  if (TESTE && url.get('primeira') !== '1') return false
+  try { if (localStorage.getItem(CHAVE_PRIMEIRA)) return false } catch { return false }
+  if (P.modo() === 'local') return Col.colecaoNova() || (TESTE && url.get('primeira') === '1')
+  const bs = Col.ativos() // servidor: conta nova (ninguém lutou ainda e só a fase 1 aberta)
+  return bs.length > 0 && bs.every((b) => !(b.lutas > 0)) && Col.aventura().liberada === 1
+}
+function primeiraAbertura() {
+  const bs = Col.ativos().filter((b) => !Col.casuloFechado(b)), b = bs[0]
+  if (!b) return
+  try { localStorage.setItem(CHAVE_PRIMEIRA, '1') } catch { /* ok */ }
+  const ordem = P.PARTES_DO_BONECO.filter((p) => p !== 'tronco').concat('tronco') // o Tronco por último: ele define o tipo
+  const outros = bs.length - 1
+  abrirCasuloDe(b.id, {
+    tipo: 'primeira', ordem, titulo: 'Seu primeiro boneco',
+    sub: 'Ele chegou num casulo de retalhos. Abra uma parte de cada vez: a última (o Tronco) define o tipo.',
+    fimRotulo: 'Ir para a fase 1',
+    aoFim: async () => mostrarNascido(Col.obter(b.id), { titulo: `${P.fichaDoBoneco(b).nome} chegou!`, nota: outros > 0 ? `Ele e mais ${outros} bonecos já estão na sua coleção.` : 'Ele já está na sua coleção.' }),
+    aoFechar: () => {
+      // o time da fase 1 já vem montado (o primeiro boneco na Frente) e o botão aponta "Jogar fase 1"
+      if (Col.timeAventura().length === 0) Col.definirTimeAventura(bs.slice(0, 3).map((x) => x.id))
+      irParaFase(1); apontarJogar(true); irParaAba('aventura')
+    },
+  })
 }
 
 function ligarConta() {
@@ -981,6 +1153,10 @@ function ganchoDeTeste() {
     leque: (v) => { S.vel = v; arena.vel = v },
     /** o texto do replay (a tela não mostra o texto cru; o teste confere o que o botão Copiar copia) */
     textoDoReplay: () => S.textoReplay,
+    /** só para o teste (tarefa 21): monta de novo a folha do fim com o estado atual (a foto do "venceu por um fio") */
+    refazerFim: () => { const r = P.fim(S.estado); montarFim(r, r.vencedor === P.EU, '') },
+    tremidas: () => arena.tremidas.slice(),
+    marcasDeGolpe: () => arena.marcasDeGolpe,
   }
 }
 

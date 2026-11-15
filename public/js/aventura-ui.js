@@ -4,7 +4,7 @@
 import * as P from './ponte.js'
 import * as Col from './colecao.js'
 import { FASES } from './aventura-dados.js'
-import { $, el, bonecoCanvas, iconeTipo, NOME_LUGAR } from './ui.js'
+import { $, el, avisoHub, bonecoCanvas, iconeTipo, NOME_LUGAR } from './ui.js'
 import { carretelSvg, formatoDe } from './pecas/base.js'
 import { atualizarBotao, criarBotao } from './pecas/botao.js'
 import { criarPrateleira } from './pecas/prateleira.js'
@@ -12,7 +12,7 @@ import { bonecoEm, partesDaFicha } from './pecas/montagens.js'
 
 const NOME_ROBO = { ganancioso: 'Ganancioso', planejador: 'Planejador' }
 const DESC_ROBO = { ganancioso: 'joga o que bate mais forte agora', planejador: 'pensa dois turnos à frente' }
-let fase = 1, aoJogar = () => {}, prateleira = null
+let fase = 1, aoJogar = () => {}, prateleira = null, abrindo = false, apontar = false
 export const ligarAventura = (cb) => { aoJogar = cb }
 export const faseAtual = () => fase
 
@@ -84,20 +84,29 @@ function renderTime() {
     c.append(el('span', 'fz-circulo__nome', NOME_LUGAR[i])); sl.append(c)
   }
   $('#avTimeDica').textContent = `(${ids.length}/3, o 1º fica na Frente)`
-  const e = P.energia(), btn = $('#btnJogarFase')
+  const e = P.energia(), btn = $('#btnJogarFase'), custo = P.custoDeEnergia()
   if (e.atual <= 0) atualizarBotao(btn, { rotulo: 'Sem energia', detalhe: `volta às ${horaDaRecarga(e)}`, desligado: true })
-  else atualizarBotao(btn, { rotulo: ids.length === 3 ? `Jogar fase ${fase}` : `Faltam ${3 - ids.length}`, detalhe: ids.length === 3 ? `Energia ${e.atual}/${e.maximo}` : null, desligado: ids.length !== 3 })
+  // tarefa 21: o custo à vista ANTES do toque (o número vem da ponte: shared/config.js)
+  else atualizarBotao(btn, { rotulo: ids.length === 3 ? `Jogar fase ${fase}` : `Faltam ${3 - ids.length}`, detalhe: ids.length === 3 ? `gasta ${custo} energia · tem ${e.atual}/${e.maximo}` : `Jogar fase ${fase} gasta ${custo} energia`, desligado: ids.length !== 3 || abrindo })
+  btn.setAttribute('aria-label', ids.length === 3 && e.atual > 0 ? `Jogar fase ${fase}: gasta ${custo} energia` : btn.textContent.trim())
+  btn.classList.toggle('fz-aponta', apontar && ids.length === 3 && e.atual > 0)
 }
+
+/** Enquanto a luta abre, o botão fica desligado (um toque só gasta uma energia). */
+export function travarJogar(sim) { abrindo = sim; if ($('#btnJogarFase')) { if (sim) $('#btnJogarFase').disabled = true; else if (!$('#aventura').hidden) renderTime() } }
+/** Primeira abertura: o botão "Jogar fase 1" ganha o dedo apontando (até o primeiro toque). */
+export function apontarJogar(sim = true) { apontar = sim }
 
 function alternar(id) {
   const ids = Col.timeAventura(), i = ids.indexOf(id)
-  if (i >= 0) ids.splice(i, 1); else { if (ids.length >= 3) ids.shift(); ids.push(id) }
+  if (i >= 0) ids.splice(i, 1)
+  else { if (ids.length >= 3) { const saiu = ids.shift(); avisoHub(`${P.fichaDoBoneco(Col.obter(saiu)).nome} saiu do time (cabem 3).`, false) } ids.push(id) }
   Col.definirTimeAventura(ids); renderTime()
 }
 
 export function iniciarAventura() {
   const b = criarBotao({ rotulo: 'Jogar fase 1', variante: 'principal', desligado: true }); b.id = 'btnJogarFase'
   $('#btnJogarFase').replaceWith(b)
-  b.addEventListener('click', () => { const ids = Col.timeAventura(); if (ids.length === 3) aoJogar({ fase, ids }) })
+  b.addEventListener('click', () => { const ids = Col.timeAventura(); if (abrindo || b.disabled || $('#hub').hidden) return; if (ids.length === 3) { apontar = false; b.classList.remove('fz-aponta'); aoJogar({ fase, ids }) } })
 }
 export function irParaFase(n) { fase = Math.min(FASES.length, n) }

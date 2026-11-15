@@ -26,7 +26,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible { outline: 3px solid var(--ouro); outline-offset: 2px; }
 
 /* ------------------------------------------------------------ topo */
-.topo { display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: var(--plum); color: var(--creme); border-bottom: 3px solid #1A1224; flex-wrap: wrap; }
+.topo { position: relative; z-index: 45; display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: var(--plum); color: var(--creme); border-bottom: 3px solid #1A1224; flex-wrap: wrap; }
 .marca { display: flex; flex-direction: column; line-height: 1.05; margin-right: auto; }
 .marca b { font-family: var(--titulo); font-weight: 400; font-size: 20px; color: var(--ouro); }
 .marca small { font-size: 11px; opacity: 0.75; }
@@ -124,7 +124,7 @@ main { padding: 10px; max-width: 1280px; margin: 0 auto; }
 .t-tat b { font-family: var(--titulo); font-weight: 400; font-size: 18px; }
 .t-tat small { font-size: 12px; color: var(--plum3); }
 .t-tat[aria-checked="true"] { background: var(--ouro); }
-.t-lutar { position: sticky; bottom: 0; z-index: 20; text-align: center; padding: 8px 0 6px; margin: 0 -10px; background: linear-gradient(180deg, rgba(43, 30, 58, 0) 0, rgba(43, 30, 58, 0.92) 30%); }
+.t-lutar { position: sticky; bottom: 0; z-index: 20; text-align: center; padding: 8px 0 6px; margin: 0; background: linear-gradient(180deg, rgba(43, 30, 58, 0) 0, rgba(43, 30, 58, 0.92) 30%); }
 .t-lutar .decidido { margin: 4px 0 0; }
 #time { padding-bottom: 4px; }
 .fantasma { position: fixed; width: 64px; height: 64px; pointer-events: none; z-index: 60; opacity: 0.85; }

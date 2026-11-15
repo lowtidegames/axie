@@ -335,7 +335,7 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
       const n = $('#bNoite', raiz)
       n.hidden = false
       const pA = Math.round((r.pct.A / 3) * 100), pB = Math.round((r.pct.B / 3) * 100)
-      n.innerHTML = `<h3>Nightfall</h3><p>${TERMOS.nightfall}</p>
+      n.innerHTML = `<h3>Nightfall</h3><p>${TERMOS.nightfall.replace(/^Nightfall: a/, 'A')}</p>
         <div class="b-noite__barras"><div><span>Your team</span><div class="b-noite__b"><i style="--p:${pA}%"></i></div><b>${pA}%</b></div>
         <div><span>Rival</span><div class="b-noite__b b"><i style="--p:${pB}%"></i></div><b>${pB}%</b></div></div>`
       try { await espera(1600) } catch {}

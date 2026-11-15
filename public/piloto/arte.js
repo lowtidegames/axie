@@ -366,7 +366,8 @@ const genericoBraco = (g, [x, y], r, f) => g.forma(T([[x, y, 2], [x + (f ? 7 : -
 const genericaPerna = (g, [x, y], r) => { for (const dx of [-5, 5]) g.forma(R(x + dx - 2, y, 4, 9), r, { semLuz: true }) }
 
 /** Grade 64×64 do monstro, montado pelas partes. partes: { tronco, cabeca, bracos, pernas, bordado } (id ou 'id@raridade'). */
-export function gradeDoMonstro(partes, pose = 'idle') {
+export function gradeDoMonstro(partes, pose = 'idle', so = null) {
+  const ve = (slot) => !so || so.includes(slot)
   const g = new Grade(64, 64)
   const ids = Object.fromEntries(Object.entries(partes).map(([k, v]) => [k, idDe(v)]))
   const tronco = PARTES[ids.tronco]
@@ -377,20 +378,18 @@ export function gradeDoMonstro(partes, pose = 'idle') {
   const enc = corpo.encaixe
   const mv = ([x, y], dx = 0, dy = 0) => [x + k + dx, y + dy]
   const braco = BRACOS[ids.bracos] ?? genericoBraco
-  braco(g, mv(enc.bracoT), ramp('bracos'), false, at)
-  ;(PERNAS[ids.pernas] ?? genericaPerna)(g, enc.pernas, ramp('pernas'))
-  corpo.desenhar(g, rampaDoElemento(tronco.tipo), k)
-  const marca = PARTES[ids.bordado]?.bordado ? MARCAS[ids.bordado] : null
-  ;(CABECAS[ids.cabeca] ?? genericoCabeca)(g, mv(enc.cabeca, at ? 2 : 0, at ? 1 : 0), ramp('cabeca'), at)
+  if (ve('bracos')) braco(g, mv(enc.bracoT), ramp('bracos'), false, at)
+  if (ve('pernas')) (PERNAS[ids.pernas] ?? genericaPerna)(g, enc.pernas, ramp('pernas'))
+  if (ve('tronco')) corpo.desenhar(g, rampaDoElemento(tronco.tipo), k)
+  const marca = PARTES[ids.bordado]?.bordado && ve('bordado') && ve('tronco') ? MARCAS[ids.bordado] : null
+  if (ve('cabeca')) (CABECAS[ids.cabeca] ?? genericoCabeca)(g, mv(enc.cabeca, at ? 2 : 0, at ? 1 : 0), ramp('cabeca'), at)
   if (marca && ids.bordado !== 'bo_espinho') marca(g, mv(enc.marca))
-  braco(g, mv(enc.bracoF), ramp('bracos'), true, at)
+  if (ve('bracos')) braco(g, mv(enc.bracoF), ramp('bracos'), true, at)
   if (marca && ids.bordado === 'bo_espinho') marca(g, mv(enc.marca))
   g.contorno()
   return g
 }
 
-/** Faixas do sprite para a revelação do ovo (recorte retangular): pernas embaixo, braços no meio, cabeça em cima. */
-export const FAIXAS = { bordado: null, pernas: [44, 64], bracos: [28, 44], cabeca: [0, 28], tronco: [0, 64] }
 
 // ------------------------------------------------------------------ OVO (3 estados)
 export function gradeDoOvo(estado = 'whole') {
@@ -522,13 +521,9 @@ export function monstro(def, pose = 'idle') {
   const chave = 'm:' + JSON.stringify(partes) + pose
   return guardar(chave, () => gradeDoMonstro(partes, pose).canvas())
 }
-/** Grade do monstro com só algumas faixas visíveis (cena do ovo). */
-export function monstroEmFaixas(partes, faixas) {
-  const g = gradeDoMonstro(partes, 'idle')
-  const cv = g.canvas()
-  const out = criarCanvas(64, 64), cx = out.getContext('2d')
-  for (const [y0, y1] of faixas) cx.drawImage(cv, 0, y0, 64, y1 - y0, 0, y0, 64, y1 - y0)
-  return out
+/** O monstro só com as partes já reveladas (cena do ovo): ex. ['pernas', 'bracos']. */
+export function monstroEmPartes(partes, slots) {
+  return guardar('mp:' + JSON.stringify(partes) + slots.join(','), () => gradeDoMonstro(partes, 'idle', slots).canvas())
 }
 export function ovo(estado = 'whole') { return img(manifesto().egg?.[estado]) ?? guardar('ovo:' + estado, () => gradeDoOvo(estado).canvas()) }
 export function iconeElemento(tipo) { return img(manifesto().elements?.[tipo]) ?? guardar('el:' + tipo, () => gradeDoIconeElemento(tipo).canvas()) }

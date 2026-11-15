@@ -194,10 +194,9 @@ export function criarOvo({ raiz, colecao, opcoes, ganchos }) {
     }
     const partes = Object.fromEntries(Object.entries(O.filho?.partes ?? {}).map(([s, g]) => [s, g.face]))
     if (fase >= 2) {
-      const faixas = []
-      for (const sl of ORDEM_DO_OVO.slice(1, fase)) if (Arte.FAIXAS[sl]) faixas.push(Arte.FAIXAS[sl])
+      // as partes saem pela casca na ordem do motor (sem o corpo, que é o pico)
       const head = fase >= 4 && fase < 5 ? -3 : 0
-      if (fase < 5) cx.drawImage(Arte.monstroEmFaixas(partes, faixas), ex, Math.round(ey) + head)
+      if (fase < 5) cx.drawImage(Arte.monstroEmPartes(partes, ORDEM_DO_OVO.slice(1, fase)), ex, Math.round(ey) + head)
       else {
         cx.drawImage(Arte.ovo('open'), ex, base - 64 + 6)
         cx.drawImage(Arte.monstro({ partes }), ex, base - 66)

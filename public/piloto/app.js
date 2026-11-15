@@ -474,6 +474,9 @@ function desenharCarimbos() {
     li.firstChild.addEventListener('click', () => { if (P.lutas[i] && li.firstChild.dataset.estado.length === 1) { tocar('botao'); abrirLuta(i, 'replay') } })
   }
   $('#rSeq').innerHTML = Array.from({ length: PATRULHA.sequencia }, () => '<i></i>').join('')
+  // quem está lutando, de lado, enquanto os carimbos batem (some quando a tira chega)
+  $('#rCampo').innerHTML = `<div class="r-time r-time--a">${P.defs.map((d) => imgMonstro(d)).reverse().join('')}</div><b>VS</b><div class="r-time r-time--b">${P.guarda.map((d) => imgMonstro(d, 'espelho')).join('')}</div>`
+  $('#rCampo').hidden = false
   $('#rSeqTxt').textContent = ''
 }
 /** Bate o carimbo da luta i (o resultado só aparece aqui). */
@@ -513,6 +516,7 @@ async function carimbar() {
     fazerLuta(i)
     const b = $(`.r-carimbo[data-i="${i}"]`), r = P.lutas[i].resumo
     b.dataset.estado = 'lutando'
+    $('#rCampo').classList.add('briga')
     $('.r-meio', b).innerHTML = `<span class="r-briga">${mini(P.defs[0])}<i></i>${mini(P.guarda[0], 'espelho')}</span>`
     if (!R.pular) tocar('rufar')
     // os golpes Strong daquela luta pipocam enquanto ela corre (dado verdadeiro; o resultado ainda não)
@@ -526,6 +530,7 @@ async function carimbar() {
     await espera(n ? 1700 - (1700 / Math.max(3, n)) * n + 500 : 2200)
     if (!R.pular) tocar('rufar')
     await espera(520)
+    $('#rCampo').classList.remove('briga')
     baterCarimbo(i, !R.pular)
     await espera(480)
   }
@@ -563,6 +568,7 @@ async function mostrarTiras(comFesta) {
   if (!nova) return
   $('#rTiras').hidden = false
   $('#relato').classList.add('fim')
+  $('#rCampo').hidden = true
   $('#rTiras').classList.toggle('so-uma', !antes)
   const elN = $('#rNova'), elA = $('#rAntes')
   elN.innerHTML = htmlDaTira(nova, 'This patrol', antes ?? null)

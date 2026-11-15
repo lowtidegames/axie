@@ -96,7 +96,7 @@ export function criarFicha({ conta, tocar, faiscas, ganchos }) {
     // títulos em fitas
     const tits = h.titulos.slice(0, 4).map(nomeDoTitulo)
     cx.font = '18px "Lilita One", sans-serif'
-    let y = 546
+    let y = 540
     if (!tits.length) { cx.fillStyle = '#5A4470'; cx.font = '800 14px "Nunito", sans-serif'; cx.fillText('No titles yet', cxm, y) }
     for (let i = 0; i < tits.length; i += 2) {
       const par = tits.slice(i, i + 2), larg = par.map((x) => cx.measureText(x).width + 40)
@@ -106,10 +106,10 @@ export function criarFicha({ conta, tocar, faiscas, ganchos }) {
         cx.fillStyle = PLUM; cx.textAlign = 'center'; cx.fillText(txt, x + larg[k] / 2, y + 1)
         x += larg[k] + 10
       })
-      y += 38
+      y += 36
     }
     cx.fillStyle = '#5A4470'; cx.font = '800 13px "Nunito", sans-serif'; cx.textAlign = 'center'
-    cx.fillText(`Account ${NOMES.renome} ${conta.renome}`, cxm, H - 30)
+    cx.fillText(`Account ${NOMES.renome} ${conta.renome}`, cxm, H - 25)
     return { cv, nome: m.nome }
   }
   $('#gCartao').addEventListener('click', async () => {

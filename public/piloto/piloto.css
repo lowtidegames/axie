@@ -473,6 +473,17 @@ div.m-marca { pointer-events: none; }
 #relato.fim .r-carimbo .r-selo { font-size: 22px; }
 #relato.fim .r-seq { margin-top: 6px; }
 
+.r-campo { display: flex; align-items: flex-end; justify-content: center; gap: 18px; margin: 4px 0 10px; padding: 14px 8px 10px; border: 3px solid var(--plum); border-radius: 12px; background: linear-gradient(180deg, #BFE6F5 0 58%, #7CC873 58% 100%); box-shadow: var(--sombra); }
+.r-campo > b { align-self: center; font-family: var(--titulo); font-weight: 400; font-size: 30px; color: var(--creme); text-shadow: 0 2px 0 var(--plum), 2px 0 0 var(--plum), -2px 0 0 var(--plum), 0 -2px 0 var(--plum); }
+.r-time { display: flex; align-items: flex-end; }
+.r-time img { width: 128px; height: 128px; margin: 0 -6px; animation: respira 1.4s ease-in-out infinite; }
+.r-time img:nth-child(2) { animation-delay: 0.3s; } .r-time img:nth-child(3) { animation-delay: 0.6s; }
+.r-campo.briga .r-time--a img { animation: avancaA 0.55s ease-in-out infinite alternate; }
+.r-campo.briga .r-time--b img { animation: avancaB 0.55s ease-in-out infinite alternate; }
+@keyframes respira { 50% { translate: 0 -3px; } }
+@keyframes avancaA { to { translate: 14px 0; } }
+@keyframes avancaB { to { translate: -14px 0; } }
+body.menos .r-time img { animation: none !important; }
 /* ------------------------------------------------------------ MONSTERS + ficha */
 .g-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .g-item { min-height: 44px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px; border-radius: 12px; border: 3px solid var(--plum); background: var(--creme2); box-shadow: 0 3px 0 var(--plum); }
@@ -546,6 +557,8 @@ body.menos .b-palco::after { display: none; }
   .f-lugar { flex: 1; padding: 2px 6px 2px 2px; font-size: 12px; line-height: 1.1; text-align: left; }
   .f-campo { grid-template-columns: 1fr 1fr; padding: 6px; gap: 6px; background: linear-gradient(180deg, #BFE6F5 0 30%, #7CC873 30% 100%); }
   .f-vs { display: none; }
+  .f-lado h3 small { display: none; }
+  .t-slot, .t-rival-mon { height: 130px; }
   .t-slots, .t-rivais { flex-direction: column; }
   .t-slot { display: grid; grid-template-columns: 72px 1fr; grid-template-rows: auto auto; gap: 2px 4px; text-align: left; align-items: center; padding: 4px; min-height: 124px; position: relative; }
   .t-slot .pos, .t-rival-mon .pos { position: absolute; left: 2px; top: 2px; font-size: 10px; padding: 0 5px; z-index: 1; }
@@ -553,6 +566,7 @@ body.menos .b-palco::after { display: none; }
   .t-rival-mon .pos { left: auto; right: 2px; }
   .t-rival-mon > img { width: 64px; height: 64px; grid-column: 2; grid-row: 1; }
   .t-rival-mon .t-ficha { grid-column: 1; grid-row: 1; align-items: flex-end; }
+  .t-rival-mon .t-ficha > b { font-size: 13px; }
   .t-mon { width: 72px; height: 72px; }
   .t-mon img { width: 64px; height: 64px; }
   .t-slot .t-ficha { display: contents; }
@@ -577,6 +591,9 @@ body.menos .b-palco::after { display: none; }
   .b-info b { font-size: 16px; }
   .b-selo { font-size: 10px; }
   .r-carimbos { gap: 4px; }
+  .r-campo { gap: 4px; padding: 10px 2px 8px; }
+  .r-campo > b { font-size: 18px; }
+  .r-time img { width: 64px; height: 64px; margin: 0 -7px; }
   .r-carimbo { height: 112px; padding: 4px 0; border-width: 2px !important; }
   .r-n { font-size: 10px; }
   .r-selo { font-size: 17px; padding: 0 3px; border-width: 3px; letter-spacing: 0; }

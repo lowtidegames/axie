@@ -8,6 +8,7 @@ Quem escreve: só o diretor. Cada gasto entra aqui no mesmo dia, com a autoriza�
 | 15/11/2026 00:50–01:10 | PixelLab (imagens) | piloto de arte: 1 cena, 8 bonecos inteiros, 3 manequins, 10 partes sobre molde, 6 + 3 testes de pose presa, 11 partes soltas (`arte/piloto-pixellab/`) | 38 gerações | dono 15/11 00:36 "o pixel lab para assets do jogo inteiro" |
 | 15/11/2026 03:05–03:25 | ElevenLabs (efeitos sonoros) | pacote de som: 1 teste + 100 tomadas de 19 efeitos de ateliê em 2 rodadas; 53 escolhidas por medição e instaladas em `public/sons/` (bruto, pedidos e escolha em `sons/pacote-elevenlabs/`) | 942 créditos | dono 15/11 02:55 "som pelo ElevenLabs com teto de 5.000 créditos" |
 | 15/11/2026 10:18–10:50 | PixelLab (imagens) | piloto de monstros (tema medieval): 6 monstros em pose parada e ataque, arena, ninho, mapa, ovo em 3 estados, 5 lugares, 6 ícones (`arte/piloto-monstros/`, finais em `public/piloto/arte/`) | 55 gerações (saldo 1107,5 → 1052,5; só ferramentas de 1 geração) | dono 15/11 10:04: teto de 150 gerações |
+| 15/11/2026 10:51–10:53 | PixelLab (imagens) | refazer arena (bandeiras lisas, 1 tentativa aceita) + 3 testes de Cobblepup descartados, guardados em bruto (`arte/piloto-monstros/`) | 7 gerações pelo saldo (1052,5 → 1045,5; o registro soma 6) — total do tema novo: 62 de 150 | diretor 15/11 (teto 12; depois só arena) |
 
 **Teto do ElevenLabs: 5.000 créditos. Gasto até agora: 1.284 (piloto 342 + pacote 942). Sobra: 3.716.**
 

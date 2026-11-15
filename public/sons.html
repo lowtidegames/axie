@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frayz — folha de sons</title>
+<style>
+  :root { --noite-funda: #140C1F; --noite: #1B1226; --pano: #2A1B3D; --pano-claro: #3A2752; --borda: #5A4378; --linho: #F2E6C9; --apagado: #B9A98C; --ouro: #FFC857; --chama: #FF9F1C; --fio: #FF4D8D; --vida: #6FCF6B; --dano: #FF5A5F; --escudo: #6EC1FF; }
+  * { box-sizing: border-box; }
+  html { background: var(--noite); }
+  body { margin: 0; color: var(--linho); font: 600 15px/1.45 "Nunito", system-ui, "Segoe UI", sans-serif; background: radial-gradient(1200px 600px at 12% -10%, rgba(255, 200, 87, .10), transparent 60%), radial-gradient(900px 500px at 105% 0%, rgba(110, 193, 255, .08), transparent 60%), var(--noite); }
+  h1, h2, h3, button, .numero { font-family: "Lilita One", "Trebuchet MS", system-ui, sans-serif; font-weight: 400; letter-spacing: .01em; }
+  main { max-width: 1120px; margin: 0 auto; padding: 16px 16px 64px; }
+  h1 { font-size: 34px; margin: 8px 0 4px; }
+  h1 span { color: var(--fio); }
+  h2 { font-size: 24px; margin: 32px 0 8px; }
+  h3 { font-size: 19px; margin: 0; }
+  p { margin: 4px 0 8px; }
+  small, .apagado { color: var(--apagado); }
+  code { font: 600 12px ui-monospace, Menlo, Consolas, monospace; color: var(--apagado); background: rgba(20, 12, 31, .6); padding: 1px 6px; border-radius: 999px; }
+  .painel { background: var(--pano); border: 1px solid var(--borda); border-radius: 10px; padding: 12px; position: relative; }
+  .painel::after { content: ""; position: absolute; inset: 4px; border: 1.5px dashed rgba(242, 230, 201, .16); border-radius: 7px; pointer-events: none; }
+  button { min-height: 44px; min-width: 44px; padding: 8px 14px; color: var(--linho); background: var(--pano-claro); border: 1.5px dashed rgba(242, 230, 201, .55); outline: 3px solid var(--pano-claro); outline-offset: 0; border-radius: 10px; font-size: 15px; cursor: pointer; }
+  button:hover { background: #46305f; outline-color: #46305f; }
+  button:focus-visible { box-shadow: 0 0 0 5px var(--ouro); }
+  button.principal { background: var(--fio); outline-color: var(--fio); color: #23061a; border-color: rgba(35, 6, 26, .6); }
+  button[aria-pressed="true"] { background: var(--ouro); outline-color: var(--ouro); color: #2a1a00; border-color: rgba(42, 26, 0, .6); }
+  button.soando { background: var(--chama); outline-color: var(--chama); color: #2a1a00; }
+  #mesa { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 4px 24px; align-items: center; margin: 12px 0; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+  #mesa label { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+  #mesa label.vol { flex: 1 1 230px; }
+  #mesa .fila { flex-wrap: nowrap; }
+  #mesa input[type=range] { flex: 1; accent-color: var(--fio); min-width: 90px; height: 28px; }
+  #mesa input[type=checkbox], #mesa input[type=radio] { width: 20px; height: 20px; accent-color: var(--fio); }
+  .numero { font-variant-numeric: tabular-nums; color: var(--ouro); min-width: 3.2em; text-align: right; }
+  .etiqueta { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--noite-funda); border: 1px solid var(--borda); font-size: 13px; }
+  .etiqueta.ok { border-color: var(--vida); color: var(--vida); }
+  .etiqueta.ruim { border-color: var(--dano); color: var(--dano); }
+  .fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .momentos { display: grid; gap: 12px; }
+  .momento header, .efeito header { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 4px; }
+  .efeito { margin-top: 12px; }
+  .efeito .alvo { margin-left: auto; }
+  .vars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 8px; }
+  .var { margin: 0; min-width: 0; }
+  .var .topo { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+  .var .topo button { min-width: 56px; }
+  canvas { display: block; width: 100%; background: var(--noite-funda); border-radius: 6px; }
+  canvas.onda { height: 52px; margin-bottom: 3px; }
+  canvas.espectro { height: 104px; }
+  .momento canvas.onda { height: 56px; }
+  .momento canvas.espectro { height: 132px; }
+  .medidas { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .medidas b { color: var(--ouro); font-weight: 800; }
+  .medidas .ruim b { color: var(--dano); }
+  .lado-a-lado { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--borda); }
+  .lado-a-lado h4 { margin: 0 0 4px; font: 800 13px/1.2 "Nunito", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--escudo); }
+  #diario { margin: 8px 0 0; padding: 0 0 0 4px; list-style: none; max-height: 190px; overflow: auto; font-size: 13px; font-variant-numeric: tabular-nums; }
+  #diario li { padding: 1px 0; color: var(--apagado); }
+  #diario li:last-child { color: var(--linho); }
+  #diario li b { color: var(--ouro); }
+  .legenda { font-size: 13px; color: var(--apagado); }
+  @media (max-width: 760px) { .vars { grid-template-columns: 1fr; } h1 { font-size: 28px; } #mesa { position: static; } #mesa .fila { flex-wrap: wrap; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Frayz — <span>folha de sons</span></h1>
+  <p>Todos os sons do jogo, para ouvir e aprovar. Cada efeito tem 3 variações (o jogo nunca repete a mesma em seguida). O desenho de cima é a <b>onda</b>; o de baixo é o <b>espectro</b> (grave embaixo, agudo em cima, o tempo corre para a direita). As medidas são tiradas do próprio som, fora do tempo real.</p>
+  <p class="legenda">Régua: duração dentro de ±20% da tabela · pico entre −12 e −6 dBFS (o do efeito) · nunca acima de −3 dBFS · música cerca de 12 dB abaixo dos efeitos. Verde = dentro da régua.</p>
+
+  <section id="mesa" class="painel" aria-label="Controles">
+    <div class="fila"><span id="estadoSom" class="etiqueta">Som desligado: toque em qualquer botão</span></div>
+    <label class="vol">Efeitos <input id="volEfeitos" type="range" min="0" max="100" step="1"> <span id="numEfeitos" class="numero"></span></label>
+    <label class="vol">Música <input id="volMusica" type="range" min="0" max="100" step="1"> <span id="numMusica" class="numero"></span></label>
+    <div class="fila">
+      <button id="btnMudo" type="button" aria-pressed="false">Mudo</button>
+      <button id="btnParar" type="button">Parar tudo</button>
+    </div>
+    <div class="fila" role="radiogroup" aria-label="Lado de onde sai o efeito">
+      <label><input type="radio" name="lado" value="A"> Esquerda</label>
+      <label><input type="radio" name="lado" value="" checked> Centro</label>
+      <label><input type="radio" name="lado" value="B"> Direita</label>
+    </div>
+    <label><input id="optCalmo" type="checkbox"> Menos animação (crítico e Tesoura 6 dB mais baixos)</label>
+    <label><input id="optAmostras" type="checkbox"> Usar amostras gravadas <span id="notaAmostras" class="apagado"></span></label>
+  </section>
+
+  <section id="exemplo" class="painel">
+    <div class="fila">
+      <button id="btnLuta" type="button" class="principal">Tocar uma luta de exemplo</button>
+      <span class="apagado">Uns 30 segundos: carta, golpe, escudo, crítico, Tesoura descendo, Véu, Último Fio, queda, Tesoura cortando e vitória, com a música mudando de momento.</span>
+    </div>
+    <ol id="diario" aria-live="polite"></ol>
+  </section>
+
+  <h2>Música (gerada na hora)</h2>
+  <p class="apagado">Valsa em ré menor, 3 por 4, 92 batidas por minuto. A troca de momento acontece sempre na virada do compasso. <span id="estadoMusica" class="etiqueta">parada</span></p>
+  <div class="fila" style="margin-bottom:8px">
+    <button id="btnPararMusica" type="button">Parar a música</button>
+    <button id="btnDegrau" type="button">Costura: subir um degrau</button>
+    <button id="btnAbaixar" type="button">Abaixar 6 dB por 400 ms</button>
+  </div>
+  <div id="camadas" class="fila" style="margin-bottom:12px" role="group" aria-label="Ouvir uma camada sozinha"><span class="apagado">Camadas (ouvir uma sozinha):</span></div>
+  <section id="musica" class="momentos"></section>
+
+  <h2>Efeitos (um por acontecimento)</h2>
+  <p id="progresso" class="apagado">Fabricando e medindo…</p>
+  <section id="efeitos"></section>
+</main>
+
+<script type="module">
+import * as Som from './js/som.js'
+import * as Musica from './js/musica.js'
+
+const SR = 48000, PRE = 0.5
+const $ = (s, r = document) => r.querySelector(s)
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e }
+const db = (x) => 20 * Math.log10(Math.max(x, 1e-9))
+const num = (x, casas = 1) => x.toFixed(casas).replace('.', ',').replace('-', '−')
+
+// ------------------------------------------------------------------ medir e desenhar (tudo a partir do som fabricado)
+function fft(re, im) {
+  const n = re.length
+  for (let i = 1, j = 0; i < n; i++) { let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t } }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang)
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0
+      for (let k = 0; k < len / 2; k++) {
+        const a = i + k, b = a + len / 2, xr = re[b] * cr - im[b] * ci, xi = re[b] * ci + im[b] * cr
+        re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi
+        const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t
+      }
+    }
+  }
+}
+async function fabricarFora(dur, montar, cauda = 0.2) {
+  const ctx = new OfflineAudioContext(2, Math.ceil((PRE + dur + cauda) * SR), SR)
+  const info = montar(ctx, PRE)
+  return { buf: await ctx.startRendering(), info }
+}
+/** Duração (do primeiro ao último ponto acima de −60 dBFS), pico e volume médio (RMS) nesse trecho. */
+function medir(buf, limiar = 0.001) {
+  const L = buf.getChannelData(0), R = buf.getChannelData(1), n = L.length
+  let pico = 0, ini = -1, fim = -1
+  for (let i = 0; i < n; i++) { const a = Math.max(Math.abs(L[i]), Math.abs(R[i])); if (a > pico) pico = a; if (a > limiar) { if (ini < 0) ini = i; fim = i } }
+  if (ini < 0) return { inicio: PRE, fim: PRE, ms: 0, picoDb: -180, rmsDb: -180 }
+  let soma = 0
+  for (let i = ini; i <= fim; i++) soma += (L[i] * L[i] + R[i] * R[i]) / 2
+  return { inicio: ini / SR, fim: fim / SR, ms: (fim - ini) / SR * 1000, picoDb: db(pico), rmsDb: db(Math.sqrt(soma / (fim - ini + 1))) }
+}
+function preparar(cv) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1)
+  cv.width = Math.max(40, Math.round(cv.clientWidth * dpr)); cv.height = Math.max(20, Math.round(cv.clientHeight * dpr))
+  return cv.getContext('2d')
+}
+function desenharOnda(cv, buf, t0, t1, escala = 0.56) {
+  const c = preparar(cv), W = cv.width, H = cv.height, L = buf.getChannelData(0), R = buf.getChannelData(1)
+  c.fillStyle = '#140C1F'; c.fillRect(0, 0, W, H)
+  c.strokeStyle = 'rgba(255, 200, 87, .28)'; c.setLineDash([3, 4]); c.lineWidth = 1
+  for (const d of [-6, -12]) for (const s of [-1, 1]) { const y = H / 2 - s * (10 ** (d / 20) / escala) * H / 2; c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke() }
+  c.setLineDash([]); c.strokeStyle = 'rgba(242, 230, 201, .16)'; c.beginPath(); c.moveTo(0, H / 2); c.lineTo(W, H / 2); c.stroke()
+  c.fillStyle = '#F2E6C9'
+  const a = Math.floor(t0 * SR), passo = (t1 - t0) * SR / W
+  for (let x = 0; x < W; x++) {
+    let mn = 0, mx = 0
+    const i0 = Math.max(0, Math.floor(a + x * passo)), i1 = Math.min(L.length, Math.max(i0 + 1, Math.floor(a + (x + 1) * passo)))
+    for (let i = i0; i < i1; i++) { const v = (L[i] + R[i]) / 2 * 1.2; if (v < mn) mn = v; if (v > mx) mx = v }
+    const y0 = H / 2 - (mx / escala) * H / 2, y1 = H / 2 - (mn / escala) * H / 2
+    c.fillRect(x, Math.max(0, y0), 1, Math.max(1, Math.min(H, y1) - Math.max(0, y0)))
+  }
+}
+const CORES = [[0, 18, 10, 28], [0.3, 58, 39, 82], [0.55, 150, 52, 118], [0.75, 255, 77, 141], [0.9, 255, 200, 87], [1, 255, 248, 220]]
+function cor(t) {
+  t = Math.max(0, Math.min(1, t))
+  for (let i = 1; i < CORES.length; i++) if (t <= CORES[i][0]) { const a = CORES[i - 1], b = CORES[i], u = (t - a[0]) / (b[0] - a[0]); return [a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u, a[3] + (b[3] - a[3]) * u] }
+  return CORES[CORES.length - 1].slice(1)
+}
+const F_MIN = 40, F_MAX = 18000
+/** Espectro no tempo: grave embaixo, agudo em cima (escala de oitavas), cor = força (de −90 a −14 dBFS). */
+function desenharEspectro(cv, buf, t0, t1, { piso = -90, topo = -14 } = {}) {
+  const c = preparar(cv), W = cv.width, H = cv.height, L = buf.getChannelData(0), R = buf.getChannelData(1)
+  const dur = t1 - t0, N = dur < 0.25 ? 512 : dur < 1.5 ? 1024 : dur < 8 ? 2048 : 4096, NF = Math.max(2048, N)
+  const jan = new Float32Array(N); let sj = 0
+  for (let i = 0; i < N; i++) { jan[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1)); sj += jan[i] }
+  const img = c.createImageData(W, H), re = new Float32Array(NF), im = new Float32Array(NF), mag = new Float32Array(NF / 2)
+  const linhas = new Array(H)
+  for (let y = 0; y < H; y++) { const fa = F_MIN * (F_MAX / F_MIN) ** (1 - (y + 1) / H), fb = F_MIN * (F_MAX / F_MIN) ** (1 - y / H); linhas[y] = [fa * NF / SR, fb * NF / SR] }
+  for (let x = 0; x < W; x++) {
+    const centro = Math.floor((t0 + (x + 0.5) / W * dur) * SR), ini = centro - (N >> 1)
+    re.fill(0); im.fill(0)
+    for (let i = 0; i < N; i++) { const k = ini + i; re[i] = k >= 0 && k < L.length ? (L[k] + R[k]) / 2 * 1.414 * jan[i] : 0 }
+    fft(re, im)
+    for (let k = 0; k < NF / 2; k++) mag[k] = Math.hypot(re[k], im[k]) * 2 / sj
+    for (let y = 0; y < H; y++) {
+      const [ka, kb] = linhas[y]
+      let v
+      if (kb - ka < 1) { const k = (ka + kb) / 2, k0 = Math.floor(k), u = k - k0; v = mag[k0] * (1 - u) + (mag[k0 + 1] ?? 0) * u } else { v = 0; for (let k = Math.floor(ka); k <= Math.min(NF / 2 - 1, Math.ceil(kb)); k++) if (mag[k] > v) v = mag[k] }
+      const [r, g, b] = cor((db(v) - piso) / (topo - piso)), o = (y * W + x) * 4
+      img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b; img.data[o + 3] = 255
+    }
+  }
+  c.putImageData(img, 0, 0)
+  c.font = `${Math.round(9 * cv.width / cv.clientWidth)}px ui-monospace, monospace`; c.textBaseline = 'middle'
+  for (const [f, txt] of [[100, '100'], [1000, '1k'], [10000, '10k']]) {
+    const y = H * (1 - Math.log(f / F_MIN) / Math.log(F_MAX / F_MIN))
+    c.fillStyle = 'rgba(242, 230, 201, .22)'; c.fillRect(0, Math.round(y), W, 1)
+    c.fillStyle = 'rgba(242, 230, 201, .7)'; c.fillText(txt, 3, y - 6 * cv.width / cv.clientWidth)
+  }
+}
+function linhaDeMedidas(box, m, alvo) {
+  box.replaceChildren()
+  const item = (rot, valor, ok) => { const s = el('span', ok === false ? 'ruim' : ''); s.append(rot + ' ', el('b', null, valor)); box.append(s) }
+  item('duração', m.ms >= 1000 ? num(m.ms / 1000, 2) + ' s' : Math.round(m.ms) + ' ms', alvo?.ms ? Math.abs(m.ms / alvo.ms - 1) <= 0.2 : undefined)
+  item('pico', num(m.picoDb) + ' dBFS', alvo?.pico !== undefined ? Math.abs(m.picoDb - alvo.pico) <= 0.6 && m.picoDb <= -3 : m.picoDb <= -3)
+  item('médio', num(m.rmsDb) + ' dBFS')
+}
+
+// ------------------------------------------------------------------ controles
+const ROTULOS = Object.fromEntries(Musica.momentos().map((x) => [x.nome, x.rotulo]))
+const lado = () => document.querySelector('input[name=lado]:checked').value || null
+function refletir() {
+  const v = Som.volumes(), e = Som.estado()
+  $('#volEfeitos').value = Math.round(v.efeitos * 100); $('#numEfeitos').textContent = Math.round(v.efeitos * 100) + '%'
+  $('#volMusica').value = Math.round(v.musica * 100); $('#numMusica').textContent = Math.round(v.musica * 100) + '%'
+  $('#btnMudo').setAttribute('aria-pressed', String(e.mudo)); $('#btnMudo').textContent = e.mudo ? 'Mudo ligado' : 'Mudo'
+  $('#optCalmo').checked = e.calmo; $('#optAmostras').checked = e.amostras.usar
+}
+$('#volEfeitos').addEventListener('input', (ev) => { Som.volumes({ efeitos: ev.target.value / 100 }); refletir() })
+$('#volMusica').addEventListener('input', (ev) => { Som.volumes({ musica: ev.target.value / 100 }); refletir() })
+$('#btnMudo').addEventListener('click', () => { Som.mudo(!Som.estaMudo()); refletir() })
+$('#optCalmo').addEventListener('change', (ev) => Som.calmo(ev.target.checked))
+$('#optAmostras').addEventListener('change', (ev) => { Som.usarAmostras(ev.target.checked); pintarFontes() })
+$('#btnParar').addEventListener('click', () => { pararLuta(); Som.parar(); Musica.parar(300) })
+$('#btnPararMusica').addEventListener('click', () => Musica.parar())
+$('#btnDegrau').addEventListener('click', () => { if (Musica.estado().camada !== 'costura') Musica.momento('costura'); else Musica.degrau(Musica.estado().degrau + 1) })
+$('#btnAbaixar').addEventListener('click', () => Musica.abaixar(6, 400))
+{ // camadas: tocar todas ou uma sozinha (o relógio e as cordas só existem nos momentos da Tesoura; o coração, no Último Fio)
+  const box = $('#camadas'), botoes = []
+  const marca = (qual) => { for (const [b, n] of botoes) b.setAttribute('aria-pressed', String(n === qual)) }
+  const novo = (rotulo, nome) => { const b = el('button', null, rotulo); b.type = 'button'; b.dataset.camada = nome ?? ''; botoes.push([b, nome]); box.append(b); b.addEventListener('click', () => { Musica.solo(nome ? [nome] : null); marca(nome) }) }
+  novo('Todas', null)
+  for (const c of Musica.camadas()) novo(c.rotulo, c.nome)
+  marca(null)
+}
+setInterval(() => {
+  const e = Som.estado(), m = Musica.estado(), s = $('#estadoSom')
+  s.textContent = !e.iniciado ? 'Som desligado: toque em qualquer botão' : !e.rodando ? 'Som em pausa' : `Som ligado · ${e.vozes} de 16 vozes${e.mudo ? ' · mudo' : ''}`
+  s.className = 'etiqueta' + (e.rodando ? ' ok' : '')
+  const nomeM = (n) => ROTULOS[n] ?? n
+  $('#estadoMusica').textContent = !m.momento ? (m.espera ? 'esperando o primeiro toque' : 'parada') : m.tocando ? `${nomeM(m.momento)} · compasso ${m.compasso} da frase ${m.frase.replace('2', '′')}${m.pendente ? ` · na virada: ${nomeM(m.pendente)}` : ''}${m.camada === 'costura' ? ` · degrau ${m.degrau}` : ''}` : `fim: ${nomeM(m.momento)}`
+  for (const b of document.querySelectorAll('[data-momento]')) b.classList.toggle('soando', m.tocando && b.dataset.momento === m.momento)
+}, 200)
+
+// ------------------------------------------------------------------ música: um cartão por momento
+const F = { Som, Musica, medidas: {}, medidasAmostra: {}, medidasMusica: {}, medir, fabricarFora, refletir, SR, PRE }
+window.__folha = F
+const COMPASSOS_NA_FOLHA = 8, MOMENTOS = Musica.momentos()
+for (const mo of MOMENTOS) {
+  const card = el('article', 'painel momento'); card.id = 'mu-' + mo.nome
+  const h = el('header'), b = el('button', null, '▶ ' + mo.rotulo); b.type = 'button'; b.dataset.momento = mo.nome
+  b.addEventListener('click', () => { Som.iniciar(); Musica.tocar(mo.nome) })
+  h.append(b, el('code', null, mo.nome), el('span', 'apagado', mo.oQue))
+  const onda = el('canvas', 'onda'), esp = el('canvas', 'espectro'), med = el('div', 'medidas', 'medindo…')
+  card.append(h, onda, esp, med); $('#musica').append(card)
+  mo.desenhar = async () => {
+    const dur = COMPASSOS_NA_FOLHA * 3 * 60 / mo.bpm
+    const { buf, info } = await fabricarFora(dur, (ctx, t) => Musica.fabricar(mo.nome, COMPASSOS_NA_FOLHA, ctx, { quando: t }), 1.2)
+    const m = medir(buf, 0.0002)
+    desenharOnda(onda, buf, PRE, PRE + dur, 0.14); desenharEspectro(esp, buf, PRE, PRE + dur, { piso: -100, topo: -26 })
+    F.medidasMusica[mo.nome] = m
+    med.replaceChildren(); const s = (r, v) => { const x = el('span'); x.append(r + ' ', el('b', null, v)); med.append(x) }
+    s(`${COMPASSOS_NA_FOLHA} compassos`, num(info.duracao, 1) + ' s'); s('pico', num(m.picoDb) + ' dBFS'); s('médio', num(m.rmsDb) + ' dBFS'); s('andamento', info.bpm + ' bpm')
+  }
+}
+
+// ------------------------------------------------------------------ efeitos: um cartão por acontecimento, 3 variações
+function celula(rotulo, aoTocar) {
+  const fig = el('figure', 'var'), topo = el('div', 'topo'), b = el('button', null, '▶ ' + rotulo); b.type = 'button'
+  b.addEventListener('click', () => { Som.iniciar(); aoTocar() })
+  const onda = el('canvas', 'onda'), esp = el('canvas', 'espectro'), med = el('div', 'medidas', '…')
+  topo.append(b); fig.append(topo, onda, esp, med)
+  return { fig, topo, onda, esp, med }
+}
+const fontes = []
+function pintarFontes() { for (const [nome, etq] of fontes) { const f = Som.fonteDoEfeito(nome); etq.textContent = f === 'amostra' ? 'no jogo: amostra gravada' : 'no jogo: feito por código'; etq.className = 'etiqueta' + (f === 'amostra' ? ' ok' : '') } }
+async function cartaoDoEfeito(t) {
+  const card = el('article', 'painel efeito'); card.id = 'fx-' + t.nome
+  const h = el('header'); h.append(el('h3', null, t.rotulo), el('code', null, t.nome))
+  const fonte = el('span', 'etiqueta'); fontes.push([t.nome, fonte]); h.append(fonte)
+  h.append(el('span', 'etiqueta alvo', `alvo: ${t.ms >= 1000 ? num(t.ms / 1000, 1) + ' s' : t.ms + ' ms'} · pico ${num(t.pico)} dBFS`))
+  card.append(h, el('p', 'apagado', t.receita))
+  const dur = t.ms / 1000, t1 = PRE + dur * 1.1 + 0.02
+  const vars = el('div', 'vars'); card.append(vars); $('#efeitos').append(card)
+  F.medidas[t.nome] = []
+  for (let v = 0; v < 3; v++) {
+    const c = celula('variação ' + (v + 1), () => Som.tocar(t.nome, { variacao: v, fonte: 'codigo', lado: lado(), degrau: t.nome.startsWith('casulo') ? v : undefined }))
+    vars.append(c.fig)
+    const { buf } = await fabricarFora(dur, (ctx, q) => Som.fabricar(t.nome, v, ctx, { quando: q }))
+    const m = medir(buf)
+    desenharOnda(c.onda, buf, PRE, t1); desenharEspectro(c.esp, buf, PRE, t1); linhaDeMedidas(c.med, m, t)
+    F.medidas[t.nome].push(m)
+  }
+  const arquivos = Som.amostrasDe(t.nome)
+  if (arquivos.length) { // as duas versões lado a lado: código em cima, amostra gravada embaixo
+    const box = el('div', 'lado-a-lado'), vs = el('div', 'vars')
+    box.append(el('h4', null, 'Amostra gravada (do manifesto)'), vs); card.append(box)
+    F.medidasAmostra[t.nome] = []
+    for (let i = 0; i < arquivos.length; i++) {
+      const a = arquivos[i], c = celula('amostra ' + (i + 1), () => Som.tocar(t.nome, { variacao: i, fonte: 'amostra', lado: lado() }))
+      c.topo.append(el('code', null, a.arquivo.split('/').pop())); vs.append(c.fig)
+      if (a.estado !== 'ok') { c.med.textContent = `não carregou (${a.erro || a.estado}): o jogo usa o som feito por código`; c.med.classList.add('ruim'); c.fig.querySelector('button').disabled = true; F.medidasAmostra[t.nome].push(null); continue }
+      const { buf } = await fabricarFora(a.duracao, (ctx, q) => Som.fabricar(t.nome, i, ctx, { quando: q, fonte: 'amostra' }))
+      const m = medir(buf)
+      desenharOnda(c.onda, buf, PRE, Math.max(t1, PRE + a.duracao * 1.1)); desenharEspectro(c.esp, buf, PRE, Math.max(t1, PRE + a.duracao * 1.1)); linhaDeMedidas(c.med, m, { pico: t.pico })
+      F.medidasAmostra[t.nome].push(m)
+    }
+  }
+}
+
+// ------------------------------------------------------------------ a luta de exemplo
+const ROTEIRO = [
+  [0.0, 'A luta começa (música: luta)', () => Musica.tocar('luta')],
+  [1.3, 'Sua vez', () => Som.tocar('suaVez')],
+  [2.2, 'Linha ganha', () => Som.tocar('linhaGanha', { degrau: 2 })],
+  [3.0, 'Escolher carta', () => Som.tocar('escolherCarta')],
+  [3.6, 'Jogar carta', () => Som.tocar('cartaJogada', { lado: 'A' })],
+  [3.9, 'Golpe no rival', () => Som.tocar('golpe', { lado: 'B', forca: 0.6 })],
+  [4.8, 'Comprar carta', () => Som.tocar('comprarCarta')],
+  [5.6, 'Rival joga carta', () => Som.tocar('cartaJogada', { lado: 'B' })],
+  [5.9, 'Escudo ganho (dedal)', () => Som.tocar('escudo', { lado: 'B' })],
+  [7.0, 'Jogar carta', () => Som.tocar('cartaJogada', { lado: 'A' })],
+  [7.3, 'Golpe no escudo', () => Som.tocar('golpeNoEscudo', { lado: 'B' })],
+  [8.4, 'Jogar carta com vantagem de tecido', () => Som.tocar('cartaJogada', { lado: 'A' })],
+  [8.7, 'CRÍTICO! (a música abaixa)', () => { Som.tocar('critico', { lado: 'B' }); Som.tocar('vantagem', { lado: 'B' }) }],
+  [10.2, 'Turno 6: a Tesoura desce (música: tique-taque)', () => { Som.tocar('tesouraDesce'); Musica.momento('tesouraDescendo') }],
+  [11.6, 'Rival joga carta', () => Som.tocar('cartaJogada', { lado: 'B' })],
+  [11.9, 'O Véu fez errar', () => Som.tocar('erroDoVeu', { lado: 'A' })],
+  [13.0, 'Cura', () => Som.tocar('cura', { lado: 'A' })],
+  [14.2, 'Rival joga carta', () => Som.tocar('cartaJogada', { lado: 'B' })],
+  [14.5, 'Golpe forte', () => Som.tocar('golpeForte', { lado: 'A' })],
+  [14.9, 'ÚLTIMO FIO (música abafa, coração)', () => { Som.tocar('ultimoFio', { lado: 'A' }); Musica.momento('ultimoFio') }],
+  [18.6, 'Tempo acabando', () => Som.tocar('tempoAcabando')],
+  [20.6, 'Jogar carta (o relógio para)', () => { Som.parar('tempoAcabando'); Som.tocar('cartaJogada', { lado: 'A' }) }],
+  [20.9, 'Golpe', () => Som.tocar('golpe', { lado: 'B', forca: 0.8 })],
+  [21.2, 'Queda (a música abaixa)', () => Som.tocar('queda', { lado: 'B' })],
+  [22.6, 'Turno 9: a Tesoura corta (música: meio tom acima, cordas)', () => { Som.tocar('tesoura'); Musica.momento('tesouraCortando') }],
+  [25.4, 'Jogar carta', () => Som.tocar('cartaJogada', { lado: 'A' })],
+  [25.7, 'Crítico', () => Som.tocar('critico', { lado: 'B' })],
+  [26.2, 'Queda: o último rival caiu', () => Som.tocar('queda', { lado: 'B' })],
+  [27.0, 'VITÓRIA (o tema em ré maior entra na virada do compasso)', () => Musica.momento('vitoria')],
+  [32.0, 'Fim do exemplo', () => { $('#btnLuta').textContent = 'Tocar uma luta de exemplo de novo'; $('#btnLuta').classList.remove('soando') }],
+]
+let relogiosDaLuta = []
+function pararLuta() { for (const r of relogiosDaLuta) clearTimeout(r); relogiosDaLuta = []; $('#btnLuta').classList.remove('soando') }
+function tocarLuta() {
+  pararLuta(); Som.iniciar(); Som.parar(); Musica.parar(120)
+  const d = $('#diario'); d.replaceChildren(); $('#btnLuta').classList.add('soando')
+  F.roteiro = []
+  const comeco = performance.now() + 450
+  for (const [t, texto, fazer] of ROTEIRO) relogiosDaLuta.push(setTimeout(() => {
+    fazer(); F.roteiro.push(texto)
+    const li = el('li'); li.append(el('b', null, num((performance.now() - comeco) / 1000, 1) + ' s '), texto); d.append(li); d.scrollTop = d.scrollHeight
+  }, 450 + t * 1000))
+}
+$('#btnLuta').addEventListener('click', tocarLuta)
+
+// ------------------------------------------------------------------ montar a folha
+refletir()
+const lista = Som.tabela()
+F.pronto = (async () => {
+  await Som.carregarManifesto()
+  await Som.carregarAmostras()
+  refletir()
+  const e0 = Som.estado().amostras
+  $('#notaAmostras').textContent = e0.prontas + e0.falhas === 0 ? '(nenhuma no manifesto ainda: tudo é feito por código)' : `(${e0.prontas} pronta${e0.prontas === 1 ? '' : 's'}${e0.falhas ? `, ${e0.falhas} não carregou` : ''})`
+  let i = 0
+  for (const t of lista) { await cartaoDoEfeito(t); $('#progresso').textContent = `Fabricando e medindo… ${++i} de ${lista.length}`; await new Promise((ok) => setTimeout(ok, 0)) }
+  pintarFontes()
+  $('#progresso').textContent = `${lista.length} efeitos × 3 variações, fabricados e medidos nesta página (48 kHz, pelo limitador).`
+})()
+F.musicaPronta = F.pronto.then(async () => { for (const mo of MOMENTOS) { await mo.desenhar(); await new Promise((ok) => setTimeout(ok, 0)) } })
+</script>
+</body>
+</html>

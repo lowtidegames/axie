@@ -9,7 +9,7 @@
     "simular": "node tools/simular-batalha.mjs",
     "simular:economia": "node tools/simular-economia.mjs",
     "dev": "node server/dev.mjs",
-    "e2e": "node tools/trava-robos.mjs rodar \"node tests/tela/prototipo.e2e.mjs\""
+    "e2e": "node tools/trava-robos.mjs rodar \"node tests/tela/prototipo.e2e.mjs\" && node tools/trava-robos.mjs rodar \"node tests/tela/tela2.e2e.mjs\""
   },
   "engines": {
     "node": ">=22.13"

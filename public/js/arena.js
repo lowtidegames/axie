@@ -3,6 +3,7 @@
 // "Menos animação": sem tremida, sem estrela de impacto, sem partículas, sem balanço; só números que aparecem e somem.
 import { NOMES_DOS_TIPOS, REGRAS, BONUS_DE_TIPO } from './ponte.js'
 import { SH, SW, FIOS, iconeDoTipo, spriteDoBoneco } from './bonecos.js'
+import * as Som from './som.js'
 
 const FONTE = '"Trebuchet MS", "Segoe UI", system-ui, sans-serif'
 const NOMES_LUGAR = ['FRENTE', 'MEIO', 'TRÁS']
@@ -24,6 +25,8 @@ export class Arena {
     this.agenda = []
     this.destaque = { alvos: new Set(), usuario: null, vantagem: new Set(), cor: 'alvo', trocaDe: null }
     this.sujo = true
+    this.intencao = null // Aventura: { idDoBoneco: ['Frente 75', ...] } — o que o inimigo vai fazer (balão sobre ele)
+    this.comIntencao = false
     this.flashes = []
     this.logFlash = [] // só para o teste conferir o limite de 3 por segundo
     this.picoPart = 0
@@ -57,7 +60,7 @@ export class Arena {
     const banda = paisagem ? 0 : 58 // faixa do meio (Linha, mão e roda de tipos) no celular em pé
     if (!paisagem) {
       const rowH = (H - banda) / 2, cw = W / 3
-      esc = limita(Math.min((cw - 4) / 142, (rowH - abaixo - 22) / 218), 0.3, 1.2)
+      esc = limita(Math.min((cw - 4) / 142, (rowH - abaixo - 22 - (this.comIntencao ? 16 : 0)) / 218), 0.3, 1.2)
       for (let i = 0; i < 3; i++) {
         const cx = cw * (i + 0.5)
         slots.B.push({ x: cx, y: rowH - abaixo - 2 + (i === 0 ? 8 : 0) - (i === 2 ? 3 : 0), cw })
@@ -165,7 +168,9 @@ export class Arena {
         d.hp = Math.max(0, d.hp - ev.valor)
         const p = alt(ev.alvo)
         if (ev.escudo > 0) numero(ev.alvo, `-${ev.escudo}`, '#9fb4d6', 15, 26)
-        numero(ev.alvo, `-${ev.valor}`, ev.critico ? '#ffd23a' : ev.refletido ? '#ff9ec0' : '#fff2f2', ev.critico ? 34 : 24)
+        numero(ev.alvo, `-${ev.valor}`, ev.critico ? '#ffd23a' : ev.refletido ? '#ff9ec0' : '#fff2f2', ev.critico ? 38 : Math.round(18 + 12 * limita(ev.valor / 150, 0, 1))) // cresce com o tamanho do golpe
+        if (ev.critico) Som.critico(); else Som.golpe(limita(ev.valor / 150, 0, 1))
+        if (ev.escudo > 0 && ev.valor === 0) Som.escudo()
         if (ev.refletido) this.fx.push({ k: 'texto', x: p.x, y: p.y - 24 - 20 * this.empilha(p.x), texto: 'ESPINHO!', cor: '#7ee08a', tam: 14, t0: performance.now(), dur: 800 })
         this.eventosVistos.dano++
         if (!this.menos) {
@@ -186,25 +191,29 @@ export class Arena {
       case 'tesoura': {
         const d = D[ev.alvo]; if (d) d.hp = Math.max(0, d.hp - ev.valor)
         numero(ev.alvo, `-${ev.valor}`, '#e8e8ee', 22)
+        if (!this.fx.some((f) => f.k === 'tesoura' && performance.now() - f.t0 < 600)) Som.tesoura()
         if (!this.fx.some((f) => f.k === 'tesoura' && performance.now() - f.t0 < 600)) this.fx.push({ k: 'tesoura', t0: performance.now(), dur: this.menos ? 900 : 950 })
         break
       }
       case 'errou': {
+        Som.erroDoVeu()
         const p = alt(ev.alvo)
         this.fx.push({ k: 'texto', x: p.x, y: p.y + 6, texto: 'ERROU!', cor: '#d8ccff', tam: 22, t0: performance.now(), dur: 900 })
         if (!this.menos) { this.fx.push({ k: 'veuEstoura', x: p.x, y: p.y + 70 * this.geo.esc, t0: performance.now(), dur: 520 }); this.soltar(p.x, p.y + 70 * this.geo.esc, 10, 'brilho') }
         break
       }
-      case 'escudo': { const p = pos(ev.alvo); if (p) this.fx.push({ k: 'anel', x: p.x, y: p.y - 80 * this.geo.esc, cor: '#9cc6ff', t0: performance.now(), dur: 520 }); numero(ev.alvo, `+${ev.valor}`, '#a8d0ff', 18, 10); break }
+      case 'escudo': { Som.escudo(); const p = pos(ev.alvo); if (p) this.fx.push({ k: 'anel', x: p.x, y: p.y - 80 * this.geo.esc, cor: '#9cc6ff', t0: performance.now(), dur: 520 }); numero(ev.alvo, `+${ev.valor}`, '#a8d0ff', 18, 10); break }
       case 'quebraEscudo': numero(ev.alvo, 'ESCUDO RASGADO', '#c9d6ee', 12, 8); break
       case 'cura': { const p = pos(ev.alvo); const d = D[ev.alvo]; if (d) { d.hp = Math.min(d.hp + ev.valor, v.bonecos[ev.alvo].vidaMax); d.ghost = d.hp } numero(ev.alvo, `+${ev.valor}`, '#8cf0a0', 22); if (p && !this.menos) this.soltar(p.x, p.y - 80 * this.geo.esc, 8, 'cruz'); break }
       case 'veu': { const p = pos(ev.alvo); if (p) this.fx.push({ k: 'anel', x: p.x, y: p.y - 80 * this.geo.esc, cor: '#d8ccff', t0: performance.now(), dur: 520 }); numero(ev.alvo, 'VÉU', '#d8ccff', 16, 10); break }
       case 'fioSolto': numero(ev.alvo, 'FIO SOLTO', '#ff8a9a', 15, 8); break
       case 'ultimoFio': {
+        Som.ultimoFio()
         const d = D[ev.alvo]; if (d) { d.est = 'fio'; d.hp = 0; d.shake = this.menos ? null : { t0: performance.now(), amp: 6 } }
         numero(ev.alvo, 'ÚLTIMO FIO!', '#ffb454', 17, -6); break
       }
       case 'caiu': {
+        Som.queda()
         const d = D[ev.alvo]; if (d) { d.est = 'caido'; d.hp = 0 }
         const p = pos(ev.alvo); if (p) { numero(ev.alvo, 'CAIU', '#cfc6dd', 16, -6); if (!this.menos) this.soltar(p.x, p.y - 40 * this.geo.esc, 14, 'enchimento') }
         break
@@ -241,6 +250,9 @@ export class Arena {
       this.part.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 90, g: tipo === 'brilho' ? 20 : 340, t0: performance.now(), dur: 650 + Math.random() * 450, tipo, r: tipo === 'enchimento' ? 3 + Math.random() * 4 : 2 + Math.random() * 2, rot: Math.random() * 6, cor: tipo === 'fiapo' ? ['#efe6cf', '#e8344f', '#cfd5dc'][i % 3] : '#f6efe0' })
     }
   }
+
+  /** Aventura: balões de intenção sobre os bonecos inimigos (ou null para esconder). */
+  setIntencao(mapa) { this.intencao = mapa && Object.keys(mapa).length ? mapa : null; this.sujo = true }
 
   /** Marca quem pode ser tocado (anel dourado), quem usa a carta e quem sofre vantagem de tipo. */
   marcar({ alvos = [], usuario = null, vantagem = [], troca = null } = {}) {
@@ -373,10 +385,25 @@ export class Arena {
       c.fillStyle = '#ffd23a'; c.strokeStyle = '#3a2400'; c.lineWidth = 2; c.beginPath(); c.roundRect(bx - w2 / 2, by - 13, w2, 20, 8); c.fill(); c.stroke()
       c.fillStyle = '#3a2400'; c.fillText(tx, bx, by + 2); c.restore()
     }
+    const fala = this.intencao?.[id]
+    if (fala && est !== 'caido') this.balao(c, x, Math.max(this.geo.paisagem ? 64 : 26, y - 214 * esc + 20 * esc), fala) // logo acima da cabeça (o desenho tem folga no topo)
     if (usa && !alvoOk) { // seta "quem usa"
       const bx = x, by = y - 214 * esc - 6
       c.save(); c.fillStyle = '#9fe0ff'; c.strokeStyle = '#08202e'; c.lineWidth = 2; c.beginPath(); c.moveTo(bx, by + 8); c.lineTo(bx - 9, by - 6); c.lineTo(bx + 9, by - 6); c.closePath(); c.fill(); c.stroke(); c.restore()
     }
+  }
+
+  /** Balão de intenção do inimigo: "⚔ Frente 75" sobre a cabeça (o texto completo fica na linha de baixo da tela). */
+  balao(c, x, y, linhas) {
+    c.save(); c.font = `800 11px ${FONTE}`; c.textAlign = 'center'; c.textBaseline = 'middle'
+    const txt = linhas.slice(0, 2).join(' + '), w = Math.min(this.W - 6, c.measureText(txt).width + 30), h = 20
+    const bx = limita(x - w / 2, 3, this.W - w - 3), by = y - h
+    c.fillStyle = 'rgba(255,240,205,0.97)'; c.strokeStyle = '#3a0f1c'; c.lineWidth = 2
+    c.beginPath(); c.roundRect(bx, by, w, h, 9); c.fill(); c.stroke()
+    c.beginPath(); c.moveTo(x - 5, by + h); c.lineTo(x, by + h + 6); c.lineTo(x + 5, by + h); c.closePath(); c.fill(); c.stroke()
+    c.fillStyle = '#8a1630'; c.beginPath(); c.moveTo(bx + 8, by + 5); c.lineTo(bx + 15, by + 15); c.lineTo(bx + 12, by + 16); c.lineTo(bx + 6, by + 8); c.closePath(); c.fill() // espadinha (agulha)
+    c.fillStyle = '#2a0f18'; c.fillText(txt, bx + 15 + (w - 15) / 2, by + h / 2 + 0.5)
+    c.restore()
   }
 
   /** Nome do lugar, barra de vida e marcadores. */

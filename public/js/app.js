@@ -2,14 +2,19 @@
 import * as P from './ponte.js'
 import { Arena } from './arena.js'
 import { Roda } from './roda.js'
-import { faixaDoTipo, iconeDoBordado, iconeDoTipo, miniatura, spriteDoBoneco, FIOS } from './bonecos.js'
+import { faixaDoTipo, iconeDoBordado, iconeDoTipo, miniatura, FIOS } from './bonecos.js'
+import * as Col from './colecao.js'
+import * as Som from './som.js'
+import { FASES } from './aventura-dados.js'
+import { $, el, desenharBonecoEm, iconeTipo, bonecoCanvas, avisoHub, NOME_LUGAR } from './ui.js'
+import { abrirBoneco, fecharBoneco, ligarColecao, renderColecao, renderMural } from './colecao-ui.js'
+import { fecharCasulo, iniciarCostura, ligarCostura, renderCostura } from './costura-ui.js'
+import { iniciarAventura, ligarAventura, renderAventura } from './aventura-ui.js'
 
-const $ = (s) => document.querySelector(s)
-const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e }
 const url = new URLSearchParams(location.search)
 const TESTE = url.get('teste') === '1'
-const NOME_LUGAR = ['Frente', 'Meio', 'Trás']
 const MOTIVO_FIM = { derrubou: 'Os três caíram.', tesoura: 'A Tesoura decidiu: vence quem sobrou com mais vida.', desempate: 'Empate de vida: o sorteio decidiu.' }
+const GOLPE_FORTE = 100 // PROVISÓRIO (só visual): a partir daqui o golpe ganha pausa de impacto
 const NOME_ROBO = { ganancioso: 'Ganancioso', planejador: 'Planejador' }
 
 const S = {
@@ -18,6 +23,7 @@ const S = {
   travado: true, sel: null, modoTroca: null, replay: false, parar: false, rodando: false,
   stats: null, ultima: null, vezAnterior: null, relogio: null, inicioTurno: 0, vel: 1,
   maoAnterior: new Set(),
+  modo: 'livre', fase: null, idsA: null, aba: 'inicio', abaDeOrigem: 'inicio', golpes: {}, ultimoGolpe: null, registrado: false, combo: 0, comboVez: null,
 }
 let arena, roda
 
@@ -38,28 +44,35 @@ const menos = () => document.documentElement.dataset.menos === '1'
 const esperar = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms * S.vel * (menos() ? 0.7 : 1))))
 
 // ------------------------------------------------------------------ telas
+const ABAS = ['aventura', 'inicio', 'colecao', 'costura', 'mural']
+const DESENHA = { aventura: () => renderAventura(), inicio: () => { montarListaLivre() }, colecao: () => renderColecao(), costura: () => renderCostura(), mural: () => renderMural() }
+/** Mostra a luta ou o hub (com uma das abas). */
 function mostrar(qual) {
-  for (const id of ['inicio', 'luta']) $('#' + id).hidden = id !== qual
-  document.body.dataset.tela = qual
-  if (qual === 'luta') requestAnimationFrame(() => { arena.medir(); roda.medir() })
+  const luta = qual === 'luta'
+  $('#hub').hidden = luta; $('#luta').hidden = !luta
+  document.body.dataset.tela = luta ? 'luta' : qual
+  if (luta) requestAnimationFrame(() => { arena.medir(); roda.medir() })
+  else irParaAba(ABAS.includes(qual) ? qual : S.aba)
+}
+function irParaAba(aba) {
+  S.aba = aba
+  for (const a of ABAS) $('#' + a).hidden = a !== aba
+  for (const b of document.querySelectorAll('.aba')) { const on = b.dataset.aba === aba; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)) }
+  document.body.dataset.tela = aba
+  try { localStorage.setItem('frayz_aba', aba) } catch { /* ok */ }
+  DESENHA[aba]()
+  const sc = document.querySelector(`#${aba} .ini-corpo, #${aba} .sub-rolagem`); if (sc) sc.scrollTop = 0
 }
 
 // ------------------------------------------------------------------ TELA INICIAL
-function desenharBonecoEm(canvas, partes, est = 'vivo', largura = 84) {
-  const dpr = Math.min(2, window.devicePixelRatio || 1), esc = largura / 150
-  const sp = spriteDoBoneco(partes, est, esc * dpr)
-  canvas.width = sp.width; canvas.height = sp.height
-  canvas.style.width = sp.width / dpr + 'px'; canvas.style.height = sp.height / dpr + 'px'
-  canvas.getContext('2d').drawImage(sp, 0, 0)
-}
 const partesDe = (f) => Object.fromEntries(Object.entries(f.partes).map(([k, v]) => [k, `${v.id}@${v.raridade}`]))
 const icone = (cv, px = 18) => { cv.style.width = cv.style.height = px + 'px'; return cv }
-const iconeTipo = (t, px = 18) => { const c = document.createElement('canvas'); c.width = c.height = Math.round(px * 2); c.style.width = c.style.height = px + 'px'; c.getContext('2d').drawImage(iconeDoTipo(t, px * 2), 0, 0); c.className = 'ic-tipo'; return c }
 
-function fichaDeLista(id) {
-  const f = P.ficha(id)
+function fichaDeLista(boneco) {
+  const id = boneco.id, f = P.fichaDoBoneco(boneco), pode = Col.podeLutar(boneco)
   const b = el('button', 'ficha'); b.type = 'button'; b.dataset.id = id; b.setAttribute('role', 'listitem'); b.setAttribute('aria-pressed', 'false')
-  const dc = el('canvas', 'f-boneco'); desenharBonecoEm(dc, partesDe(f), 'vivo', 78); b.append(dc)
+  if (!pode.ok) { b.disabled = true; b.title = pode.motivo; b.classList.add('apagado') }
+  b.append(bonecoCanvas(boneco, 78))
   const info = el('div', 'f-info')
   info.append(el('div', 'f-nome', f.nome))
   const tp = el('div', 'f-tipo'); tp.append(iconeTipo(f.tipo, 16), el('span', null, P.NOMES_DOS_TIPOS[f.tipo]))
@@ -74,7 +87,7 @@ function fichaDeLista(id) {
   info.append(cs)
   const bd = el('div', 'f-bordado'); const ib = iconeDoBordado(f.bordado, 44); bd.append(icone(ib, 22)); const tx = el('span'); tx.append(el('b', null, f.bordadoInfo.nome + ': '), f.bordadoInfo.texto); bd.append(tx)
   info.append(bd)
-  const pt = el('div', 'f-partes', ['tronco', 'cabeca', 'bracos', 'pernas'].map((s) => f.partes[s].nome).join(' · '))
+  const pt = el('div', 'f-partes', pode.ok ? ['tronco', 'cabeca', 'bracos', 'pernas'].map((s) => f.partes[s].nome).join(' · ') : pode.motivo)
   info.append(pt)
   b.append(info, el('div', 'f-check', '✓'))
   b.addEventListener('click', () => alternar(id))
@@ -93,7 +106,7 @@ function atualizarEscolha() {
   const box = $('#timeEscolhido'); box.replaceChildren()
   for (let i = 0; i < 3; i++) {
     const slot = el('div', 'slot'); const id = S.escolha[i]
-    if (id) { const f = P.ficha(id); const cv = el('canvas'); desenharBonecoEm(cv, partesDe(f), 'vivo', 42); slot.append(cv); slot.title = f.nome; slot.classList.add('cheio') }
+    if (id) { const bo = Col.obter(id); const cv = bonecoCanvas(bo, 42); cv.className = ''; slot.append(cv); slot.title = P.fichaDoBoneco(bo).nome; slot.classList.add('cheio') }
     else slot.append(el('span', null, NOME_LUGAR[i]))
     const lab = el('em', null, NOME_LUGAR[i]); slot.append(lab)
     box.append(slot)
@@ -102,17 +115,22 @@ function atualizarEscolha() {
   $('#btnLutar').textContent = S.escolha.length === 3 ? 'Lutar!' : `Falta${3 - S.escolha.length > 1 ? 'm' : ''} ${3 - S.escolha.length}`
 }
 
-function montarInicio() {
+function montarListaLivre() {
+  S.escolha = S.escolha.filter((id) => Col.obter(id) && Col.podeLutar(Col.obter(id)).ok)
   const g = $('#grade'); g.replaceChildren()
-  for (const id of P.idsProntos()) g.append(fichaDeLista(id))
+  for (const b of Col.ativos().filter((x) => !Col.casuloFechado(x))) g.append(fichaDeLista(b))
   atualizarEscolha()
+}
+
+function montarInicio() {
+  montarListaLivre()
   for (const r of document.querySelectorAll('input[name=robo]')) r.addEventListener('change', () => { S.robo = r.value })
   $('#btnLutar').addEventListener('click', () => { if (S.escolha.length === 3) iniciarLuta() })
   $('#btnAssistir').addEventListener('click', colarEAssistir)
 }
 
-function sortearRival(timeA) { // time do rival: 3 bonecos prontos diferentes (sorteio da tela, não é regra)
-  const livres = P.idsProntos().filter((x) => !timeA.includes(x)), pool = livres.length >= 3 ? livres : P.idsProntos()
+function sortearRival(idsA) { // time do rival: 3 bonecos prontos diferentes dos seus (sorteio da tela, não é regra)
+  const livres = P.idsProntos().filter((x) => !idsA.includes(x)), pool = livres.length >= 3 ? livres : P.idsProntos()
   const o = pool.slice(); const r = []
   while (r.length < 3) r.push(o.splice(Math.floor(Math.random() * o.length), 1)[0])
   return r
@@ -124,17 +142,24 @@ function colarEAssistir() {
     const r = P.lerReplay($('#replayEntrada').value)
     const ok = P.conferirReplay(r)
     if (!ok.ok) throw new Error(`Replay recusado pelo motor no comando ${ok.indice + 1}: ${ok.motivo}`)
-    S.ultima = r; assistir()
+    S.ultima = r; S.modo = 'livre'; S.abaDeOrigem = 'inicio'; S.idsA = null; assistir()
   } catch (e) { msg.textContent = e.message; msg.classList.add('erro') }
 }
 
 // ------------------------------------------------------------------ LUTA: começo
+const roboEscolhido = () => document.querySelector('input[name=robo]:checked')?.value ?? 'planejador'
+/** opc: { modo: 'livre'|'aventura', fase, idsA (ids da coleção), timeA/timeB (definições, na revanche), semente, robo } */
 async function iniciarLuta(opc = {}) {
+  const modo = opc.modo ?? 'livre', fase = opc.fase ? FASES[opc.fase - 1] : null
+  const idsA = opc.idsA ?? S.escolha.slice()
+  let timeA = opc.timeA
+  if (!timeA) { try { timeA = Col.defsDoTime(idsA) } catch (e) { avisoHub(e.message); return } }
   const rivalFixo = TESTE && url.get('rival') ? url.get('rival').split(',') : null
-  const timeA = opc.timeA ?? S.escolha.slice(), timeB = opc.timeB ?? rivalFixo ?? sortearRival(timeA)
+  const timeB = opc.timeB ?? (fase ? fase.time.slice() : rivalFixo ?? sortearRival(idsA))
   const semente = opc.semente ?? url.get('semente') ?? P.novaSemente()
   S.timeA = timeA; S.timeB = timeB; S.semente = semente; S.replay = false; S.parar = false
-  S.robo = opc.robo ?? S.robo
+  S.modo = modo; S.fase = fase?.n ?? opc.fase ?? null; S.idsA = idsA; S.abaDeOrigem = modo === 'aventura' ? 'aventura' : 'inicio'
+  S.robo = opc.robo ?? (fase ? fase.robo : roboEscolhido())
   await abrirLuta(P.novaLuta({ semente, timeA, timeB }))
   await seguirTurnos()
 }
@@ -143,6 +168,8 @@ async function abrirLuta(estado) {
   fecharTudo()
   S.estado = estado; S.travado = true; S.sel = null; S.modoTroca = null
   S.stats = { maior: null, viradas: 0, lider: 0, fios: 0 }
+  S.golpes = {}; S.heroi = null; S.registrado = false; S.combo = 0; S.comboVez = null
+  arena.comIntencao = S.modo === 'aventura' && !S.replay; arena.setIntencao(null); arena.medir()
   S.maoAnterior = new Set(); S.vezAnterior = null
   mostrar('luta')
   $('#btnParar').hidden = !S.replay
@@ -193,13 +220,14 @@ async function executar(cmd, quem) {
   S.travado = true; pararRelogio(); limparSelecao(false)
   const estadoAntes = S.estado
   const evCarta = r.eventos.find((e) => e.t === 'carta')
-  if (evCarta) await bannerCarta(evCarta, quem, estadoAntes)
+  if (evCarta) { Som.cartaJogada(); contarCombo(quem, estadoAntes); await bannerCarta(evCarta, quem, estadoAntes, cmd) }
   else if (cmd.tipo === 'passar') await bannerCurto(quem === 'rival' ? 'Rival passou' : 'Você passou', 420)
   else if (cmd.tipo === 'trocar') await bannerCurto(quem === 'rival' ? 'Rival trocou de lugar' : 'Troca de lugar', 420)
   else if (cmd.tipo === 'fiapo') await bannerCurto(quem === 'rival' ? 'Rival descartou um fiapo' : 'Fiapo descartado', 420)
   S.estado = r.estado
   const vista = P.visao(S.estado)
   colherResumo(r.eventos, vista)
+  if (r.eventos.some((e) => e.t === 'dano' && (e.critico || e.valor >= GOLPE_FORTE))) await new Promise((ok) => setTimeout(ok, 80 * S.vel)) // pausa de impacto (60–90 ms)
   const dur = arena.passo(vista, r.eventos)
   renderTudo()
   await new Promise((ok) => setTimeout(ok, dur + 60 * S.vel))
@@ -212,6 +240,7 @@ function colherResumo(eventos, vista) {
   for (const ev of eventos) {
     if (ev.t === 'dano' && (!S.stats.maior || ev.valor > S.stats.maior.valor)) S.stats.maior = { valor: ev.valor, critico: ev.critico, de: ev.de ? vista.bonecos[ev.de]?.nome : null, carta: ev.carta ? P.CARTAS[ev.carta].nome : null, alvo: vista.bonecos[ev.alvo]?.nome, time: ev.de ? vista.bonecos[ev.de]?.time : null }
     if (ev.t === 'ultimoFio') S.stats.fios++
+    if (ev.t === 'dano' && ev.de) { S.golpes[ev.de] = Math.max(S.golpes[ev.de] ?? 0, ev.valor); if (ev.de.startsWith(P.EU)) S.heroi = ev.de }
   }
   // quem está na frente em vida (soma de vida/vidaMax dos bonecos de pé): conta as viradas
   const pct = (t) => vista.times[t].lugares.reduce((s, id) => { const b = vista.bonecos[id]; return s + (b.estado === 'vivo' ? b.vida / b.vidaMax : 0) }, 0)
@@ -308,7 +337,7 @@ async function passar() {
 function renderTudo() {
   if (!S.estado) return
   const v = P.visao(S.estado)
-  renderTopo(v); renderBanda(v); renderMao(); atualizarInfo(); atualizarRoda()
+  renderTopo(v); renderBanda(v); renderMao(); atualizarInfo(); atualizarRoda(); atualizarIntencao(v)
   $('#btnPassar').disabled = !minhaVez(); $('#btnTrocar').disabled = !minhaVez()
 }
 
@@ -381,7 +410,15 @@ function renderMao() {
     void fiapo
   }
   S.maoAnterior = novas
+  requestAnimationFrame(sinalDeMaisCartas)
   if (!mao.length) box.append(el('p', 'mao-vazia', 'Mão vazia'))
+}
+
+/** Há mais cartas além da borda? Acende a sombra e o "mais ›" (no celular a mão rola na horizontal). */
+function sinalDeMaisCartas() {
+  const mb = $('#maoBox'), w = $('#maoWrap')
+  const dir = mb.scrollWidth - mb.clientWidth - mb.scrollLeft > 4, esq = mb.scrollLeft > 4
+  w.classList.toggle('mais-dir', dir); w.classList.toggle('mais-esq', esq); $('#maoMais').hidden = !dir
 }
 
 function atualizarInfo(dica) {
@@ -420,6 +457,39 @@ function atualizarRoda() {
   $('#roda').classList.toggle('acesa', roda.acesa)
 }
 
+// ------------------------------------------------------------------ Aventura: o inimigo MOSTRA a próxima intenção
+// Vem de P.intencaoDoRival: o plano do robô para o turno dele como se você passasse AGORA (o robô só lê o estado; crítico pela média).
+// Muda a cada jogada sua. A mão do rival é lida pelo robô (é assim que ele decide), então mostrar a intenção revela o que ele vai fazer.
+const cacheIntencao = new WeakMap()
+const ARTIGO = ['a Frente', 'o Meio', 'o Trás']
+function frasesDaIntencao(itens, v) {
+  const out = []
+  for (const it of itens ?? []) {
+    if (it.tipo === 'jogar') {
+      const lugar = it.alvoId ? v.times[P.EU].lugares.indexOf(it.alvoId) : -1
+      if (it.dano > 0) out.push({ dono: it.donoId, curto: `${lugar >= 0 ? NOME_LUGAR[lugar] : 'Todos'} ${it.dano}`, longo: `vai atacar ${lugar >= 0 ? ARTIGO[lugar] : 'todos os seus'} com ${it.dano}`, carta: it.carta, dano: it.dano })
+      else out.push({ dono: it.donoId, curto: it.carta, longo: `vai usar ${it.carta}`, carta: it.carta, dano: 0 })
+    } else if (it.tipo === 'trocar') out.push({ dono: null, curto: 'Troca', longo: 'vai trocar de lugar', dano: 0 })
+    else if (it.tipo === 'fiapo') out.push({ dono: null, curto: 'Fiapo', longo: 'vai descartar um fiapo', dano: 0 })
+  }
+  return out
+}
+function atualizarIntencao(v) {
+  const box = $('#intencao')
+  if (S.modo !== 'aventura' || S.replay || !minhaVez()) { box.hidden = true; arena.setIntencao(null); S.intencao = null; return }
+  let r = cacheIntencao.get(S.estado)
+  if (r === undefined) { r = P.intencaoDoRival(S.estado, S.robo); cacheIntencao.set(S.estado, r) }
+  const frases = frasesDaIntencao(r, v)
+  S.intencao = frases
+  const porDono = {}
+  for (const f of frases) if (f.dono) (porDono[f.dono] ??= []).push(f.curto)
+  arena.setIntencao(porDono)
+  box.replaceChildren(); box.hidden = false
+  box.append(el('b', null, 'O rival '))
+  if (!frases.length) box.append('vai passar a vez.')
+  else frases.slice(0, 3).forEach((f, i) => { if (i) box.append(' e '); box.append(f.longo); if (f.dono && f.carta) box.append(el('small', null, ` (${f.carta} de ${v.bonecos[f.dono].nome})`)) })
+}
+
 // ------------------------------------------------------------------ banners e avisos
 let timerToast
 function aviso(txt) {
@@ -436,7 +506,34 @@ async function bannerCurto(txt, ms) {
   const b = $('#bannerTurno'); b.textContent = txt; b.dataset.quem = 'info'; b.hidden = false; b.classList.remove('anima'); void b.offsetWidth; b.classList.add('anima')
   await esperar(ms); b.hidden = true
 }
-async function bannerCarta(ev, quem, estado) {
+/** Combo: cartas do mesmo lado no mesmo turno ("x2", "x3"). */
+function contarCombo(quem, estado) {
+  if (S.comboVez !== estado.turno) { S.comboVez = estado.turno; S.combo = 0 }
+  S.combo++
+  if (S.combo >= 2) {
+    const c = $('#combo'); c.textContent = `x${S.combo}`; c.dataset.quem = quem === 'rival' ? 'rival' : 'eu'; c.hidden = false
+    c.classList.remove('anima'); void c.offsetWidth; c.classList.add('anima')
+    clearTimeout(S.tCombo); S.tCombo = setTimeout(() => { c.hidden = true }, 1300)
+  }
+}
+
+/** A carta que você jogou voa da mão até o alvo (cópia do elemento; "Menos animação" corta o voo). */
+async function cartaVoando(cmd) {
+  const origem = document.querySelector(`#mao .carta[data-cid="${cmd.carta}"]`)
+  const alvoId = cmd.alvo ?? S.estado.times[P.EU].lugares.find((id) => S.estado.bonecos[id].estado === 'vivo')
+  const pos = alvoId && arena.centro(alvoId)
+  if (!origem || !pos || menos() || !origem.animate) return
+  const a = origem.getBoundingClientRect(), cb = $('#arena').getBoundingClientRect()
+  const clone = origem.cloneNode(true); clone.classList.remove('sel', 'vant', 'nova')
+  Object.assign(clone.style, { position: 'fixed', left: a.left + 'px', top: a.top + 'px', width: a.width + 'px', height: a.height + 'px', margin: '0', zIndex: 35, pointerEvents: 'none' })
+  document.body.append(clone)
+  const dx = cb.left + pos.x - (a.left + a.width / 2), dy = cb.top + pos.y - (a.top + a.height / 2)
+  const anim = clone.animate([{ transform: 'translate(0,0) scale(1) rotate(0)', opacity: 1 }, { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 40}px) scale(0.9) rotate(6deg)`, opacity: 1, offset: 0.55 }, { transform: `translate(${dx}px, ${dy}px) scale(0.4) rotate(14deg)`, opacity: 0.2 }], { duration: 420 * Math.max(0.3, S.vel), easing: 'cubic-bezier(.4,0,.6,1)' })
+  await anim.finished.catch(() => {}); clone.remove()
+}
+
+async function bannerCarta(ev, quem, estado, cmd) {
+  if (quem === 'voce' && cmd) { await cartaVoando(cmd); return }
   const v = P.visao(estado)
   const inst = { carta: ev.id, dono: ev.de }
   const { b } = cartaEl(inst, v, { tag: 'div' })
@@ -502,16 +599,34 @@ async function fimDaLuta() {
   const r = P.fim(S.estado)
   S.ultima = { semente: S.semente, timeA: S.timeA, timeB: S.timeB, robo: S.robo, comandos: S.estado.comandos.map((c) => ({ ...c })) }
   const ganhei = r.vencedor === P.EU
+  let extra = null
+  if (S.modo === 'aventura' && !S.registrado) { // cada luta da Aventura gasta 1 Ponto de Costura nos 3 bonecos usados (o motor soma)
+    S.registrado = true
+    Col.registrarLutas(S.idsA, { venceu: ganhei, maiorGolpes: [0, 1, 2].map((i) => S.golpes[`A${i}`] ?? 0) })
+    if (ganhei) { Col.venceuFase(S.fase); extra = S.fase >= FASES.length ? 'Aventura completa! O Baú da Costureira está aberto.' : `Fase ${S.fase + 1} liberada.` }
+    else extra = 'Perdeu: a fase continua liberada para tentar de novo.'
+  }
   await esperar(700)
+  if (ganhei) Som.vitoria(); else Som.derrota()
   const t = $('#fimTitulo'); t.textContent = ganhei ? 'Vitória!' : 'Derrota'; $('#fim').dataset.res = ganhei ? 'v' : 'd'
   $('#fimMotivo').textContent = MOTIVO_FIM[r.motivo] ?? ''
   const ul = $('#fimResumo'); ul.replaceChildren()
   const add = (k, val) => { const li = el('li'); li.append(el('span', null, k), el('b', null, val)); ul.append(li) }
+  if (S.modo === 'aventura') add(`Fase ${S.fase}`, FASES[S.fase - 1].nome)
   add('Turnos', String(r.turno))
   const m = S.stats.maior
   add('Maior golpe', m ? `${m.valor}${m.critico ? ' (crítico)' : ''}${m.carta ? ' · ' + m.carta : ''}${m.time ? (m.time === P.EU ? ' · seu' : ' · do rival') : ''}` : '—')
   add('Viradas na frente', String(S.stats.viradas))
   add('Vida que sobrou', `você ${Math.round(r.pct.A * 100 / 3)}% · rival ${Math.round(r.pct.B * 100 / 3)}%`)
+  if (extra) add('Aventura', extra)
+  // destaque do boneco que deu o golpe final (vitória)
+  const hb = $('#fimHeroi'); hb.replaceChildren(); hb.hidden = true
+  if (ganhei && S.heroi && S.estado.bonecos[S.heroi]) {
+    const bo = S.estado.bonecos[S.heroi], cv = el('canvas'); desenharBonecoEm(cv, bo.partes, 'vivo', 78); const ht = el('div', 'fim-heroi-txt'); ht.append(el('small', null, 'Golpe final'), el('b', null, bo.nome)); hb.append(cv, ht); hb.hidden = false
+  }
+  const av = S.modo === 'aventura'
+  $('#btnProxima').hidden = !(av && ganhei && S.fase < FASES.length); $('#btnProxima').textContent = av ? `Fase ${(S.fase ?? 0) + 1}` : 'Próxima fase'
+  $('#btnTrocarTime').textContent = av ? 'Voltar ao mapa' : 'Trocar time'
   $('#replaySaida').value = P.exportarReplay(S.ultima)
   $('#copiaMsg').textContent = ''
   $('#fim').hidden = false; $('#btnRevanche').focus()
@@ -530,6 +645,7 @@ async function assistir() {
   S.timeA = r.timeA; S.timeB = r.timeB; S.semente = r.semente; S.robo = r.robo ?? S.robo
   S.replay = true; S.parar = false
   await abrirLuta(P.novaLuta({ semente: r.semente, timeA: r.timeA, timeB: r.timeB }))
+  S.registrado = true // rever não gasta remendo
   S.vezAnterior = null
   await bannerCurto('Replay', 600)
   for (const c of r.comandos) {
@@ -546,13 +662,30 @@ async function assistir() {
 
 function sairParaInicio() {
   S.parar = true; S.replay = false; S.travado = true
-  fecharTudo(); arena.marcar({}); mostrar('inicio'); document.body.classList.remove('replay')
+  fecharTudo(); arena.marcar({}); arena.setIntencao(null); mostrar(S.abaDeOrigem); document.body.classList.remove('replay')
 }
 
 // ------------------------------------------------------------------ ligações
+function aplicarMudo() {
+  const m = Som.estaMudo()
+  for (const id of ['#btnMudo', '#btnMudo2']) { const b = $(id); b.setAttribute('aria-pressed', String(m)); b.innerHTML = m ? '&#9835; Mudo' : '&#9835; Som'; b.setAttribute('aria-label', m ? 'Som desligado' : 'Som ligado') }
+}
+
 function ligar() {
+  if (TESTE && url.get('recomecar') === '1') Col.recomecar(); else Col.carregar()
   arena = new Arena($('#arena')); roda = new Roda($('#rodaCv'))
   aplicarMenos(lerMenos(), false)
+  aplicarMudo()
+  for (const id of ['#btnMudo', '#btnMudo2']) $(id).addEventListener('click', () => { Som.mudo(!Som.estaMudo()); aplicarMudo() })
+  for (const b of document.querySelectorAll('.aba')) b.addEventListener('click', () => irParaAba(b.dataset.aba))
+  document.addEventListener('frayz-aba', (e) => irParaAba(e.detail))
+  ligarColecao(() => { if (S.aba === 'colecao') renderColecao() })
+  ligarCostura((id) => { irParaAba('colecao'); if (id) abrirBoneco(id) })
+  ligarAventura(({ fase, ids }) => iniciarLuta({ modo: 'aventura', fase, idsA: ids }))
+  iniciarCostura(); iniciarAventura()
+  $('#bonecoFechar').addEventListener('click', fecharBoneco)
+  $('#bonecoModal').addEventListener('click', (e) => { if (e.target.id === 'bonecoModal') fecharBoneco() })
+  $('#casulo').addEventListener('click', (e) => { if (e.target.id === 'casulo') fecharCasulo() })
   $('#optMenos').addEventListener('change', (e) => aplicarMenos(e.target.checked))
   $('#optMenos2').addEventListener('change', (e) => aplicarMenos(e.target.checked))
   $('#btnPassar').addEventListener('click', passar)
@@ -560,7 +693,8 @@ function ligar() {
   $('#btnMenu').addEventListener('click', () => { const m = $('#menu'); m.hidden = !m.hidden })
   $('#btnSair').addEventListener('click', sairParaInicio)
   $('#btnParar').addEventListener('click', () => { S.parar = true; sairParaInicio() })
-  $('#btnRevanche').addEventListener('click', () => { $('#fim').hidden = true; iniciarLuta({ timeA: S.timeA, timeB: S.timeB, semente: P.novaSemente() }) })
+  $('#btnRevanche').addEventListener('click', () => { $('#fim').hidden = true; iniciarLuta({ timeA: S.timeA, timeB: S.timeB, semente: P.novaSemente(), modo: S.modo, fase: S.fase, idsA: S.idsA ?? undefined, robo: S.robo }) })
+  $('#btnProxima').addEventListener('click', () => { $('#fim').hidden = true; iniciarLuta({ modo: 'aventura', fase: S.fase + 1, idsA: S.idsA }) })
   $('#btnTrocarTime').addEventListener('click', () => { $('#fim').hidden = true; sairParaInicio() })
   $('#btnRever').addEventListener('click', () => { $('#fim').hidden = true; assistir() })
   $('#btnCopiar').addEventListener('click', copiarReplay)
@@ -582,7 +716,9 @@ function ligar() {
   })
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return
-    if (!$('#fichaModal').hidden) fecharFicha()
+    if (!$('#casulo').hidden) fecharCasulo()
+    else if (!$('#bonecoModal').hidden) fecharBoneco()
+    else if (!$('#fichaModal').hidden) fecharFicha()
     else if (!$('#menu').hidden) $('#menu').hidden = true
     else if (!$('#legenda').hidden) $('#legenda').hidden = true
     else if (S.sel || S.modoTroca) limparSelecao()
@@ -591,8 +727,13 @@ function ligar() {
     if (!$('#menu').hidden && !e.target.closest('#menu, #btnMenu')) $('#menu').hidden = true
     if (!$('#legenda').hidden && !e.target.closest('#legenda, #roda')) $('#legenda').hidden = true
   })
-  window.addEventListener('resize', () => { if (!$('#luta').hidden) roda.medir() })
-  montarInicio(); mostrar('inicio')
+  $('#maoBox').addEventListener('scroll', sinalDeMaisCartas, { passive: true })
+  window.addEventListener('resize', () => { if (!$('#luta').hidden) { roda.medir(); sinalDeMaisCartas() } })
+  montarInicio()
+  let aba = url.get('aba')
+  if (!ABAS.includes(aba)) { try { aba = TESTE ? 'inicio' : localStorage.getItem('frayz_aba') } catch { aba = null } }
+  S.aba = ABAS.includes(aba) ? aba : 'aventura'
+  mostrar(S.aba)
   if (TESTE) ganchoDeTeste()
 }
 
@@ -600,8 +741,10 @@ function ligar() {
 function ganchoDeTeste() {
   S.vel = Number(url.get('vel') || 0.12); arena.vel = S.vel
   const q = (n) => n
+  let n = 0
+  Col.definirFonteDeSemente(() => `${url.get('semente') ?? 'costura'}-${++n}`)
   window.__frayz = {
-    avisos: [], S, arena, q, P,
+    avisos: [], S, arena, q, P, Col, Som, irParaAba, intencao: () => S.intencao,
     /** só para o teste: manda um comando como se fosse da tela (usado para passar o turno dos dois lados) */
     passarOsDois: async () => { while (!S.estado.fim) { await executar({ tipo: 'passar', time: S.estado.vez }, S.estado.vez === P.EU ? 'voce' : 'rival'); if (S.estado.fim) break; S.vezAnterior = S.estado.vez } await fimDaLuta() },
     estado: () => S.estado,

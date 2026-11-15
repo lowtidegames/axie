@@ -10,14 +10,27 @@
 <body>
 <main id="app">
 
-  <!-- ============ TELA INICIAL ============ -->
-  <section id="inicio" class="tela">
-    <header class="ini-topo">
+  <!-- ============ HUB: cabeçalho, abas e os painéis (Luta livre, Aventura, Meus bonecos, Costura, Mural) ============ -->
+  <div id="hub" class="tela">
+    <header id="cab" class="ini-topo">
       <h1 class="logo" aria-label="Frayz"><span>F</span><span>r</span><span>a</span><span>y</span><span>z</span></h1>
-      <p class="sub">Bonecos de pano amaldiçoados. Escolha 3 e vá brigar.</p>
-      <label class="opc"><input type="checkbox" id="optMenos"> <span>Menos animação</span></label>
+      <div class="cab-opc">
+        <label class="opc"><input type="checkbox" id="optMenos"> <span>Menos animação</span></label>
+        <button id="btnMudo" class="btn mini" aria-pressed="false" aria-label="Som ligado">&#9835; Som</button>
+      </div>
     </header>
+    <nav id="abas" class="abas" role="tablist" aria-label="Telas">
+      <button class="aba" role="tab" data-aba="aventura" id="abaAventura">Aventura</button>
+      <button class="aba" role="tab" data-aba="inicio" id="abaInicio">Luta livre</button>
+      <button class="aba" role="tab" data-aba="colecao" id="abaColecao">Bonecos</button>
+      <button class="aba" role="tab" data-aba="costura" id="abaCostura">Costura</button>
+      <button class="aba" role="tab" data-aba="mural" id="abaMural">Mural</button>
+    </nav>
+    <div id="painel">
 
+  <!-- ============ LUTA LIVRE ============ -->
+  <section id="inicio" class="tela aba-tela">
+    <p class="sub-txt">Luta livre: escolha 3 bonecos e vá brigar. Não gasta remendo.</p>
     <div class="ini-corpo">
       <div id="grade" class="grade" role="list"></div>
     </div>
@@ -42,6 +55,54 @@
     </footer>
   </section>
 
+  <!-- ============ AVENTURA ============ -->
+  <section id="aventura" class="tela aba-tela" hidden>
+    <div class="sub-rolagem">
+      <h2 class="sub-tit">Baú da Costureira</h2>
+      <ol id="avMapa" class="av-mapa" aria-label="Fases da Aventura"></ol>
+      <div id="avInfo" class="av-info"></div>
+      <h3 class="sub-tit2">Seu time <small id="avTimeDica"></small></h3>
+      <div id="avTime" class="mini-grade" role="list"></div>
+    </div>
+    <footer class="ini-base av-base">
+      <div class="time-escolhido" id="avSlots"></div>
+      <button id="btnJogarFase" class="btn grande" disabled>Jogar fase 1</button>
+    </footer>
+  </section>
+
+  <!-- ============ MEUS BONECOS ============ -->
+  <section id="colecao" class="tela aba-tela" hidden>
+    <div class="sub-rolagem">
+      <p class="sub-txt" id="colResumo"></p>
+      <div id="colLista" class="grade col-grade" role="list"></div>
+    </div>
+  </section>
+
+  <!-- ============ COSTURA ============ -->
+  <section id="costura" class="tela aba-tela" hidden>
+    <div class="sub-rolagem">
+      <p class="sub-txt">Costure dois bonecos: o filho nasce num casulo de retalhos e abre parte por parte. Toque em dois bonecos.</p>
+      <div id="cosPais" class="cos-pais"></div>
+      <div id="cosEscolha" class="mini-grade" role="list"></div>
+      <div id="cosPrevia" class="cos-previa" aria-live="polite"></div>
+    </div>
+    <footer class="ini-base av-base">
+      <p id="cosMsg" class="msg erro" role="status"></p>
+      <button id="btnCosturar" class="btn grande" disabled>Costurar</button>
+    </footer>
+  </section>
+
+  <!-- ============ MURAL ============ -->
+  <section id="mural" class="tela aba-tela" hidden>
+    <div class="sub-rolagem">
+      <p class="sub-txt" id="murResumo"></p>
+      <div id="murLista" class="grade col-grade"></div>
+    </div>
+  </section>
+
+    </div>
+  </div>
+
   <!-- ============ LUTA ============ -->
   <section id="luta" class="tela" hidden>
     <header id="topo">
@@ -51,6 +112,7 @@
       <button id="btnMenu" class="btn mini" aria-label="Menu" aria-haspopup="true">&#9881;</button>
       <div id="menu" class="menu" hidden>
         <label class="opc"><input type="checkbox" id="optMenos2"> <span>Menos animação</span></label>
+        <button id="btnMudo2" class="btn mini" aria-pressed="false">&#9835; Som</button>
         <button id="btnParar" class="btn mini" hidden>Parar replay</button>
         <button id="btnSair" class="btn mini">Sair da luta</button>
       </div>
@@ -68,12 +130,14 @@
       <div id="bannerTurno" class="banner" hidden></div>
       <div id="bannerCarta" class="banner-carta" hidden></div>
       <div id="legenda" class="legenda" hidden></div>
+      <div id="combo" class="combo" hidden></div>
     </div>
 
     <footer id="baixo">
       <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+      <div id="intencao" class="intencao" aria-live="polite" hidden></div>
       <div id="info" class="info" aria-live="polite"></div>
-      <div id="maoBox"><div id="mao" class="mao" role="list"></div></div>
+      <div id="maoWrap"><div id="maoBox"><div id="mao" class="mao" role="list"></div></div><span id="maoMais" class="mao-mais" hidden aria-hidden="true">mais &#8250;</span></div>
       <div id="botoes" class="botoes">
         <button id="btnTrocar" class="btn">Trocar lugares <small>1 Linha</small></button>
         <button id="btnPassar" class="btn grande">Passar</button>
@@ -85,10 +149,12 @@
   <div id="fim" class="modal" hidden>
     <div class="folha fim-folha" role="dialog" aria-modal="true" aria-labelledby="fimTitulo">
       <h2 id="fimTitulo" class="fim-titulo">Vitória!</h2>
+      <div id="fimHeroi" class="fim-heroi" hidden></div>
       <p id="fimMotivo" class="fim-motivo"></p>
       <ul id="fimResumo" class="fim-resumo"></ul>
       <textarea id="replaySaida" readonly rows="2" aria-label="Texto do replay" spellcheck="false"></textarea>
       <div class="fim-botoes">
+        <button id="btnProxima" class="btn grande" hidden>Próxima fase</button>
         <button id="btnRevanche" class="btn grande">Revanche</button>
         <button id="btnTrocarTime" class="btn">Trocar time</button>
         <button id="btnRever" class="btn">Rever</button>
@@ -103,6 +169,29 @@
     <div class="folha ficha-folha" role="dialog" aria-modal="true" aria-label="Ficha do boneco">
       <button class="fechar" id="fichaFechar" aria-label="Fechar">&times;</button>
       <div id="fichaCorpo"></div>
+    </div>
+  </div>
+
+  <!-- ============ FICHA NA COLEÇÃO ============ -->
+  <div id="bonecoModal" class="modal" hidden>
+    <div class="folha ficha-folha" role="dialog" aria-modal="true" aria-label="Boneco da coleção">
+      <button class="fechar" id="bonecoFechar" aria-label="Fechar">&times;</button>
+      <div id="bonecoCorpo"></div>
+    </div>
+  </div>
+
+  <!-- ============ CASULO ============ -->
+  <div id="casulo" class="modal casulo-modal" hidden>
+    <div class="folha casulo-folha" role="dialog" aria-modal="true" aria-labelledby="casTit">
+      <h2 id="casTit" class="cas-tit">Casulo de retalhos</h2>
+      <p id="casSub" class="cas-sub"></p>
+      <div id="casPartes" class="cas-partes"></div>
+      <div id="casFilho" class="cas-filho" hidden></div>
+      <div class="fim-botoes">
+        <button id="btnCasAbrir" class="btn grande">Abrir próxima parte</button>
+        <button id="btnCasTudo" class="btn">Abrir tudo</button>
+        <button id="btnCasFim" class="btn" hidden>Ver na coleção</button>
+      </div>
     </div>
   </div>
 </main>

@@ -3,71 +3,96 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>The King's Road · pilot</title>
+<title>Pilot</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="piloto.css">
 </head>
 <body>
 <header class="topo">
-  <div class="marca"><b>The King's Road</b><small>pilot · placeholder art</small></div>
+  <div class="marca"><b id="marcaNome"></b><small>pilot</small></div>
+  <div class="conta" aria-live="polite">
+    <span class="c-racoes" id="cRacoes" title="Rations: each fight uses 1"><i class="c-saco" aria-hidden="true"></i><b id="cRacoesNum">20</b><small id="cRacoesMax">/20</small><em>Rations</em></span>
+    <span class="c-renome" id="cRenome" title="Renown only grows. It is for show: it never adds power."><i class="c-estrela" aria-hidden="true"></i><b id="cRenomeNum">0</b><em>Renown</em></span>
+  </div>
   <nav class="abas" aria-label="Screens">
-    <button type="button" class="aba" data-cena="mapa" id="abaMapa">Map</button>
-    <button type="button" class="aba" data-cena="time" id="abaTime">Team</button>
-    <button type="button" class="aba" data-cena="ovo" id="abaOvo">Egg</button>
+    <button type="button" class="aba" data-cena="mapa" id="abaMapa">Road</button>
+    <button type="button" class="aba" data-cena="monstros" id="abaMonstros">Monsters</button>
+    <button type="button" class="aba" data-cena="ovo" id="abaOvo">Nest</button>
   </nav>
-  <button type="button" class="bt-menos" id="btMenos" aria-pressed="false" title="Reduced motion: no shake, no flash">Reduced motion</button>
+  <div class="ajustes">
+    <button type="button" class="bt-menos bt-som" id="btSom" aria-pressed="true" aria-label="Sound">Sound: on</button>
+    <button type="button" class="bt-menos" id="btMenos" aria-pressed="false" title="Reduced motion: no shake, no flash">Reduced motion</button>
+  </div>
 </header>
 
 <main>
-  <!-- ======================================================= MAP -->
+  <!-- ======================================================= ROAD (casa do piloto) -->
   <section class="cena" id="mapa" hidden>
     <div class="m-caixa">
-      <div class="m-mapa" id="mMapa"><canvas id="mCanvas" class="px"></canvas><div id="mMarcas"></div></div>
+      <div class="m-esq">
+        <div class="m-mapa" id="mMapa"><canvas id="mCanvas" class="px"></canvas><div id="mMarcas"></div></div>
+        <ol class="m-passos" aria-label="How it works">
+          <li><b>1</b>Pick a place</li><li><b>2</b>Choose 3 monsters</li><li><b>3</b>Send the patrol</li>
+        </ol>
+      </div>
       <div class="m-lista painel">
-        <h2>The King's Road</h2>
-        <p class="sub">Five village tournaments on the way to the castle.</p>
+        <h2 id="mTitulo"></h2>
+        <p class="sub">Two places are open. Each one has its own guard: send the trio that fits.</p>
         <ol id="mLista"></ol>
+        <div class="m-ultima" id="mUltima" hidden></div>
+        <button type="button" class="bt-discreto" id="btReset">Reset pilot</button>
       </div>
     </div>
     <div class="aviso-flutua" id="mAviso" hidden></div>
   </section>
 
-  <!-- ======================================================= TEAM -->
+  <!-- ======================================================= PATROL ORDERS -->
   <section class="cena" id="time" hidden>
-    <div class="t-grade">
-      <div class="t-esq">
-        <div class="painel t-rival">
-          <h2>Rival trio <small id="tLugar">Hearthfield tournament</small></h2>
+    <div class="painel f-folha">
+      <div class="f-topo">
+        <button type="button" class="bt bt--sec bt--peq" id="fVoltar" aria-label="Back to the road">&#9666; Road</button>
+        <h2><span id="fTitulo"></span></h2>
+        <div class="f-lugares" id="fLugares" role="group" aria-label="Place"></div>
+      </div>
+      <div class="f-campo">
+        <div class="f-lado f-lado--meu">
+          <h3>Your patrol</h3>
+          <div class="t-slots" id="tSlots"></div>
+        </div>
+        <div class="f-vs" aria-hidden="true">VS</div>
+        <div class="f-lado f-lado--guarda">
+          <h3><span id="fGuarda"></span> <small id="tLugar"></small></h3>
           <div class="t-rivais" id="tRivais"></div>
         </div>
-        <div class="painel t-roda">
-          <h3>Element wheel</h3>
-          <div class="t-roda__caixa"><div class="roda" id="tRoda"></div><ul class="roda-frases" id="tFrases"></ul></div>
-        </div>
       </div>
-      <div class="t-dir">
-        <div class="painel">
-          <h2>Your trio</h2>
-          <p class="sub">Drag or tap two monsters to swap Front, Middle and Back. Skills are tried in order: 1st, 2nd, 3rd. Turn one Off to never use it.</p>
-          <div class="t-slots" id="tSlots"></div>
-          <div class="t-banco" id="tBanco" hidden><h3>Bench</h3><div id="tBancoLista"></div></div>
+      <p class="f-borda"><b id="fBorda"></b> <span id="fBordaAviso"></span></p>
+      <div class="f-rodape">
+        <div class="f-conta">
+          <h3>Your monsters <small>tap one, then tap a spot (or drag it)</small></h3>
+          <div id="tBancoLista" class="f-banco"></div>
         </div>
-        <div class="painel t-tatica">
-          <h3>Team tactic</h3>
+        <div class="f-tat">
+          <h3>Tactic</h3>
           <div class="t-taticas" id="tTaticas" role="radiogroup" aria-label="Team tactic"></div>
+          <p class="f-tat__txt" id="fTaticaTxt"></p>
+          <div class="f-hist" id="fHist"></div>
         </div>
       </div>
+      <details class="f-mais" id="fHab"><summary>Skill order</summary><p class="sub">Skills are tried in order: 1st, 2nd, 3rd. Turn one Off to never use it.</p><div class="f-habs" id="fHabs"></div></details>
+      <details class="f-mais" id="fRodaCaixa"><summary>Element wheel</summary>
+        <div class="t-roda__caixa"><div class="roda" id="tRoda"></div><ul class="roda-frases" id="tFrases"></ul></div>
+      </details>
     </div>
     <div class="t-lutar">
-      <button type="button" class="bt bt--grande" id="btLutar">Fight</button>
-      <p class="decidido">The result is decided when the fight starts.</p>
+      <button type="button" class="bt bt--grande" id="btLutar"><span id="btLutarTxt">Send patrol</span> <small id="btLutarCusto"></small></button>
+      <p class="decidido" id="fAvisos"></p>
     </div>
   </section>
 
   <!-- ======================================================= BATTLE -->
   <section class="cena" id="luta" hidden>
     <div class="b-barra">
-      <div class="b-info"><b id="bTurno">Turn 1/12</b><span id="bVez"></span><span id="bSol" class="b-sol"></span></div>
+      <div class="b-info"><b id="bRotulo" class="b-rotulo"></b><b id="bTurno">Turn 1/12</b><span id="bVez"></span><span id="bSol" class="b-sol"></span></div>
       <div class="b-ctrl">
         <div class="b-vels" role="group" aria-label="Speed">
           <button type="button" class="bt bt--peq" data-vel="1">1×</button><button type="button" class="bt bt--peq" data-vel="2">2×</button><button type="button" class="bt bt--peq" data-vel="4">4×</button>
@@ -90,26 +115,64 @@
     <div class="b-lista" id="bLista"></div>
     <div class="b-fim" id="bFim" hidden>
       <div class="painel b-fim__caixa">
+        <small class="b-fim__rot" id="bFimRot"></small>
         <h2 id="bFimTit">Victory!</h2>
         <p id="bFimMot"></p>
         <div class="b-nums">
           <div><b id="bN1">0</b><small>Turns</small></div>
-          <div><b id="bN2">0</b><small>Damage dealt</small></div>
+          <div><b id="bN2">0</b><small id="bN2r">Strong hits</small></div>
           <div><b id="bN3">0</b><small id="bN3r">Biggest hit</small></div>
         </div>
         <div class="b-fim__bts">
-          <button type="button" class="bt" id="bRevanche">Rematch</button>
-          <button type="button" class="bt bt--sec" id="bTrocar">Change team</button>
+          <button type="button" class="bt" id="bSeguir">Next: 4 quick fights &#9656;</button>
+          <button type="button" class="bt bt--sec" id="bRevanche">Watch again</button>
+          <button type="button" class="bt" id="bTrocar">Back to report</button>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ======================================================= EGG -->
+  <!-- ======================================================= PATROL REPORT (carimbos + tira) -->
+  <section class="cena" id="relato" hidden>
+    <div class="painel r-folha" id="rFolha">
+      <div class="r-topo">
+        <div><h2>Patrol report</h2><p class="sub" id="rOnde"></p></div>
+        <button type="button" class="bt bt--sec bt--peq" id="rPular">Skip</button>
+      </div>
+      <ol class="r-carimbos" id="rCarimbos"></ol>
+      <div class="r-seq" id="rSeqCaixa">
+        <span>Win streak</span>
+        <div class="r-seq__barra" id="rSeq" role="img" aria-label="Win streak"></div>
+        <small id="rSeqTxt"></small>
+      </div>
+    </div>
+    <div class="r-tiras" id="rTiras" hidden>
+      <article class="painel r-tira r-tira--nova" id="rNova"></article>
+      <article class="painel r-tira r-tira--antes" id="rAntes"></article>
+    </div>
+    <div class="painel r-festa" id="rFesta" hidden></div>
+    <div class="r-bts" id="rBts" hidden>
+      <button type="button" class="bt" id="rOutro"></button>
+      <button type="button" class="bt bt--sec" id="rTrio">Change the trio</button>
+      <button type="button" class="bt bt--sec" id="rDeNovo">Send again</button>
+    </div>
+    <p class="decidido" id="rAmostra" hidden></p>
+  </section>
+
+  <!-- ======================================================= MONSTERS (a conta) -->
+  <section class="cena" id="monstros" hidden>
+    <div class="painel">
+      <h2>Your monsters</h2>
+      <p class="sub">Every monster keeps its own story. Tap one to open its card.</p>
+      <div class="g-grade" id="gGrade"></div>
+    </div>
+  </section>
+
+  <!-- ======================================================= NEST (ovo) -->
   <section class="cena" id="ovo" hidden>
     <div id="oEscolha">
       <div class="painel">
-        <h2>The Nest</h2>
+        <h2 id="oTitulo"></h2>
         <p class="sub">Pick two parents. Every part of the egg comes from one of them. You see the odds before the egg is laid.</p>
         <div class="o-pais" id="oPais"></div>
       </div>
@@ -118,6 +181,7 @@
         <div id="oChances"></div>
         <p class="o-aviso" id="oAviso"></p>
         <button type="button" class="bt bt--grande" id="oBreed" disabled>Lay the egg</button>
+        <p class="o-decide" id="oDecide"></p>
       </div>
     </div>
     <div id="oCena" hidden>
@@ -134,11 +198,12 @@
           <div class="o-final" id="oFinal" hidden>
             <h2 id="oNome"></h2>
             <p id="oInfo"></p>
+            <p class="o-entrou" id="oEntrou"></p>
             <input id="oNomeCampo" class="o-campo" maxlength="20" hidden aria-label="Name">
             <div class="o-bts">
-              <button type="button" class="bt" id="oNomear">Name it</button>
+              <button type="button" class="bt" id="oTime">To the patrol</button>
+              <button type="button" class="bt bt--sec" id="oNomear">Name it</button>
               <button type="button" class="bt bt--sec" id="oEspiar">Peek hidden traits</button>
-              <button type="button" class="bt" id="oTime">To the team</button>
               <button type="button" class="bt bt--sec" id="oDeNovo">Another egg</button>
             </div>
             <div class="o-segredos" id="oSegredos" hidden></div>
@@ -148,6 +213,20 @@
     </div>
   </section>
 </main>
+
+<!-- ======================================================= ficha do monstro (janela) -->
+<div class="g-fundo" id="gFundo" hidden>
+  <div class="painel g-ficha" id="gFicha" role="dialog" aria-modal="true" aria-labelledby="gNome">
+    <button type="button" class="g-x" id="gX" aria-label="Close">&#10005;</button>
+    <div id="gCorpo"></div>
+    <div class="g-bts">
+      <button type="button" class="bt" id="gCartao">Share card</button>
+      <a class="g-baixar" id="gBaixar" hidden></a>
+    </div>
+    <div class="g-previa" id="gPrevia" hidden></div>
+  </div>
+</div>
+<div class="festa" id="festa" aria-hidden="true"></div>
 <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-// Piloto — cenários desenhados por código em pixel art: arena de lado (com o sol do Sundown), mapa de cima (The King's Road)
+// Piloto — cenários desenhados por código em pixel art: arena de lado (com o sol do Sundown), mapa de cima (a estrada)
 // e o ninho da cena do ovo. Cada cena aceita o PNG do manifesto (arte/manifesto.json: arena, map, nest) por cima do desenho.
 import { CREME, Grade, PALETA, PLUM, misturar, rampa, pngDe, criarCanvas } from './arte.js'
 import { ELEMENTOS } from './tema.js'
@@ -15,23 +15,29 @@ const T = (pts, r) => (x, y) => { for (let i = 0; i < pts.length - 1; i++) if (d
 const ruido = (x, y) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s) }
 
 // ------------------------------------------------------------------ ARENA
-export const CHAO = 64 // faixa de chão embaixo
-/** Onde fica cada lugar (0 Front, 1 Middle, 2 Back) de cada lado: { x, y } dos pés, em pixels da arena. */
-export function lugaresDaArena(LW, LH) {
-  const meio = LW / 2, chao = LH - CHAO
-  const passo = Math.min(56, Math.floor((meio - 34) / 2.6))
+export const CHAO = 64 // faixa de chão embaixo (padrão)
+/** Onde fica cada lugar (0 Front, 1 Middle, 2 Back) de cada lado: { x, y } dos pés, em pixels da arena.
+ *  `cunha` (telas estreitas): Front no meio, Middle atrás em cima, Back atrás embaixo — os 3 cabem grandes em 180 px. */
+export function lugaresDaArena(LW, LH, { chao = CHAO, cunha = false } = {}) {
+  const meio = LW / 2, topo = LH - chao
   const out = { A: [], B: [] }
+  if (cunha) {
+    const pts = [[30, LH - 58], [meio - 30, LH - 100], [meio - 30, LH - 16]]
+    for (const [dx, y] of pts) { out.A.push({ x: Math.round(meio - dx), y }); out.B.push({ x: Math.round(meio + dx), y }) }
+    return out
+  }
+  const passo = Math.min(56, Math.floor((meio - 34) / 2.6))
   for (let i = 0; i < 3; i++) {
-    const dx = 30 + passo * i, y = chao + 44 - i * 9
+    const dx = 30 + passo * i, y = topo + Math.round(chao * 0.72) - i * 9
     out.A.push({ x: Math.round(meio - dx), y }); out.B.push({ x: Math.round(meio + dx), y })
   }
   return out
 }
 
 /** Frente da arena (sem céu): colinas, castelo, bandeirinhas, cerca, chão com marcas de posição. Transparente em cima. */
-export function frenteDaArena(LW, LH) {
+export function frenteDaArena(LW, LH, { chao: CH = CHAO, cunha = false } = {}) {
   const g = new Grade(LW, LH)
-  const chao = LH - CHAO
+  const chao = LH - CH
   // colinas ao longe e o castelinho
   const colina = (x, y) => y > chao - 22 - 10 * Math.sin(x / 37) - 6 * Math.sin(x / 13 + 1) && y < chao
   g.chapa(colina, '#7FBF7A')
@@ -62,22 +68,22 @@ export function frenteDaArena(LW, LH) {
   g.forma(U(R(0, cerca, LW, 2), R(0, cerca + 5, LW, 2)), madeira, { semLuz: true, linha: false })
   for (let x = 4; x < LW; x += 18) g.forma(R(x, cerca - 4, 3, 13), madeira, { semLuz: true, linha: false })
   // chão: grama com listras, tufos e 3 marcas claras de posição de cada lado
-  g.chapa(R(0, chao, LW, CHAO), '#5FB85A')
+  g.chapa(R(0, chao, LW, CH), '#5FB85A')
   for (let y = chao; y < LH; y++) for (let x = 0; x < LW; x++) {
     if (((x + Math.floor(y / 2) * 3) % 24) < 12 && y > chao + 2) g.p(x, y, '#58AE53')
     if (ruido(x, y) > 0.985) { g.p(x, y, '#3E8A40'); g.p(x, y - 1, '#3E8A40') }
     else if (ruido(x + 7, y) > 0.992) g.p(x, y, '#F7F1E3')
   }
   g.chapa(R(0, chao, LW, 1), '#3E8A40')
-  const lug = lugaresDaArena(LW, LH)
+  const lug = lugaresDaArena(LW, LH, { chao: CH, cunha })
   for (const lado of ['A', 'B']) for (const p of lug[lado]) g.chapa(E(p.x, p.y - 1, 17, 4), '#7ED07A')
   return g.canvas()
 }
 
 const cacheFrente = new Map()
 /** Desenha a arena no contexto: céu (azul → laranja no Sundown), sol na altura `sol` (0 = alto, 1 = no horizonte) e a frente. */
-export function desenharArena(cx, LW, LH, { sol = 0, laranja = 0 } = {}) {
-  const chao = LH - CHAO
+export function desenharArena(cx, LW, LH, { sol = 0, laranja = 0, chao: CH = CHAO, cunha = false } = {}) {
+  const chao = LH - CH
   const topo = misturar('#5FB6E8', '#E8835A', laranja), baixo = misturar(PALETA.ceu, '#FFC27A', laranja)
   const faixas = 8
   for (let i = 0; i < faixas; i++) {
@@ -99,13 +105,29 @@ export function desenharArena(cx, LW, LH, { sol = 0, laranja = 0 } = {}) {
     cx.drawImage(png, Math.round((LW - w) / 2), LH - h, w, h)
     return
   }
-  const chave = LW + 'x' + LH
-  if (!cacheFrente.has(chave)) cacheFrente.set(chave, frenteDaArena(LW, LH))
+  const chave = LW + 'x' + LH + 'x' + CH + cunha
+  if (!cacheFrente.has(chave)) cacheFrente.set(chave, frenteDaArena(LW, LH, { chao: CH, cunha }))
   cx.drawImage(cacheFrente.get(chave), 0, 0)
 }
 
 // ------------------------------------------------------------------ MAPA de cima (384×216)
-export const MAPA = { w: 384, h: 216, lugares: [[52, 176], [118, 128], [196, 158], [262, 92], [334, 44]] }
+// Onde fica cada lugar (1..5), o ninho e o caminho da patrulha. Há duas geometrias: a do mapa desenhado por código e a do
+// map.png do manifesto (se a arte do mapa mudar, ajuste só `png`; o manifesto também pode trazer "mapPlaces": [[x, y]×5]).
+export const MAPA = {
+  w: 384, h: 216,
+  lugares: [[52, 176], [118, 128], [196, 158], [262, 92], [334, 44]], ninho: [20, 196],
+  png: {
+    lugares: [[30, 116], [76, 152], [128, 106], [330, 150], [336, 52]], ninho: [214, 190],
+    caminhos: { 1: [[214, 190], [214, 142], [60, 142], [34, 124]], 2: [[214, 190], [214, 142], [96, 142]], 3: [[214, 190], [214, 142], [128, 142], [128, 118]], 4: [[214, 190], [214, 142], [296, 142], [316, 150]], 5: [[214, 190], [214, 142], [296, 142], [316, 150]] },
+  },
+}
+/** A geometria que vale agora (com ou sem PNG do mapa): { comPng, lugares, ninho, caminho(n) }. */
+export function geometriaDoMapa(extra = null) {
+  const comPng = !!pngDe('map')
+  if (!comPng) return { comPng, lugares: MAPA.lugares, ninho: MAPA.ninho, caminho: (n) => [MAPA.ninho, ...MAPA.lugares.slice(0, n)] }
+  const ok = Array.isArray(extra) && extra.length === 5 && extra.every((p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))
+  return { comPng, lugares: ok ? extra : MAPA.png.lugares, ninho: MAPA.png.ninho, caminho: (n) => (ok ? [MAPA.png.ninho, extra[n - 1]] : MAPA.png.caminhos[n]) }
+}
 export function desenharMapa() {
   const png = pngDe('map')
   if (png) { const cv = criarCanvas(MAPA.w, MAPA.h); cv.getContext('2d').drawImage(png, 0, 0, MAPA.w, MAPA.h); return cv }

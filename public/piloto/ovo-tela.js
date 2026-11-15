@@ -18,6 +18,7 @@ export function criarOvo({ raiz, colecao, opcoes, ganchos }) {
   const O = { sel: [], filho: null, sorteios: null, pais: null, passo: 0, auto: false, fase: 'escolher', t0: 0, cai: 0, pico: 0, pedacos: [] }
   const cv = $('#oCanvas', raiz), cx = cv.getContext('2d')
   let LW = 384, LH = 216, k = 2, fundo = null
+  const som = (n) => opcoes.som?.(n)
 
   // ---------------------------------------------------------------- escolher os pais
   function desenharEscolha() {
@@ -70,7 +71,8 @@ export function criarOvo({ raiz, colecao, opcoes, ganchos }) {
     O.pais = [A, B]
     colecao.usarClutch(A.uid); colecao.usarClutch(B.uid)
     O.filho = r.filho; O.sorteios = r.sorteios; O.passo = 0; O.fase = 'cena'; O.t0 = performance.now(); O.cai = 0; O.pico = 0; O.pedacos = []
-    O.nome = null
+    O.nome = null; O.novo = null
+    som('ovoCai')
     $('#oEscolha', raiz).hidden = true
     $('#oCena', raiz).hidden = false
     medir()
@@ -103,6 +105,7 @@ export function criarOvo({ raiz, colecao, opcoes, ganchos }) {
     if (O.fase !== 'cena' || O.passo >= ORDEM_DO_OVO.length) return
     O.passo++
     O.tPasso = performance.now()
+    som(O.passo === ORDEM_DO_OVO.length ? 'ovoNasce' : 'ovoRacha')
     const slot = ORDEM_DO_OVO[O.passo - 1]
     const s = O.sorteios.find((x) => x.parte === slot)
     const gene = s.face.gene
@@ -120,11 +123,11 @@ export function criarOvo({ raiz, colecao, opcoes, ganchos }) {
     if (O.auto && O.passo < ORDEM_DO_OVO.length) agendarAuto()
   }
   let timerAuto = null
+  // "Auto": a cena inteira leva no máximo 6 s (5 passos de até 0,9 s + a pausa do pico)
   function agendarAuto() {
     clearTimeout(timerAuto)
-    const slot = ORDEM_DO_OVO[O.passo] ?? 'bordado'
-    timerAuto = setTimeout(() => { if (O.auto && O.fase === 'cena') proximo() }, O.passo === 0 ? 800 : TEMPO[ORDEM_DO_OVO[O.passo - 1]] ?? 800)
-    void slot
+    const espera = O.passo === 0 ? 700 : Math.min(900, TEMPO[ORDEM_DO_OVO[O.passo - 1]] ?? 800)
+    timerAuto = setTimeout(() => { if (O.auto && O.fase === 'cena') proximo() }, espera)
   }
   function raridadeDoFilho() {
     let melhor = 'comum'
@@ -147,8 +150,12 @@ export function criarOvo({ raiz, colecao, opcoes, ganchos }) {
       $('#oCena', raiz).style.setProperty('--rar', RARIDADE[rar].cor)
       $('#oNome', raiz).textContent = O.nome
       $('#oInfo', raiz).innerHTML = `<img src="${Arte.url(Arte.iconeElemento(tipo))}" alt="">${ELEMENTOS[tipo].nome} · <span class="gema" style="--g:${RARIDADE[rar].cor}"></span>${RARIDADE[rar].nome}`
+      // o filhote entra na conta do piloto na hora (aparece em Monsters e pode ir na patrulha)
+      O.novo = colecao.adicionar({ nome: O.nome, genes: O.filho.partes, pais: O.filho.pais, geracao: O.filho.geracao })
+      $('#oEntrou', raiz).textContent = 'Joined your monsters. It can go on patrol now.'
       O.fase = 'fim'
       $('#oCena', raiz).classList.add('o-fim')
+      ganchos?.nasceu?.(O.novo)
       ganchos?.mudou?.()
     }, espera)
   }
@@ -228,7 +235,7 @@ export function criarOvo({ raiz, colecao, opcoes, ganchos }) {
     c.hidden = !c.hidden
     if (!c.hidden) { c.value = O.nome; c.focus() }
   })
-  $('#oNomeCampo', raiz).addEventListener('input', (e) => { O.nome = e.target.value.slice(0, 20) || nomePorApelidos(Object.fromEntries(Object.entries(O.filho.partes).map(([s, g]) => [s, g.face]))); $('#oNome', raiz).textContent = O.nome })
+  $('#oNomeCampo', raiz).addEventListener('input', (e) => { O.nome = e.target.value.slice(0, 20) || nomePorApelidos(Object.fromEntries(Object.entries(O.filho.partes).map(([s, g]) => [s, g.face]))); $('#oNome', raiz).textContent = O.nome; if (O.novo) colecao.renomear(O.novo.uid, O.nome) })
   $('#oEspiar', raiz).addEventListener('click', () => {
     const s = $('#oSegredos', raiz)
     s.hidden = !s.hidden
@@ -236,9 +243,9 @@ export function criarOvo({ raiz, colecao, opcoes, ganchos }) {
     s.innerHTML = '<b>Hidden traits</b> (passed on to future eggs, not used in fights)<ul>' + ORDEM_DO_OVO.map((sl) => `<li>${SLOT_EN[sl]}: ${nomeDaParte(idDe(av[sl]))} <small>${RARIDADE[rarDe(av[sl])].nome}</small></li>`).join('') + '</ul>'
   })
   $('#oTime', raiz).addEventListener('click', () => {
-    colecao.adicionar({ nome: O.nome, genes: O.filho.partes, pais: O.filho.pais, geracao: O.filho.geracao })
+    const uid = O.novo?.uid
     voltarEscolha()
-    ganchos?.paraTime?.()
+    ganchos?.paraTime?.(uid)
   })
   $('#oDeNovo', raiz).addEventListener('click', voltarEscolha)
   function voltarEscolha() {

@@ -158,3 +158,33 @@ export const TATICAS_EN = {
 }
 export const CLUTCHES = PARAMS_COSTURA.carretelVoltas
 export const ORDEM_DO_OVO = PARAMS_COSTURA.ordemDeRevelacao // mark, legs, arms, head, body
+
+// ------------------------------------------------------------------ NOMES do jogo e dos lugares (PROVISÓRIOS: o dono troca)
+// Todo nome de jogo/lugar que aparece na tela sai DAQUI. Para trocar um nome, mude só este bloco.
+export const NOMES = {
+  jogo: 'The Lantern Road',
+  lugares: { 1: 'Hollyfield', 2: 'Millbrook', 3: 'Thornwood Edge', 4: 'Stonebridge Watch', 5: 'Crownhold Keep' },
+  ninho: 'The Nest', energia: 'Rations', renome: 'Renown', ordens: 'Patrol Orders', guarda: 'The guard',
+}
+export const nomeDoLugar = (n) => NOMES.lugares[n] ?? `Place ${n}`
+/** Primeira palavra do lugar (para o título "Thornwood Veteran"). */
+export const apelidoDoLugar = (n) => nomeDoLugar(n).split(' ')[0]
+
+// Títulos do monstro (só enfeite: nunca dão força). O texto diz o FEITO que deu o título.
+export const TITULOS = {
+  veterano: { nome: (n) => `${apelidoDoLugar(n)} Veteran`, feito: (n, q) => `${q} fights at ${nomeDoLugar(n)}` },
+  clutch: { nome: () => 'Clutch Hero', feito: () => 'Won a fight after entering Last Stand' },
+  forte: { nome: () => 'Heavy Hitter', feito: (_, q) => `${q} Strong hits landed` },
+  limpa: { nome: () => 'Clean Sweep', feito: (_, q) => `Won all ${q} fights of one patrol` },
+}
+export const nomeDoTitulo = (t) => TITULOS[t.id]?.nome(t.n) ?? t.id
+export const feitoDoTitulo = (t) => TITULOS[t.id]?.feito(t.n, t.q) ?? ''
+
+// Textos honestos da folha de ordens (sem promessa de ganho)
+export const AVISOS = {
+  borda: 'Type edge only, not a win chance.',
+  decidido: 'The result of each fight is decided when it starts.',
+  ovo: 'Decided when you confirm.',
+  amostra: (n) => `${n} fights is a small sample. Strong hits are the steadier sign.`,
+  renome: 'Renown only grows. It is for show: it never adds power.',
+}

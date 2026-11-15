@@ -11,6 +11,8 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | 3 | Tela do protótipo em canvas (3×3, mão, Linha, roda) + 9 bonecos desenhados | dev-tela (Sonnet) | public/, server/dev.mjs, tests/tela/ | 1 | PRONTO (fc4dcef juntado; e2e verde no celular e no PC; trindade do agente D76 C85 Ch88; falta som, Aventura e tela de Costura) |
 | 4 | Costura local (cruzamento com chances na tela) + Pontos de Costura e Carretel | dev-servidor (Opus) | shared/costura.js, tests/servidor/costura.test.js, tools/simular-costura.mjs | 1 | PRONTO (a312f92; 59 testes; achados: Lendária × Comum vence ~62% e raridade infla com seleção → proposta ao dono junto com a economia) |
 | 5 | Economia rodada 2: subir o ganho do farmador sem furar o pote; medir o rendimento do time alugado com o motor; proposta 95 | general-purpose (Opus) | tools/simular-economia.mjs, tests/servidor/economia-sim.test.js, docs/ideias/economia-do-pote.md | 1, 2 | ESPERA DONO (02980dd juntado; melhor conjunto nota 87; proposta levada ao dono 15/11 00:20) |
+| 6 | Tela 2: Aventura (5 fases com intenção visível), tela de Costura com revelação, som sintetizado, mais festa na carta jogada | general-purpose (Sonnet) | public/, tests/tela/ | 3, 4 | RODANDO |
+| 7 | Servidor do protótipo: luta decidida no servidor (HTTP), conta local de teste, banco embutido, time do rival e semente vindos do servidor | general-purpose (Opus) | server/ (menos dev.mjs), tests/servidor/api*.test.js | 1, 4 | RODANDO |
 
 ## Já subiu
 (nada publicado ainda)

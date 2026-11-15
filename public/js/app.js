@@ -1,31 +1,46 @@
 // Frayz — tela do protótipo jogável local. Só mostra o que o motor devolve (via ponte.js). Nenhuma regra aqui.
+// A luta usa as peças do ateliê (js/pecas/*: mão em leque, carretéis, bastidor, fio do tempo, etiquetas, botões-retalho)
+// e a arena (js/arena.js: cenário, bonecos de pano e efeitos). Som em cada acontecimento (som.js) e música por momento (musica.js).
 import * as P from './ponte.js'
 import { Arena } from './arena.js'
-import { Roda } from './roda.js'
-import { faixaDoTipo, iconeDoBordado, iconeDoTipo, miniatura, FIOS } from './bonecos.js'
+import { iconeDoBordado, FIOS } from './bonecos.js'
 import * as Col from './colecao.js'
 import * as Som from './som.js'
+import * as Musica from './musica.js'
 import { FASES } from './aventura-dados.js'
 import { $, el, desenharBonecoEm, iconeTipo, bonecoCanvas, avisoHub, NOME_LUGAR } from './ui.js'
 import { abrirBoneco, fecharBoneco, ligarColecao, renderColecao, renderMural } from './colecao-ui.js'
 import { fecharCasulo, iniciarCostura, ligarCostura, renderCostura } from './costura-ui.js'
 import { iniciarAventura, ligarAventura, renderAventura } from './aventura-ui.js'
+import { criarMao } from './pecas/mao.js'
+import { criarCarta } from './pecas/carta.js'
+import { criarCarreteis, criarContador } from './pecas/carreteis.js'
+import { criarBastidor } from './pecas/bastidor.js'
+import { mostrarFaixa } from './pecas/faixa.js'
+import { criarFioDoTempo } from './pecas/fio-do-tempo.js'
+import { criarEtiquetas } from './pecas/etiqueta.js'
+import { atualizarBotao, criarBotao } from './pecas/botao.js'
+import { pesponto, svg } from './pecas/base.js'
+import { corDoTecido, urlDoTecido } from './pecas/arte-adaptador.js'
+import * as arte from './pecas/arte-adaptador.js'
+import { BONUS, FRASE_DO_FIAPO, ICONES, PARES, TEXTO_DA_RODA, bonecoEm, dadosDaCarta } from './pecas/montagens.js'
 
 const url = new URLSearchParams(location.search)
 const TESTE = url.get('teste') === '1'
 const MOTIVO_FIM = { derrubou: 'Os três caíram.', tesoura: 'A Tesoura decidiu: vence quem sobrou com mais vida.', desempate: 'Empate de vida: o sorteio decidiu.' }
-const GOLPE_FORTE = 100 // PROVISÓRIO (só visual): a partir daqui o golpe ganha pausa de impacto
 const NOME_ROBO = { ganancioso: 'Ganancioso', planejador: 'Planejador' }
 
 const S = {
   escolha: [], robo: 'planejador',
   estado: null, semente: null, timeA: null, timeB: null,
   travado: true, sel: null, modoTroca: null, replay: false, parar: false, rodando: false,
-  stats: null, ultima: null, vezAnterior: null, relogio: null, inicioTurno: 0, vel: 1,
-  maoAnterior: new Set(),
+  stats: null, ultima: null, vezAnterior: null, inicioTurno: 0, vel: 1,
   modo: 'livre', fase: null, idsA: null, aba: 'inicio', abaDeOrigem: 'inicio', golpes: {}, ultimoGolpe: null, registrado: false, combo: 0, comboVez: null,
+  turnoMostrado: 0, momento: null, textoReplay: '', alvoFoco: null,
 }
-let arena, roda
+let arena
+const H = {} // as peças da luta (montadas uma vez)
+const dadosDe = new Map() // cid → dados da carta (o mesmo objeto sempre: a mão não redesenha a carta à toa)
 
 // ------------------------------------------------------------------ menos animação
 function lerMenos() {
@@ -35,8 +50,8 @@ function lerMenos() {
 function aplicarMenos(v, guardar = true) {
   document.documentElement.dataset.menos = v ? '1' : '0'
   $('#optMenos').checked = v; $('#optMenos2').checked = v
-  if (arena) { arena.menos = v; arena.sujo = true }
-  if (roda) roda.menos = v
+  if (arena) arena.menos = v
+  Som.calmo(v)
   if (guardar) { try { localStorage.setItem('menos_animacao', v ? '1' : '0') } catch { /* ok */ } }
 }
 const menos = () => document.documentElement.dataset.menos === '1'
@@ -51,8 +66,8 @@ function mostrar(qual) {
   const luta = qual === 'luta'
   $('#hub').hidden = luta; $('#luta').hidden = !luta
   document.body.dataset.tela = luta ? 'luta' : qual
-  if (luta) requestAnimationFrame(() => { arena.medir(); roda.medir() })
-  else irParaAba(ABAS.includes(qual) ? qual : S.aba)
+  if (luta) { aplicarFormato(); requestAnimationFrame(() => { arena.medir(); H.mao.medir() }) }
+  else { irParaAba(ABAS.includes(qual) ? qual : S.aba); musica('entrada') }
 }
 function irParaAba(aba) {
   S.aba = aba
@@ -63,9 +78,14 @@ function irParaAba(aba) {
   DESENHA[aba]()
   const sc = document.querySelector(`#${aba} .ini-corpo, #${aba} .sub-rolagem`); if (sc) sc.scrollTop = 0
 }
+/** Música: troca de momento só quando muda (a troca acontece na virada do compasso). */
+function musica(momento) {
+  if (S.momento === momento) return
+  S.momento = momento
+  try { Musica.momento(momento) } catch { /* sem áudio */ }
+}
 
 // ------------------------------------------------------------------ TELA INICIAL
-const partesDe = (f) => Object.fromEntries(Object.entries(f.partes).map(([k, v]) => [k, `${v.id}@${v.raridade}`]))
 const icone = (cv, px = 18) => { cv.style.width = cv.style.height = px + 'px'; return cv }
 
 function fichaDeLista(boneco) {
@@ -99,20 +119,24 @@ function alternar(id) {
   if (i >= 0) S.escolha.splice(i, 1)
   else if (S.escolha.length < 3) S.escolha.push(id)
   else { S.escolha.shift(); S.escolha.push(id) }
+  Som.tocar('botao')
   atualizarEscolha()
 }
 function atualizarEscolha() {
   for (const b of document.querySelectorAll('.ficha')) { const on = S.escolha.includes(b.dataset.id); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)) }
-  const box = $('#timeEscolhido'); box.replaceChildren()
+  // os 3 lugares bordados (Frente, Meio, Trás): o boneco escolhido sobe para o círculo dele
+  const box = $('#timeEscolhido'); box.replaceChildren(); box.classList.add('fz-time__circulos')
+  const alto = window.innerWidth < 640 ? 50 : 60
   for (let i = 0; i < 3; i++) {
-    const slot = el('div', 'slot'); const id = S.escolha[i]
-    if (id) { const bo = Col.obter(id); const cv = bonecoCanvas(bo, 42); cv.className = ''; slot.append(cv); slot.title = P.fichaDoBoneco(bo).nome; slot.classList.add('cheio') }
-    else slot.append(el('span', null, NOME_LUGAR[i]))
-    const lab = el('em', null, NOME_LUGAR[i]); slot.append(lab)
-    box.append(slot)
+    const c = el('div', 'fz-circulo'), id = S.escolha[i]
+    c.append(el('span', 'fz-circulo__anel'))
+    if (id) { const bo = Col.obter(id); c.classList.add('fz-circulo--cheio'); c.append(bonecoEm(P.facesDe(bo), alto)); c.title = P.fichaDoBoneco(bo).nome }
+    else c.append(el('span', 'fz-circulo__vazio', String(i + 1)))
+    c.append(el('span', 'fz-circulo__nome', NOME_LUGAR[i]))
+    box.append(c)
   }
-  $('#btnLutar').disabled = S.escolha.length !== 3
-  $('#btnLutar').textContent = S.escolha.length === 3 ? 'Lutar!' : `Falta${3 - S.escolha.length > 1 ? 'm' : ''} ${3 - S.escolha.length}`
+  const falta = 3 - S.escolha.length
+  atualizarBotao($('#btnLutar'), { desligado: falta > 0, rotulo: falta > 0 ? 'Lutar' : 'Lutar!', detalhe: falta > 0 ? `Falta${falta > 1 ? 'm' : ''} ${falta}` : null })
 }
 
 function montarListaLivre() {
@@ -123,6 +147,8 @@ function montarListaLivre() {
 }
 
 function montarInicio() {
+  const lutar = criarBotao({ rotulo: 'Lutar', variante: 'principal', desligado: true }); lutar.id = 'btnLutar'
+  $('#btnLutar').replaceWith(lutar)
   montarListaLivre()
   for (const r of document.querySelectorAll('input[name=robo]')) r.addEventListener('change', () => { S.robo = r.value })
   $('#btnLutar').addEventListener('click', () => { if (S.escolha.length === 3) iniciarLuta() })
@@ -146,6 +172,65 @@ function colarEAssistir() {
   } catch (e) { msg.textContent = e.message; msg.classList.add('erro') }
 }
 
+// ------------------------------------------------------------------ peças da luta (montadas uma vez)
+const formatoDaJanela = () => (window.innerWidth >= 640 ? 'pc' : 'celular')
+
+function montarPecasDaLuta() {
+  // topo: turno numa etiqueta, aviso da Tesoura, fio do tempo
+  H.turno = el('b', 'fz-luta__turno-numero', '1')
+  $('#tTurno').append(el('span', 'fz-luta__turno-rotulo', 'Turno'), H.turno, el('span', 'fz-luta__turno-rotulo', `de ${P.REGRAS.turnoFinal}`), pesponto({ recuo: 3, raio: 4 }))
+  H.tesoura = el('span', null, '')
+  $('#tTesoura').append(ICONES.tesoura(), H.tesoura)
+  H.fio = criarFioDoTempo({ total: P.TEMPO_DO_TURNO_S, alerta: 5 })
+  H.fio.aoAcabar(() => { Som.parar('tempoAcabando'); aviso('Tempo! No protótipo o relógio só avisa.', 'alerta') })
+  $('#tRelogio').append(H.fio.el)
+  // rival: Linha, mão e baralho
+  H.linhaRival = criarCarreteis({ maximo: P.REGRAS.linhaMaxima, rotulo: 'Linha do rival', compacto: true })
+  H.maoRival = criarContador({ icone: 'mao', rotulo: 'Cartas na mão do rival' })
+  H.baralhoRival = criarContador({ icone: 'baralho', rotulo: 'Cartas no baralho do rival' })
+  H.nomeRival = el('b', 'fz-luta__nome', 'Rival')
+  $('#banda').append(H.nomeRival, H.linhaRival.el, H.maoRival.el, H.baralhoRival.el)
+  // bastidor (roda dos tecidos)
+  H.bastidor = criarBastidor({ tipos: P.TIPOS, nomes: P.NOMES_DOS_TIPOS, pares: PARES, texto: TEXTO_DA_RODA })
+  $('#roda').append(H.bastidor.el)
+  // minha Linha e baralho
+  H.linha = criarCarreteis({ maximo: P.REGRAS.linhaMaxima, rotulo: 'Linha' })
+  H.baralho = criarContador({ icone: 'baralho', rotulo: 'Cartas no seu baralho' })
+  $('#blEu').append(H.linha.el, H.baralho.el)
+  // a mão em leque
+  H.mao = criarMao($('#mao'), { baralho: H.baralho.el, palco: $('#luta'), nomeDoTipo: (t) => P.NOMES_DOS_TIPOS[t], rotulo: 'Sua mão' })
+  H.mao.aoEscolher(({ id, acao }) => aoTocarCarta(id, acao))
+  // botões-retalho
+  H.trocar = criarBotao({ rotulo: 'Trocar lugares', detalhe: `${P.REGRAS.custoDaTroca} de Linha`, variante: 'secundario', atalho: 'T' }); H.trocar.id = 'btnTrocar'
+  H.passar = criarBotao({ rotulo: 'Passar', variante: 'principal', atalho: 'Espaço' }); H.passar.id = 'btnPassar'
+  $('#botoes').append(H.trocar, H.passar)
+  // avisos: etiquetas presas com alfinete
+  H.etiquetas = criarEtiquetas($('#toast'))
+  // fim da luta: botões
+  H.fimBotoes = {
+    proxima: criarBotao({ rotulo: 'Próxima fase', variante: 'principal' }),
+    revanche: criarBotao({ rotulo: 'Revanche', variante: 'principal', atalho: 'Enter' }),
+    trocarTime: criarBotao({ rotulo: 'Trocar time', variante: 'secundario' }),
+    rever: criarBotao({ rotulo: 'Rever', variante: 'secundario', icone: ICONES.rolo() }),
+    copiar: criarBotao({ rotulo: 'Copiar replay', variante: 'secundario' }),
+  }
+  const ids = { proxima: 'btnProxima', revanche: 'btnRevanche', trocarTime: 'btnTrocarTime', rever: 'btnRever', copiar: 'btnCopiar' }
+  for (const [k, b] of Object.entries(H.fimBotoes)) { b.id = ids[k]; $('#fimBotoes').append(b) }
+  H.fimExtra = el('p', 'fz-fim__extra'); $('#fimMotivo').after(H.fimExtra)
+  aplicarFormato()
+}
+
+/** PC (≥ 640 px) ou celular: muda o tamanho das peças e onde mora o bastidor. */
+function aplicarFormato() {
+  const f = formatoDaJanela()
+  if ($('#luta').dataset.formato === f) return
+  $('#luta').dataset.formato = f; $('#fim').dataset.formato = f
+  const roda = $('#roda')
+  if (f === 'pc') { $('#arenaBox').append(roda); H.bastidor.el.dataset.lado = 'baixo' }
+  else { $('#blEu').append(roda); H.bastidor.el.dataset.lado = 'cima' }
+  requestAnimationFrame(() => H.bastidor.medir?.())
+}
+
 // ------------------------------------------------------------------ LUTA: começo
 const roboEscolhido = () => document.querySelector('input[name=robo]:checked')?.value ?? 'planejador'
 /** opc: { modo: 'livre'|'aventura', fase, idsA (ids da coleção), timeA/timeB (definições, na revanche), semente, robo } */
@@ -166,17 +251,26 @@ async function iniciarLuta(opc = {}) {
 
 async function abrirLuta(estado) {
   fecharTudo()
-  S.estado = estado; S.travado = true; S.sel = null; S.modoTroca = null
+  S.estado = estado; S.travado = true; S.sel = null; S.modoTroca = null; S.alvoFoco = null
   S.stats = { maior: null, viradas: 0, lider: 0, fios: 0 }
-  S.golpes = {}; S.heroi = null; S.registrado = false; S.combo = 0; S.comboVez = null
-  arena.comIntencao = S.modo === 'aventura' && !S.replay; arena.setIntencao(null); arena.medir()
-  S.maoAnterior = new Set(); S.vezAnterior = null
+  S.golpes = {}; S.heroi = null; S.registrado = false; S.combo = 0; S.comboVez = null; S.turnoMostrado = 0
+  dadosDe.clear()
+  arena.comIntencao = S.modo === 'aventura' && !S.replay; arena.setIntencao(null)
+  S.vezAnterior = null
   mostrar('luta')
   $('#btnParar').hidden = !S.replay
   document.body.classList.toggle('replay', S.replay)
+  H.nomeRival.textContent = 'Rival'
+  H.nomeRival.title = S.replay ? 'Rival' : `Rival: ${NOME_ROBO[S.robo] ?? ''}`
+  H.etiquetas.limpar()
   const v = P.visao(estado)
-  arena.sync(v); arena.marcar({})
+  arena.recomecar(); arena.medir(); arena.sync(v); arena.marcar({})
+  H.mao.definir([])
+  renderTopo(v); renderHud(v)
+  await arena.preparar() // assa o ateliê e os bonecos em fatias, antes da música da luta e da faixa de vez
+  await new Promise((ok) => setTimeout(ok, 0)) // a mão (cartas com desenho) nasce noutra tarefa, não junto do último boneco
   renderTudo()
+  musica('luta')
   await esperar(250)
 }
 
@@ -187,7 +281,7 @@ async function seguirTurnos() {
   if (e.fim) { await fimDaLuta(); return }
   if (S.vezAnterior !== e.vez) {
     S.vezAnterior = e.vez
-    await bannerTurno(e.vez === P.EU ? 'Sua vez' : 'Vez do rival')
+    await faixaDeVez(e.vez === P.EU ? 'Sua vez' : 'Vez do rival', e.vez === P.EU ? 'eu' : 'rival')
   }
   if (S.replay) return // o replay manda os próprios comandos
   if (e.vez === P.RIVAL) await turnoDoRobo()
@@ -216,18 +310,22 @@ async function turnoDoRobo() {
 // ------------------------------------------------------------------ executar um comando (jogador, robô ou replay)
 async function executar(cmd, quem) {
   const r = P.enviar(S.estado, cmd)
-  if (!r.ok) { if (quem === 'voce') aviso(r.motivo); return false }
+  if (!r.ok) { if (quem === 'voce') aviso(r.motivo, 'recusa'); return false }
   S.travado = true; pararRelogio(); limparSelecao(false)
   const estadoAntes = S.estado
   const evCarta = r.eventos.find((e) => e.t === 'carta')
-  if (evCarta) { Som.cartaJogada(); contarCombo(quem, estadoAntes); await bannerCarta(evCarta, quem, estadoAntes, cmd) }
-  else if (cmd.tipo === 'passar') await bannerCurto(quem === 'rival' ? 'Rival passou' : 'Você passou', 420)
-  else if (cmd.tipo === 'trocar') await bannerCurto(quem === 'rival' ? 'Rival trocou de lugar' : 'Troca de lugar', 420)
-  else if (cmd.tipo === 'fiapo') await bannerCurto(quem === 'rival' ? 'Rival descartou um fiapo' : 'Fiapo descartado', 420)
+  if (evCarta) { Som.cartaJogada(quem === 'rival' ? 'B' : 'A'); contarCombo(quem, estadoAntes); await cartaJogada(evCarta, quem, estadoAntes, cmd) }
+  else if (cmd.tipo === 'passar') await faixaDeVez(quem === 'rival' ? 'Rival passou' : 'Você passou', 'aviso', 420)
+  else if (cmd.tipo === 'trocar') await faixaDeVez(quem === 'rival' ? 'Rival trocou de lugar' : 'Troca de lugar', 'aviso', 420)
+  else if (cmd.tipo === 'fiapo') { Som.tocar('fiapo'); if (quem !== 'rival') await H.mao.descartar(cmd.carta); else await faixaDeVez('Rival descartou um fiapo', 'aviso', 420) }
   S.estado = r.estado
   const vista = P.visao(S.estado)
   colherResumo(r.eventos, vista)
-  if (r.eventos.some((e) => e.t === 'dano' && (e.critico || e.valor >= GOLPE_FORTE))) await new Promise((ok) => setTimeout(ok, 80 * S.vel)) // pausa de impacto (60–90 ms)
+  for (const ev of r.eventos) { // sons que não são de boneco (os de boneco a arena toca no instante do golpe)
+    if (ev.t === 'compra' && ev.time === P.EU) Som.tocar('comprarCarta')
+    if (ev.t === 'linha' && ev.time === P.EU) Som.tocar('linhaGanha')
+  }
+  if (r.eventos.some((e) => e.t === 'dano' && (e.critico || e.valor >= 100))) await new Promise((ok) => setTimeout(ok, 80 * S.vel)) // pausa de impacto (60–90 ms)
   const dur = arena.passo(vista, r.eventos)
   renderTudo()
   await new Promise((ok) => setTimeout(ok, dur + 60 * S.vel))
@@ -240,7 +338,7 @@ function colherResumo(eventos, vista) {
   for (const ev of eventos) {
     if (ev.t === 'dano' && (!S.stats.maior || ev.valor > S.stats.maior.valor)) S.stats.maior = { valor: ev.valor, critico: ev.critico, de: ev.de ? vista.bonecos[ev.de]?.nome : null, carta: ev.carta ? P.CARTAS[ev.carta].nome : null, alvo: vista.bonecos[ev.alvo]?.nome, time: ev.de ? vista.bonecos[ev.de]?.time : null }
     if (ev.t === 'ultimoFio') S.stats.fios++
-    if (ev.t === 'dano' && ev.de) { S.golpes[ev.de] = Math.max(S.golpes[ev.de] ?? 0, ev.valor); if (ev.de.startsWith(P.EU)) S.heroi = ev.de }
+    if (ev.t === 'dano' && ev.de) { S.golpes[ev.de] = Math.max(S.golpes[ev.de] ?? 0, ev.valor); S.ultimoGolpe = ev.de; if (ev.de.startsWith(P.EU)) S.heroi = ev.de }
   }
   // quem está na frente em vida (soma de vida/vidaMax dos bonecos de pé): conta as viradas
   const pct = (t) => vista.times[t].lugares.reduce((s, id) => { const b = vista.bonecos[id]; return s + (b.estado === 'vivo' ? b.vida / b.vidaMax : 0) }, 0)
@@ -252,26 +350,30 @@ function colherResumo(eventos, vista) {
 const minhaVez = () => !S.travado && !S.replay && S.estado && !S.estado.fim && S.estado.vez === P.EU
 
 function limparSelecao(render = true) {
-  S.sel = null; S.modoTroca = null
-  arena.marcar({}); $('#btnTrocar').classList.remove('on')
-  if (render) { renderMao(); atualizarInfo(); atualizarRoda() }
+  S.sel = null; S.modoTroca = null; S.alvoFoco = null
+  arena.marcar({})
+  if (render) { renderMao(); atualizarInfo(); atualizarBastidor(); atualizarBotao(H.trocar, { aceso: false }) }
 }
 
-function aoTocarCarta(cid) {
-  if (!minhaVez()) { if (!S.replay) aviso(S.estado.vez === P.RIVAL ? 'Espere: é a vez do rival.' : 'Agora não.'); return }
-  S.modoTroca = null; $('#btnTrocar').classList.remove('on')
+/** acao: 'escolher' (clique, tecla) ou 'jogar' (botão Jogar da carta ampliada, no toque). */
+function aoTocarCarta(cid, acao = 'escolher') {
+  if (!minhaVez()) { if (!S.replay) aviso(S.estado?.vez === P.RIVAL ? 'Espere: é a vez do rival.' : 'Agora não.'); return }
+  S.modoTroca = null; atualizarBotao(H.trocar, { aceso: false })
   const v = P.visao(S.estado)
   if (P.podeFiapo(S.estado, cid)) { executar({ tipo: 'fiapo', time: P.EU, carta: cid }, 'voce').then(() => seguirTurnos()); return }
   const jog = P.jogadasDaCarta(S.estado, cid)
-  if (!jog.length) { aviso(P.motivoDaRecusa(S.estado, cid) || 'Essa carta não pode agora.'); return }
-  if (S.sel === cid) { // segundo toque na mesma carta: joga, se só há um jeito
+  if (!jog.length) { Som.tocar('semLinha'); aviso(P.motivoDaRecusa(S.estado, cid) || 'Essa carta não pode agora.', 'recusa'); return }
+  if (S.sel === cid || acao === 'jogar') { // segundo toque na mesma carta (ou Jogar): joga, se só há um jeito
     if (jog.length === 1) return jogarCom(jog[0])
-    S.sel = null; limparSelecao(); return
+    if (S.sel === cid && acao !== 'jogar') { limparSelecao(); return }
   }
   S.sel = cid
+  Som.tocar('escolherCarta')
   const { alvos, vant } = alvosDaSelecao(v, cid, jog)
+  S.alvoFoco = null
   arena.marcar({ alvos, usuario: v.cartas[cid].dono, vantagem: vant })
-  renderMao(); atualizarInfo(); atualizarRoda()
+  renderMao(); atualizarInfo(); atualizarBastidor()
+  aviso(`${P.CARTAS[v.cartas[cid].carta].nome}: toque no alvo aceso.`)
 }
 
 /** Quem acende para a carta selecionada (a lista de alvos vem do motor; só decidimos o que desenhar). */
@@ -295,7 +397,7 @@ function aoTocarBoneco(id) {
       const cmd = jog.find((j) => j.alvo === id) ?? (jog.every((j) => j.alvo == null) ? jog[0] : null)
       if (cmd) return jogarCom(cmd)
     }
-    aviso('Esse alvo não vale para essa carta.'); return
+    aviso('Esse alvo não vale para essa carta.', 'recusa'); return
   }
   abrirFicha(id)
 }
@@ -306,23 +408,24 @@ function iniciarTroca() {
   if (!minhaVez()) return
   if (S.modoTroca) return limparSelecao()
   const t = P.trocasPossiveis(S.estado)
-  if (!t.length) { const r = P.enviar(S.estado, { tipo: 'trocar', time: P.EU, a: S.estado.times.A.lugares[0], b: S.estado.times.A.lugares[1] }); aviso(r.ok ? 'Sem troca possível.' : r.motivo); return }
+  if (!t.length) { const r = P.enviar(S.estado, { tipo: 'trocar', time: P.EU, a: S.estado.times.A.lugares[0], b: S.estado.times.A.lugares[1] }); aviso(r.ok ? 'Sem troca possível.' : r.motivo, 'recusa'); return }
   S.sel = null; S.modoTroca = { a: null }
   const ids = new Set(); t.forEach((c) => { ids.add(c.a); ids.add(c.b) })
-  arena.marcar({ alvos: [...ids] }); $('#btnTrocar').classList.add('on'); renderMao(); atualizarInfo('Toque em dois bonecos seus para trocar de lugar.'); atualizarRoda()
+  arena.marcar({ alvos: [...ids] }); atualizarBotao(H.trocar, { aceso: true }); renderMao(); atualizarBastidor()
+  atualizarInfo('Toque em dois bonecos seus para trocar de lugar.'); aviso('Toque em dois bonecos seus para trocar de lugar.')
 }
 function tocarTroca(id, v) {
   const m = S.modoTroca
-  if (v.bonecos[id].time !== P.EU) { aviso('Troque só bonecos do seu time.'); return }
+  if (v.bonecos[id].time !== P.EU) { aviso('Troque só bonecos do seu time.', 'recusa'); return }
   if (!m.a) {
     m.a = id
     const par = P.trocasPossiveis(S.estado).filter((c) => c.a === id || c.b === id).map((c) => (c.a === id ? c.b : c.a))
-    if (!par.length) { m.a = null; aviso('Esse não tem com quem trocar.'); return }
+    if (!par.length) { m.a = null; aviso('Esse não tem com quem trocar.', 'recusa'); return }
     arena.marcar({ alvos: par, troca: id }); atualizarInfo(`Trocar ${v.bonecos[id].nome} com quem?`); return
   }
-  if (id === m.a) { m.a = null; iniciarTroca(); limparSelecao(); return }
+  if (id === m.a) { m.a = null; limparSelecao(); return }
   const cmd = P.trocasPossiveis(S.estado).find((c) => (c.a === m.a && c.b === id) || (c.b === m.a && c.a === id))
-  if (!cmd) { aviso('Essa troca não vale.'); return }
+  if (!cmd) { aviso('Essa troca não vale.', 'recusa'); return }
   jogarCom(cmd)
 }
 
@@ -333,133 +436,127 @@ async function passar() {
   if (ok) await seguirTurnos()
 }
 
+/** Teclado (guia §9): Espaço passa, T troca, setas escolhem o alvo, Enter joga (1–7 escolhe a carta: a mão cuida). */
+function teclaDaLuta(e) {
+  if ($('#luta').hidden || !$('#fim').hidden || !$('#fichaModal').hidden || document.querySelector('.fz-lupa')) return
+  if (e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName ?? '')) return
+  if (e.key === ' ' && e.target?.tagName !== 'BUTTON') { e.preventDefault(); passar() }
+  else if (e.key === 't' || e.key === 'T') { e.preventDefault(); iniciarTroca() }
+  else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') && S.sel && minhaVez()) {
+    e.preventDefault()
+    const v = P.visao(S.estado), jog = P.jogadasDaCarta(S.estado, S.sel), { alvos, vant } = alvosDaSelecao(v, S.sel, jog)
+    if (!alvos.length) return
+    const i = alvos.indexOf(S.alvoFoco), passo = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1
+    S.alvoFoco = alvos[(i + passo + alvos.length) % alvos.length]
+    arena.marcar({ alvos: [S.alvoFoco], usuario: v.cartas[S.sel].dono, vantagem: vant.filter((x) => x === S.alvoFoco) })
+    atualizarInfo(`Alvo: ${v.bonecos[S.alvoFoco].nome}. Enter joga.`)
+  } else if (e.key === 'Enter' && S.sel && minhaVez() && e.target?.tagName !== 'BUTTON') {
+    e.preventDefault()
+    const jog = P.jogadasDaCarta(S.estado, S.sel)
+    const cmd = S.alvoFoco ? jog.find((j) => j.alvo === S.alvoFoco) : jog.length === 1 ? jog[0] : null
+    if (cmd) jogarCom(cmd)
+  }
+}
+
 // ------------------------------------------------------------------ desenho da interface
 function renderTudo() {
   if (!S.estado) return
   const v = P.visao(S.estado)
-  renderTopo(v); renderBanda(v); renderMao(); atualizarInfo(); atualizarRoda(); atualizarIntencao(v)
-  $('#btnPassar').disabled = !minhaVez(); $('#btnTrocar').disabled = !minhaVez()
+  renderTopo(v); renderHud(v); renderMao(v); atualizarInfo(); atualizarBastidor(v); atualizarIntencao(v); renderMesa(v)
+  atualizarBotao(H.passar, { desligado: !minhaVez() }); atualizarBotao(H.trocar, { desligado: !minhaVez(), aceso: !!S.modoTroca })
 }
 
 function renderTopo(v) {
-  $('#tTurno').textContent = `Turno ${v.turno}/${P.REGRAS.turnoFinal}`
-  const vez = $('#tVez'); vez.textContent = v.fim ? 'Fim' : v.vez === P.EU ? 'Sua vez' : 'Vez do rival'
-  vez.classList.toggle('meu', v.vez === P.EU && !v.fim); vez.classList.toggle('rival', v.vez === P.RIVAL && !v.fim)
-  const ts = $('#tTesoura'), ini = P.REGRAS.tesouraInicio
-  const corte = Math.round(P.REGRAS.tesouraCorte * 100)
-  if (v.turno >= ini) { ts.dataset.l = ` Tesoura cortando ${corte}% por turno`; ts.textContent = `✂ −${corte}%`; ts.className = 't-tesoura chip alerta'; ts.title = `A Tesoura corta ${corte}% da vida máxima de todos a cada turno` }
-  else if (v.turno === ini - 1) { ts.dataset.l = ` Tesoura no próximo turno (${ini})`; ts.textContent = `✂ ${ini}!`; ts.title = `A Tesoura começa no próximo turno (turno ${ini})`; ts.className = 't-tesoura chip aviso' }
-  else { ts.dataset.l = ` Tesoura começa no turno ${ini}`; ts.textContent = `✂ ${ini}`; ts.title = `A Tesoura começa a cortar ${corte}% no turno ${ini}`; ts.className = 't-tesoura chip' }
-}
-
-function pips(n, max) {
-  const w = el('span', 'pips'); w.setAttribute('aria-label', `Linha ${n} de ${max}`)
-  for (let i = 0; i < max; i++) w.append(el('i', i < n ? 'on' : ''))
-  return w
-}
-function linhaBanda(box, nome, time, v, quem) {
-  const t = v.times[time]; box.replaceChildren()
-  const n = el('b', 'bl-nome', nome); box.append(n)
-  const linha = el('span', 'bl-linha'); linha.append(el('small', null, 'Linha'), pips(t.linha, P.REGRAS.linhaMaxima), el('strong', null, String(t.linha)))
-  box.append(linha)
-  const cartas = time === P.EU ? t.mao.length : t.mao
-  const c = el('span', 'bl-cartas', null); c.title = 'Cartas na mão'
-  const leque = el('span', 'verso-leque'); for (let i = 0; i < Math.min(4, cartas); i++) leque.append(el('i')); c.append(leque, el('strong', null, String(cartas)))
-  const dk = el('span', 'bl-baralho', null); dk.title = 'Baralho / descarte'; dk.append(el('small', null, 'baralho '), el('strong', null, String(t.baralho)))
-  box.append(c, dk)
-}
-function renderBanda(v) {
-  linhaBanda($('#blRival'), 'RIVAL · ' + NOME_ROBO[S.robo], P.RIVAL, v)
-  linhaBanda($('#blEu'), 'VOCÊ', P.EU, v)
-}
-
-function cartaEl(inst, v, opc = {}) {
-  const info = P.infoDaCarta(inst.carta), dono = v.bonecos[inst.dono]
-  const b = el(opc.tag ?? 'button', 'carta'); if (b.tagName === 'BUTTON') b.type = 'button'
-  b.dataset.tipo = info.tipo
-  const fx = el('div', 'c-faixa'); fx.style.backgroundImage = `url(${faixaDoTipo(info.tipo)})`
-  fx.append(el('span', 'c-custo', String(info.linha)))
-  const mini = miniatura(dono.partes, 56), mc = el('canvas', 'c-dono'); mc.width = mc.height = 56; mc.getContext('2d').drawImage(mini, 0, 0); mc.title = dono.nome
-  fx.append(mc)
-  b.append(fx)
-  b.append(el('div', 'c-nome', info.nome))
-  b.append(el('div', 'c-texto', info.texto))
-  const rod = el('div', 'c-rodape'); rod.append(iconeTipo(info.tipo, 12), el('span', null, ({ cabeca: 'Cabeça', bracos: 'Braços', pernas: 'Pernas' })[info.parte])); b.append(rod)
-  return { b, info, dono }
-}
-
-function renderMao() {
-  const v = P.visao(S.estado), box = $('#mao'), mao = v.times.A.mao
-  const novas = new Set(mao)
-  box.replaceChildren()
-  const rivais = v.times.B.lugares.filter((id) => v.bonecos[id].estado === 'vivo')
-  for (const cid of mao) {
-    const inst = v.cartas[cid], { b, info, dono } = cartaEl(inst, v)
-    b.dataset.cid = cid; b.setAttribute('role', 'listitem')
-    const fiapo = minhaVez() && P.podeFiapo(S.estado, cid)
-    const caido = dono.estado === 'caido'
-    const jog = minhaVez() && !caido ? P.jogadasDaCarta(S.estado, cid) : []
-    if (caido) { b.classList.add('fiapo'); b.append(el('div', 'c-fiapo', 'FIAPO')); b.title = 'Boneco caído: descarte de graça e compre 1.' }
-    else if (!jog.length) b.classList.add('apagada')
-    else if (P.temDano(inst.carta) && rivais.some((id) => P.vantagem(info.tipo, v.bonecos[id].tipo))) { b.classList.add('vant'); b.append(el('div', 'c-vant', '+' + Math.round(P.BONUS_DE_TIPO * 100) + '%')) }
-    if (S.sel === cid) b.classList.add('sel')
-    if (!S.maoAnterior.has(cid) && S.maoAnterior.size) b.classList.add('nova')
-    b.setAttribute('aria-disabled', String(!jog.length && !fiapo))
-    b.addEventListener('click', () => aoTocarCarta(cid))
-    box.append(b)
-    void fiapo
+  H.turno.textContent = String(v.turno)
+  $('#tTurno').setAttribute('aria-label', `Turno ${v.turno} de ${P.REGRAS.turnoFinal}`)
+  const ts = $('#tTesoura'), ini = P.REGRAS.tesouraInicio, corte = Math.round(P.REGRAS.tesouraCorte * 100), pc = $('#luta').dataset.formato === 'pc'
+  let cls = '', txt, dica
+  if (v.turno >= ini) { cls = 'alerta'; txt = pc ? `Tesoura cortando ${corte}%` : `−${corte}%`; dica = `A Tesoura corta ${corte}% da vida máxima de todos a cada turno` }
+  else if (v.turno >= ini - 3) { cls = 'aviso'; txt = pc ? (v.turno === ini - 1 ? 'Tesoura no próximo turno' : `Tesoura no turno ${ini}`) : `${ini}!`; dica = `A Tesoura desce: começa a cortar ${corte}% no turno ${ini}` }
+  else { txt = pc ? `Tesoura no turno ${ini}` : String(ini); dica = `A Tesoura começa a cortar ${corte}% no turno ${ini}` }
+  ts.className = 'fz-luta__tesoura' + (cls ? ' ' + cls : ''); ts.title = dica; ts.setAttribute('aria-label', dica); H.tesoura.textContent = txt
+  // a Tesoura desce um degrau (som) e a música acompanha: luta → Tesoura descendo (6–8) → cortando (9+); Último Fio abafa
+  if (v.turno !== S.turnoMostrado) {
+    if (S.turnoMostrado && v.turno > S.turnoMostrado && v.turno >= ini - 3 && v.turno < ini) Som.tocar('tesouraDesce')
+    S.turnoMostrado = v.turno
   }
-  S.maoAnterior = novas
-  requestAnimationFrame(sinalDeMaisCartas)
-  if (!mao.length) box.append(el('p', 'mao-vazia', 'Mão vazia'))
+  if (!v.fim) {
+    const fio = Object.values(v.bonecos).some((b) => b.estado === 'fio')
+    musica(fio ? 'ultimoFio' : v.turno >= ini ? 'tesouraCortando' : v.turno >= ini - 3 ? 'tesouraDescendo' : 'luta')
+  }
 }
 
-/** Há mais cartas além da borda? Acende a sombra e o "mais ›" (no celular a mão rola na horizontal). */
-function sinalDeMaisCartas() {
-  const mb = $('#maoBox'), w = $('#maoWrap')
-  const dir = mb.scrollWidth - mb.clientWidth - mb.scrollLeft > 4, esq = mb.scrollLeft > 4
-  w.classList.toggle('mais-dir', dir); w.classList.toggle('mais-esq', esq); $('#maoMais').hidden = !dir
+function renderHud(v) {
+  const r = v.times[P.RIVAL], eu = v.times[P.EU]
+  H.linhaRival.definir(r.linha); H.maoRival.definir(r.mao); H.baralhoRival.definir(r.baralho)
+  H.linha.definir(eu.linha); H.baralho.definir(eu.baralho)
+}
+
+function dadosDaCartaNaMao(v, cid) {
+  let d = dadosDe.get(cid)
+  if (!d) { const inst = v.cartas[cid], dono = v.bonecos[inst.dono]; d = dadosDaCarta(inst.carta, { partes: dono.partes, nome: dono.nome }, cid); dadosDe.set(cid, d) }
+  return d
+}
+
+function renderMao(v = P.visao(S.estado)) {
+  const mao = v.times[P.EU].mao, vez = minhaVez()
+  const rivais = v.times[P.RIVAL].lugares.filter((id) => v.bonecos[id].estado === 'vivo')
+  const cartas = mao.map((cid) => {
+    const inst = v.cartas[cid], dono = v.bonecos[inst.dono], dados = dadosDaCartaNaMao(v, cid)
+    if (dono.estado === 'caido' || (vez && P.podeFiapo(S.estado, cid))) return { id: cid, dados, estado: { fiapo: true, fraseDoFiapo: FRASE_DO_FIAPO } }
+    const jog = vez ? P.jogadasDaCarta(S.estado, cid) : []
+    if (jog.length) {
+      const vant = P.temDano(inst.carta) && rivais.some((id) => P.vantagem(P.CARTAS[inst.carta].tipo, v.bonecos[id].tipo))
+      return { id: cid, dados, estado: { jogavel: true, semLinha: false, marca: vant ? BONUS : null } }
+    }
+    const motivo = vez ? P.motivoDaRecusa(S.estado, cid) : 'Espere a sua vez.'
+    const semLinha = vez && P.enviar(S.estado, { tipo: 'jogar', time: P.EU, carta: cid, alvo: null }).codigo === 'LINHA_INSUFICIENTE'
+    return { id: cid, dados, estado: { jogavel: false, semLinha, marca: null }, motivo }
+  })
+  H.mao.definir(cartas)
+  H.mao.selecionar(S.sel)
+  H.mao.vezDoRival(!vez && !S.replay && !S.estado.fim && S.estado.vez === P.RIVAL)
 }
 
 function atualizarInfo(dica) {
-  const box = $('#info'); box.replaceChildren()
-  const v = P.visao(S.estado)
-  if (dica) { box.append(el('span', 'dica', dica)); return }
-  if (S.sel) {
-    const inst = v.cartas[S.sel], i = P.infoDaCarta(inst.carta)
-    const b = el('b', null, i.nome + ' '); box.append(b, el('span', null, i.texto + ' '))
-    const jog = P.jogadasDaCarta(S.estado, S.sel)
-    box.append(el('em', 'dica', jog.length === 1 ? 'Toque no alvo aceso (ou na carta de novo) para jogar.' : 'Toque no alvo aceso.'))
-    return
+  const box = $('#info')
+  let txt = dica ?? ''
+  if (!dica) {
+    const v = P.visao(S.estado)
+    if (S.sel) { const i = P.infoDaCarta(v.cartas[S.sel].carta); txt = `${i.nome}: ${i.texto} Toque no alvo aceso.` }
+    else if (S.replay) txt = 'Assistindo ao replay.'
+    else if (minhaVez()) txt = 'Sua vez: escolha uma carta. Toque num boneco para ver a ficha.'
+    else if (!S.estado.fim) txt = 'O rival está jogando.'
   }
-  if (S.replay) { box.append(el('span', 'dica', 'Assistindo ao replay.')); return }
-  if (minhaVez()) box.append(el('span', 'dica', 'Toque numa carta. Toque num boneco para ver a ficha.'))
-  else if (!S.estado.fim) box.append(el('span', 'dica', 'O rival está jogando…'))
+  if (box.textContent !== txt) box.textContent = txt
 }
 
-function atualizarRoda() {
-  const v = P.visao(S.estado), pares = [], tipos = []
-  const rivais = v.times.B.lugares.filter((id) => v.bonecos[id].estado === 'vivo').map((id) => v.bonecos[id])
-  if (S.sel) {
-    const t = P.CARTAS[v.cartas[S.sel].carta].tipo; tipos.push(t)
-    const jog = P.jogadasDaCarta(S.estado, S.sel), { alvos } = alvosDaSelecao(v, S.sel, jog)
-    if (P.temDano(v.cartas[S.sel].carta)) for (const id of alvos) if (v.bonecos[id].time === P.RIVAL) pares.push([t, v.bonecos[id].tipo])
-  } else if (minhaVez()) {
-    for (const cid of v.times.A.mao) {
-      const i = v.cartas[cid]; if (!i || v.bonecos[i.dono].estado === 'caido') continue
-      if (!P.jogadasDaCarta(S.estado, cid).length) continue
-      if (!P.temDano(i.carta)) continue
-      const t = P.CARTAS[i.carta].tipo
-      for (const r of rivais) pares.push([t, r.tipo])
-    }
+/** Bastidor: acende o tecido da carta escolhida (ou nada). Quem bate em quem vem da ponte (PARES). */
+function atualizarBastidor(v = P.visao(S.estado)) {
+  let tipo = null
+  if (S.sel && P.temDano(v.cartas[S.sel].carta)) tipo = P.CARTAS[v.cartas[S.sel].carta].tipo
+  if (H.tipoAceso !== tipo) { H.tipoAceso = tipo; H.bastidor.acender(tipo) }
+}
+
+/** A mesa (cartas jogadas neste turno, dos dois lados): fica à vista até o fim do turno. Só no PC (no celular a carta do rival já aparece grande). */
+function renderMesa(v) {
+  const box = $('#mesa')
+  const cids = [...(v.times.A.mesa ?? []), ...(v.times.B.mesa ?? [])].filter((cid) => v.cartas[cid]?.carta)
+  const chave = $('#luta').dataset.formato === 'pc' ? cids.join(',') : ''
+  if (box.dataset.chave === chave) return
+  box.dataset.chave = chave; box.replaceChildren()
+  if (!chave) return
+  box.append(el('span', 'fz-mesa__titulo', 'Na mesa'))
+  for (const cid of cids) {
+    const i = P.infoDaCarta(v.cartas[cid].carta), c = el('span', 'fz-mesa__carta')
+    c.style.setProperty('--fz-tecido', corDoTecido(i.tipo).base)
+    c.title = `${v.bonecos[v.cartas[cid].dono]?.time === P.EU ? 'Você' : 'Rival'}: ${i.nome}`
+    c.append(el('b', null, String(i.linha)), el('span', null, i.nome)); box.append(c)
   }
-  roda.definir(pares, tipos)
-  $('#roda').classList.toggle('acesa', roda.acesa)
 }
 
 // ------------------------------------------------------------------ Aventura: o inimigo MOSTRA a próxima intenção
 // Vem de P.intencaoDoRival: o plano do robô para o turno dele como se você passasse AGORA (o robô só lê o estado; crítico pela média).
-// Muda a cada jogada sua. A mão do rival é lida pelo robô (é assim que ele decide), então mostrar a intenção revela o que ele vai fazer.
 const cacheIntencao = new WeakMap()
 const ARTIGO = ['a Frente', 'o Meio', 'o Trás']
 function frasesDaIntencao(itens, v) {
@@ -487,24 +584,19 @@ function atualizarIntencao(v) {
   box.replaceChildren(); box.hidden = false
   box.append(el('b', null, 'O rival '))
   if (!frases.length) box.append('vai passar a vez.')
-  else frases.slice(0, 3).forEach((f, i) => { if (i) box.append(' e '); box.append(f.longo); if (f.dono && f.carta) box.append(el('small', null, ` (${f.carta} de ${v.bonecos[f.dono].nome})`)) })
+  else frases.slice(0, 2).forEach((f, i) => { if (i) box.append(' e '); box.append(f.longo); if (f.dono && f.carta && $('#luta').dataset.formato === 'pc') box.append(el('small', null, ` (${f.carta} de ${v.bonecos[f.dono].nome})`)) })
 }
 
-// ------------------------------------------------------------------ banners e avisos
-let timerToast
-function aviso(txt) {
-  const t = $('#toast'); t.textContent = txt; t.hidden = false; t.classList.remove('some'); void t.offsetWidth; t.classList.add('mostra')
-  clearTimeout(timerToast); timerToast = setTimeout(() => { t.hidden = true; t.classList.remove('mostra') }, 2300)
-  if (TESTE) { window.__frayz.avisos.push(txt) }
+// ------------------------------------------------------------------ faixas, avisos e a carta jogada
+function aviso(txt, tipo = 'aviso') {
+  H.etiquetas.avisar(txt, { tipo })
+  if (TESTE) window.__frayz.avisos.push(txt)
 }
-async function bannerTurno(txt) {
-  const b = $('#bannerTurno'); b.textContent = txt; b.dataset.quem = txt.startsWith('Sua') ? 'eu' : 'rival'; b.hidden = false
-  b.classList.remove('anima'); void b.offsetWidth; b.classList.add('anima')
-  await esperar(650); b.hidden = true
-}
-async function bannerCurto(txt, ms) {
-  const b = $('#bannerTurno'); b.textContent = txt; b.dataset.quem = 'info'; b.hidden = false; b.classList.remove('anima'); void b.offsetWidth; b.classList.add('anima')
-  await esperar(ms); b.hidden = true
+/** A faixa bordada atravessa a cena ("Sua vez" / "Vez do rival" / avisos curtos). */
+async function faixaDeVez(texto, lado, ms = 700) {
+  if (texto === 'Sua vez') Som.tocar('suaVez')
+  const dur = Math.max(160, ms * S.vel * (menos() ? 0.7 : 1))
+  await mostrarFaixa($('#arenaBox'), { texto, lado, duracao: dur })
 }
 /** Combo: cartas do mesmo lado no mesmo turno ("x2", "x3"). */
 function contarCombo(quem, estado) {
@@ -517,50 +609,33 @@ function contarCombo(quem, estado) {
   }
 }
 
-/** A carta que você jogou voa da mão até o alvo (cópia do elemento; "Menos animação" corta o voo). */
-async function cartaVoando(cmd) {
-  const origem = document.querySelector(`#mao .carta[data-cid="${cmd.carta}"]`)
-  const alvoId = cmd.alvo ?? S.estado.times[P.EU].lugares.find((id) => S.estado.bonecos[id].estado === 'vivo')
-  const pos = alvoId && arena.centro(alvoId)
-  if (!origem || !pos || menos() || !origem.animate) return
-  const a = origem.getBoundingClientRect(), cb = $('#arena').getBoundingClientRect()
-  const clone = origem.cloneNode(true); clone.classList.remove('sel', 'vant', 'nova')
-  Object.assign(clone.style, { position: 'fixed', left: a.left + 'px', top: a.top + 'px', width: a.width + 'px', height: a.height + 'px', margin: '0', zIndex: 35, pointerEvents: 'none' })
-  document.body.append(clone)
-  const dx = cb.left + pos.x - (a.left + a.width / 2), dy = cb.top + pos.y - (a.top + a.height / 2)
-  const anim = clone.animate([{ transform: 'translate(0,0) scale(1) rotate(0)', opacity: 1 }, { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 40}px) scale(0.9) rotate(6deg)`, opacity: 1, offset: 0.55 }, { transform: `translate(${dx}px, ${dy}px) scale(0.4) rotate(14deg)`, opacity: 0.2 }], { duration: 420 * Math.max(0.3, S.vel), easing: 'cubic-bezier(.4,0,.6,1)' })
-  await anim.finished.catch(() => {}); clone.remove()
-}
-
-async function bannerCarta(ev, quem, estado, cmd) {
-  if (quem === 'voce' && cmd) { await cartaVoando(cmd); return }
+/** Carta jogada: a sua voa da mão até o alvo; a do rival aparece grande no meio da cena por um instante. */
+async function cartaJogada(ev, quem, estado, cmd) {
   const v = P.visao(estado)
-  const inst = { carta: ev.id, dono: ev.de }
-  const { b } = cartaEl(inst, v, { tag: 'div' })
+  if (quem === 'voce' && cmd && H.mao.cartaEl(cmd.carta)) {
+    const alvoId = cmd.alvo ?? estado.times[P.EU].lugares.find((id) => estado.bonecos[id].estado === 'vivo')
+    const pos = alvoId && arena.centro(alvoId), cb = $('#arena').getBoundingClientRect()
+    await H.mao.voar(cmd.carta, pos ? { x: cb.left + pos.x, y: cb.top + pos.y } : null)
+    return
+  }
+  const dono = v.bonecos[ev.de]
+  const dados = dadosDaCarta(ev.id, dono ? { partes: dono.partes, nome: dono.nome } : null, 'rival-' + ev.carta)
   const box = $('#bannerCarta'); box.replaceChildren()
-  const quemEl = el('div', 'bc-quem', quem === 'rival' ? 'Rival jogou' : 'Você jogou'); box.append(quemEl, b)
-  box.dataset.quem = quem === 'rival' ? 'rival' : 'eu'; box.hidden = false
-  box.classList.remove('anima'); void box.offsetWidth; box.classList.add('anima')
+  const pc = $('#luta').dataset.formato === 'pc'
+  box.append(el('span', 'fz-carta-do-rival__quem', quem === 'rival' ? 'Rival jogou' : 'Jogou'), criarCarta(dados, { variante: pc ? 'mao' : 'mini', largura: pc ? 150 : 96, tag: 'div', nomeDoTipo: P.NOMES_DOS_TIPOS[dados.tipo] }))
+  box.hidden = false
+  if (!menos()) box.animate?.([{ opacity: 0, transform: 'translate(-50%, -40%) scale(0.7) rotate(-6deg)' }, { opacity: 1, transform: 'translate(-50%, -50%) scale(1)' }], { duration: 220, easing: 'cubic-bezier(.2,1.2,.4,1)' })
   await esperar(quem === 'rival' ? 900 : 560)
   box.hidden = true
 }
 
-// ------------------------------------------------------------------ relógio de 20 s (no protótipo só avisa)
+// ------------------------------------------------------------------ relógio do turno: o fio que queima (no protótipo só avisa)
 function iniciarRelogio() {
   pararRelogio()
-  const barra = $('#tBarra'), seg = $('#tSeg'), box = $('#tRelogio')
-  box.classList.remove('estourou')
-  const tick = () => {
-    const falta = P.TEMPO_DO_TURNO_S - (performance.now() - S.inicioTurno) / 1000
-    const f = Math.max(0, falta)
-    barra.style.transform = `scaleX(${f / P.TEMPO_DO_TURNO_S})`
-    seg.textContent = f > 0 ? String(Math.ceil(f)) : '0'
-    box.classList.toggle('pouco', f <= 5 && f > 0)
-    if (f <= 0 && !box.classList.contains('estourou')) { box.classList.add('estourou'); aviso('Tempo! (no protótipo o relógio só avisa)') }
-  }
-  tick(); S.relogio = setInterval(tick, 200)
+  H.fio.iniciar(P.TEMPO_DO_TURNO_S)
+  S.tAlerta = setTimeout(() => { if (minhaVez()) Som.tocar('tempoAcabando') }, (P.TEMPO_DO_TURNO_S - 5) * 1000)
 }
-function pararRelogio() { clearInterval(S.relogio); S.relogio = null; $('#tRelogio').classList.remove('pouco', 'estourou') }
+function pararRelogio() { H.fio?.parar(); clearTimeout(S.tAlerta); Som.parar('tempoAcabando') }
 
 // ------------------------------------------------------------------ ficha do boneco (toque no boneco)
 function abrirFicha(id) {
@@ -591,7 +666,7 @@ function abrirFicha(id) {
   $('#fichaModal').hidden = false; $('#fichaFechar').focus()
 }
 function fecharFicha() { $('#fichaModal').hidden = true }
-function fecharTudo() { fecharFicha(); $('#fim').hidden = true; $('#menu').hidden = true; $('#legenda').hidden = true; pararRelogio(); $('#bannerCarta').hidden = true; $('#bannerTurno').hidden = true }
+function fecharTudo() { fecharFicha(); $('#fim').hidden = true; $('#menu').hidden = true; H.bastidor?.fechar?.(); H.mao?.fecharAmpliada(); pararRelogio(); $('#bannerCarta').hidden = true }
 
 // ------------------------------------------------------------------ fim da luta
 async function fimDaLuta() {
@@ -599,44 +674,73 @@ async function fimDaLuta() {
   const r = P.fim(S.estado)
   S.ultima = { semente: S.semente, timeA: S.timeA, timeB: S.timeB, robo: S.robo, comandos: S.estado.comandos.map((c) => ({ ...c })) }
   const ganhei = r.vencedor === P.EU
-  let extra = null
+  let extra = ''
   if (S.modo === 'aventura' && !S.registrado) { // cada luta da Aventura gasta 1 Ponto de Costura nos 3 bonecos usados (o motor soma)
     S.registrado = true
     Col.registrarLutas(S.idsA, { venceu: ganhei, maiorGolpes: [0, 1, 2].map((i) => S.golpes[`A${i}`] ?? 0) })
     if (ganhei) { Col.venceuFase(S.fase); extra = S.fase >= FASES.length ? 'Aventura completa! O Baú da Costureira está aberto.' : `Fase ${S.fase + 1} liberada.` }
     else extra = 'Perdeu: a fase continua liberada para tentar de novo.'
-  }
+  } else if (S.modo === 'aventura') extra = ganhei ? 'Fase vencida.' : 'A fase continua liberada.'
+  arena.comemorar(r.vencedor)
   await esperar(700)
   if (ganhei) Som.vitoria(); else Som.derrota()
-  const t = $('#fimTitulo'); t.textContent = ganhei ? 'Vitória!' : 'Derrota'; $('#fim').dataset.res = ganhei ? 'v' : 'd'
-  $('#fimMotivo').textContent = MOTIVO_FIM[r.motivo] ?? ''
-  const ul = $('#fimResumo'); ul.replaceChildren()
-  const add = (k, val) => { const li = el('li'); li.append(el('span', null, k), el('b', null, val)); ul.append(li) }
-  if (S.modo === 'aventura') add(`Fase ${S.fase}`, FASES[S.fase - 1].nome)
-  add('Turnos', String(r.turno))
-  const m = S.stats.maior
-  add('Maior golpe', m ? `${m.valor}${m.critico ? ' (crítico)' : ''}${m.carta ? ' · ' + m.carta : ''}${m.time ? (m.time === P.EU ? ' · seu' : ' · do rival') : ''}` : '—')
-  add('Viradas na frente', String(S.stats.viradas))
-  add('Vida que sobrou', `você ${Math.round(r.pct.A * 100 / 3)}% · rival ${Math.round(r.pct.B * 100 / 3)}%`)
-  if (extra) add('Aventura', extra)
-  // destaque do boneco que deu o golpe final (vitória)
-  const hb = $('#fimHeroi'); hb.replaceChildren(); hb.hidden = true
-  if (ganhei && S.heroi && S.estado.bonecos[S.heroi]) {
-    const bo = S.estado.bonecos[S.heroi], cv = el('canvas'); desenharBonecoEm(cv, bo.partes, 'vivo', 78); const ht = el('div', 'fim-heroi-txt'); ht.append(el('small', null, 'Golpe final'), el('b', null, bo.nome)); hb.append(cv, ht); hb.hidden = false
-  }
-  const av = S.modo === 'aventura'
-  $('#btnProxima').hidden = !(av && ganhei && S.fase < FASES.length); $('#btnProxima').textContent = av ? `Fase ${(S.fase ?? 0) + 1}` : 'Próxima fase'
-  $('#btnTrocarTime').textContent = av ? 'Voltar ao mapa' : 'Trocar time'
-  $('#replaySaida').value = P.exportarReplay(S.ultima)
+  montarFim(r, ganhei, extra)
+  S.textoReplay = P.exportarReplay(S.ultima)
   $('#copiaMsg').textContent = ''
-  $('#fim').hidden = false; $('#btnRevanche').focus()
-  if (!menos() && ganhei) for (let i = 0; i < 3; i++) arena.soltar(arena.W * (0.2 + 0.3 * i), arena.H * 0.4, 14, 'enchimento')
+  $('#fim').hidden = false; H.fimBotoes.revanche.hidden || H.fimBotoes.proxima.hidden ? H.fimBotoes.revanche.focus() : H.fimBotoes.proxima.focus()
+  if (!menos() && ganhei) for (let i = 0; i < 3; i++) arena.soltar(arena.W * (0.25 + 0.25 * i), arena.H * 0.4, 12)
+}
+
+/** A folha do fim: o boneco do golpe final em destaque, o título bordado, 3 números com ícone e os botões. Nada de texto cru do replay. */
+function montarFim(r, ganhei, extra) {
+  const fim = $('#fim'), v = P.visao(S.estado), pc = fim.dataset.formato === 'pc', av = S.modo === 'aventura'
+  fim.classList.toggle('fz-fim--vitoria', ganhei); fim.classList.toggle('fz-fim--derrota', !ganhei); fim.dataset.res = ganhei ? 'v' : 'd'
+  // o boneco do golpe final (do time que venceu)
+  const idFinal = S.ultimoGolpe && v.bonecos[S.ultimoGolpe]?.time === r.vencedor ? S.ultimoGolpe : (ganhei && S.heroi) || v.times[r.vencedor].lugares.find((id) => v.bonecos[id].estado !== 'caido') || v.times[r.vencedor].lugares[0]
+  const heroi = v.bonecos[idFinal]
+  const palco = $('#fimHeroi'); palco.replaceChildren(el('span', 'fz-fim__luz'))
+  palco.append(bonecoEm(heroi.partes, pc ? 230 : 120, ganhei ? 'vitoria' : 'vivo'))
+  const leg = el('p', 'fz-fim__heroi'); leg.append(el('span', null, 'Golpe final: '), el('b', null, heroi.nome + (ganhei ? '' : ' (rival)'))); palco.append(leg)
+  palco.hidden = false
+  // título bordado letra a letra (a derrota desfia)
+  const titulo = $('#fimTitulo'), texto = ganhei ? 'Vitória!' : 'Derrota'
+  titulo.replaceChildren(); titulo.setAttribute('aria-label', texto)
+  ;[...texto].forEach((ch, i) => { const s = el('span', 'fz-fim__letra', ch); s.dataset.l = ch; s.style.setProperty('--i', String(i)); s.setAttribute('aria-hidden', 'true'); titulo.append(s) })
+  if (!ganhei) titulo.append(svg('svg', { class: 'fz-fim__fios', viewBox: '0 0 200 40', preserveAspectRatio: 'none', 'aria-hidden': 'true', focusable: 'false' }, [svg('path', { d: 'M22 0 q-6 14 2 26 M61 0 q5 10 -3 20 M97 0 q-4 16 4 34 M128 0 q6 8 0 16 M163 0 q-7 12 3 30 M186 0 q3 9 -2 14' })]))
+  $('#fimMotivo').textContent = (av ? `Fase ${S.fase}: ${FASES[S.fase - 1].nome}. ` : '') + (MOTIVO_FIM[r.motivo] ?? '')
+  H.fimExtra.textContent = extra
+  // 3 números com ícone + a vida que sobrou
+  const ul = $('#fimResumo'); ul.replaceChildren()
+  const m = S.stats.maior
+  for (const [ic, valor, nome, dica] of [
+    [ICONES.tesoura(), r.turno, 'Turnos', `A luta durou ${r.turno} turnos`],
+    [ICONES.agulha(), m ? m.valor : '—', 'Maior golpe', m ? `${m.carta ?? 'Golpe'}${m.critico ? ' (crítico)' : ''}${m.time ? (m.time === P.EU ? ', seu' : ', do rival') : ''}` : 'Maior golpe da luta'],
+    [ICONES.viradas(), S.stats.viradas, 'Viradas', 'Quantas vezes a frente mudou de lado'],
+  ]) { const li = el('li', 'fz-fim__numero'); li.title = dica; li.append(pesponto({ recuo: 4, raio: 40 }), ic, el('b', null, String(valor)), el('span', null, nome)); ul.append(li) }
+  const vida = el('li', 'fz-fim__vida'); vida.append('Vida que sobrou: você ', el('b', null, `${Math.round((r.pct.A * 100) / 3)}%`), ' · rival ', el('b', null, `${Math.round((r.pct.B * 100) / 3)}%`)); ul.append(vida)
+  // botões
+  const B = H.fimBotoes
+  B.proxima.hidden = !(av && ganhei && S.fase < FASES.length); atualizarBotao(B.proxima, { rotulo: `Fase ${(S.fase ?? 0) + 1}` })
+  atualizarBotao(B.trocarTime, { rotulo: av ? 'Voltar ao mapa' : 'Trocar time' })
+  B.revanche.classList.toggle('fz-botao--principal', B.proxima.hidden); B.revanche.classList.toggle('fz-botao--secundario', !B.proxima.hidden)
+  // festa: varal de retalhos dos 6 tecidos
+  fim.querySelector('.fz-fim__varal')?.remove()
+  if (ganhei) {
+    const varal = el('div', 'fz-fim__varal'); varal.setAttribute('aria-hidden', 'true')
+    for (let i = 0; i < (pc ? 13 : 7); i++) { const b = el('i'); b.style.setProperty('--giro', ((i * 37) % 9) - 4 + 'deg'); varal.append(b) }
+    arte.pronta.then(() => [...varal.children].forEach((b, i) => { b.style.backgroundImage = `url(${urlDoTecido(P.TIPOS[i % P.TIPOS.length], Math.round(48 * Math.min(2, window.devicePixelRatio || 1)))})` }))
+    fim.querySelector('.fz-fim__folha').append(varal)
+  }
 }
 
 async function copiarReplay() {
-  const txt = $('#replaySaida').value, msg = $('#copiaMsg')
+  const txt = S.textoReplay, msg = $('#copiaMsg')
   try { await navigator.clipboard.writeText(txt); msg.textContent = 'Replay copiado.' }
-  catch { const ta = $('#replaySaida'); ta.focus(); ta.select(); let ok = false; try { ok = document.execCommand('copy') } catch { /* ok */ } msg.textContent = ok ? 'Replay copiado.' : 'Selecionei o texto: use Ctrl+C.' }
+  catch { // reserva: uma caixa invisível só pelo instante da cópia (o texto cru nunca aparece na tela)
+    const ta = el('textarea'); ta.value = txt; ta.setAttribute('readonly', ''); Object.assign(ta.style, { position: 'fixed', left: '-9999px', top: '0', opacity: '0' })
+    document.body.append(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy') } catch { /* ok */ } ta.remove()
+    msg.textContent = ok ? 'Replay copiado.' : 'Não deu para copiar aqui.'
+  }
 }
 
 // ------------------------------------------------------------------ replay (refaz a luta pelos comandos)
@@ -647,12 +751,12 @@ async function assistir() {
   await abrirLuta(P.novaLuta({ semente: r.semente, timeA: r.timeA, timeB: r.timeB }))
   S.registrado = true // rever não gasta remendo
   S.vezAnterior = null
-  await bannerCurto('Replay', 600)
+  await faixaDeVez('Replay', 'aviso', 600)
   for (const c of r.comandos) {
     if (S.parar) break
-    if (S.vezAnterior !== S.estado.vez) { S.vezAnterior = S.estado.vez; await bannerTurno(S.estado.vez === P.EU ? 'Vez de quem lutou' : 'Vez do rival') }
+    if (S.vezAnterior !== S.estado.vez) { S.vezAnterior = S.estado.vez; await faixaDeVez(S.estado.vez === P.EU ? 'Vez de quem lutou' : 'Vez do rival', S.estado.vez === P.EU ? 'eu' : 'rival') }
     const ok = await executar({ ...c, time: S.estado.vez }, c.time === P.EU ? 'voce' : 'rival')
-    if (!ok) { aviso('O replay parou: o motor recusou um comando.'); break }
+    if (!ok) { aviso('O replay parou: o motor recusou um comando.', 'recusa'); break }
     await esperar(200)
   }
   if (S.parar) { S.replay = false; sairParaInicio(); return }
@@ -673,11 +777,12 @@ function aplicarMudo() {
 
 function ligar() {
   if (TESTE && url.get('recomecar') === '1') Col.recomecar(); else Col.carregar()
-  arena = new Arena($('#arena')); roda = new Roda($('#rodaCv'))
+  montarPecasDaLuta()
+  arena = new Arena($('#arena'), $('#arenaCamada'))
   aplicarMenos(lerMenos(), false)
   aplicarMudo()
   for (const id of ['#btnMudo', '#btnMudo2']) $(id).addEventListener('click', () => { Som.mudo(!Som.estaMudo()); aplicarMudo() })
-  for (const b of document.querySelectorAll('.aba')) b.addEventListener('click', () => irParaAba(b.dataset.aba))
+  for (const b of document.querySelectorAll('.aba')) b.addEventListener('click', () => { Som.tocar('botao'); irParaAba(b.dataset.aba) })
   document.addEventListener('frayz-aba', (e) => irParaAba(e.detail))
   ligarColecao(() => { if (S.aba === 'colecao') renderColecao() })
   ligarCostura((id) => { irParaAba('colecao'); if (id) abrirBoneco(id) })
@@ -688,26 +793,19 @@ function ligar() {
   $('#casulo').addEventListener('click', (e) => { if (e.target.id === 'casulo') fecharCasulo() })
   $('#optMenos').addEventListener('change', (e) => aplicarMenos(e.target.checked))
   $('#optMenos2').addEventListener('change', (e) => aplicarMenos(e.target.checked))
-  $('#btnPassar').addEventListener('click', passar)
-  $('#btnTrocar').addEventListener('click', iniciarTroca)
-  $('#btnMenu').addEventListener('click', () => { const m = $('#menu'); m.hidden = !m.hidden })
+  H.passar.addEventListener('click', () => { Som.tocar('botao'); passar() })
+  H.trocar.addEventListener('click', () => { Som.tocar('botao'); iniciarTroca() })
+  $('#btnMenu').addEventListener('click', () => { const m = $('#menu'); m.hidden = !m.hidden; Som.tocar('botao') })
   $('#btnSair').addEventListener('click', sairParaInicio)
   $('#btnParar').addEventListener('click', () => { S.parar = true; sairParaInicio() })
-  $('#btnRevanche').addEventListener('click', () => { $('#fim').hidden = true; iniciarLuta({ timeA: S.timeA, timeB: S.timeB, semente: P.novaSemente(), modo: S.modo, fase: S.fase, idsA: S.idsA ?? undefined, robo: S.robo }) })
-  $('#btnProxima').addEventListener('click', () => { $('#fim').hidden = true; iniciarLuta({ modo: 'aventura', fase: S.fase + 1, idsA: S.idsA }) })
-  $('#btnTrocarTime').addEventListener('click', () => { $('#fim').hidden = true; sairParaInicio() })
-  $('#btnRever').addEventListener('click', () => { $('#fim').hidden = true; assistir() })
-  $('#btnCopiar').addEventListener('click', copiarReplay)
+  const B = H.fimBotoes
+  B.revanche.addEventListener('click', () => { Som.tocar('botao'); $('#fim').hidden = true; iniciarLuta({ timeA: S.timeA, timeB: S.timeB, semente: P.novaSemente(), modo: S.modo, fase: S.fase, idsA: S.idsA ?? undefined, robo: S.robo }) })
+  B.proxima.addEventListener('click', () => { Som.tocar('botao'); $('#fim').hidden = true; iniciarLuta({ modo: 'aventura', fase: S.fase + 1, idsA: S.idsA }) })
+  B.trocarTime.addEventListener('click', () => { Som.tocar('botao'); $('#fim').hidden = true; sairParaInicio() })
+  B.rever.addEventListener('click', () => { Som.tocar('botao'); $('#fim').hidden = true; assistir() })
+  B.copiar.addEventListener('click', () => { Som.tocar('botao'); copiarReplay() })
   $('#fichaFechar').addEventListener('click', fecharFicha)
   $('#fichaModal').addEventListener('click', (e) => { if (e.target.id === 'fichaModal') fecharFicha() })
-  $('#roda').addEventListener('click', () => {
-    const l = $('#legenda'); if (!l.hidden) { l.hidden = true; return }
-    l.replaceChildren(); l.append(el('b', null, 'Roda dos tipos'))
-    const fila = el('div', 'leg-fila')
-    P.TIPOS.forEach((t, i) => { const s = el('span', 'leg-t'); s.append(iconeTipo(t, 18), el('span', null, P.NOMES_DOS_TIPOS[t])); fila.append(s); if (i < P.TIPOS.length - 1) fila.append(el('span', 'seta', '›')) })
-    l.append(fila, el('p', null, `Cada tecido bate forte no seguinte (+${Math.round(P.BONUS_DE_TIPO * 100)}% de dano). O último bate no primeiro. A seta acende quando você tem vantagem.`))
-    l.hidden = false
-  })
   const cvA = $('#arena')
   cvA.addEventListener('pointerdown', (e) => {
     const r = cvA.getBoundingClientRect()
@@ -716,19 +814,18 @@ function ligar() {
   })
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return
+    if (document.querySelector('.fz-lupa')) return // a mão fecha a carta ampliada
     if (!$('#casulo').hidden) fecharCasulo()
     else if (!$('#bonecoModal').hidden) fecharBoneco()
     else if (!$('#fichaModal').hidden) fecharFicha()
     else if (!$('#menu').hidden) $('#menu').hidden = true
-    else if (!$('#legenda').hidden) $('#legenda').hidden = true
     else if (S.sel || S.modoTroca) limparSelecao()
   })
+  document.addEventListener('keydown', teclaDaLuta)
   document.addEventListener('pointerdown', (e) => {
     if (!$('#menu').hidden && !e.target.closest('#menu, #btnMenu')) $('#menu').hidden = true
-    if (!$('#legenda').hidden && !e.target.closest('#legenda, #roda')) $('#legenda').hidden = true
   })
-  $('#maoBox').addEventListener('scroll', sinalDeMaisCartas, { passive: true })
-  window.addEventListener('resize', () => { if (!$('#luta').hidden) { roda.medir(); sinalDeMaisCartas() } })
+  window.addEventListener('resize', () => { if (!$('#luta').hidden) { aplicarFormato(); renderTudo() } })
   montarInicio()
   let aba = url.get('aba')
   if (!ABAS.includes(aba)) { try { aba = TESTE ? 'inicio' : localStorage.getItem('frayz_aba') } catch { aba = null } }
@@ -744,7 +841,7 @@ function ganchoDeTeste() {
   let n = 0
   Col.definirFonteDeSemente(() => `${url.get('semente') ?? 'costura'}-${++n}`)
   window.__frayz = {
-    avisos: [], S, arena, q, P, Col, Som, irParaAba, intencao: () => S.intencao,
+    avisos: [], S, arena, q, P, Col, Som, Musica, irParaAba, intencao: () => S.intencao,
     /** só para o teste: manda um comando como se fosse da tela (usado para passar o turno dos dois lados) */
     passarOsDois: async () => { while (!S.estado.fim) { await executar({ tipo: 'passar', time: S.estado.vez }, S.estado.vez === P.EU ? 'voce' : 'rival'); if (S.estado.fim) break; S.vezAnterior = S.estado.vez } await fimDaLuta() },
     estado: () => S.estado,
@@ -754,6 +851,8 @@ function ganchoDeTeste() {
     sugestao: () => P.planoDoRobo(S.estado, 'planejador')[0] ?? null,
     pagina: (id) => { const r = arena.retangulos()[id], b = $('#arena').getBoundingClientRect(); return r ? { x: b.left + r.x + r.w / 2, y: b.top + r.y + r.h * 0.45 } : null },
     leque: (v) => { S.vel = v; arena.vel = v },
+    /** o texto do replay (a tela não mostra o texto cru; o teste confere o que o botão Copiar copia) */
+    textoDoReplay: () => S.textoReplay,
   }
 }
 

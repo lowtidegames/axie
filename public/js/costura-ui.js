@@ -4,6 +4,7 @@
 import * as P from './ponte.js'
 import * as Col from './colecao.js'
 import * as Som from './som.js'
+import * as Musica from './musica.js'
 import { $, el, bonecoCanvas, chipParte, iconeTipo, pct, menos } from './ui.js'
 import { carretel } from './colecao-ui.js'
 
@@ -129,6 +130,7 @@ export function abrirCasuloDe(id) {
   for (const s of ['#btnCasAbrir', '#btnCasTudo']) $(s).hidden = false
   $('#btnCasFim').hidden = true
   marcarProxima(); $('#casulo').hidden = false; $('#btnCasAbrir').focus()
+  try { Musica.momento('costura'); Musica.degrau(0) } catch { /* sem áudio */ }
 }
 const aviso = (t) => { $('#casSub').textContent = t }
 function marcarProxima() {
@@ -153,6 +155,7 @@ async function abrirProxima() {
   p.setAttribute('aria-label', `${NOME_PARTE[slot]}: ${P.infoDaParte(gene).nome}, ${P.RARIDADES[info.raridade].nome}`)
   p.disabled = true
   Som.casuloParte(k, info.raridade)
+  try { Musica.degrau(k + 1) } catch { /* sem áudio */ } // a caixinha sobe um degrau a cada parte aberta
   if (info.raridade === 'rara' || info.raridade === 'lendaria') { p.classList.add('festa', info.raridade); await esperarMs(menos() ? 200 : 700) }
   cas.i++; cas.abrindo = false
   if (cas.i >= cas.ordem.length) await terminar(); else marcarProxima()
@@ -177,7 +180,7 @@ async function abrirTudo() {
   while (cas && cas.i < cas.ordem.length) { await abrirProxima(); if (!menos()) await esperarMs(120) }
 }
 
-export function fecharCasulo() { if ($('#casulo').hidden) return false; $('#casulo').hidden = true; cas = null; renderCostura(); return true }
+export function fecharCasulo() { if ($('#casulo').hidden) return false; $('#casulo').hidden = true; cas = null; try { Musica.momento('entrada') } catch { /* sem áudio */ } renderCostura(); return true }
 
 export function iniciarCostura() {
   $('#btnCosturar').addEventListener('click', costurarAgora)

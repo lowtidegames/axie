@@ -125,6 +125,8 @@ const agulha = () => svg('svg', { class: 'fz-icone', viewBox: '0 0 24 24', 'aria
 const viradas = () => svg('svg', { class: 'fz-icone', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' }, [
   svg('path', { d: 'M4 9 h13 l-3.4 -3.6 M20 15 H7 l3.4 3.6' }),
 ])
+/** Ícones de linha das montagens (o fim da luta do jogo usa os mesmos). */
+export const ICONES = { tesoura: () => tesoura(), rolo: () => rolo(), agulha: () => agulha(), viradas: () => viradas() }
 const botaoDeRoupa = (rotulo) => { // botão de costura com 4 furos (menu)
   const b = el('button', 'fz-botao-de-roupa'); b.type = 'button'; b.setAttribute('aria-label', rotulo)
   b.append(svg('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' }, [svg('path', { d: 'M8.6 9 h.01 M15.4 9 h.01 M8.6 15 h.01 M15.4 15 h.01' }), svg('path', { class: 'fz-botao-de-roupa__fio', d: 'M8.6 9 H15.4 M8.6 15 H15.4' })]))

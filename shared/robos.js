@@ -3,7 +3,8 @@
 //   planejador: olha 2 turnos — o seu (busca em feixe pelas jogadas do turno), a resposta provável do rival
 //               (estimada pela Linha dele, sem espiar a mão) e a Linha que sobra para o próximo turno seu.
 //               Ao pensar, usa o crítico pela média (não espia o sorteio); se a sorte real mudar a mesa, planeja de novo.
-// Os dois só usam comandosValidos/aplicar do motor: nunca mandam comando inválido.
+// Os dois só usam comandosValidos/aplicar do motor: nunca mandam comando inválido. Carta jogada fica na mesa até
+// o fim do turno (regra do motor): nenhum robô conta em recomprar no mesmo turno a carta que acabou de jogar.
 //
 // API: planejarTurno(estado, nome) → [comandos] (até o fim do turno, ou até uma compra — aí planeje de novo)
 //      proximoComando(estado, nome) → comando
@@ -78,10 +79,13 @@ export function avaliar(e, eu) {
 
 function planoDoPlanejador(e0) {
   const eu = e0.vez
-  // grátis e sempre bom: descartar fiapo (abre espaço na mão e compra) e carta de 0 Linha que só compra
+  // grátis e sempre bom: descartar fiapo (abre espaço na mão e compra) e carta de 0 Linha que só compra.
+  // A carta jogada fica na MESA até o fim do turno (não volta ao baralho no mesmo turno): só vale jogar a que
+  // compra se ainda houver o que comprar (baralho ou descarte); senão ela fica na mão para um turno seguinte.
+  const temCompra = e0.times[eu].baralho.length + e0.times[eu].descarte.length > 0
   for (const c of comandosValidos(e0)) {
     if (c.tipo === 'fiapo') return [c]
-    if (c.tipo === 'jogar') {
+    if (c.tipo === 'jogar' && temCompra) {
       const d = CARTAS[e0.cartas[c.carta].carta]
       if (d.linha === 0 && d.efeitos.every((x) => x.tipo === 'compra')) return [c]
     }

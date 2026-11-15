@@ -39,6 +39,7 @@ export const REGRAS = {
   fioSoltoBonus: 0.20, // Fio Solto: +20% de dano recebido
   critico: 0.50, // golpe crítico: +50% de dano (chance = Rapidez do boneco, em %)
   firmezaMaxima: 30, // Firmeza (em %) nunca reduz mais que isto
+  maxComandosPorTurno: 40, // trava: no máximo 40 jogadas/trocas/fiapos por turno; depois só passar (parecer de segurança nº 1)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -102,7 +103,7 @@ export const CARTAS = {
     efeitos: [{ tipo: 'dano', valor: 85 }, { tipo: 'roubaLinha', valor: 1 }] },
   // Feltro
   feltro_pesado: { nome: 'Feltro Pesado', parte: 'cabeca', tipo: 'feltro', linha: 2, alvo: 'frente', texto: '{0.valor} de dano; ele se cura em {1.valor}.',
-    efeitos: [{ tipo: 'dano', valor: 100 }, { tipo: 'cura', valor: 25, em: 'si' }] },
+    efeitos: [{ tipo: 'dano', valor: 90 }, { tipo: 'cura', valor: 25, em: 'si' }] }, // dano 100 → 90 em 15/11 (com a mesa, o robô parou de travar no laço do Ponto Cruz e o Feltro subiu a 56,9%)
   ponto_cruz: { nome: 'Ponto Cruz', parte: 'bracos', tipo: 'feltro', linha: 0, alvo: 'nenhum', texto: 'Compra {0.qtd}; se for do tipo dele, +{0.linhaSeMesmoTipo} de Linha.',
     efeitos: [{ tipo: 'compra', qtd: 1, linhaSeMesmoTipo: 1 }] },
   alfinete_de_feltro: { nome: 'Alfinete de Feltro', parte: 'bracos', tipo: 'feltro', linha: 1, alvo: 'inimigo', texto: 'Alcance; {0.valor} de dano.',

@@ -787,3 +787,93 @@ describe('tarefa 13 — luta parada (abandono), relógio próprio', () => {
     assert.equal((await pedir('GET', '/api/estado', c.token)).json.lutaAberta, null)
   })
 })
+
+// ---------------------------------------------------------------- parecer de segurança nº 2 (rodada 2 do servidor)
+
+describe('parecer nº 2 — S2-2: luta encerrada guarda só o replay; teto de lutas guardadas por conta', () => {
+  test('luta encerrada: o banco cresce pouco por luta (só comandos), e ler a luta depois do fim mostra o mesmo de quando acabou', async () => {
+    const c = await novaConta()
+    // tamanho do banco compactado (VACUUM: sem páginas livres), para medir só o que fica guardado
+    const tamanho = () => { app.db.exec('VACUUM'); return app.db.prepare('PRAGMA page_count').get().page_count * app.db.prepare('PRAGMA page_size').get().page_size }
+    const fins = []
+    // aquece (páginas novas das tabelas) antes de medir
+    for (let i = 0; i < 2; i++) {
+      const l = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'livre', time: timeDe(c), robo: 'planejador' } })
+      fins.push(await jogarAteOFim(c.token, l.json))
+    }
+    const antes = tamanho(), n = 12
+    for (let i = 0; i < n; i++) {
+      const l = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'livre', time: timeDe(c, 3 * (i % 3)), robo: i % 2 ? 'planejador' : 'ganancioso' } })
+      assert.equal(l.status, 201, l.texto)
+      fins.push(await jogarAteOFim(c.token, l.json))
+    }
+    const kbPorLuta = (tamanho() - antes) / n / 1024
+    const estadoMedio = app.db.prepare("SELECT AVG(LENGTH(estado)) m FROM lutas WHERE conta_id = ? AND status = 'encerrada'").get(c.conta.id).m
+    console.log(`S2-2: ${kbPorLuta.toFixed(2)} KB de banco por luta encerrada; estado guardado ${(estadoMedio / 1024).toFixed(2)} KB`)
+    assert.ok(estadoMedio < 1024, `estado guardado da luta encerrada: ${estadoMedio} bytes`)
+    assert.ok(kbPorLuta < 3.5, `${kbPorLuta.toFixed(2)} KB por luta`)
+    // a luta refeita pelo motor é a mesma de quando acabou: mesma visão, mesmos eventos, mesmo resultado
+    for (const fim of fins) {
+      const v = await api('GET', `/api/luta/${fim.id}`, { token: c.token })
+      assert.equal(v.status, 200, v.texto)
+      assert.deepEqual(v.json.visao, fim.visao)
+      assert.deepEqual(v.json.resultado, fim.resultado)
+      const rep = await api('GET', `/api/luta/${fim.id}/replay`, { token: c.token })
+      assert.deepEqual(reproduzir(rep.json).resultado, fim.resultado)
+    }
+  })
+
+  test('desistência: ler a luta encerrada depois mostra o mesmo fim (o fim que não é comando volta do resultado)', async () => {
+    const c = await novaConta()
+    const l = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'livre', time: timeDe(c), robo: 'planejador' } })
+    const p = await api('POST', `/api/luta/${l.json.id}/comando`, { token: c.token, corpo: { seq: 0, comando: { tipo: 'passar' } } })
+    assert.equal(p.status, 200, p.texto)
+    const d = await api('POST', `/api/luta/${l.json.id}/desistir`, { token: c.token })
+    assert.equal(d.status, 200, d.texto)
+    const v = await api('GET', `/api/luta/${l.json.id}`, { token: c.token })
+    assert.deepEqual(v.json.visao, d.json.visao)
+    assert.equal(v.json.resultado.motivo, 'desistiu')
+    assert.equal(JSON.parse(linhaDaLuta(l.json.id).estado).times, undefined, 'luta encerrada ainda guarda o estado inteiro')
+  })
+
+  test('teto de lutas encerradas por conta: as mais antigas saem do banco (replay 404); as últimas ficam', async () => {
+    let t = 2_100_000_000_000
+    const s = await iniciar({ dbPath: ':memory:', porta: 0, agora: () => t, log: () => {}, limites: { lutasEncerradasPorConta: 3 } })
+    try {
+      const u = `http://127.0.0.1:${s.porta}`
+      const pedir = async (m, p, token, corpo) => {
+        const r = await fetch(u + p, { method: m, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(corpo ? { 'Content-Type': 'application/json' } : {}) }, body: corpo ? JSON.stringify(corpo) : undefined })
+        return { status: r.status, json: await r.json() }
+      }
+      const { token } = (await pedir('POST', '/api/conta', null, { apelido: 'Guardador' })).json
+      const time = (await pedir('GET', '/api/estado', token)).json.bonecos.slice(0, 3).map((b) => b.id)
+      const ids = []
+      for (let i = 0; i < 5; i++) {
+        t += 1000
+        const l = await pedir('POST', '/api/luta', token, { modo: 'livre', robo: 'ganancioso', time })
+        assert.equal(l.status, 201, JSON.stringify(l.json))
+        assert.equal((await pedir('POST', `/api/luta/${l.json.id}/desistir`, token)).status, 200)
+        ids.push(l.json.id)
+      }
+      assert.equal(s.db.prepare("SELECT COUNT(*) n FROM lutas WHERE status = 'encerrada'").get().n, 3)
+      for (const id of ids.slice(0, 2)) assert.equal((await pedir('GET', `/api/luta/${id}/replay`, token)).status, 404)
+      for (const id of ids.slice(2)) assert.equal((await pedir('GET', `/api/luta/${id}/replay`, token)).status, 200)
+    } finally { s.servidor.closeAllConnections(); s.servidor.close() }
+  })
+})
+
+describe('rodada 1 — URL ilegível', () => {
+  test('GET http://[ : 400 sem linha de ERRO no log', async () => {
+    const net = await import('node:net')
+    const antes = logs.length
+    const resposta = await new Promise((ok, falha) => {
+      const so = net.connect(app.porta, '127.0.0.1', () => so.write('GET http://[ HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n'))
+      let dados = ''
+      so.on('data', (d) => { dados += d })
+      so.on('end', () => ok(dados))
+      so.on('error', falha)
+    })
+    assert.match(resposta, /^HTTP\/1\.1 400/)
+    assert.ok(!logs.slice(antes).some((l) => l.startsWith('ERRO')), logs.slice(antes).join('\n'))
+  })
+})

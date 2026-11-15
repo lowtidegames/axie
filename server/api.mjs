@@ -26,6 +26,7 @@ export const PARAMS_SERVIDOR = {
   validadeDaSessaoH: 720, // sessão vence depois de tanto tempo SEM uso (cada uso renova)
   renovarSessaoMs: 60 * 1000, // renova a sessão no banco no máximo uma vez por minuto (menos escrita)
   abandonoMin: 30, // luta aberta sem pedido do dono por mais que isto: derrota por abandono no próximo pedido da conta
+  lutasEncerradasPorConta: 200, // lutas encerradas guardadas por conta (replay); as mais antigas além disso saem do banco (S2-2)
 }
 // Ponto de encaixe da economia (NÃO fazer sem o "sim" do dono): custo da costura, energia para abrir luta,
 // custo de desistir (A6) e prêmio entram em shared/config.js, não aqui.
@@ -65,21 +66,31 @@ export function criarLimite({ max, janelaMs }, agora) {
 
 /**
  * Limites guardados no BANCO (tabela `limites`): sobrevivem a reinício (A5). Cada pedido = 1 UPSERT pela chave
- * primária. Limpeza por idade em lote (índice em `inicio`), no máximo uma vez por `intervaloMs` (A9).
+ * primária. Limpeza por idade, no máximo uma vez por `intervaloMs` (A9): cada TIPO de chave (o que vem antes do
+ * primeiro ":") sai com a SUA janela (`janelas`: { tipo: janelaMs }); chave de tipo desconhecido, com `idadeMaxMs`
+ * (padrão: a maior janela). Apaga em lotes de `lote`, em laço até não sobrar chave vencida (S2-3).
  * Devolve contar(chave, { max, janelaMs }) → true se ainda cabe.
  */
-export function criarLimitesNoBanco(db, agora, { intervaloMs, lote, idadeMaxMs }) {
+export function criarLimitesNoBanco(db, agora, { intervaloMs, lote, janelas = {}, idadeMaxMs = Math.max(0, ...Object.values(janelas)) || Infinity }) {
+  // RETURNING lido com .all(): o comando termina de verdade. Com .get() ele fica aberto, a transação de leitura
+  // não fecha e o arquivo -wal nunca é descarregado (~8 KB de disco por pedido; achado S2-1).
   const somar = db.prepare(`INSERT INTO limites (chave, inicio, n) VALUES (?, ?, 1)
     ON CONFLICT (chave) DO UPDATE SET
       n = CASE WHEN excluded.inicio - inicio >= ? THEN 1 ELSE n + 1 END,
       inicio = CASE WHEN excluded.inicio - inicio >= ? THEN excluded.inicio ELSE inicio END
     RETURNING n`)
-  const limpar = db.prepare('DELETE FROM limites WHERE rowid IN (SELECT rowid FROM limites WHERE inicio < ? LIMIT ?)')
+  const limparTipo = db.prepare('DELETE FROM limites WHERE rowid IN (SELECT rowid FROM limites WHERE inicio < ? AND chave >= ? AND chave < ? LIMIT ?)')
+  const limparTudo = db.prepare('DELETE FROM limites WHERE rowid IN (SELECT rowid FROM limites WHERE inicio < ? LIMIT ?)')
+  const emLaco = (fazer) => { while (Number(fazer().changes) >= lote) { /* lote cheio: pode haver mais */ } }
   let ultimaLimpeza = -Infinity
   return function contar(chave, { max, janelaMs }) {
     const t = agora()
-    if (t - ultimaLimpeza >= intervaloMs) { ultimaLimpeza = t; limpar.run(t - idadeMaxMs, lote) }
-    return somar.get(chave, t, janelaMs, janelaMs).n <= max
+    if (t - ultimaLimpeza >= intervaloMs) {
+      ultimaLimpeza = t
+      for (const [tipo, ms] of Object.entries(janelas)) emLaco(() => limparTipo.run(t - ms, `${tipo}:`, `${tipo};`, lote))
+      if (Number.isFinite(idadeMaxMs)) emLaco(() => limparTudo.run(t - idadeMaxMs, lote))
+    }
+    return somar.all(chave, t, janelaMs, janelaMs)[0].n <= max
   }
 }
 
@@ -109,19 +120,33 @@ export function chaveDoBloco48(endereco) {
 }
 
 /**
- * Endereço do cliente. Sem proxy confiável: o do socket, e X-Forwarded-For é IGNORADO (qualquer um escreve nele).
- * Com proxy confiável (TRUST_PROXY=1, lido no arranque): o endereço mais à direita de X-Forwarded-For que seja um IP
- * válido e não seja o do próprio proxy (o proxy acrescenta o endereço real no fim; o que vem antes o cliente inventa).
+ * Proxies confiáveis, lidos no arranque (S2-4): TRUST_PROXY=1 E a lista TRUST_PROXY_IPS (IPs separados por vírgula).
+ * TRUST_PROXY=1 sem a lista: não confia em ninguém (o cabeçalho é ignorado) e avisa no log. Devolve um Set (vazio = nenhum).
  */
-export function ipDoCliente(req, confiaNoProxy) {
+export function proxiesDoAmbiente(env = process.env, log = console.log) {
+  if (env.TRUST_PROXY !== '1') return new Set()
+  const lista = String(env.TRUST_PROXY_IPS ?? '').split(',').map((x) => semMapeado(x.trim())).filter(Boolean)
+  const validos = lista.filter((ip) => isIP(ip))
+  if (validos.length !== lista.length) log('AVISO: TRUST_PROXY_IPS tem item que não é IP; ignorado.')
+  if (!validos.length) log('AVISO: TRUST_PROXY=1 sem TRUST_PROXY_IPS: X-Forwarded-For será ignorado (vale o IP da conexão).')
+  return new Set(validos)
+}
+
+/**
+ * Endereço do cliente. X-Forwarded-For só é lido quando a CONEXÃO vem de um proxy da lista (`proxies`, um Set de IPs);
+ * de qualquer outra, é IGNORADO (qualquer um escreve nele). Vindo do proxy: o endereço mais à direita do cabeçalho
+ * que seja IP válido e não seja de um proxy da lista (o proxy acrescenta o endereço real no fim; o que vem antes o
+ * cliente inventa).
+ */
+export function ipDoCliente(req, proxies) {
   const doSocket = semMapeado(req.socket?.remoteAddress)
-  if (!confiaNoProxy) return doSocket
+  if (!proxies || !proxies.has(doSocket)) return doSocket
   const xff = req.headers['x-forwarded-for']
   if (!xff) return doSocket
   const lista = (Array.isArray(xff) ? xff.join(',') : String(xff)).split(',').map((x) => semMapeado(x.trim()))
   for (let i = lista.length - 1; i >= 0; i--) {
     const ip = lista[i]
-    if (isIP(ip) && ip !== doSocket) return ip
+    if (isIP(ip) && !proxies.has(ip)) return ip
   }
   return doSocket
 }
@@ -295,20 +320,25 @@ const TOKEN = /^Bearer ([A-Za-z0-9_-]{43})$/
 
 /**
  * Cria o tratador HTTP. jogo: criarJogo(...). agora: relógio (injetável nos testes). log: função de log (sem token).
- * banco: o banco (limites guardados nele; sem banco, limites em memória). confiaNoProxy: padrão = TRUST_PROXY=1 no arranque.
+ * banco: o banco (limites guardados nele; sem banco ou com SAVE_SO_LEITURA ligado, limites em memória).
+ * proxies: IPs dos proxies confiáveis (lista ou Set); padrão = TRUST_PROXY=1 + TRUST_PROXY_IPS no arranque.
  */
-export function criarTratador({ jogo, agora = Date.now, log = console.log, limites = {}, banco = null, confiaNoProxy = process.env.TRUST_PROXY === '1' }) {
+export function criarTratador({ jogo, agora = Date.now, log = console.log, limites = {}, banco = null, proxies }) {
   const P = { ...PARAMS_SERVIDOR, ...limites }
+  const confiaveis = proxies === undefined ? proxiesDoAmbiente(process.env, log) : new Set([...proxies].map(semMapeado))
   const tipos = { nova: P.contasPorIp, nova48: P.contasPorBloco48, conta: P.pedidosPorConta, ip: P.pedidosPorIp, ip48: P.pedidosPorBloco48 }
-  let contar
+  const mem = Object.fromEntries(Object.entries(tipos).map(([k, cfg]) => [k, criarLimite(cfg, agora)]))
+  const naMemoria = (chave, cfg, tipo) => mem[tipo](chave)
+  let contar = naMemoria
   if (banco) {
-    const idadeMaxMs = Math.max(...Object.values(tipos).map((x) => x.janelaMs))
-    contar = criarLimitesNoBanco(banco, agora, { ...P.limpezaDosLimites, idadeMaxMs })
-  } else {
-    const mem = Object.fromEntries(Object.entries(tipos).map(([k, cfg]) => [k, criarLimite(cfg, agora)]))
-    contar = (chave, cfg, tipo) => mem[tipo](chave)
+    const janelas = Object.fromEntries(Object.entries(tipos).map(([k, cfg]) => [k, cfg.janelaMs]))
+    const noBanco = criarLimitesNoBanco(banco, agora, { ...P.limpezaDosLimites, janelas })
+    // SAVE_SO_LEITURA ligado: nem o limite grava no banco (S2-6); conta em memória enquanto durar
+    contar = (chave, cfg, tipo) => (soLeitura() ? naMemoria(chave, cfg, tipo) : noBanco(chave, cfg))
   }
   const cabe = (tipo, chave) => chave === null || contar(`${tipo}:${chave}`, tipos[tipo], tipo)
+  /** Bloco /48 primeiro: recusado no /48, nem chega a criar a chave do /64 (S2-3). */
+  const cabeNosDois = (tipo, tipo48, ip) => cabe(tipo48, chaveDoBloco48(ip)) && cabe(tipo, chaveDoIp(ip))
 
   function autenticar(req) {
     const m = TOKEN.exec(String(req.headers.authorization ?? ''))
@@ -322,7 +352,7 @@ export function criarTratador({ jogo, agora = Date.now, log = console.log, limit
   const rotas = [
     ['POST', /^\/api\/conta$/, false, async (req, conta, m, url, ip) => {
       const { apelido } = lerCorpoConta(await lerCorpo(req))
-      if (!cabe('nova', chaveDoIp(ip)) || !cabe('nova48', chaveDoBloco48(ip))) throw recusa('MUITAS_CONTAS', 'Muitas contas criadas daqui. Espere um pouco.', 429)
+      if (!cabeNosDois('nova', 'nova48', ip)) throw recusa('MUITAS_CONTAS', 'Muitas contas criadas daqui. Espere um pouco.', 429)
       return [201, jogo.criarConta(apelido)]
     }],
     ['POST', /^\/api\/sair$/, true, async (req) => {
@@ -362,12 +392,13 @@ export function criarTratador({ jogo, agora = Date.now, log = console.log, limit
     const inicio = agora()
     let status = 500
     try {
-      const url = new URL(req.url, 'http://local')
+      let url
+      try { url = new URL(req.url, 'http://local') } catch { throw recusa('URL_INVALIDA', 'Endereço inválido.') }
       if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
         if (emManutencao()) throw recusa('MANUTENCAO', 'O jogo está em manutenção. Volte daqui a pouco.', 503)
         if (req.method === 'POST' && soLeitura()) throw recusa('SO_LEITURA', 'O jogo está só para leitura agora. Nada foi mudado; tente mais tarde.', 503)
-        const ip = ipDoCliente(req, confiaNoProxy)
-        if (!cabe('ip', chaveDoIp(ip)) || !cabe('ip48', chaveDoBloco48(ip))) throw recusa('MUITOS_PEDIDOS', 'Muitos pedidos. Espere um pouco.', 429)
+        const ip = ipDoCliente(req, confiaveis)
+        if (!cabeNosDois('ip', 'ip48', ip)) throw recusa('MUITOS_PEDIDOS', 'Muitos pedidos. Espere um pouco.', 429)
         const doCaminho = rotas.filter(([, re]) => re.test(url.pathname))
         if (!doCaminho.length) throw recusa('NAO_ENCONTRADO', 'Rota não encontrada.', 404)
         const rota = doCaminho.find(([metodo]) => metodo === req.method)

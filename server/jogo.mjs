@@ -2,7 +2,7 @@
 // As regras do jogo em si estão em shared/ (motor, robôs, costura); aqui só se guarda, confere dono e chama o motor.
 // Nada de moeda, prêmio, pote ou saque aqui.
 import { createHash, randomBytes, randomInt } from 'node:crypto'
-import { comandosValidos, criarLuta, resultado as resultadoDaLuta, aplicarNoLugar, visaoDoTime, VERSAO_DO_MOTOR } from '../shared/batalha.js'
+import { comandosValidos, criarLuta, resultado as resultadoDaLuta, aplicarNoLugar, visaoDoTime, reproduzir, VERSAO_DO_MOTOR } from '../shared/batalha.js'
 import { jogarTurno, ROBOS } from '../shared/robos.js'
 import {
   PARAMS_COSTURA, PARTES_DO_BONECO, aposentar, chancesDaCostura, costurar, custoDaCostura, gerarBonecoInicial,
@@ -52,6 +52,31 @@ function sortearDiferentes(lista, n) {
 /** Motivo gravado na luta aberta com motor de versão anterior, encerrada sem vencedor ao atualizar o servidor. */
 export const CANCELADA_POR_ATUALIZACAO = 'cancelada_por_atualizacao'
 
+/**
+ * Comando em forma curta para guardar (S2-2): "pA" · "jA Ac12 B1" · "fA Ac3" · "tA A0 A1". Comando que não volta
+ * idêntico da forma curta fica guardado inteiro (objeto), para nunca perder o replay.
+ */
+function comandoCurto(c) {
+  const k = Object.keys(c).length
+  let curto = null
+  if (c.tipo === 'passar' && k === 2) curto = `p${c.time}`
+  else if (c.tipo === 'jogar' && k === 4 && typeof c.alvo === 'string') curto = `j${c.time} ${c.carta} ${c.alvo}`
+  else if (c.tipo === 'fiapo' && k === 3) curto = `f${c.time} ${c.carta}`
+  else if (c.tipo === 'trocar' && k === 4) curto = `t${c.time} ${c.a} ${c.b}`
+  return curto !== null && JSON.stringify(comandoLongo(curto)) === JSON.stringify(c) ? curto : c
+}
+function comandoLongo(x) {
+  if (typeof x !== 'string') return x
+  const [cab, p1, p2] = x.split(' ')
+  const time = cab.slice(1)
+  switch (cab[0]) {
+    case 'p': return { tipo: 'passar', time }
+    case 'j': return { tipo: 'jogar', time, carta: p1, alvo: p2 }
+    case 'f': return { tipo: 'fiapo', time, carta: p1 }
+    default: return { tipo: 'trocar', time, a: p1, b: p2 }
+  }
+}
+
 /** Cursor opaco da lista de bonecos (posição n na coleção). */
 const cursorDe = (n) => Buffer.from(`n:${n}`).toString('base64url')
 function posicaoDoCursor(cursor) {
@@ -63,11 +88,12 @@ function posicaoDoCursor(cursor) {
 
 /**
  * opcoes: agora (relógio), tempoDoTurnoMs, folgaDoRelogioMs, maxBonecosPorConta, paginaDeBonecos, validadeDaSessaoH,
- * renovarSessaoMs, abandonoMin, soLeitura (função: SAVE_SO_LEITURA ligado → GET não grava nada).
+ * renovarSessaoMs, abandonoMin, lutasEncerradasPorConta (as mais antigas além disso saem do banco),
+ * soLeitura (função: SAVE_SO_LEITURA ligado → GET não grava nada).
  */
 export function criarJogo(db, {
   agora = Date.now, tempoDoTurnoMs = 20_000, folgaDoRelogioMs = 1_500, maxBonecosPorConta = 60, paginaDeBonecos = 50,
-  validadeDaSessaoH = 720, renovarSessaoMs = 60_000, abandonoMin = 30, soLeitura = () => false,
+  validadeDaSessaoH = 720, renovarSessaoMs = 60_000, abandonoMin = 30, lutasEncerradasPorConta = 200, soLeitura = () => false,
 } = {}) {
   const validadeMs = validadeDaSessaoH * 3_600_000
   const abandonoMs = abandonoMin * 60_000
@@ -102,6 +128,9 @@ export function criarJogo(db, {
     resposta: db.prepare('SELECT comando, resposta FROM luta_respostas WHERE luta_id = ? AND seq = ?'),
     novaResposta: db.prepare('INSERT INTO luta_respostas (luta_id, seq, comando, resposta) VALUES (?, ?, ?, ?)'),
     apagarRespostas: db.prepare('DELETE FROM luta_respostas WHERE luta_id = ?'),
+    // S2-2: lutas encerradas além do teto da conta (as mais antigas) saem do banco
+    lutasAlemDoTeto: db.prepare("SELECT id FROM lutas WHERE conta_id = ? AND status = 'encerrada' ORDER BY encerrada_em DESC, rowid DESC LIMIT -1 OFFSET ?"),
+    apagarLuta: db.prepare("DELETE FROM lutas WHERE id = ? AND status = 'encerrada'"),
     pedido: db.prepare('SELECT rota, corpo, status, resposta FROM pedidos WHERE conta_id = ? AND chave = ?'),
     novoPedido: db.prepare('INSERT INTO pedidos (conta_id, chave, rota, corpo, status, resposta, em) VALUES (?, ?, ?, ?, ?, ?, ?)'),
   }
@@ -254,6 +283,32 @@ export function criarJogo(db, {
   /** Luta gravada com motor de outra versão: o motor de hoje não lê aquele estado. Só o resumo. */
   const deOutroMotor = (linha) => linha.versao_motor !== VERSAO_DO_MOTOR
 
+  /**
+   * O que fica gravado da luta ENCERRADA (S2-2): só os comandos, em forma curta (com semente, times e resultado, que
+   * já têm coluna própria, refazem a luta inteira). Antes guardava o estado inteiro (~7 KB por luta).
+   */
+  const estadoEncerrado = (e) => json({ curtos: e.comandos.map(comandoCurto) })
+
+  /** Comandos guardados: forma curta (S2-2) ou a lista inteira (estado inteiro, de antes). */
+  const comandosGuardados = (g) => (g.curtos ? g.curtos.map(comandoLongo) : g.comandos ?? [])
+
+  /**
+   * Estado completo da luta. Encerrada e gravada só com os comandos: refeita pelo motor a partir da semente
+   * (desistência e abandono não são comandos: o fim gravado no resultado é posto de volta, como foi na hora).
+   */
+  function estadoDaLuta(linha) {
+    const g = JSON.parse(linha.estado)
+    if (g.times) return g // estado inteiro (luta aberta, ou encerrada antes do S2-2)
+    const r = reproduzir({ semente: linha.semente, timeA: JSON.parse(linha.time_a), timeB: JSON.parse(linha.time_b), comandos: comandosGuardados(g) })
+    const e = r.estado
+    const res = linha.resultado ? JSON.parse(linha.resultado) : null
+    if (!e.fim && res) {
+      e.fim = res
+      e.eventos.push({ turno: e.turno, t: 'fim', ...e.fim })
+    }
+    return e
+  }
+
   function respostaDaLuta(linha, e, desde, quando = agora()) {
     if (deOutroMotor(linha)) {
       return {
@@ -293,10 +348,14 @@ export function criarJogo(db, {
    */
   function encerrar(linha, e, novoSeq, ultimo = null) {
     const res = resultadoDaLuta(e)
-    const r = q.encerrarLuta.run(json(e), novoSeq, json(res), agora(), ultimo, linha.id, linha.seq)
+    const r = q.encerrarLuta.run(estadoEncerrado(e), novoSeq, json(res), agora(), ultimo, linha.id, linha.seq)
     if (r.changes !== 1) throw erro(409, 'CONCORRENCIA', 'A luta mudou agora há pouco. Tente de novo.')
     q.liberar.run(linha.id, linha.conta_id)
     q.apagarRespostas.run(linha.id)
+    for (const { id } of q.lutasAlemDoTeto.all(linha.conta_id, lutasEncerradasPorConta)) {
+      q.apagarRespostas.run(id)
+      q.apagarLuta.run(id)
+    }
     if (linha.modo === 'aventura' && res.vencedor === EU) q.liberarFase.run(Math.min(linha.fase + 1, FASES_DA_AVENTURA.length), linha.conta_id)
     const ids = JSON.parse(linha.bonecos_a)
     ids.forEach((id, i) => {
@@ -335,7 +394,7 @@ export function criarJogo(db, {
    */
   function vencerPrazo(linha) {
     if (deOutroMotor(linha)) return { linha, e: null, desde: 0 }
-    const e = JSON.parse(linha.estado)
+    const e = estadoDaLuta(linha)
     const desde = e.eventos.length
     if (linha.status !== 'aberta' || e.fim || linha.prazo === null || soLeitura()) return { linha, e, desde }
     let prazo = linha.prazo, mudou = false
@@ -495,7 +554,7 @@ export function criarJogo(db, {
     if (linha.status !== 'aberta') {
       const u = linha.ultimo_comando ? JSON.parse(linha.ultimo_comando) : null
       if (u && u.seq === seq && u.h === hash && !deOutroMotor(linha)) {
-        return { ...respostaDaLuta(linha, JSON.parse(linha.estado), u.desde, u.agora), repetido: true }
+        return { ...respostaDaLuta(linha, estadoDaLuta(linha), u.desde, u.agora), repetido: true }
       }
       throw erro(409, 'LUTA_ACABOU', 'A luta já acabou.')
     }
@@ -531,7 +590,7 @@ export function criarJogo(db, {
     return {
       id: linha.id, versaoDoMotor: linha.versao_motor, modo: linha.modo, fase: linha.fase, robo: linha.robo,
       semente: linha.semente, timeA: JSON.parse(linha.time_a), timeB: JSON.parse(linha.time_b),
-      comandos: e.comandos ?? [], resultado: res,
+      comandos: comandosGuardados(e), resultado: res,
       desistiu: res?.motivo === 'desistiu',
     }
   }

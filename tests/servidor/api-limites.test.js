@@ -41,10 +41,11 @@ describe('A5 — IP do cliente atrás de proxy', () => {
     assert.deepEqual(st, [201, 201, 429])
   })
 
+  // regra mudou (S2-4, parecer nº 2): TRUST_PROXY=1 só vale com a lista TRUST_PROXY_IPS (aqui, o proxy é o 127.0.0.1 do teste)
   test('com TRUST_PROXY=1 (lido no arranque): vale o endereço mais à direita que não é o do proxy; o que o cliente põe à esquerda não muda nada', async () => {
-    process.env.TRUST_PROXY = '1'
+    process.env.TRUST_PROXY = '1'; process.env.TRUST_PROXY_IPS = '127.0.0.1'
     let api
-    try { ({ api } = await subir({ limites: { ...folga, contasPorIp: { max: 2, janelaMs: 3_600_000 } } })) } finally { delete process.env.TRUST_PROXY }
+    try { ({ api } = await subir({ limites: { ...folga, contasPorIp: { max: 2, janelaMs: 3_600_000 } } })) } finally { delete process.env.TRUST_PROXY; delete process.env.TRUST_PROXY_IPS }
     const criar = (xff, i) => api('POST', '/api/conta', { corpo: { apelido: `Proxy ${xff.length} ${i}` }, cabecalhos: xff ? { 'X-Forwarded-For': xff } : {} })
     assert.equal((await criar('1.1.1.1, 9.9.9.1', 1)).status, 201)
     assert.equal((await criar('2.2.2.2, 9.9.9.1', 2)).status, 201) // inventar a esquerda não troca de balde
@@ -62,9 +63,9 @@ describe('A5 — IP do cliente atrás de proxy', () => {
     assert.equal(chaveDoBloco48('10.0.0.1'), null)
     assert.equal(chaveDoBloco48('::ffff:10.0.0.1'), null)
     assert.notEqual(chaveDoIp('2001:db8:1:2::1'), chaveDoIp('2001:db8:1:3::1'))
-    process.env.TRUST_PROXY = '1'
+    process.env.TRUST_PROXY = '1'; process.env.TRUST_PROXY_IPS = '127.0.0.1' // regra mudou (S2-4): proxy só com a lista
     let api
-    try { ({ api } = await subir({ limites: { ...folga, contasPorIp: { max: 5, janelaMs: 3_600_000 }, contasPorBloco48: { max: 3, janelaMs: 3_600_000 } } })) } finally { delete process.env.TRUST_PROXY }
+    try { ({ api } = await subir({ limites: { ...folga, contasPorIp: { max: 5, janelaMs: 3_600_000 }, contasPorBloco48: { max: 3, janelaMs: 3_600_000 } } })) } finally { delete process.env.TRUST_PROXY; delete process.env.TRUST_PROXY_IPS }
     const st = []
     for (let i = 1; i <= 4; i++) st.push((await api('POST', '/api/conta', { corpo: { apelido: `Seis ${i}` }, cabecalhos: { 'X-Forwarded-For': `2001:db8:1:${i}::1` } })).status)
     assert.deepEqual(st, [201, 201, 201, 429])
@@ -114,7 +115,9 @@ describe('A5/A9 — limites guardados no banco', () => {
     assert.ok(ms < 0.05, `${ms.toFixed(3)} ms por pedido só no limite`)
   })
 
-  test('70 mil chaves no limite do banco não deixam o pedido lento; limpeza por idade em lote', async () => {
+  // regra mudou (S2-3, parecer nº 2): a limpeza não para no primeiro lote — apaga em lotes, em laço, até acabar
+  // (antes: 1 lote por minuto, e a tabela crescia mais rápido do que a limpeza)
+  test('70 mil chaves no limite do banco não deixam o pedido lento; limpeza por idade em lotes até acabar', async () => {
     let t = 1_000_000
     const db = abrirBanco(':memory:')
     const contar = criarLimitesNoBanco(db, () => t, { intervaloMs: 60_000, lote: 1000, idadeMaxMs: 3_600_000 })
@@ -125,16 +128,19 @@ describe('A5/A9 — limites guardados no banco', () => {
     const ms = medir(() => contar('ip:1.2.3.4', cfg))
     assert.ok(ms < 0.2, `${ms.toFixed(3)} ms por pedido só no limite`)
     assert.equal(contar('ip:1.2.3.4', cfg), false) // 2001 pedidos na janela: passou do máximo
-    // depois da idade máxima: cada limpeza apaga só um lote, nunca tudo de uma vez
+    // depois da idade máxima: a limpeza apaga todas as velhas (em lotes de 1000, num laço)
     t += 3_600_001
+    const t0 = performance.now()
     contar('ip:5.6.7.8', cfg)
-    const n1 = db.prepare('SELECT COUNT(*) n FROM limites').get().n
-    assert.equal(n1, 70_001 - 1000 + 1) // 70.001 chaves velhas, 1 lote apagado, 1 chave nova
+    const msLimpeza = performance.now() - t0
+    assert.equal(db.prepare('SELECT COUNT(*) n FROM limites').get().n, 1) // 70.001 chaves velhas apagadas, 1 chave nova
+    assert.ok(msLimpeza < 2000, `limpeza de 70 mil chaves: ${msLimpeza.toFixed(0)} ms`)
+    db.prepare('INSERT INTO limites (chave, inicio, n) VALUES (?, ?, 1)').run('ip:velha', t - 3_600_001)
     contar('ip:5.6.7.8', cfg) // dentro do intervalo: não limpa de novo
-    assert.equal(db.prepare('SELECT COUNT(*) n FROM limites').get().n, n1)
+    assert.equal(db.prepare('SELECT COUNT(*) n FROM limites').get().n, 2)
     t += 60_000
     contar('ip:5.6.7.8', cfg)
-    assert.equal(db.prepare('SELECT COUNT(*) n FROM limites').get().n, n1 - 1000)
+    assert.equal(db.prepare('SELECT COUNT(*) n FROM limites').get().n, 1)
     db.close()
   })
 
@@ -242,5 +248,99 @@ describe('sessão', () => {
     const r = await api('GET', '/api/estado', { token: a.token })
     assert.equal(r.status, 401); assert.equal(r.json.erro.codigo, 'SEM_SESSAO')
     assert.equal((await api('GET', '/api/estado', { token: b.token })).status, 200)
+  })
+})
+
+// ---------------------------------------------------------------- parecer de segurança nº 2 (rodada 2 do servidor)
+
+describe('parecer nº 2 — S2-1: o arquivo -wal não cresce sem fim', () => {
+  test('banco em arquivo: 3.000 pedidos sem sessão não deixam o WAL passar de 8 MB', async () => {
+    const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'frayz-wal-'))
+    const arq = path.join(pasta, 'wal.db')
+    const { s, api } = await subir({ dbPath: arq, limites: folga })
+    try {
+      for (let i = 0; i < 3000; i++) await api('GET', '/api/nada')
+      const mb = fs.statSync(`${arq}-wal`).size / 1048576
+      console.log(`S2-1: WAL depois de 3.000 pedidos: ${mb.toFixed(2)} MB`)
+      assert.ok(mb <= 8, `WAL com ${mb.toFixed(1)} MB`)
+      assert.equal(s.db.isTransaction, false)
+    } finally { await fechar(s) }
+  })
+})
+
+describe('parecer nº 2 — S2-3: tabela de limites', () => {
+  test('limpeza: cada tipo de chave sai com a janela dele (a de 1 min não espera a de 1 h)', () => {
+    let t = 5_000_000
+    const db = abrirBanco(':memory:')
+    const contar = criarLimitesNoBanco(db, () => t, { intervaloMs: 60_000, lote: 100, janelas: { conta: 60_000, nova: 3_600_000 } })
+    const ins = db.prepare('INSERT INTO limites (chave, inicio, n) VALUES (?, ?, 1)')
+    for (let i = 0; i < 350; i++) ins.run(`conta:${i}`, t - 61_000)
+    ins.run('nova:1.2.3.4', t - 61_000)
+    contar('ip:9.9.9.9', { max: 10, janelaMs: 60_000 })
+    const chaves = db.prepare('SELECT chave FROM limites ORDER BY chave').all().map((x) => x.chave)
+    assert.deepEqual(chaves, ['ip:9.9.9.9', 'nova:1.2.3.4'])
+    db.close()
+  })
+
+  test('IPv6: recusado no /48, nem cria a chave do /64 (girar o /64 não enche a tabela)', async () => {
+    const { s, api } = await subir({ proxies: ['127.0.0.1'], limites: { ...folga, pedidosPorBloco48: { max: 3, janelaMs: 60_000 } } })
+    const st = []
+    for (let i = 1; i <= 20; i++) st.push((await api('GET', '/api/nada', { cabecalhos: { 'X-Forwarded-For': `2001:db8:7:${i.toString(16)}::1` } })).status)
+    assert.deepEqual(st, [404, 404, 404, ...Array(17).fill(429)])
+    assert.equal(s.db.prepare("SELECT COUNT(*) n FROM limites WHERE chave LIKE 'ip:%'").get().n, 3)
+  })
+})
+
+describe('parecer nº 2 — S2-6: SAVE_SO_LEITURA não grava nem o limite', () => {
+  test('com SAVE_SO_LEITURA=1 o GET não toca na tabela de limites; o limite continua valendo (em memória)', async () => {
+    const { s, api } = await subir({ limites: { ...folga, pedidosPorIp: { max: 8, janelaMs: 60_000 } } })
+    const { token } = (await api('POST', '/api/conta', { corpo: { apelido: 'So Leitura' } })).json
+    const foto = () => JSON.stringify(s.db.prepare('SELECT * FROM limites ORDER BY chave').all())
+    const antes = foto()
+    const st = []
+    try {
+      process.env.SAVE_SO_LEITURA = '1'
+      for (let i = 0; i < 9; i++) st.push((await api('GET', '/api/estado', { token })).status)
+    } finally { delete process.env.SAVE_SO_LEITURA }
+    assert.deepEqual(st, [...Array(8).fill(200), 429])
+    assert.equal(foto(), antes)
+  })
+})
+
+describe('parecer nº 2 — S2-4: X-Forwarded-For só do proxy da lista', () => {
+  test('TRUST_PROXY=1 sem TRUST_PROXY_IPS: o cabeçalho é ignorado e o boot avisa no log', async () => {
+    const linhas = []
+    process.env.TRUST_PROXY = '1'
+    let api
+    try { ({ api } = await subir({ log: (l) => linhas.push(l), limites: { ...folga, contasPorIp: { max: 2, janelaMs: 3_600_000 } } })) } finally { delete process.env.TRUST_PROXY }
+    assert.ok(linhas.some((l) => /TRUST_PROXY_IPS/.test(l)), linhas.join('\n'))
+    const st = []
+    for (let i = 0; i < 3; i++) st.push((await api('POST', '/api/conta', { corpo: { apelido: `Sem Lista ${i}` }, cabecalhos: { 'X-Forwarded-For': `9.9.8.${i}` } })).status)
+    assert.deepEqual(st, [201, 201, 429])
+  })
+
+  test('conexão que não vem de um IP da lista: o cabeçalho é ignorado', async () => {
+    process.env.TRUST_PROXY = '1'; process.env.TRUST_PROXY_IPS = '10.20.30.40'
+    let api
+    try { ({ api } = await subir({ limites: { ...folga, contasPorIp: { max: 2, janelaMs: 3_600_000 } } })) } finally { delete process.env.TRUST_PROXY; delete process.env.TRUST_PROXY_IPS }
+    const st = []
+    for (let i = 0; i < 3; i++) st.push((await api('POST', '/api/conta', { corpo: { apelido: `Fora Lista ${i}` }, cabecalhos: { 'X-Forwarded-For': `9.9.7.${i}` } })).status)
+    assert.deepEqual(st, [201, 201, 429])
+  })
+})
+
+describe('parecer nº 2 — S2-5: apelido sem letras parecidas', () => {
+  test('letras parecidas de dentro do latino são recusadas; o resto compara sem acento, sem caixa e com I/l/1 e O/0 juntos', async () => {
+    const { api } = await subir({ limites: { ...folga, contasPorIp: { max: 1000, janelaMs: 3_600_000 } } })
+    const criar = (apelido) => api('POST', '/api/conta', { corpo: { apelido } })
+    for (const nome of ['Ina', 'lana', 'José', 'STRASSE', 'Bob0']) assert.equal((await criar(nome)).status, 201, nome)
+    for (const ruim of ['İna', 'ına', 'ɑna', 'ᴀna', 'ǀana', 'Straße', 'Æon', 'Øle']) {
+      const r = await criar(ruim)
+      assert.equal(r.status, 400, `${ruim} → ${r.texto}`); assert.equal(r.json.erro.codigo, 'APELIDO_INVALIDO')
+    }
+    for (const igual of ['INA', 'Iana', 'Lana', '1ana', 'Jose', 'JOSÉ', 'jóse', 'strasse', 'BobO', 'bobo']) {
+      const r = await criar(igual)
+      assert.equal(r.status, 409, `${igual} → ${r.texto}`); assert.equal(r.json.erro.codigo, 'APELIDO_EM_USO')
+    }
   })
 })

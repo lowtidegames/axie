@@ -8,7 +8,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import fs from 'node:fs'
 import path from 'node:path'
-import { chaveDoApelido, limparApelido } from './apelido.mjs'
+import { apelidoValido, chaveDoApelido, chaveDoApelidoV2, limparApelido } from './apelido.mjs'
 
 export const MIGRACOES = [
   // v1 — contas, bonecos (com dono), livro-razão dos bonecos, lutas, respostas de comandos (idempotência), pedidos.
@@ -112,6 +112,26 @@ export const MIGRACOES = [
     for (const { id, apelido } of db.prepare('SELECT id, apelido FROM contas ORDER BY id').all()) {
       const base = limparApelido(apelido) || `Jogador ${id}`
       let nome = base, k = 1
+      while (usados.has(chaveDoApelidoV2(nome))) {
+        k++
+        const sufixo = ` ${k}`
+        nome = base.slice(0, Math.max(1, 20 - sufixo.length)).trimEnd() + sufixo
+      }
+      usados.add(chaveDoApelidoV2(nome))
+      gravar.run(nome, chaveDoApelidoV2(nome), id)
+    }
+    db.exec('CREATE UNIQUE INDEX contas_apelido ON contas(apelido_norm)')
+  },
+  // v3 — parecer de segurança nº 2: apelido só com A–Z, acentos do português, números e . _ - espaço, comparado sem
+  // acento, sem caixa e com I/l/1 e O/0 juntos (S2-5): apelido antigo fora da regra ganha forma válida; repetido na
+  // forma nova ganha sufixo " 2", " 3"... (o mais antigo fica com o nome). Índice das lutas encerradas por conta (S2-2).
+  (db) => {
+    db.exec('DROP INDEX contas_apelido')
+    const usados = new Set()
+    const gravar = db.prepare('UPDATE contas SET apelido = ?, apelido_norm = ? WHERE id = ?')
+    for (const { id, apelido } of db.prepare('SELECT id, apelido FROM contas ORDER BY id').all()) {
+      const base = apelidoValido(apelido, id)
+      let nome = base, k = 1
       while (usados.has(chaveDoApelido(nome))) {
         k++
         const sufixo = ` ${k}`
@@ -120,11 +140,17 @@ export const MIGRACOES = [
       usados.add(chaveDoApelido(nome))
       gravar.run(nome, chaveDoApelido(nome), id)
     }
-    db.exec('CREATE UNIQUE INDEX contas_apelido ON contas(apelido_norm)')
+    db.exec(`
+    CREATE UNIQUE INDEX contas_apelido ON contas(apelido_norm);
+    CREATE INDEX lutas_encerradas ON lutas(conta_id, encerrada_em) WHERE status = 'encerrada';
+    `)
   },
 ]
 
 export const VERSAO_DO_BANCO = MIGRACOES.length
+
+/** Tamanho do arquivo -wal depois de cada descarga (limite técnico do servidor, não é número de economia). */
+export const LIMITE_DO_WAL_BYTES = 4 * 1024 * 1024
 
 function versaoAtual(db) {
   return db.prepare('PRAGMA user_version').get().user_version
@@ -180,7 +206,11 @@ export function abrirBanco(caminho = ':memory:', { modo = 'teste', migracoes = M
       const gravado = db.prepare('SELECT valor FROM meta WHERE chave = ?').get('modo')?.valor
       if (gravado !== modo) throw new Error(`Este banco é do modo "${gravado}" e o servidor está no modo "${modo}": não misturo.`)
     }
-    if (emArquivo) db.exec('PRAGMA journal_mode = WAL')
+    if (emArquivo) {
+      db.exec('PRAGMA journal_mode = WAL')
+      // depois de cada descarga (checkpoint) o arquivo -wal volta a no máximo isto (S2-1)
+      db.exec(`PRAGMA journal_size_limit = ${LIMITE_DO_WAL_BYTES}`)
+    }
     if (v < migracoes.length) {
       // há dados (versão > 0) e migração pendente: cópia SEMPRE antes; sem cópia, não migra
       if (emArquivo && v > 0) copiarAntes(db, caminho, v, agora())

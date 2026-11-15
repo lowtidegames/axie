@@ -177,3 +177,77 @@ describe('migração v1 → v2 com banco usado', () => {
     assert.equal(fs.readdirSync(path.join(sub, 'copias')).length, n)
   })
 })
+
+// ---------------------------------------------------------------- parecer de segurança nº 2: migração v2 → v3 com banco usado
+
+describe('migração v2 → v3 com banco usado (S2-5 apelidos, S2-2 lutas encerradas de antes)', () => {
+  test('apelido fora da regra ganha forma válida; repetido na forma nova ganha sufixo; token e luta encerrada de antes continuam', async () => {
+    const { jogarTurno } = await import('../../shared/robos.js')
+    const { visaoDoTime, resultado: resultadoDaLuta, VERSAO_DO_MOTOR } = await import('../../shared/batalha.js')
+    const sub = fs.mkdtempSync(path.join(pasta, 'v2-'))
+    const arq = path.join(sub, 'v2.db')
+    const t0 = 1_960_000_000_000
+    abrirBanco(arq, { migracoes: MIGRACOES.slice(0, 2), agora: () => t0 }).close()
+    const d = new DatabaseSync(arq)
+    const nomes = ['İna', 'Ina', 'José', 'Jose', 'Straße', 'ǀǀǀ', 'lana', 'Iana']
+    const ids = {}, tokens = {}
+    for (const apelido of nomes) {
+      const id = Number(d.prepare('INSERT INTO contas (apelido, apelido_norm, token_hash, criada_em) VALUES (?, ?, ?, ?)')
+        .run(apelido, apelido.normalize('NFKC').toLowerCase(), `sessao:${apelido}`, t0).lastInsertRowid)
+      const token = randomBytes(32).toString('base64url')
+      d.prepare('INSERT INTO sessoes (token_hash, conta_id, criada_em, usada_em) VALUES (?, ?, ?, ?)').run(hashDoToken(token), id, t0, t0)
+      ids[apelido] = id; tokens[apelido] = token
+    }
+    // luta encerrada gravada como antes do S2-2: o estado inteiro
+    const prontos = Object.keys(BONECOS_PRONTOS)
+    const timeA = prontos.slice(0, 3).map((p) => {
+      const b = gerarBonecoInicial(`semente-${p}`, { id: `bo_${'a'.repeat(24)}` })
+      for (const parte of PARTES_DO_BONECO) b.partes[parte].face = BONECOS_PRONTOS[p].partes[parte]
+      return paraLuta(b)
+    })
+    const timeB = prontos.slice(3, 6)
+    const e = criarLuta({ semente: 'luta-velha', timeA, timeB })
+    for (let i = 0; i < 400 && !e.fim; i++) jogarTurno(e, 'ganancioso')
+    assert.ok(e.fim)
+    const lutaId = `lu_${'b'.repeat(24)}`
+    d.prepare(`INSERT INTO lutas (id, conta_id, modo, fase, robo, semente, time_a, time_b, bonecos_a, estado, seq, prazo, status, resultado, criada_em, encerrada_em, versao_motor, tocada_em)
+               VALUES (?, ?, 'livre', NULL, 'ganancioso', 'luta-velha', ?, ?, '[]', ?, 3, NULL, 'encerrada', ?, ?, ?, ?, ?)`)
+      .run(lutaId, ids.José, JSON.stringify(timeA), JSON.stringify(timeB), JSON.stringify(e), JSON.stringify(resultadoDaLuta(e)), t0, t0, VERSAO_DO_MOTOR, t0)
+    d.close()
+
+    const s = await iniciar({ dbPath: arq, porta: 0, agora: () => t0 + 60_000, log: () => {} })
+    const url = `http://127.0.0.1:${s.porta}`
+    const api = async (metodo, caminho, token, corpo) => {
+      const r = await fetch(url + caminho, { method: metodo, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(corpo ? { 'Content-Type': 'application/json' } : {}) }, body: corpo ? JSON.stringify(corpo) : undefined })
+      return { status: r.status, json: await r.json() }
+    }
+    try {
+      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, VERSAO_DO_BANCO)
+      assert.ok(fs.readdirSync(path.join(sub, 'copias')).some((n) => n.startsWith('v2.db.v2.')))
+      const ap = Object.fromEntries(s.db.prepare('SELECT id, apelido FROM contas').all().map((c) => [c.id, c.apelido]))
+      assert.deepEqual(nomes.map((n) => ap[ids[n]]), ['Ina', 'Ina 2', 'José', 'Jose 2', 'Stra e', `Jogador ${ids['ǀǀǀ']}`, 'lana', 'Iana 2'])
+      // todo token antigo entra; o apelido é o novo
+      for (const n of nomes) {
+        const est = await api('GET', '/api/estado', tokens[n])
+        assert.equal(est.status, 200, JSON.stringify(est.json))
+        assert.equal(est.json.conta.apelido, ap[ids[n]])
+      }
+      // a forma nova vale para quem chega: "INA", "jose" e "1ana" já têm dono
+      for (const apelido of ['INA', 'jose', '1ana']) assert.equal((await api('POST', '/api/conta', null, { apelido })).status, 409, apelido)
+      // a luta encerrada de antes (estado inteiro) continua legível e com replay
+      const v = await api('GET', `/api/luta/${lutaId}`, tokens.José)
+      assert.equal(v.status, 200, JSON.stringify(v.json))
+      const esperado = visaoDoTime(e, 'A'); delete esperado.semente; delete esperado.rng
+      assert.deepEqual(v.json.visao, JSON.parse(JSON.stringify(esperado)))
+      const rep = await api('GET', `/api/luta/${lutaId}/replay`, tokens.José)
+      assert.equal(rep.status, 200)
+      assert.deepEqual(rep.json.comandos, JSON.parse(JSON.stringify(e.comandos)))
+    } finally {
+      s.servidor.closeAllConnections(); await new Promise((ok) => s.servidor.close(ok))
+    }
+    // reabrir: sem migração pendente, sem cópia nova
+    const n = fs.readdirSync(path.join(sub, 'copias')).length
+    abrirBanco(arq).close()
+    assert.equal(fs.readdirSync(path.join(sub, 'copias')).length, n)
+  })
+})

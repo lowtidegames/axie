@@ -1,1 +1,94 @@
-{ "versao": 1, "efeitos": {} }
+{
+  "versao": 1,
+  "efeitos": {
+    "botao": [
+      "sons/botao-1.mp3",
+      "sons/botao-2.mp3",
+      "sons/botao-3.mp3"
+    ],
+    "escolherCarta": [
+      "sons/escolherCarta-1.mp3",
+      "sons/escolherCarta-2.mp3",
+      "sons/escolherCarta-3.mp3"
+    ],
+    "semLinha": [
+      "sons/semLinha-1.mp3",
+      "sons/semLinha-2.mp3",
+      "sons/semLinha-3.mp3"
+    ],
+    "cartaJogada": [
+      "sons/cartaJogada-1.mp3",
+      "sons/cartaJogada-2.mp3",
+      "sons/cartaJogada-3.mp3"
+    ],
+    "golpe": [
+      "sons/golpe-1.mp3",
+      "sons/golpe-2.mp3",
+      "sons/golpe-3.mp3"
+    ],
+    "golpeForte": [
+      "sons/golpeForte-1.mp3",
+      "sons/golpeForte-2.mp3",
+      "sons/golpeForte-3.mp3"
+    ],
+    "critico": [
+      "sons/critico-1.mp3",
+      "sons/critico-2.mp3",
+      "sons/critico-3.mp3"
+    ],
+    "golpeNoEscudo": [
+      "sons/golpeNoEscudo-1.mp3",
+      "sons/golpeNoEscudo-2.mp3",
+      "sons/golpeNoEscudo-3.mp3"
+    ],
+    "erroDoVeu": [
+      "sons/erroDoVeu-1.mp3",
+      "sons/erroDoVeu-2.mp3",
+      "sons/erroDoVeu-3.mp3"
+    ],
+    "fioSolto": [
+      "sons/fioSolto-1.mp3",
+      "sons/fioSolto-2.mp3",
+      "sons/fioSolto-3.mp3"
+    ],
+    "trocarLugares": [
+      "sons/trocarLugares-1.mp3",
+      "sons/trocarLugares-2.mp3",
+      "sons/trocarLugares-3.mp3"
+    ],
+    "comprarCarta": [
+      "sons/comprarCarta-1.mp3",
+      "sons/comprarCarta-2.mp3"
+    ],
+    "fiapo": [
+      "sons/fiapo-1.mp3",
+      "sons/fiapo-2.mp3",
+      "sons/fiapo-3.mp3"
+    ],
+    "ultimoFio": [
+      "sons/ultimoFio-1.mp3",
+      "sons/ultimoFio-2.mp3",
+      "sons/ultimoFio-3.mp3"
+    ],
+    "queda": [
+      "sons/queda-1.mp3",
+      "sons/queda-2.mp3",
+      "sons/queda-3.mp3"
+    ],
+    "tesouraDesce": [
+      "sons/tesouraDesce-1.mp3",
+      "sons/tesouraDesce-2.mp3",
+      "sons/tesouraDesce-3.mp3"
+    ],
+    "tesoura": [
+      "sons/tesoura-1.mp3",
+      "sons/tesoura-2.mp3",
+      "sons/tesoura-3.mp3"
+    ],
+    "remendo": [
+      "sons/remendo-1.mp3",
+      "sons/remendo-2.mp3",
+      "sons/remendo-3.mp3"
+    ]
+  }
+}

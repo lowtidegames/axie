@@ -1,0 +1,8 @@
+[
+ {"nome":"semLinha","alvoMs":140,"seg":0.8,"inf":0.7,"texto":"Two quick dull muffled knocks on padded cloth, low pitched, clear and close, dry foley, no reverb"},
+ {"nome":"golpe","alvoMs":180,"seg":0.8,"inf":0.7,"texto":"A firm punch into a stuffed pillow, clear soft thump with a little cloth rustle, loud and close, dry foley, no reverb"},
+ {"nome":"escudo","alvoMs":300,"seg":1.5,"inf":0.7,"texto":"A small metal thimble struck once with a metal needle, loud clear bright ting with a short ring, close-mic, dry"},
+ {"nome":"tesoura","alvoMs":600,"seg":1.8,"inf":0.7,"texto":"Giant heavy steel tailor shears slamming shut once, loud sharp metallic snip followed by a short ringing metal resonance, close-mic, dry, dramatic"},
+ {"nome":"escolherCarta","alvoMs":90,"seg":0.7,"inf":0.7,"texto":"A stiff paper card flicked with a finger once, loud crisp snap of paper, close-mic, dry"},
+ {"nome":"fioSolto","alvoMs":250,"seg":1.0,"inf":0.7,"texto":"A tight string plucked and immediately going slack, short descending twang, clear and close, dry"}
+]

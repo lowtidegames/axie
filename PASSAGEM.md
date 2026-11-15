@@ -1,6 +1,14 @@
 # PASSAGEM — Frayz
 
-## ⚑ 15/11/2026 02:30 BRT — ESTADO ATUAL (vale acima do resto)
+## ⚑ 15/11/2026 03:18 BRT — ESTADO ATUAL (vale acima do resto; a seção de 02:30 abaixo continua valendo no que esta não muda)
+- **Decisões novas do dono (02:55):** (1) visual = desenho por código; (2) som pelo ElevenLabs com teto de 5.000 créditos (gasto 1.284; sobra 3.716; novo gasto: avisar o dono em 1 linha antes); (3) **AUTONOMIA: até o jogo estar completamente jogável o diretor decide sozinho, desde que a opção tenha nota 95+ (se não tiver, refina até ter) e registre cada decisão com nota e motivo no `docs/decisions.md`.** Continuam só do dono: dinheiro de verdade, créditos além dos tetos, token e carteira, publicar fora da página de teste, apagar, cliques nas contas dele.
+- **Decidido pelo diretor por delegação (topo do decisions.md):** efeitos de ateliê por amostra e caixinha de música por código; números da rodada 2 só para o beta sem dinheiro; teto de força do Lendário +4%; abrir luta gasta energia e desistir conta como derrota; link de teste pela página do GitHub quando o acabamento estiver encaixado (1 clique do dono em Settings → Pages).
+- **Pacote de som instalado:** 18 efeitos, 53 arquivos em `public/sons/`, ligados pelo `public/sons/manifesto.json`. Material bruto e escolha em `sons/pacote-elevenlabs/`. Ninguém ouviu: o dono aprova de ouvido pela folha `/sons.html` quando houver link.
+- **VERMELHO conhecido:** `npm run e2e` falha em 3 conferências do teste de som por causa do manifesto preenchido (tarefa 14 da fila, PRIORIDADE). `npm test` 114/0; as partes de luta e tela 2 do e2e estão verdes.
+- **Chaves:** o dono pôs `ELEVENLABS_API_KEY` e `PIXELLAB_API_KEY` nas variáveis do ambiente `frayz` (03:05). Nunca mostrar o valor.
+- **Ordem de trabalho para "jogo completamente jogável":** 14 (teste de som) → `seguranca` no ramo `frayz-servidor2` e junção → 11 (encaixe do acabamento na luta, com fotos conferidas) → ligar a tela ao servidor pela ponte → 15 e 16 → página de teste → rodada de `qa-jogador`, guardião e diversão no jogo inteiro (meta trindade 90+ por tela) → relatório ao dono com o link.
+
+## 15/11/2026 02:30 BRT — estado anterior
 - **Jogo:** Frayz — bonecos de pano amaldiçoados, batalha 3×3 por cartas, costura (cruzamento), aluguel de times, ranking, token na Solana (nada de dinheiro ainda). Repositório `lowtidegames/axie` (público, o dono sabe), ramo `main`. Ambiente de nuvem próprio: `frayz` (libera só api.elevenlabs.io e api.pixellab.ai).
 - **Diretor anterior:** `session_019N76nV6wFUb2aP2SLbeotJ` (conversa encerrada por tamanho e custo). **Regra nova do dono (02:01): o Fable só dirige e julga; agentes em Opus e Sonnet; nenhum agente em Fable sem ele dizer.**
 - **No `main`, tudo com teste:** motor de batalha 2 (sorteio por SHA-256, mesa, teto de 40 comandos por turno), costura/genes/Carretel/desgaste, economia do pote no simulador (rodadas 1 e 2), tela do protótipo (luta, coleção, costura com casulo, Aventura de 5 fases, replay), servidor do protótipo (rodada 1), som (30 efeitos, valsa em camadas, folha de sons). `npm test` 114/0; `npm run e2e` verde (luta, tela 2 e som; celular e PC).

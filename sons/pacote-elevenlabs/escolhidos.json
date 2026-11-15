@@ -1,0 +1,370 @@
+{
+ "botao": [
+  {
+   "arq": "sons/botao-1.mp3",
+   "de": "botao-2.mp3",
+   "ms": 90,
+   "picoBruto": -0.2
+  },
+  {
+   "arq": "sons/botao-2.mp3",
+   "de": "botao-1.mp3",
+   "ms": 82,
+   "picoBruto": 1.7
+  },
+  {
+   "arq": "sons/botao-3.mp3",
+   "de": "botao-4.mp3",
+   "ms": 84,
+   "picoBruto": -1.7
+  }
+ ],
+ "escolherCarta": [
+  {
+   "arq": "sons/escolherCarta-1.mp3",
+   "de": "escolherCarta-5.mp3",
+   "ms": 218,
+   "picoBruto": -4.3
+  },
+  {
+   "arq": "sons/escolherCarta-2.mp3",
+   "de": "escolherCarta-7.mp3",
+   "ms": 275,
+   "picoBruto": -11.0
+  },
+  {
+   "arq": "sons/escolherCarta-3.mp3",
+   "de": "escolherCarta-8.mp3",
+   "ms": 140,
+   "picoBruto": -7.9
+  }
+ ],
+ "semLinha": [
+  {
+   "arq": "sons/semLinha-1.mp3",
+   "de": "semLinha-6.mp3",
+   "ms": 346,
+   "picoBruto": -1.8
+  },
+  {
+   "arq": "sons/semLinha-2.mp3",
+   "de": "semLinha-5.mp3",
+   "ms": 351,
+   "picoBruto": -0.4
+  },
+  {
+   "arq": "sons/semLinha-3.mp3",
+   "de": "semLinha-4.mp3",
+   "ms": 140,
+   "picoBruto": -4.0
+  }
+ ],
+ "cartaJogada": [
+  {
+   "arq": "sons/cartaJogada-1.mp3",
+   "de": "cartaJogada-2.mp3",
+   "ms": 294,
+   "picoBruto": 2.6
+  },
+  {
+   "arq": "sons/cartaJogada-2.mp3",
+   "de": "cartaJogada-1.mp3",
+   "ms": 183,
+   "picoBruto": -1.4
+  },
+  {
+   "arq": "sons/cartaJogada-3.mp3",
+   "de": "cartaJogada-4.mp3",
+   "ms": 286,
+   "picoBruto": -5.3
+  }
+ ],
+ "golpe": [
+  {
+   "arq": "sons/golpe-1.mp3",
+   "de": "golpe-8.mp3",
+   "ms": 213,
+   "picoBruto": -1.4
+  },
+  {
+   "arq": "sons/golpe-2.mp3",
+   "de": "golpe-6.mp3",
+   "ms": 187,
+   "picoBruto": 2.8
+  },
+  {
+   "arq": "sons/golpe-3.mp3",
+   "de": "golpe-7.mp3",
+   "ms": 252,
+   "picoBruto": -3.9
+  }
+ ],
+ "golpeForte": [
+  {
+   "arq": "sons/golpeForte-1.mp3",
+   "de": "golpeForte-1.mp3",
+   "ms": 242,
+   "picoBruto": 0.3
+  },
+  {
+   "arq": "sons/golpeForte-2.mp3",
+   "de": "golpeForte-3.mp3",
+   "ms": 213,
+   "picoBruto": -0.2
+  },
+  {
+   "arq": "sons/golpeForte-3.mp3",
+   "de": "golpeForte-4.mp3",
+   "ms": 203,
+   "picoBruto": 0.9
+  }
+ ],
+ "critico": [
+  {
+   "arq": "sons/critico-1.mp3",
+   "de": "critico-2.mp3",
+   "ms": 584,
+   "picoBruto": 3.3
+  },
+  {
+   "arq": "sons/critico-2.mp3",
+   "de": "critico-4.mp3",
+   "ms": 601,
+   "picoBruto": 3.7
+  },
+  {
+   "arq": "sons/critico-3.mp3",
+   "de": "critico-3.mp3",
+   "ms": 414,
+   "picoBruto": 3.2
+  }
+ ],
+ "escudo": [
+  {
+   "arq": "sons/escudo-1.mp3",
+   "de": "escudo-3.mp3",
+   "ms": 330,
+   "picoBruto": -11.7
+  },
+  {
+   "arq": "sons/escudo-2.mp3",
+   "de": "escudo-4.mp3",
+   "ms": 532,
+   "picoBruto": -3.4
+  }
+ ],
+ "golpeNoEscudo": [
+  {
+   "arq": "sons/golpeNoEscudo-1.mp3",
+   "de": "golpeNoEscudo-1.mp3",
+   "ms": 201,
+   "picoBruto": -6.6
+  },
+  {
+   "arq": "sons/golpeNoEscudo-2.mp3",
+   "de": "golpeNoEscudo-4.mp3",
+   "ms": 214,
+   "picoBruto": -4.3
+  },
+  {
+   "arq": "sons/golpeNoEscudo-3.mp3",
+   "de": "golpeNoEscudo-2.mp3",
+   "ms": 227,
+   "picoBruto": -4.5
+  }
+ ],
+ "erroDoVeu": [
+  {
+   "arq": "sons/erroDoVeu-1.mp3",
+   "de": "erroDoVeu-4.mp3",
+   "ms": 236,
+   "picoBruto": 2.3
+  },
+  {
+   "arq": "sons/erroDoVeu-2.mp3",
+   "de": "erroDoVeu-2.mp3",
+   "ms": 146,
+   "picoBruto": 2.6
+  },
+  {
+   "arq": "sons/erroDoVeu-3.mp3",
+   "de": "erroDoVeu-1.mp3",
+   "ms": 138,
+   "picoBruto": 1.9
+  }
+ ],
+ "fioSolto": [
+  {
+   "arq": "sons/fioSolto-1.mp3",
+   "de": "fioSolto-5.mp3",
+   "ms": 255,
+   "picoBruto": 3.5
+  },
+  {
+   "arq": "sons/fioSolto-2.mp3",
+   "de": "fioSolto-6.mp3",
+   "ms": 333,
+   "picoBruto": -3.6
+  },
+  {
+   "arq": "sons/fioSolto-3.mp3",
+   "de": "fioSolto-8.mp3",
+   "ms": 359,
+   "picoBruto": 3.6
+  }
+ ],
+ "trocarLugares": [
+  {
+   "arq": "sons/trocarLugares-1.mp3",
+   "de": "trocarLugares-3.mp3",
+   "ms": 292,
+   "picoBruto": -0.1
+  },
+  {
+   "arq": "sons/trocarLugares-2.mp3",
+   "de": "trocarLugares-4.mp3",
+   "ms": 348,
+   "picoBruto": 2.8
+  },
+  {
+   "arq": "sons/trocarLugares-3.mp3",
+   "de": "trocarLugares-2.mp3",
+   "ms": 378,
+   "picoBruto": 2.7
+  }
+ ],
+ "comprarCarta": [
+  {
+   "arq": "sons/comprarCarta-1.mp3",
+   "de": "comprarCarta-4.mp3",
+   "ms": 228,
+   "picoBruto": 1.7
+  },
+  {
+   "arq": "sons/comprarCarta-2.mp3",
+   "de": "comprarCarta-2.mp3",
+   "ms": 237,
+   "picoBruto": -7.2
+  }
+ ],
+ "fiapo": [
+  {
+   "arq": "sons/fiapo-1.mp3",
+   "de": "fiapo-3.mp3",
+   "ms": 80,
+   "picoBruto": 1.1
+  },
+  {
+   "arq": "sons/fiapo-2.mp3",
+   "de": "fiapo-4.mp3",
+   "ms": 262,
+   "picoBruto": -4.4
+  },
+  {
+   "arq": "sons/fiapo-3.mp3",
+   "de": "fiapo-2.mp3",
+   "ms": 75,
+   "picoBruto": -1.1
+  }
+ ],
+ "ultimoFio": [
+  {
+   "arq": "sons/ultimoFio-1.mp3",
+   "de": "ultimoFio-2.mp3",
+   "ms": 924,
+   "picoBruto": -1.7
+  },
+  {
+   "arq": "sons/ultimoFio-2.mp3",
+   "de": "ultimoFio-1.mp3",
+   "ms": 903,
+   "picoBruto": 1.4
+  },
+  {
+   "arq": "sons/ultimoFio-3.mp3",
+   "de": "ultimoFio-3.mp3",
+   "ms": 944,
+   "picoBruto": 2.6
+  }
+ ],
+ "queda": [
+  {
+   "arq": "sons/queda-1.mp3",
+   "de": "queda-3.mp3",
+   "ms": 509,
+   "picoBruto": 0.1
+  },
+  {
+   "arq": "sons/queda-2.mp3",
+   "de": "queda-2.mp3",
+   "ms": 590,
+   "picoBruto": -10.8
+  },
+  {
+   "arq": "sons/queda-3.mp3",
+   "de": "queda-1.mp3",
+   "ms": 396,
+   "picoBruto": 2.6
+  }
+ ],
+ "tesouraDesce": [
+  {
+   "arq": "sons/tesouraDesce-1.mp3",
+   "de": "tesouraDesce-3.mp3",
+   "ms": 599,
+   "picoBruto": 1.3
+  },
+  {
+   "arq": "sons/tesouraDesce-2.mp3",
+   "de": "tesouraDesce-2.mp3",
+   "ms": 603,
+   "picoBruto": -1.5
+  },
+  {
+   "arq": "sons/tesouraDesce-3.mp3",
+   "de": "tesouraDesce-4.mp3",
+   "ms": 528,
+   "picoBruto": 0.7
+  }
+ ],
+ "tesoura": [
+  {
+   "arq": "sons/tesoura-1.mp3",
+   "de": "tesoura-2.mp3",
+   "ms": 655,
+   "picoBruto": -4.5
+  },
+  {
+   "arq": "sons/tesoura-2.mp3",
+   "de": "tesoura-7.mp3",
+   "ms": 656,
+   "picoBruto": 4.9
+  },
+  {
+   "arq": "sons/tesoura-3.mp3",
+   "de": "tesoura-5.mp3",
+   "ms": 579,
+   "picoBruto": 3.8
+  }
+ ],
+ "remendo": [
+  {
+   "arq": "sons/remendo-1.mp3",
+   "de": "remendo-2.mp3",
+   "ms": 359,
+   "picoBruto": -0.2
+  },
+  {
+   "arq": "sons/remendo-2.mp3",
+   "de": "remendo-1.mp3",
+   "ms": 305,
+   "picoBruto": 1.1
+  },
+  {
+   "arq": "sons/remendo-3.mp3",
+   "de": "remendo-4.mp3",
+   "ms": 437,
+   "picoBruto": 2.5
+  }
+ ]
+}

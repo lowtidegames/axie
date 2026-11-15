@@ -102,8 +102,15 @@ function gruposIPv6(ip) {
   return grupos.map((g) => g.toLowerCase().replace(/^0+(?=.)/, ''))
 }
 const semMapeado = (endereco) => {
-  const ip = String(endereco ?? '')
-  return ip.startsWith('::ffff:') && ip.includes('.') ? ip.slice(7) : ip
+  const ip = String(endereco ?? '').toLowerCase() // S3-2 (tarefa 17): "::FFFF:" também é mapeado
+  if (ip.startsWith('::ffff:') && ip.includes('.')) return ip.slice(7)
+  // forma em hexa ("::ffff:a00:1", como o URL normaliza) → IPv4
+  const hexa = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(ip)
+  if (hexa) {
+    const [a, b] = [parseInt(hexa[1], 16), parseInt(hexa[2], 16)]
+    return `${a >> 8}.${a & 255}.${b >> 8}.${b & 255}`
+  }
+  return ip
 }
 
 /**

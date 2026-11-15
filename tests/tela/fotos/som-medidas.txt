@@ -1,0 +1,230 @@
+Frayz — medidas do som (tests/tela/som.e2e.mjs). Tudo fabricado fora do tempo real a 48 kHz, depois do limitador, volumes no padrão.
+
+== Folha de sons: nada toca antes do primeiro toque ==
+  ok: antes do primeiro toque o áudio nem existe (nenhum AudioContext criado)
+  ok: efeito pedido antes do toque não toca (e não dá erro)
+  ok: mas o pedido fica contado (contagem e registro), para o teste de tela da luta
+  ok: música pedida antes do toque só fica anotada
+  ok: padrão ao abrir: efeitos em 70%, música em 45%, sem mudo
+  ok: a folha lista os 30 efeitos, cada um com 3 variações (onda e espectro): 30 cartões, 180 desenhos
+  ok: a folha tem os 8 momentos da música com botão (8)
+  ok: folha sem rolagem lateral no PC
+
+== Efeitos: 30 acontecimentos × 3 variações, medidos depois do limitador (48 kHz) ==
+efeito            var  alvo ms  mediu ms  erro   alvo pico  pico dBFS  médio dBFS  buraco ms  fim dB  dif. entre variações
+botao             1       60        55  -9%       -11.5      -11.5       -24.9        0.3   -53.9  1.30 1.34 1.48
+botao             2       60        55  -8%       -11.5      -11.5       -24.6        0.4   -55.1  
+botao             3       60        55  -8%       -11.5      -11.5       -24.6        0.4   -56.5  
+escolherCarta     1       90        85  -5%         -11      -11.0       -27.4        0.2   -52.9  1.33 1.28 1.23
+escolherCarta     2       90        84  -6%         -11      -11.0       -28.5        0.5   -51.8  
+escolherCarta     3       90        86  -5%         -11      -11.0       -26.0        0.2   -53.2  
+semLinha          1      140       132  -6%       -10.5      -10.5       -23.7        0.8   -50.7  0.62 0.56 0.96
+semLinha          2      140       134  -4%       -10.5      -10.5       -24.8        2.7   -60.0  
+semLinha          3      140       133  -5%       -10.5      -10.5       -23.8        1.0   -51.7  
+cartaJogada       1      220       208  -6%          -9       -9.0       -27.2        0.3   -57.4  1.36 1.42 1.33
+cartaJogada       2      220       209  -5%          -9       -9.0       -26.2        0.3   -56.4  
+cartaJogada       3      220       209  -5%          -9       -9.0       -27.0        0.3   -56.7  
+golpe             1      180       174  -3%          -8       -8.0       -22.0        0.6   -52.6  0.89 0.95 1.21
+golpe             2      180       175  -3%          -8       -8.0       -20.5        0.7   -54.0  
+golpe             3      180       175  -3%          -8       -8.0       -21.5        1.4   -57.7  
+golpeForte        1      260       253  -3%          -7       -7.0       -20.7        0.8   -54.0  1.07 1.11 1.31
+golpeForte        2      260       252  -3%          -7       -7.0       -20.7        0.6   -52.6  
+golpeForte        3      260       253  -3%          -7       -7.0       -20.4        0.9   -54.3  
+critico           1      520       514  -1%        -6.5       -6.5       -22.9        1.1   -59.2  1.09 1.22 1.31
+critico           2      520       513  -1%        -6.5       -6.5       -22.8        1.0   -57.3  
+critico           3      520       513  -1%        -6.5       -6.5       -22.3        0.6   -55.9  
+vantagem          1      200       192  -4%        -9.5       -9.5       -24.0        0.2   -58.4  1.57 0.98 1.32
+vantagem          2      200       195  -2%        -9.5       -9.5       -24.0        0.2   -57.1  
+vantagem          3      200       192  -4%        -9.5       -9.5       -25.5        0.7   -59.4  
+escudo            1      300       290  -3%          -9       -9.0       -26.1        0.2   -58.2  1.45 1.40 1.39
+escudo            2      300       290  -3%          -9       -9.0       -26.1        0.2   -58.0  
+escudo            3      300       289  -4%          -9       -9.0       -25.6        0.2   -58.2  
+golpeNoEscudo     1      160       151  -6%        -8.5       -8.5       -23.9        1.4   -55.6  1.32 1.32 1.41
+golpeNoEscudo     2      160       152  -5%        -8.5       -8.5       -24.0        1.9   -57.6  
+golpeNoEscudo     3      160       150  -7%        -8.5       -8.5       -24.1        1.1   -54.0  
+erroDoVeu         1      300       293  -2%         -10      -10.0       -26.8        0.4   -55.5  1.39 1.32 1.38
+erroDoVeu         2      300       293  -2%         -10      -10.0       -26.4        0.5   -50.5  
+erroDoVeu         3      300       293  -2%         -10      -10.0       -26.2        0.2   -56.8  
+cura              1      420       412  -2%        -9.5       -9.5       -23.5        1.3   -59.0  0.97 1.05 1.28
+cura              2      420       412  -2%        -9.5       -9.5       -23.1        1.0   -56.8  
+cura              3      420       412  -2%        -9.5       -9.5       -23.3        1.6   -59.6  
+fioSolto          1      250       244  -2%        -9.5       -9.5       -20.1        0.9   -54.7  1.45 1.46 1.43
+fioSolto          2      250       243  -3%        -9.5       -9.5       -20.0        0.4   -52.8  
+fioSolto          3      250       244  -2%        -9.5       -9.5       -20.0        1.1   -55.7  
+trocarLugares     1      240       235  -2%         -10      -10.0       -27.7        0.7   -56.6  1.15 1.13 1.11
+trocarLugares     2      240       234  -2%         -10      -10.0       -27.6        0.7   -57.4  
+trocarLugares     3      240       235  -2%         -10      -10.0       -26.1        0.4   -56.0  
+comprarCarta      1       80        76  -5%         -11      -11.0       -29.4        0.3   -54.9  1.19 1.31 1.30
+comprarCarta      2       80        76  -5%         -11      -11.0       -26.5        0.3   -53.4  
+comprarCarta      3       80        76  -5%         -11      -11.0       -28.0        0.6   -54.8  
+fiapo             1      110       101  -8%       -10.5      -10.5       -28.0        0.1   -58.2  1.39 1.44 1.34
+fiapo             2      110       101  -8%       -10.5      -10.5       -28.6        0.2   -58.0  
+fiapo             3      110       101  -8%       -10.5      -10.5       -27.8        0.1   -57.8  
+linhaGanha        1      180       171  -5%       -10.5      -10.5       -26.1        0.6   -58.3  1.28 1.36 1.44
+linhaGanha        2      180       171  -5%       -10.5      -10.5       -24.3        0.6   -56.5  
+linhaGanha        3      180       171  -5%       -10.5      -10.5       -25.0        0.5   -57.3  
+suaVez            1      350       343  -2%          -9       -9.0       -22.8        1.8   -58.3  0.88 0.82 1.11
+suaVez            2      350       343  -2%          -9       -9.0       -22.3        1.4   -57.2  
+suaVez            3      350       341  -3%          -9       -9.0       -24.7        2.2   -55.2  
+tempoAcabando     1     5000      4968  -1%         -10      -10.0       -33.2        8.3   -59.0  1.41 1.52 1.44
+tempoAcabando     2     5000      4968  -1%         -10      -10.0       -32.7        6.8   -59.7  
+tempoAcabando     3     5000      4962  -1%         -10      -10.0       -33.2        8.9   -56.7  
+ultimoFio         1      700       680  -3%          -7       -7.0       -21.5        0.8   -53.8  1.05 0.93 0.93
+ultimoFio         2      700       680  -3%          -7       -7.0       -21.5        0.8   -54.0  
+ultimoFio         3      700       680  -3%          -7       -7.0       -23.9        1.0   -54.7  
+queda             1      500       494  -1%          -7       -7.0       -21.0        5.2   -57.7  1.05 1.01 1.24
+queda             2      500       494  -1%          -7       -7.0       -21.5        4.2   -56.1  
+queda             3      500       493  -1%          -7       -7.0       -22.9        4.6   -57.4  
+tesouraDesce      1      300       290  -3%          -8       -8.0       -27.4        0.6   -54.2  1.17 1.19 1.36
+tesouraDesce      2      300       291  -3%          -8       -8.0       -24.0        0.3   -54.9  
+tesouraDesce      3      300       291  -3%          -8       -8.0       -24.4        0.3   -55.3  
+tesoura           1      600       585  -3%        -6.5       -6.5       -25.6        0.2   -59.0  1.21 1.31 1.32
+tesoura           2      600       588  -2%        -6.5       -6.5       -26.7        0.2   -58.5  
+tesoura           3      600       587  -2%        -6.5       -6.5       -25.8        0.2   -59.2  
+casuloParte       1      200       189  -5%          -9       -9.0       -25.8        0.6   -56.4  0.60 0.68 1.00
+casuloParte       2      200       189  -5%          -9       -9.0       -24.6        0.5   -55.1  
+casuloParte       3      200       189  -6%          -9       -9.0       -25.6        0.6   -56.2  
+casuloRara        1      500       491  -2%          -8       -8.0       -22.5        0.2   -58.9  0.95 1.05 1.27
+casuloRara        2      500       492  -2%          -8       -8.0       -21.4        0.2   -58.4  
+casuloRara        3      500       492  -2%          -8       -8.0       -22.4        0.2   -59.0  
+casuloLendaria    1     1200      1198  0%           -7       -7.0       -20.4        0.2   -52.2  0.98 0.87 1.25
+casuloLendaria    2     1200      1198  0%           -7       -7.0       -20.7        0.3   -52.0  
+casuloLendaria    3     1200      1197  0%           -7       -7.0       -20.7        0.8   -53.1  
+remendo           1      300       290  -3%         -10      -10.0       -28.0        2.8   -57.6  1.47 1.44 1.40
+remendo           2      300       290  -3%         -10      -10.0       -28.1        3.1   -53.7  
+remendo           3      300       290  -4%         -10      -10.0       -28.1        2.8   -51.5  
+aposentadoria     1     2500      2487  -1%          -9       -9.0       -24.8        2.9   -56.7  0.94 1.02 1.26
+aposentadoria     2     2500      2490  0%           -9       -9.0       -25.2        5.3   -57.7  
+aposentadoria     3     2500      2487  -1%          -9       -9.0       -25.0        2.9   -58.8  
+vitoria           1     2500      2492  0%         -7.5       -7.5       -24.7        1.4   -57.6  1.14 1.12 1.26
+vitoria           2     2500      2494  0%         -7.5       -7.5       -23.7        1.1   -59.8  
+vitoria           3     2500      2494  0%         -7.5       -7.5       -22.6        0.8   -55.8  
+derrota           1     2500      2422  -3%        -8.5       -8.5       -23.5        1.6   -60.0  1.08 1.14 1.29
+derrota           2     2500      2425  -3%        -8.5       -8.5       -23.3        1.6   -59.9  
+derrota           3     2500      2420  -3%        -8.5       -8.5       -23.7        1.6   -60.0  
+  ok: 30 efeitos medidos (30)
+  ok: todos: duração ±20%, pico no alvo (±0,5 dB) entre −12 e −6 dBFS, sem buraco, sem estouro, sem clique no começo nem degrau no fim, 3 variações diferentes
+  ok: o toque de botão é o efeito mais baixo
+  ok: crítico e Tesoura são os mais altos
+  ok: crítico: o rasgo desce (centro da faixa de 2197 para 1056 Hz)
+  ok: crítico: picotado a ~40 por segundo (39, 40, 43 Hz)
+  ok: jogar carta: a linha puxada sobe (882 → 1848 Hz)
+  ok: dedal: parciais 1 · 2,76 · 5,4 presentes e desafinados (-17.5 / -26.8 / -37.1 dB contra -105.7 / -98.6 dB nos múltiplos inteiros)
+  ok: golpe: corpo grave e curto (97% da força abaixo de 320 Hz, 174 ms)
+  ok: queda: o assobio desce (1226 → 572 Hz)
+
+== Posição estéreo, força, degrau, Menos animação e limitador ==
+  ok: efeito sai do lado do boneco: 'A' à esquerda (-5.5 / -14.2 dBFS), 'B' à direita, sem lado no centro
+  ok: de lado o pico continua abaixo de −3 dBFS (-5.5)
+  ok: Véu: o sopro passa de um lado ao outro, começando do lado do boneco (começo 6.5 dB à esquerda; fim 8.3 dB à direita)
+  ok: "Menos animação": crítico e Tesoura 6 dB mais baixos (-6.5 → -12.5; -6.5 → -12.5)
+  ok: "Menos animação" não muda os outros sons (golpe igual)
+  ok: força 0..1 muda o volume (-17.1 a -8.0 dBFS)
+  ok: casulo: cada parte um degrau da escala acima (587 → 659 → 699 → 1175 Hz)
+  ok: 16 Tesouras juntas com volume no máximo: pico -3.1 dBFS (nunca acima de −3)
+  ok: abaixo do limiar o limitador não mexe no som (−20,0 → -20.0 dBFS)
+posição: golpe 'A' E -5.5 / D -14.2 dBFS · 'B' E -14.2 / D -5.5 · centro -8.0
+Menos animação: crítico -6.5 → -12.5 · Tesoura -6.5 → -12.5 · golpe igual (-8.0)
+limitador: 16 Tesouras juntas no volume máximo → pico -3.1 dBFS · senoide de −20,0 dBFS sai a -20.0 dBFS
+
+== Música: 16 compassos de cada momento (48 kHz, pela mesma cadeia) ==
+mediana do pico dos efeitos: -9.0 dBFS
+momento           bpm  tom  segundos  pico dBFS  médio dBFS  abaixo dos efeitos  tema (9 notas)
+entrada            80   0      36.0      -22.7       -39.2             13.7 dB  9 de 9
+  ok: entrada: sem estouro (pico -22.7 dBFS, médio -39.2 dBFS)
+  ok: entrada: cerca de 12 dB abaixo dos efeitos (13.7 dB)
+  ok: entrada: o tema está nas frequências certas (9 de 9 notas; 587 698 880 784 659 698 587 554 587 Hz)
+  ok: entrada: a música não fura (maior silêncio 0.00 s)
+luta               92   0      31.3      -20.9       -38.1             11.9 dB  9 de 9
+  ok: luta: sem estouro (pico -20.9 dBFS, médio -38.1 dBFS)
+  ok: luta: cerca de 12 dB abaixo dos efeitos (11.9 dB)
+  ok: luta: o tema está nas frequências certas (9 de 9 notas; 587 698 880 784 659 698 587 554 587 Hz)
+  ok: luta: a música não fura (maior silêncio 0.00 s)
+tesouraDescendo    92   0      31.3      -19.7       -38.1             10.7 dB  9 de 9
+  ok: tesouraDescendo: sem estouro (pico -19.7 dBFS, médio -38.1 dBFS)
+  ok: tesouraDescendo: cerca de 12 dB abaixo dos efeitos (10.7 dB)
+  ok: tesouraDescendo: o tema está nas frequências certas (9 de 9 notas; 587 698 880 784 659 698 587 554 587 Hz)
+  ok: tesouraDescendo: a música não fura (maior silêncio 0.00 s)
+tesouraCortando    92  +1      31.3      -19.7       -38.2             10.7 dB  9 de 9
+  ok: tesouraCortando: sem estouro (pico -19.7 dBFS, médio -38.2 dBFS)
+  ok: tesouraCortando: cerca de 12 dB abaixo dos efeitos (10.7 dB)
+  ok: tesouraCortando: o tema está nas frequências certas (9 de 9 notas; 622 740 932 831 698 740 622 587 622 Hz)
+  ok: tesouraCortando: a música não fura (maior silêncio 0.00 s)
+ultimoFio          92   0      31.3      -19.8       -38.5             10.8 dB  9 de 9
+  ok: ultimoFio: sem estouro (pico -19.8 dBFS, médio -38.5 dBFS)
+  ok: ultimoFio: cerca de 12 dB abaixo dos efeitos (10.8 dB)
+  ok: ultimoFio: o tema está nas frequências certas (9 de 9 notas; 587 698 880 784 659 698 587 554 587 Hz)
+  ok: ultimoFio: a música não fura (maior silêncio 0.00 s)
+costura            80   0      36.0      -22.5       -39.9             13.5 dB  9 de 9
+  ok: costura: sem estouro (pico -22.5 dBFS, médio -39.9 dBFS)
+  ok: costura: cerca de 12 dB abaixo dos efeitos (13.5 dB)
+  ok: costura: o tema está nas frequências certas (9 de 9 notas; 587 698 880 784 659 698 587 554 587 Hz)
+  ok: costura: a música não fura (maior silêncio 0.00 s)
+  ok: luta: 3 por 4 a 92 batidas por minuto (16 compassos = 31.3 s)
+  ok: entrada: devagar (80 bpm)
+  ok: Tesoura cortando: meio tom acima
+  ok: Último Fio: a música abafa (agudos 29.3 dB mais baixos)
+  ok: Último Fio: a batida de coração entra no grave (+21.5 dB entre 50 e 92 Hz)
+  ok: Tesoura descendo: o tique-taque muda o som da luta
+  ok: vitória e derrota entram na virada do compasso (aos 4.42 s; virada aos 4.41 s)
+  ok: vitória: tema em ré MAIOR (fá sustenido -24.2 dB, fá natural -92.6 dB)
+  ok: costura: o tema sobe um degrau a cada parte (590 → 661 → 701 → 786 Hz = 0, 2, 3, 5 semitons)
+
+== Ao vivo: primeiro toque, teto de vozes, mudo, volumes guardados ==
+  ok: depois do primeiro toque o áudio liga (44100 Hz)
+  ok: a música que estava anotada começa sozinha no primeiro toque
+  ok: tocar devolve o que tocou ({"fonte":"codigo","variacao":1,"nome":"golpe"}) e a voz fica viva (13 nós)
+  ok: teto de 16 vozes: 21 pedidos de som longo → 16 vozes; mais 40 cliques → 16
+  ok: contagem de chamadas por efeito confere (20 e 40)
+  ok: a mesma variação nunca toca duas vezes seguidas (40 toques: 02101202121212…)
+  ok: depois do fim nenhum nó de áudio fica vivo (vozes 0, nós 0)
+  ok: o tique-taque do tempo acabando toca e para na hora (parar)
+  ok: mudo: nada toca
+  ok: o botão de mudo da folha desliga o mudo
+  ok: volumes e mudo ficam guardados no aparelho (efeitos 0.3, música 0.8, mudo true)
+  ok: os controles da folha mostram o que estava guardado
+  ok: controles de volume e "Menos animação" da folha chegam ao som
+
+== Música ao vivo: troca na virada do compasso, abaixar nos golpes grandes, pausa com a aba escondida ==
+  ok: botão da folha começa a música da luta (92 bpm)
+  ok: troca pedida no meio do compasso fica pendente
+  ok: a camada só troca na virada do compasso (trocou quando o compasso virou: [1,"tesouraDescendo"])
+  ok: no crítico a música abaixa 6 dB e volta (1.00 → 0.50 → 1.00)
+  ok: Tesoura cortando: música meio tom acima e as notas dos efeitos acompanham
+  ok: Último Fio abafa a camada que estava tocando (filtro em 650 Hz) e depois solta
+  ok: aba escondida: o áudio para e nada toca; volta sozinho quando a aba aparece
+  ok: vitória: a música para e o tema em ré maior toca uma vez só (pela música ou pelo atalho)
+  ok: parar a música desmonta tudo
+
+== Folha: a luta de exemplo ==
+  ok: a luta de exemplo toca cada som na hora certa, uma vez por acontecimento
+  ok: a música muda de momento durante a luta (luta → tesouraDescendo → ultimoFio → tesouraCortando → vitoria)
+  ok: os 30 passos do roteiro aparecem escritos na folha
+luta de exemplo: suaVez×1 linhaGanha×1 escolherCarta×1 cartaJogada×8 golpe×2 comprarCarta×1 escudo×1 golpeNoEscudo×1 critico×2 vantagem×1 tesouraDesce×1 erroDoVeu×1 cura×1 golpeForte×1 ultimoFio×1 tempoAcabando×1 queda×2 tesoura×1 vitoria×1 · música: luta → tesouraDescendo → ultimoFio → tesouraCortando → vitoria
+
+== Fotos da folha de sons ==
+
+== Folha no celular (360×740) ==
+  ok: celular: sem rolagem lateral
+  ok: celular: todo botão tem pelo menos 44×44 px
+  ok: celular: o primeiro toque num botão liga o áudio e já toca o som
+
+== Amostras gravadas: manifesto de teste com um WAV escrito pelo próprio teste ==
+  ok: o manifesto de teste carrega (2 prontas, 1 falha)
+  ok: a amostra é aparada: sai o silêncio do começo e do fim (181 ms de 400)
+  ok: fonteDoEfeito: com arquivo no manifesto → amostra; sem arquivo → código
+  ok: arquivo que não carrega (404) cai para o som feito por código
+  ok: a amostra toca no lugar do código (o apito de 1.000 Hz do WAV: -16.3 dB na amostra, -55.5 dB no código)
+  ok: a medição de pico vale para as duas fontes: golpe por amostra -8.0 dBFS, por código -8.0 dBFS (alvo −8)
+  ok: a amostra sai na hora (7 ms, o atraso do limitador) e termina sem clique
+  ok: ganhoDb e cortarMs do manifesto valem, sem sair da faixa (crítico +3 dB → -6.0 dBFS, 116 ms)
+  ok: a amostra sai do lado do boneco, como o código
+  ok: a folha mostra as duas versões lado a lado (código × amostra) e avisa quando o arquivo não carregou
+  ok: as medidas da amostra na folha batem com as do teste
+  ok: ao vivo: golpe toca a amostra; botão (arquivo falhou) e escudo (sem arquivo) tocam o código; todos contam no teto de vozes
+  ok: a chave geral da folha troca entre amostras e código
+  ok: amostra também não deixa nó vivo depois do fim
+  ok: música: momento com arquivo no manifesto toca o arquivo; ao trocar de momento volta a música gerada
+  ok: sem erro de console nem de página
+
+RESULTADO: tudo dentro da régua da direção de som.

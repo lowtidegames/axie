@@ -474,7 +474,7 @@ async function fotosEmGrupos(pg, seletor, por, nome) {
     console.log('  foto: ' + path.relative(process.cwd(), arq))
   }
 }
-await page.evaluate(() => { window.scrollTo(0, 0) })
+await page.evaluate(() => { window.__folha.refletir(); window.scrollTo(0, 0) })
 await page.evaluate(() => window.__folha.musicaPronta)
 await page.screenshot({ path: path.join(FOTOS, 'som-folha-topo.png') }); console.log('  foto: tests/tela/fotos/som-folha-topo.png')
 await fotosEmGrupos(page, '.efeito', 5, 'som-efeitos')

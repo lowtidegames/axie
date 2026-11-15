@@ -26,8 +26,10 @@
   button.principal { background: var(--fio); outline-color: var(--fio); color: #23061a; border-color: rgba(35, 6, 26, .6); }
   button[aria-pressed="true"] { background: var(--ouro); outline-color: var(--ouro); color: #2a1a00; border-color: rgba(42, 26, 0, .6); }
   button.soando { background: var(--chama); outline-color: var(--chama); color: #2a1a00; }
-  #mesa { position: sticky; top: 0; z-index: 5; display: grid; gap: 8px 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: center; margin: 12px 0; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+  #mesa { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 4px 24px; align-items: center; margin: 12px 0; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
   #mesa label { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+  #mesa label.vol { flex: 1 1 230px; }
+  #mesa .fila { flex-wrap: nowrap; }
   #mesa input[type=range] { flex: 1; accent-color: var(--fio); min-width: 90px; height: 28px; }
   #mesa input[type=checkbox], #mesa input[type=radio] { width: 20px; height: 20px; accent-color: var(--fio); }
   .numero { font-variant-numeric: tabular-nums; color: var(--ouro); min-width: 3.2em; text-align: right; }
@@ -58,7 +60,7 @@
   #diario li:last-child { color: var(--linho); }
   #diario li b { color: var(--ouro); }
   .legenda { font-size: 13px; color: var(--apagado); }
-  @media (max-width: 760px) { .vars { grid-template-columns: 1fr; } h1 { font-size: 28px; } #mesa { position: static; } }
+  @media (max-width: 760px) { .vars { grid-template-columns: 1fr; } h1 { font-size: 28px; } #mesa { position: static; } #mesa .fila { flex-wrap: wrap; } }
 </style>
 </head>
 <body>
@@ -69,8 +71,8 @@
 
   <section id="mesa" class="painel" aria-label="Controles">
     <div class="fila"><span id="estadoSom" class="etiqueta">Som desligado: toque em qualquer botão</span></div>
-    <label>Efeitos <input id="volEfeitos" type="range" min="0" max="100" step="1"> <span id="numEfeitos" class="numero"></span></label>
-    <label>Música <input id="volMusica" type="range" min="0" max="100" step="1"> <span id="numMusica" class="numero"></span></label>
+    <label class="vol">Efeitos <input id="volEfeitos" type="range" min="0" max="100" step="1"> <span id="numEfeitos" class="numero"></span></label>
+    <label class="vol">Música <input id="volMusica" type="range" min="0" max="100" step="1"> <span id="numMusica" class="numero"></span></label>
     <div class="fila">
       <button id="btnMudo" type="button" aria-pressed="false">Mudo</button>
       <button id="btnParar" type="button">Parar tudo</button>
@@ -252,7 +254,7 @@ setInterval(() => {
 }, 200)
 
 // ------------------------------------------------------------------ música: um cartão por momento
-const F = { Som, Musica, medidas: {}, medidasAmostra: {}, medidasMusica: {}, medir, fabricarFora, SR, PRE }
+const F = { Som, Musica, medidas: {}, medidasAmostra: {}, medidasMusica: {}, medir, fabricarFora, refletir, SR, PRE }
 window.__folha = F
 const COMPASSOS_NA_FOLHA = 8, MOMENTOS = Musica.momentos()
 for (const mo of MOMENTOS) {

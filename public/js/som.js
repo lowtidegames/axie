@@ -397,19 +397,23 @@ const R = {
       K.chiado({ a, dur: 0.032, f, Q: 1.6, atk: 0.006, rel: 0.014, piso: 0.3, pico: p })
     }
   },
-  tesouraDesce(K) { // rangido metálico curto: atrito que prende e solta, cantando nas ressonâncias do metal
-    const { v } = K, f0 = 46 * v.tom
-    const serra = K.osc('sawtooth', f0, 0, 0.3)
-    serra.frequency.setValueAtTime(f0, K.t0); serra.frequency.exponentialRampToValueAtTime(f0 * 1.7, K.t0 + 0.19); serra.frequency.exponentialRampToValueAtTime(f0 * 1.35, K.t0 + 0.29)
-    K.tremor(serra, { b: 0.3, f: 23, de: 60, ate: 120 })
-    const g = K.g(0); K.adsr(g.gain, 0, 0.292, { atk: 0.03, seg: 0.14, rel: 0.07, piso: 0.5, pico: 1 }); g.connect(K.saida)
-    for (const [f, Q, amp] of [[1180, 22, 1], [2630, 26, 0.8], [4350, 30, 0.5], [6900, 20, 0.25]]) {
-      const bp = K.filtro('bandpass', f * v.tom, Q), ga = K.g(amp * 9)
-      K.desliza(bp.frequency, 0, f * v.tom, f * v.tom * 1.07, 0.28)
+  tesouraDesce(K) { // rangido metálico curto (o atrito canta nas ressonâncias do metal, subindo e tremendo) e o "clac" do degrau
+    const { v } = K, f0 = 410 * v.tom, t = K.t0
+    const serra = K.osc('sawtooth', f0, 0, 0.252)
+    serra.frequency.setValueAtTime(f0, t); serra.frequency.exponentialRampToValueAtTime(f0 * 1.32, t + 0.17); serra.frequency.exponentialRampToValueAtTime(f0 * 1.2, t + 0.245)
+    const j = K.ruido(0, 0.252, 0.9), jl = K.filtro('lowpass', 45, 0.7), jg = K.g(700) // tremor irregular de altura (± meio tom): é rangido, não apito
+    j.connect(jl); jl.connect(jg); jg.connect(serra.detune)
+    const aspero = K.granulado({ b: 0.252, f: 70, prof: 0.55 }), g = K.g(0)
+    K.adsr(g.gain, 0, 0.246, { atk: 0.025, seg: 0.12, rel: 0.05, piso: 0.45, pico: 1 }); g.connect(aspero)
+    for (const [f, Q, amp] of [[1180, 14, 1], [2630, 18, 0.9], [4350, 20, 0.6], [6900, 16, 0.3]]) {
+      const bp = K.filtro('bandpass', f * v.tom * v.fil, Q), ga = K.g(amp * 3)
+      K.desliza(bp.frequency, 0, f * v.tom * v.fil, f * v.tom * v.fil * 1.07, 0.24)
       serra.connect(bp); bp.connect(ga); ga.connect(g)
     }
-    const pic = K.picote({ a: 0, b: 0.3, f: f0, f1: f0 * 1.5, prof: 0.8, para: g })
-    K.chiado({ dur: 0.29, f: 3000, Q: 2, atk: 0.03, seg: 0.14, rel: 0.07, piso: 0.5, pico: 0.14, para: pic })
+    const a = 0.243, fc = 1900 * v.tom // a tesoura assenta no degrau de baixo
+    K.chiado({ a, dur: 0.022, tipo: 'highpass', f: 2200, atk: 0.002, rel: 0.012, piso: 0.15, pico: 0.9 })
+    for (const [m, amp, d] of [[1, 0.7, 0.052], [1.63, 0.5, 0.042], [2.74, 0.3, 0.03]]) K.tom({ a, dur: d, f: fc * m, atk: 0.002, piso: 0.02, pico: amp })
+    K.tom({ a, dur: 0.052, f: 150 * v.tom, f1: 95 * v.tom, glide: 0.035, atk: 0.003, piso: 0.03, pico: 0.6 })
   },
   tesoura(K) { // "snip" grande: dois estalos metálicos + anel de metal + baque grave
     const { v } = K
@@ -493,7 +497,7 @@ linha('suaVez', 'Sua vez', 'duas notas da caixinha (lá, ré agudo)', 350, -9)
 linha('tempoAcabando', 'Tempo acabando (5 s)', 'tique-taque que aperta (laço de 5 s; para com parar("tempoAcabando"))', 5000, -10, { laco: true })
 linha('ultimoFio', 'Último Fio', 'corda esticada que geme (serra com filtro e tremor) + um baque de coração', 700, -7)
 linha('queda', 'Queda', 'assobio curto descendo + baque mole + flocos', 500, -7, { grande: true })
-linha('tesouraDesce', 'Tesoura desce um degrau', 'rangido metálico curto', 300, -8)
+linha('tesouraDesce', 'Tesoura desce um degrau', 'rangido metálico curto (e o clac do degrau)', 300, -8)
 linha('tesoura', 'Tesoura corta', '"snip" grande: dois estalos metálicos + anel de metal + baque grave', 600, -6.5, { grande: true, calmo: true })
 linha('casuloParte', 'Casulo: abrir parte', 'ponto arrebentando; cada parte um degrau acima da anterior', 200, -9)
 linha('casuloRara', 'Casulo: parte Rara', 'o mesmo + brilho de 4 notas', 500, -8)
@@ -529,7 +533,7 @@ const PICO_BRUTO = {
   tempoAcabando: [0.9545, 0.8995, 0.9455],
   ultimoFio: [0.8182, 0.8516, 1.08],
   queda: [0.7982, 0.779, 1.08],
-  tesouraDesce: [0.8499, 0.8344, 0.8378],
+  tesouraDesce: [1.181, 1.111, 1.234],
   tesoura: [2.246, 2.532, 2.171],
   casuloParte: [1.029, 0.9076, 1.018],
   casuloRara: [1.029, 0.9076, 1.018],
@@ -608,14 +612,14 @@ function montarVoz(ctx, destino, nome, vi, opc, quando) {
   const dur = am ? am.buffer.duration / taxa : def.ms / 1000
   const forca = lim(opc.forca ?? 1, 0, 1)
   const voz = { nome, vi, fonte: am ? 'amostra' : 'codigo', nos: [], fontes: [], t0: quando, fim: quando + dur, nivel: def.pico + 20 * Math.log10(0.35 + 0.65 * forca) }
-  const entrada = ctx.createGain(), corte = ctx.createGain(), pan = ctx.createStereoPanner()
+  const entrada = ctx.createGain(), corte = ctx.createGain(), pan = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain() // navegador muito antigo: sem posição
   voz.nos.push(entrada, corte, pan); voz.entrada = entrada; voz.corte = corte
   const alvo = lim(def.pico + (am?.ganhoDb ?? 0), FAIXA_DE_PICO[0], FAIXA_DE_PICO[1]) + ((opc.calmo ?? calmoLigado) && def.calmo ? -6 : 0)
   const bruto = am ? am.pico * (def.varre ? 0.95 : Math.SQRT1_2) : (PICO_BRUTO[nome]?.[vi] ?? 1)
   const g = opc.ganhoBruto ?? (dbParaLin(alvo) * (0.35 + 0.65 * forca)) / bruto
   entrada.gain.value = g
   entrada.gain.setValueCurveAtTime(sumico(g), Math.max(0, voz.fim - SUMICO), SUMICO)
-  if (def.varre) { // passa de um lado ao outro: começa do lado do boneco
+  if (!pan.pan) { /* sem posição estéreo */ } else if (def.varre) { // passa de um lado ao outro: começa do lado do boneco
     const d = opc.lado === 'B' ? -1 : opc.lado === 'A' ? 1 : vi === 1 ? -1 : 1
     pan.pan.setValueAtTime(-0.85 * d, quando); pan.pan.linearRampToValueAtTime(0.85 * d, quando + dur * 0.93)
   } else pan.pan.value = panDe(opc)

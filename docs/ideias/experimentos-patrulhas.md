@@ -113,3 +113,126 @@ Varredura com 40 lutas por casa. As linhas em **negrito** foram confirmadas com 
 Existe um conjunto pequeno: 2 números de luta e 1 regra de cansaço. Ele faz as duas escolhas dependerem da conta na régua do economista, menos no f. Mas o motivo do f reprovar mostra o limite do desenho: **com 9 monstros, as contas são parecidas demais.** Quase toda conta de 9–15 tem 6 a 8 dos 9 monstros e chega aos mesmos trios. O que vai fazer a resposta mudar de verdade de conta para conta são os filhotes com partes misturadas (um corpo de um elemento com habilidades de outro), e isto o simulador ainda não mede. Próximo passo sugerido: rodar a opção 1 com contas que tenham 2 a 4 filhotes sorteados do cruzamento e ver se f passa.
 
 Reproduzir: `node tools/experimentos-patrulhas.mjs --lista`, depois `--experimento o2-so-v6 --lutas 400 --espelho 6000`. Os JSON ficam em `.cache/experimentos/` (não commitados).
+
+## 7. Medição com filhotes e parecer do economista (tarefa 35, 15/11/2026 15:00 BRT)
+
+Medido em `tools/experimentos-filhotes.mjs` (cerca de 25 milhões de lutas, 35 min em 4 núcleos; refazer a análise com a medição guardada leva 2 min). **Nada mudou no jogo**: `shared/config.js` e o padrão do motor estão iguais. Testes do gerador em `tests/servidor/filhotes.test.js`.
+
+### 7.1 Como medi
+
+- **Contas realistas (200):** cada uma começa com 6 a 9 prontos sorteados (com repetição; cada cópia com o seu avesso sorteado) e faz 2 a 4 cruzamentos de verdade com `costurar` e `abrirCasulo` (semente fixa). Fica com os filhotes como saírem: partes misturadas, raridades do sorteio. Contas de 8 a 13 monstros.
+- **Contas maduras (100):** 10 a 15 monstros. Metade são filhotes: 2 de 1ª geração e o resto de 2ª.
+- **Contas de propósito (100):** gêmeas das 100 primeiras realistas (mesmos prontos, mesmo número de cruzamentos). Escolhem um lugar e, a cada cruzamento, os pais que dão o filhote que mais bate forte na guarda dele. A conta usa as chances exatas do cruzamento: o corpo resiste ou apanha da guarda, a habilidade bate forte em quantos corpos.
+- **Controle "só prontos" (200):** as mesmas 200 contas antes de cruzar.
+- **Trios saem da conta de cada jogador.** Primeiro uma triagem rápida de todos os trios da conta (30.309 trios com filhote). Depois, a medição completa dos melhores de cada lugar e dos 4 melhores trios só de prontos: 18 formações × táticas em 2 etapas, e lutas novas na melhor (8.635 trios × 3 regras). Cansaço: a mesma formação, começando com 75% da vida.
+- **Critérios por conta**, não por trio. Cada conta conta como **um** jogador, com o seu melhor trio em cada lugar. Pesos: "cenário B" (inverso da vitória média do lugar nos 84 trios de prontos), como na tarefa 33. a) nenhum lugar é o melhor para mais de 40% das contas · b) cada lugar é o melhor para pelo menos 10% · c) ir ao lugar mais escolhido custa pelo menos 10% (mediana) · d) pelo menos 5 divisões ótimas com 3 lugares em 100 contas · e) depois do rodízio, pelo menos 30% mudam de lugar principal · f) a–c valem com cada peso ±10%.
+
+### 7.2 Critérios por cenário
+
+Contas **realistas** (200):
+
+| Regras | a ≤40% | b ≥10% | c ≥10% | d ≥5 | e ≥30% | f |
+|---|---|---|---|---|---|---|
+| hoje | REPROVADO 66,5% | REPROVADO 0,0% | REPROVADO 0,0% | REPROVADO 0 | APROVADO 34,5% | REPROVADO 10/10 |
+| opção 1 (+75%, resist. 40%, cansaço 5) | REPROVADO 68,0% | REPROVADO 0,0% | REPROVADO 0,0% | APROVADO 8 | APROVADO 73,0% | REPROVADO 10/10 |
+| opção 1 sem cansaço | REPROVADO 68,0% | REPROVADO 0,0% | REPROVADO 0,0% | REPROVADO 0 | APROVADO 37,0% | REPROVADO 10/10 |
+| opção 2 (resist. 40% + cansaço 5) | REPROVADO 46,5% | REPROVADO 0,0% | REPROVADO 4,8% | APROVADO 13 | APROVADO 80,0% | REPROVADO 10/10 |
+
+Contas **maduras** (100): hoje a 61% · b 0% · c 0% · d 0 · e 39% · f 10/10 — opção 1: 64% · 0% · 0% · **6** · **74%** · 10/10 — sem cansaço: 64% · 0% · 0% · 0 · 38% · 10/10 — opção 2: 46% · 0% · 4,4% · **11** · **84%** · 10/10.
+Controle **só prontos** (200): hoje 52,5% · 0,5% · 0% · 0 · 49% · 10/10 — opção 1: 59,5% · 0% · 0% · 3 · 78% · 10/10 — opção 2: **40,0%** · 0% · 6,5% · 3 · 88% · 10/10.
+
+**Por que a, b e c caíram em relação à tarefa 33:** lá a régua era por trio, contando os 84 trios, inclusive os fracos que ninguém usaria. Por conta, cada jogador usa o **melhor** trio dele, e esse trio vence quase sempre em quase todo lugar. O melhor trio de cada conta realista vence, por lugar: 87 · 90 · 76 · 74 · 84% hoje e 91 · 91 · 91 · 78 · 90% na opção 1. Com a vitória perto do teto, quem decide o lugar é o **peso**, e o lugar 4 (o mais pesado) leva 66–68% das contas. O lugar 2 não é o melhor para ninguém.
+
+**Diagnóstico (não é proposta):** recalculei os pesos pelo inverso da vitória do melhor trio de cada conta. Com isso a e b passam (realistas, opção 1: a 30% · b 13%), mas c fica em 9,8% e **f continua reprovando 10/10** (pior b 0,5%). Com os filhotes, o f não passa com peso nenhum.
+
+### 7.3 As quatro perguntas
+
+| | hoje | opção 1 | opção 1 sem cansaço | opção 2 |
+|---|---|---|---|---|
+| (i) contas realistas com o melhor lugar diferente da moda (de 200) | 67 | 64 | 64 | 107 |
+| — maduras (de 100) | 39 | 36 | 36 | 54 |
+| — só prontos (de 200) | 95 | 81 | 81 | 120 |
+| (ii) custo de seguir a receita **mais comum** (mediana · contas que perdem ≥10%) | 0,0% · 14% (L4:20, 133 contas) | **8,1% · 46%** (L3:15 + L4:5, só 24 contas) | 0,0% · 21% (L4:20, 136 contas) | 14,1% · 58% (L3:20, 25 contas) |
+| (ii) custo de seguir o plano da conta **mediana** (o pedido) | 17,7% | 13,5% | 0,0% | 9,1% |
+| (iii) robustez f | REPROVADO 10/10 | REPROVADO 10/10 | REPROVADO 10/10 | REPROVADO 10/10 |
+| (iv) ganho do plano com 2–4 cruzamentos: de propósito × ao acaso | 11,0% × 9,4% | 19,2% × 18,8% | 0,8% × 5,9% | 13,1% × 12,8% |
+| (iv) ganho no lugar-alvo: de propósito × ao acaso | 27,5% × 27,1% | 11,2% × 11,2% | 11,2% × 11,2% | 18,7% × 12,1% |
+| (iv) contas em que o de propósito ficou melhor que o gêmeo ao acaso | 38% | 51% | 27% | 53% |
+| plano ótimo usa pelo menos 1 filhote | 77% | 98% | 69% | 90% |
+
+Leitura de (ii): o "plano da conta mediana" muda muito conforme qual conta cai no meio. A "receita mais comum" é a régua mais honesta do que a internet espalharia. Hoje, 133 de 200 contas têm o mesmo plano (tudo no lugar 4), e copiar não custa nada. Na opção 1, o plano mais comum é de só 24 contas, e copiá-lo custa 8% na mediana (46% das contas perdem 10% ou mais). **Quem cria essa diferença é o cansaço:** sem ele, a receita volta a custar 0%.
+
+### 7.4 Efeitos colaterais com filhotes
+
+| | hoje | opção 1 | opção 2 |
+|---|---|---|---|
+| Melhor filhote gerado (vitória do time com ele, contra prontos) | 61,8% | 57,3% | 61,7% |
+| **Melhor filhote possível** (busca parte a parte, tudo Comum, confirmado com 2.000 lutas) | **71,4%** | **68,0%** | **73,2%** |
+| Prontos (mesma régua) | 45,4–54,8% | 42,9–53,9% | 44,0–56,4% |
+| Lendária − Comum (mesmo filhote, 60 filhotes) | +2,0 pontos | +1,3 | +1,8 |
+| Duração (turnos) | 9,99 | 10,00 | 10,40 |
+| Quem começa vence | 49,1% | 46,9% | 50,1% |
+| Time com filhote × time sem filhote | 46,9% | 49,8% | 48,2% |
+
+- **Equilíbrio, alerta:** existe um arranjo dominante, e não é culpa das opções (hoje também chega a 71%). Nas três regras o melhor arranjo tem **Perna de Linha Solta + Bordado de Espinho**. Fora da faixa 42–58% e pede revisão desses dois números de luta antes de o cruzamento ir ao ar. Os filhotes que saem de verdade ficam em 57–62%.
+- **Raridade continua sem decidir:** +1,3 a +2,0 pontos de vitória por ter tudo Lendário.
+- Duração e quem começa ficam como hoje. Na opção 1, quem começa vence 46,9% (dentro de 45–55).
+
+### 7.5 Com filhotes, a estratégia depende da conta?
+
+**Em parte, e por causa do cansaço, não dos filhotes.**
+- **Os filhotes deixam as contas diferentes.** 77–98% dos planos ótimos usam um filhote, e um terço das contas tem um melhor lugar fora da moda.
+- **Mas o melhor trio de cada conta vence 75–93% em quase todo lugar.** Aí o peso decide o lugar, e o lugar 4 vira a resposta de 2 em cada 3 contas. **A hipótese da tarefa 33 não se confirmou: o f reprova 10/10 com filhotes, em todas as regras, e piorou.** O lugar mais vazio cai para 0%.
+- **O que faz a resposta mudar de conta para conta é o cansaço.** Com ele, o plano mais comum vale para só 12% das contas (24 de 200) e copiá-lo custa 8%. Sem ele, 68% copiam o mesmo plano sem perder nada.
+- **Cruzar "de propósito" pelo elemento quase não rende** (opção 1: +19,2% contra +18,8% ao acaso; melhor em 51% das contas). Cruzar rende, e o ganho dobra na opção 1 (+19% contra +9% hoje). Mas qualquer filhote razoável serve. **O cruzamento ainda não é estratégia de elemento; é estratégia de quantidade.**
+- **Causa do f:** as guardas são fracas para o melhor trio (saturação). Para o lugar virar escolha, a guarda precisa segurar o melhor trio da conta (vitória de 50–75%, não 90%), ou a vantagem de elemento tem de pesar contra o **melhor** trio, não contra a média. Isto é número de luta das guardas (`shared/lugares.js`) e fica como o próximo experimento sugerido.
+
+### 7.6 Parecer do economista sobre os três números
+
+Os três são números de **luta**, não de moeda, mas mexem no valor de cada monstro e do cruzamento.
+
+**Conta do cansaço:** 20 lutas × 3 monstros = **60 lutas-monstro por dia**.
+- **Cansaço depois de 5 lutas:** para lutar as 20 sem cansar, a conta precisa de 60 ÷ 5 = **12 monstros** em 4 trios. O jogo só deixa **3 patrulhas** (9 monstros = 45 lutas-monstro = 15 lutas descansadas). **Nenhuma conta escapa:** 5 lutas por dia são sempre cansadas.
+- **Cansaço depois de 7 lutas:** 3 trios × 7 = 21 lutas, o que basta com **9 monstros**, exatamente a coleção inicial.
+- **Cansaço depois de 10 lutas:** bastam 2 trios (6 monstros), e a 3ª patrulha deixa de valer a pena: d cai para 0 e 0% das contas usam 3 lugares.
+
+**Perda medida** (plano com cansaço contra o mesmo plano sem cansaço, mediana):
+
+| Cansaço depois de | só prontos 6–7 | só prontos 8–9 | realistas 10–12 | maduras 13+ | contas que usam 3 lugares (realistas) |
+|---|---|---|---|---|---|
+| 5 lutas (aprovado no piloto) | 29,1% | 25,9% | 19,2% | 14,2% | 12,5% |
+| 6 | 26,2% | 22,3% | 16,4% | 11,2% | 14,5% |
+| **7** | **23,6%** | **18,8%** | **13,5%** | **9,8%** | **18,5%** |
+| 10 | 12,3% | 9,3% | 7,2% | 5,5% | 0% |
+
+(opção 1; na opção 2 os números são parecidos, 1–4 pontos acima)
+
+- **Freio ou parede?** Com 5 lutas, o cansaço é um **corte de 15–29% nos pontos do dia**, maior para quem tem menos monstros. Como o prêmio sai de um pote repartido pelos pontos, um corte igual para todos não muda nada. Esse corte **não é igual**: tira cerca de 15 pontos a mais da conta pequena do que da grande, e passa a fatia do novato para a conta grande. É parede leve para a conta nova e regressivo.
+- **Bots e fazendas:** o cansaço obriga cada conta a ter 9 ou mais monstros para render o máximo. Isso sobe o capital por conta-robô, um bom freio, mas que também pesa no novato. Com 7 lutas, a coleção inicial de 9 já basta para não pagar nada pelo cansaço em si (o que sobra de perda é usar o 2º e o 3º trio, mais fracos: é a escolha que queremos). Assim, a fazenda não ganha mais do que um jogador comum com 9 monstros.
+- **Preço relativo:** na opção 1, a parte dos monstros que **não valem nada** para o plano (tirar um não muda os pontos) cai de 75% para 45%. O banco passa a valer, e a procura se espalha por mais monstros, em vez de só os 2–3 de topo. O filhote vale em média 5,1% do plano contra 3,6% do pronto: um prêmio de cerca de 1,4×, parecido com o de hoje (3,9% contra 2,5%). O que cresce é o valor de **cruzar**: com 2–4 cruzamentos o plano sobe 19% na opção 1, contra 9% hoje e 6% sem cansaço. Isso valoriza o cruzamento como sumidouro (custo da costura e Carretel) sem criar fonte nova de moeda.
+- **Vantagem de elemento +75%:** não piorou o equilíbrio (melhor filhote 68% contra 71% hoje). Também não fez o cruzamento de propósito render. Faixa proposta: **0,50–0,75**. Fico em 0,75 no piloto (já aprovado) e desço para 0,50 se o replay ficar "explosivo".
+- **Resistência 40%:** é o número que mais espalha as contas (opção 2: 107 de 200 fora da moda; só prontos: a passa com 40%). Faixa proposta: **0,25–0,40**. Fico em 0,40.
+- **Cansaço:** faixa proposta de **6–8 lutas** com **75% da vida**. Recomendo **7**: a coleção inicial de 9 monstros consegue lutar as 20 descansada, a perda da conta pequena cai de 29% para 24%, e mais contas usam 3 lugares (18,5% contra 12,5%). Abaixo de 6 fica parede; acima de 8 a 3ª patrulha deixa de valer a pena (com 10, 0% usam 3 lugares). Vida de 85% não foi medida.
+
+**Opção 2 (só resistência + cansaço):** medida porque a tarefa pediu. **Foi recusada pelo dono em 15/11 14:04** e não volta à tabela.
+
+### 7.7 Opções para o dono (melhor primeiro)
+
+| Opção | Ganha | Perde | Nota |
+|---|---|---|---|
+| **1. Opção 1 com cansaço depois de 7 lutas** | A coleção inicial de 9 luta as 20 descansada (sem parede para o novato). A perda da conta pequena cai de 29% para 24%. Mais contas usam 3 lugares (18,5%). d e e continuam aprovados (o cansaço é o que dá d e e). O banco de monstros continua valendo. | f continua reprovado (10/10). O lugar 4 domina por conta (68%), e isso só se resolve nas guardas. Um número a mais para mexer no piloto. | **7** |
+| 2. Opção 1 como aprovada (cansaço depois de 5) | Já ligada no piloto. A receita da internet custa 8%. Cruzar rende o dobro de hoje. | Nenhuma conta escapa do cansaço (5 lutas por dia sempre cansadas). Corta 15–29% dos pontos do dia, mais da conta pequena (regressivo). f reprovado. | 6 |
+| 3. Opção 1 sem cansaço | Regra mais simples. Nenhuma perda de pontos. | d volta a 0, a receita volta a custar 0%, e 68% das contas copiam o mesmo plano. A divisão das 20 energias volta a ser enfeite. f reprovado. | 4 |
+
+**De → para (todos PROPOSTA; nada aplicado; o motor só tem as regras de experimento):**
+
+| Número | Hoje | Opção 1 aprovada (piloto) | Proposto (opção 1 da tabela) | Faixa |
+|---|---|---|---|---|
+| Vantagem de elemento (`BONUS_DE_TIPO`) | 0,25 | 0,75 | 0,75 | 0,50–0,75 |
+| Resistência (número novo) | 0 | 0,40 | 0,40 | 0,25–0,40 |
+| Cansaço: lutas no dia antes de cansar | não existe | 5 | **7** | 6–8 |
+| Cansaço: vida ao começar cansado | não existe | 0,75 | 0,75 | 0,75 (0,85 não medido) |
+
+**Próximo passo sugerido (não é deste pacote):** guardas que seguram o melhor trio de cada conta (vitória de 50–75%) e uma revisão de Perna de Linha Solta + Bordado de Espinho. Sem isso, o f não passa com regra de elemento nenhuma.
+
+Reproduzir: `node tools/experimentos-filhotes.mjs` (35 min na primeira vez; `--rapido` para conferir em 2 min). O JSON fica em `.cache/filhotes/relatorio.json` (não commitado).

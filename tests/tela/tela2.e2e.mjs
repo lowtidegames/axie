@@ -50,6 +50,11 @@ async function rodarFormato(fmt) {
   const foto = async (nome) => { const arq = path.join(FOTOS, `${fmt.nome}-${nome}.png`); await page.screenshot({ path: arq }); console.log('  foto: ' + path.relative(process.cwd(), arq)) }
   const abrir = async (aba, extra = '') => { await page.goto(`${base}/?teste=1&recomecar=1&aba=${aba}&vel=0.12&semente=t2${extra}`); await page.waitForSelector(`#${aba}:not([hidden])`) }
   const clique = async (sel) => (fmt.toque ? page.locator(sel).first().tap() : page.locator(sel).first().click())
+  // carta da mão (leque): no PC um clique na faixa da esquerda; no toque a carta amplia e o botão Jogar escolhe
+  const escolherCarta = async (cid) => {
+    const c = page.locator(`#mao .fz-carta[data-mao="${cid}"]`)
+    if (fmt.toque) { await c.tap({ position: { x: 12, y: 40 } }); await page.locator('.fz-lupa__jogar').tap() } else await c.click({ position: { x: 20, y: 60 } })
+  }
   const toque = async (x, y) => (fmt.toque ? page.touchscreen.tap(x, y) : page.mouse.click(x, y))
   const sem = async (fn) => page.evaluate(fn)
 
@@ -193,10 +198,12 @@ async function rodarFormato(fmt) {
       const cmd = await page.evaluate(() => window.__frayz.sugestao())
       if (!cmd) break
       if (cmd.tipo === 'jogar') {
-        await clique(`#mao .carta[data-cid="${cmd.carta}"]`)
-        await page.waitForFunction((cid) => window.__frayz.S.sel === cid, cmd.carta, { timeout: 4000 })
-        if (cmd.alvo) { const pos = await page.evaluate((id) => window.__frayz.pagina(id), cmd.alvo); await toque(pos.x, pos.y) } else await clique(`#mao .carta[data-cid="${cmd.carta}"]`)
-      } else if (cmd.tipo === 'fiapo') await clique(`#mao .carta[data-cid="${cmd.carta}"]`)
+        await escolherCarta(cmd.carta)
+        await page.waitForFunction((cid) => window.__frayz.S.sel === cid || !window.__frayz.livre(), cmd.carta, { timeout: 4000 })
+        if (await page.evaluate((cid) => window.__frayz.S.sel === cid, cmd.carta)) {
+          if (cmd.alvo) { const pos = await page.evaluate((id) => window.__frayz.pagina(id), cmd.alvo); await toque(pos.x, pos.y) } else await escolherCarta(cmd.carta)
+        }
+      } else if (cmd.tipo === 'fiapo') await escolherCarta(cmd.carta)
       else if (cmd.tipo === 'trocar') { await clique('#btnTrocar'); for (const id of [cmd.a, cmd.b]) { const pos = await page.evaluate((x) => window.__frayz.pagina(x), id); await toque(pos.x, pos.y); await page.waitForTimeout(40) } }
       else await clique('#btnPassar')
       jogadas++

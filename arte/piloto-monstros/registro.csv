@@ -1,0 +1,57 @@
+hora_BRT,item,tentativa,ferramenta,custo_geracoes,arquivo,nota
+15/11 10:18,embolado-idle,1,/create-image-pixflux,1.0,bruto/embolado-idle-1.png,
+15/11 10:18,embolado-idle,2,/create-image-pixflux,1.0,bruto/embolado-idle-2.png,
+15/11 10:18,embolado-idle,3,/create-image-pixen,0,,"erro 422 422 de parametro, nada cobrado"
+15/11 10:19,embolado-idle,3,/create-image-pixflux,1.0,bruto/embolado-idle-3.png,
+15/11 10:20,embolado-idle,4,/create-image-pixflux,1.0,bruto/embolado-idle-4.png,
+15/11 10:20,mordedor-idle,1,/create-image-pixflux,1.0,bruto/mordedor-idle-1.png,
+15/11 10:21,mordedor-idle,2,/create-image-bitforge,1.0,bruto/mordedor-idle-2.png,"bitforge com style_image=embolado, forca 40"
+15/11 10:21,mordedor-idle,3,/create-image-pixflux,1.0,bruto/mordedor-idle-3.png,
+15/11 10:21,mordedor-idle,4,/create-image-pixflux,1.0,bruto/mordedor-idle-4.png,
+15/11 10:22,cascudo-idle,1,/create-image-pixflux,1.0,bruto/cascudo-idle-1.png,
+15/11 10:22,cascudo-idle,2,/create-image-pixflux,1.0,bruto/cascudo-idle-2.png,
+15/11 10:23,cascudo-idle,3,/create-image-pixflux,1.0,bruto/cascudo-idle-3.png,
+15/11 10:23,rasgao-idle,1,/create-image-pixflux,1.0,bruto/rasgao-idle-1.png,
+15/11 10:24,rasgao-idle,2,/create-image-pixflux,1.0,bruto/rasgao-idle-2.png,
+15/11 10:24,rasgao-idle,3,/create-image-pixflux,1.0,bruto/rasgao-idle-3.png,
+15/11 10:24,rasgao-idle,4,/create-image-pixflux,1.0,bruto/rasgao-idle-4.png,
+15/11 10:25,assombrado-idle,1,/create-image-pixflux,1.0,bruto/assombrado-idle-1.png,
+15/11 10:25,assombrado-idle,2,/create-image-pixflux,1.0,bruto/assombrado-idle-2.png,
+15/11 10:25,desfiado-idle,1,/create-image-pixflux,1.0,bruto/desfiado-idle-1.png,
+15/11 10:26,desfiado-idle,2,/create-image-pixflux,1.0,bruto/desfiado-idle-2.png,
+15/11 10:27,embolado-attack,1,/edit-image-pixen,1.0,bruto/embolado-attack-1.png,edit-image-pixen sobre idle-3
+15/11 10:28,mordedor-attack,1,/edit-image-pixen,1.0,bruto/mordedor-attack-1.png,edit-image-pixen sobre mordedor-idle-4.png
+15/11 10:29,cascudo-attack,1,/edit-image-pixen,1.0,bruto/cascudo-attack-1.png,edit-image-pixen sobre cascudo-idle-3.png
+15/11 10:30,rasgao-attack,1,/edit-image-pixen,1.0,bruto/rasgao-attack-1.png,edit-image-pixen sobre rasgao-idle-3.png
+15/11 10:30,arena,1,/create-image-pixflux,1.0,bruto/arena-1.png,
+15/11 10:30,assombrado-attack,1,/edit-image-pixen,1.0,bruto/assombrado-attack-1.png,"edit-image-pixen sobre assombrado-idle-1.png custo medido 2,0 por chamadas simultaneas; corrigido para 1,0 (confere com o saldo)"
+15/11 10:31,arena,2,/create-image-pixflux,1.0,bruto/arena-2.png,"custo medido 2,0 por chamadas simultaneas; corrigido para 1,0 (confere com o saldo)"
+15/11 10:31,desfiado-attack,1,/edit-image-pixen,1.0,bruto/desfiado-attack-1.png,"edit-image-pixen sobre desfiado-idle-2-espelhado.png custo medido 2,0 por chamadas simultaneas; corrigido para 1,0 (confere com o saldo)"
+15/11 10:31,ovo-inteiro,1,/create-image-pixflux,1.0,bruto/ovo-inteiro-1.png,"custo medido 2,0 por chamadas simultaneas; corrigido para 1,0 (confere com o saldo)"
+15/11 10:32,ovo-inteiro,2,/create-image-pixflux,1.0,bruto/ovo-inteiro-2.png,
+15/11 10:33,desfiado-attack,2,/edit-image-pixen,1.0,bruto/desfiado-attack-2.png,edit-image-pixen sobre desfiado espelhado; 1a virou dragao
+15/11 10:33,ovo-rachado,1,/edit-image-pixen,1.0,bruto/ovo-rachado-1.png,ref ovo-inteiro-2
+15/11 10:34,ovo-aberto,1,/edit-image-pixen,1.0,bruto/ovo-aberto-1.png,ref ovo-inteiro-2
+15/11 10:34,ninho,1,/create-image-pixflux,1.0,bruto/ninho-1.png,
+15/11 10:35,ninho,2,/create-image-pixflux,1.0,bruto/ninho-2.png,
+15/11 10:35,mapa,1,/create-image-pixflux,1.0,bruto/mapa-1.png,
+15/11 10:36,mapa,2,/create-image-pixflux,1.0,bruto/mapa-2.png,
+15/11 10:36,elemento-couro,1,/create-image-pixen,1.0,bruto/elemento-couro-1.png,
+15/11 10:37,lugar-1,1,/create-image-pixflux,1.0,bruto/lugar-1-1.png,
+15/11 10:37,lugar-2,1,/create-image-pixflux,1.0,bruto/lugar-2-1.png,
+15/11 10:38,lugar-3,1,/create-image-pixflux,1.0,bruto/lugar-3-1.png,
+15/11 10:38,lugar-4,1,/create-image-pixflux,1.0,bruto/lugar-4-1.png,
+15/11 10:38,lugar-5,1,/create-image-pixflux,1.0,bruto/lugar-5-1.png,
+15/11 10:39,elemento-jeans,1,/create-image-pixen,1.0,bruto/elemento-jeans-1.png,
+15/11 10:39,elemento-seda,1,/create-image-pixen,1.0,bruto/elemento-seda-1.png,
+15/11 10:40,elemento-la,1,/create-image-pixen,1.0,bruto/elemento-la-1.png,
+15/11 10:40,elemento-feltro,1,/create-image-pixen,1.0,bruto/elemento-feltro-1.png,
+15/11 10:41,elemento-tule,1,/create-image-pixen,1.0,bruto/elemento-tule-1.png,
+15/11 10:42,lugar-1,2,/create-image-pixflux,1.0,bruto/lugar-1-2.png,
+15/11 10:42,lugar-2,2,/create-image-pixflux,1.0,bruto/lugar-2-2.png,
+15/11 10:42,lugar-3,2,/create-image-pixflux,1.0,bruto/lugar-3-2.png,
+15/11 10:43,lugar-4,2,/create-image-pixflux,1.0,bruto/lugar-4-2.png,
+15/11 10:43,lugar-5,2,/create-image-pixflux,1.0,bruto/lugar-5-2.png,
+15/11 10:44,elemento-tule,2,/create-image-pixen,1.0,bruto/elemento-tule-2.png,
+15/11 10:44,lugar-5,3,/create-image-pixflux,1.0,bruto/lugar-5-3.png,
+15/11 10:45,elemento-tule,3,/create-image-pixen,1.0,bruto/elemento-tule-3.png,

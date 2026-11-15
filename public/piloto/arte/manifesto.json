@@ -1,0 +1,51 @@
+{
+ "monsters": {
+  "embolado": {
+   "idle": "monsters/embolado-idle.png",
+   "attack": "monsters/embolado-attack.png"
+  },
+  "mordedor": {
+   "idle": "monsters/mordedor-idle.png",
+   "attack": "monsters/mordedor-attack.png"
+  },
+  "cascudo": {
+   "idle": "monsters/cascudo-idle.png",
+   "attack": "monsters/cascudo-attack.png"
+  },
+  "rasgao": {
+   "idle": "monsters/rasgao-idle.png",
+   "attack": "monsters/rasgao-attack.png"
+  },
+  "assombrado": {
+   "idle": "monsters/assombrado-idle.png",
+   "attack": "monsters/assombrado-attack.png"
+  },
+  "desfiado": {
+   "idle": "monsters/desfiado-idle.png",
+   "attack": "monsters/desfiado-attack.png"
+  }
+ },
+ "arena": "arena.png",
+ "nest": "nest.png",
+ "map": "map.png",
+ "egg": {
+  "whole": "egg-whole.png",
+  "cracked": "egg-cracked.png",
+  "open": "egg-open.png"
+ },
+ "places": {
+  "1": "places/1.png",
+  "2": "places/2.png",
+  "3": "places/3.png",
+  "4": "places/4.png",
+  "5": "places/5.png"
+ },
+ "elements": {
+  "jeans": "elements/jeans.png",
+  "seda": "elements/seda.png",
+  "la": "elements/la.png",
+  "feltro": "elements/feltro.png",
+  "tule": "elements/tule.png",
+  "couro": "elements/couro.png"
+ }
+}

@@ -1,5 +1,6 @@
 // Frayz — servidor estático MÍNIMO só para o protótipo local (sem dinheiro, sem conta, sem banco).
-// Serve `public/` (na raiz do site) e `shared/` (em /shared/), só leitura, sem listar pasta e sem sair dessas raízes.
+// Serve a raiz do repositório com o MESMO desenho de pastas da página de teste (`/public/`, `/shared/`), só leitura, sem listar pasta.
+// `/` e endereços antigos (`/arte.html`) redirecionam para `/public/...`. Nada fora de public/, shared/ e do index da raiz.
 // Uso: `npm run dev` (porta da variável PORTA; padrão 4700) · ou importe { iniciar } nos testes.
 import { createServer } from 'node:http'
 import { readFile, realpath, stat } from 'node:fs/promises'
@@ -24,23 +25,35 @@ const TIPOS = {
   '.txt': 'text/plain; charset=utf-8',
 }
 
-/** Caminho do pedido → arquivo dentro de uma das duas raízes (ou null). Nunca sai da raiz. */
+/** Caminho do pedido → arquivo permitido (só `public/`, `shared/` e o `index.html` da raiz). Nunca sai da raiz do repositório. */
 export async function resolver(urlPath) {
   let p
   try { p = decodeURIComponent(urlPath) } catch { return null }
   if (p.includes('\0') || p.includes('\\')) return null
   if (p === '/' || p === '') p = '/index.html'
-  let base = PUBLICO, rel = p
-  if (p === '/shared' || p.startsWith('/shared/')) { base = COMPARTILHADO; rel = p.slice('/shared'.length) }
-  const alvo = path.resolve(base, '.' + (rel.startsWith('/') ? rel : '/' + rel))
-  if (alvo !== base && !alvo.startsWith(base + path.sep)) return null
+  let base
+  if (p === '/index.html' || p === '/.nojekyll') base = null
+  else if (p.startsWith('/public/')) base = PUBLICO
+  else if (p.startsWith('/shared/')) base = COMPARTILHADO
+  else return null
+  if (p.endsWith('/')) p += 'index.html'
+  const alvo = path.resolve(RAIZ, '.' + p)
+  const dentro = base ?? RAIZ
+  if (base ? !alvo.startsWith(base + path.sep) : path.dirname(alvo) !== RAIZ) return null
   try {
     const real = await realpath(alvo)
-    const baseReal = await realpath(base)
-    if (real !== baseReal && !real.startsWith(baseReal + path.sep)) return null // elo simbólico para fora
+    const baseReal = await realpath(dentro)
+    if (base ? !real.startsWith(baseReal + path.sep) : path.dirname(real) !== baseReal) return null // elo simbólico para fora
     const s = await stat(real)
     return s.isFile() ? real : null // pasta nunca é listada
   } catch { return null }
+}
+
+/** Endereço antigo (`/arte.html`, `/`) → o mesmo desenho de pastas da página de teste (`/public/...`). */
+async function redirecionar(pathname) {
+  if (pathname === '/') return '/public/'
+  if (pathname === '/index.html' || pathname.startsWith('/public/') || pathname.startsWith('/shared/')) return null
+  return (await resolver('/public' + pathname)) ? '/public' + pathname : null
 }
 
 export function iniciar({ porta = Number(process.env.PORTA) || 4700, host = '127.0.0.1' } = {}) {
@@ -48,6 +61,8 @@ export function iniciar({ porta = Number(process.env.PORTA) || 4700, host = '127
     const cab = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405, { ...cab, Allow: 'GET, HEAD' }); return res.end() }
     const url = new URL(req.url, 'http://local')
+    const destino = await redirecionar(url.pathname)
+    if (destino) { res.writeHead(302, { ...cab, Location: destino + url.search }); return res.end() }
     const arq = await resolver(url.pathname)
     if (!arq) { res.writeHead(404, { ...cab, 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Não encontrado') }
     try {

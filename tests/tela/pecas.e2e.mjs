@@ -190,7 +190,7 @@ async function rodarFormato(fmt) {
   const tocar = async (l, o) => (fmt.toque ? l.tap(o) : l.click(o))
 
   // ---------- 1. a folha de conferência
-  let page = await abrir(ctx, `/pecas.html?formato=${formato}`, erros)
+  let page = await abrir(ctx, `/public/pecas.html?formato=${formato}`, erros)
   const fontes = await page.evaluate(async () => {
     await document.fonts.ready
     const carregadas = [...document.fonts].filter((f) => f.status === 'loaded').map((f) => `${f.family.replace(/"/g, '')} ${f.weight}`)
@@ -251,7 +251,7 @@ async function rodarFormato(fmt) {
   await page.close()
 
   // ---------- 2. montagem da luta (sem rolagem, nada cortado)
-  page = await abrir(ctx, '/pecas.html?montagem=luta', erros)
+  page = await abrir(ctx, '/public/pecas.html?montagem=luta', erros)
   fora = await page.evaluate(medirFora, { seletores: ['.fz-luta__topo > *', '.fz-luta__rival', '.fz-bastidor__botao', '.fz-placa', '.fz-luta__boneco', '.fz-luta__meu > *', '.fz-luta__botoes .fz-botao', '.fz-mao .fz-carta', '.fz-fio-tempo'], vertical: true })
   confere(fora.length === 0, 'luta: tudo dentro da janela, sem rolagem' + lista(fora))
   const colisoes = await page.evaluate(medirColisoes, ['.fz-luta__turno', '.fz-luta__tesoura', '.fz-fio-tempo', '.fz-botao-de-roupa', '.fz-luta__rival', '.fz-bastidor__botao', '.fz-placa .fz-fita', '.fz-dedal', '.fz-alfinetes__botao .fz-alfinete', '.fz-luta__meu .fz-carreteis', '.fz-luta__meu .fz-contador', '.fz-luta__botoes .fz-botao', '.fz-mao'])
@@ -343,7 +343,7 @@ async function rodarFormato(fmt) {
     ['vitoria', '.fz-fim', ['.fz-fim__folha', '.fz-fim__titulo', '.fz-fim__palco .fz-boneco', '.fz-fim__heroi', '.fz-fim__numero', '.fz-fim__botoes .fz-botao']],
     ['derrota', '.fz-fim', ['.fz-fim__folha', '.fz-fim__titulo', '.fz-fim__palco .fz-boneco', '.fz-fim__heroi', '.fz-fim__numero', '.fz-fim__botoes .fz-botao']],
   ]) {
-    page = await abrir(ctx, `/pecas.html?montagem=${nome}`, erros)
+    page = await abrir(ctx, `/public/pecas.html?montagem=${nome}`, erros)
     await page.waitForTimeout(500)
     fora = await page.evaluate(medirFora, { seletores: pecas, vertical: true })
     const cortado = await page.evaluate((sels) => sels.flatMap((s) => [...document.querySelectorAll(s)]).filter((e) => e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1).map((e) => `${e.className.split(' ')[0]} corta ${e.scrollHeight - e.clientHeight} px`), ['.fz-time__ficha', '.fz-time__prateleira', '.fz-fim__folha', '.fz-tela'])
@@ -371,7 +371,7 @@ async function rodarFormato(fmt) {
   // ---------- 4. "Menos animação" pela preferência do aparelho
   const calmo = await browser.newContext({ ...opcoes, reducedMotion: 'reduce' })
   const errosCalmo = []
-  page = await abrir(calmo, `/pecas.html?formato=${formato}`, errosCalmo)
+  page = await abrir(calmo, `/public/pecas.html?formato=${formato}`, errosCalmo)
   const n = await page.evaluate(infinitas)
   const pulsa = await page.evaluate(() => getComputedStyle(document.querySelector('.fz-carta[data-estado~="jogavel"] .fz-carta__ponto-maldicao')).animationName)
   confere(n === 0 && pulsa === 'none', `preferência do aparelho por menos movimento: nenhuma animação CSS infinita ativa (${n}); costura da carta jogável acesa e parada`)

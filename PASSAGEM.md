@@ -1,6 +1,13 @@
 # PASSAGEM — Frayz
 
-## ⚑ 15/11/2026 15:02 BRT — ESTADO ATUAL (vale acima de tudo abaixo; a seção de 10:44 logo abaixo continua valendo no que esta não muda)
+## ⚑ 15/11/2026 16:18 BRT — ESTADO ATUAL (vale acima de tudo abaixo)
+- **O JOGO AGORA É O DE `docs/ideias/jogo-simples.md`** (1 página, 9 regras; decisão do dono 16:17): a receita do gênero, simples e bem feita. Dossiê do mercado em `docs/mercado/` (a receita em 1 página: `docs/mercado/dossie.md`). Caminho: piloto → beta sem dinheiro → temporada fechada com pote pequeno → token.
+- **REGRA DA CASA (15:38): simples e divertido.** Regra do jogo em 1 ou 2 linhas; mecânica só se o gênero já provou; documentos e relatos curtos; nada de invenção rebuscada.
+- **Rodando:** tarefa 42 (piloto simples, Fable, ramo `piloto42`). As seções abaixo sobre patrulhas com ordens, Renome, guardas mais fortes e tarefas 36/37 estão SUPERADAS.
+- **Rede do ambiente** agora libera também: solanabombers.fun, minihero.org, dappradar.com (responde 403), store.steampowered.com, steamcommunity.com, bombcrypto.substack.com. Baixar páginas com o curl padrão, sem fingir navegador.
+- **Esperando o dono:** prova das criaturas (desde 11:28: "mais criatura, menos objeto"?); nome do jogo; advogado antes de dinheiro (lei brasileira de 2026 sobre caixa de recompensa e idade).
+
+## 15/11/2026 15:02 BRT — ESTADO ATUAL (vale acima de tudo abaixo; a seção de 10:44 logo abaixo continua valendo no que esta não muda)
 - **Piloto no ar:** https://lowtidegames.github.io/axie/public/piloto/ — idle por patrulhas (2 lugares, 3 de 6 monstros, 5 lutas com carimbos, tira comparada, ficha com títulos, Renome, cartão, som), com REGRAS PROVISÓRIAS só no piloto (`public/piloto/regras-piloto.js`: Strong +75%, resistência 40%, cansaço após 5 lutas no dia; decisão do dono 14:04). `shared/config.js` e o servidor não mudaram. Motor ganhou `shared/tatica.js` (`lutaAutomatica`, `regras` opcionais), `shared/lugares.js`, `vantagens`. `npm test` 224/0.
 - **Criaturas:** o dono reprovou a 1ª rodada de arte ("genéricos") e aprovou o conceito "peças de ofício que criaram vida" (docs/ideias/biblia-das-criaturas.md; agente novo `designer-de-criaturas`, Fable). A prova de 2 (Portcully, Rambark; arte/piloto-monstros/prova-criaturas/folha-prova.png) saiu com identidade mas pouco carisma (lê como objeto com olhos). ESPERA O DONO desde 11:28: "mais criatura, menos objeto" com nova prova de 2 (até 12 gerações) ou outro caminho. 4 monstros do piloto seguem com desenho provisório por código.
 - **PixelLab:** gasto do tema novo 70 de 150 gerações (teto do dono). O número `subscription.generations` da API é o que SOBRA no plano (1.032,5 às 11:08), não o usado. Só ferramentas de 1 geração.

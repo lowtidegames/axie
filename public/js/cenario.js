@@ -12,6 +12,7 @@
 //   Com `semFrente: true` a tesoura e a poeira da frente NÃO são desenhadas: chame cenario.desenharFrente(...)
 //   depois de desenhar os bonecos, para a tesoura passar na frente deles.
 // cenario.lugares(largura, altura, formato) → { A: [frente, meio, tras], B: [...] }, cada um { x, y, altura } (pé do boneco e altura dele)
+// criarCenario({ folgaEmbaixo }) — só no celular: px livres embaixo do pé da Frente (para a placa de vida caber na cena).
 
 const TAU = Math.PI * 2
 const TINTA = '#140C1F', NOITE = '#1B1226', PANO_ESCURO = '#2A1B3D', PANO_CLARO = '#3A2752', BORDA = '#5A4378', LINHO = '#F2E6C9', LINHO_APAGADO = '#B9A98C', OURO = '#FFC857', CHAMA = '#FF9F1C', MALDICAO = '#FF4D8D'
@@ -29,8 +30,9 @@ const TAM = [1, 0.94, 0.88] // Frente inteiro, Meio 94%, Trás 88%
 // ------------------------------------------------------------------ onde ficam os bonecos
 
 /** Posições dos pés e altura de cada boneco. Bonecos nunca se tapam (cada um tem a sua caixa de 0,72 da altura). */
-function lugares(W, H, formato) {
+function lugares(W, Htotal, formato, folga = 0) {
   const out = { A: [], B: [] }
+  const H = formato === 'celular' ? Math.max(Htotal * 0.8, Htotal - folga) : Htotal
   if (formato === 'celular') { // em pé: rival em cima, jogador embaixo; a Frente no meio, mais baixa e maior; Meio e Trás nas pontas
     const h = Math.min(W / 2.45, H * 0.285)
     const col = [0.5, 0.18, 0.82]
@@ -278,6 +280,7 @@ function metadeDaTesoura(L, lado, e) {
 export function criarCenario(opcoes = {}) {
   const semente = hash(String(opcoes.semente ?? 'atelie'))
   const nomes = opcoes.nomes ?? NOMES
+  const lugaresDaCena = (W, H, formato) => lugares(W, H, formato, opcoes.folgaEmbaixo ?? 0)
   let fundo = null, chaveFundo = '', geo = null
   let tesoura = null, chaveTesoura = ''
   let degrau = 0, vez = 0.5, tAnt = null
@@ -287,7 +290,7 @@ export function criarCenario(opcoes = {}) {
   function assarFundo(W, H, formato, e) {
     const cv = document.createElement('canvas'); cv.width = Math.round(W * e); cv.height = Math.round(H * e)
     const c = cv.getContext('2d'); c.scale(e, e)
-    const R = rng(semente), cel = formato === 'celular', L = lugares(W, H, formato)
+    const R = rng(semente), cel = formato === 'celular', L = lugaresDaCena(W, H, formato)
     const hor = cel ? H * 0.158 : H * 0.5 // beira de trás da mesa
     const u = cel ? Math.min(W, H) / 360 : H / 480 // unidade de detalhe
     const G = { W, H, cel, hor, u }
@@ -517,7 +520,7 @@ export function criarCenario(opcoes = {}) {
   }
 
   const cenario = {
-    lugares,
+    lugares: lugaresDaCena,
     /** Fundo, mesa, pano, vela e poeira. Sem `semFrente`, desenha também a frente (tesoura e vinheta). */
     desenhar(ctx, largura, altura, tempoMs = 0, estado = {}) {
       const formato = estado.formato === 'celular' ? 'celular' : 'pc', menos = !!estado.menosAnimacao

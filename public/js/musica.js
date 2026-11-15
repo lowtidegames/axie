@@ -383,7 +383,9 @@ export function estado() {
   }
 }
 if (typeof window !== 'undefined') {
-  const acordar = () => { if (E.querTocar && Som.iniciar()) comecar(E.querTocar) }
+  // o áudio liga dentro do toque (regra do navegador); a música é montada no instante seguinte, fora do toque,
+  // para o toque não virar uma tarefa longa (criar o áudio + montar os timbres da música de uma vez travava ~120 ms)
+  const acordar = () => { if (E.querTocar && Som.iniciar() && !E.acordando) { E.acordando = setTimeout(() => { E.acordando = null; if (E.querTocar && !E.ger) comecar(E.querTocar) }, 0) } }
   for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) window.addEventListener(ev, acordar, { passive: true })
   Som.aoTocar((a) => {
     if (a.grande) abaixar(6, 400)

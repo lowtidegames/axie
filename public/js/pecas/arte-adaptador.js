@@ -7,7 +7,7 @@
 //   2. `../bonecos.js` de hoje (carinha `miniatura`, `iconeDoTipo`, boneco inteiro `spriteDoBoneco`).
 //   3. Desenho PROVISÓRIO daqui (tecido, ícone do lugar, recorte da parte), para nada ficar em branco.
 //
-// CONTRATO ESPERADO de `../boneco-rig.js` (cada função é opcional; se faltar, falhar ou devolver algo que não se desenha,
+// CONTRATO que as peças usam (cada função é opcional; se faltar, falhar ou devolver algo que não se desenha,
 // cai sozinha para a reserva e avisa UMA vez no console):
 //   retrato(partes, px)                         → canvas quadrado com a carinha do boneco
 //   desenharParte(ctx, partes, lugar, caixa)    → desenha a parte ('cabeca' | 'bracos' | 'pernas') dentro de caixa {x, y, w, h}
@@ -17,14 +17,64 @@
 //   boneco(partes, altura, pose)                → canvas com o boneco inteiro (opcional; pose 'vivo' | 'fio' | 'caido')
 // `partes` é sempre { tronco, cabeca, bracos, pernas, bordado } com textos 'id@raridade' (como no estado da luta).
 // Todo `px` é em pixels do canvas (quem chama já multiplicou pela densidade da tela).
+//
+// O `boneco-rig.js` fala outra língua (densidade própria, parte por id, padrão como CanvasPattern, sem `boneco`):
+// `traduzirRig` abaixo converte uma na outra. Se o contrato do rig mudar, é só aqui que se mexe.
 import { semear, sorte } from './base.js'
 
 const fonte = { rig: null, velho: null, origem: 'carregando' }
 const falhou = new Set()
 
+/** Mesmo desenho, em exatamente px × px (o rig desenha na densidade da tela; as peças já pedem em pixels do canvas). */
+function noTamanho(src, px) {
+  if (!src || (src.width === px && src.height === px)) return src
+  const cv = document.createElement('canvas'); cv.width = cv.height = px
+  const c = cv.getContext('2d'); c.imageSmoothingQuality = 'high'; c.drawImage(src, 0, 0, px, px)
+  return cv
+}
+const POSE_DO_RIG = { vivo: 'parado', fio: 'ultimoFio', caido: 'caido', vitoria: 'vitoria' }
+
+/** O rig (boneco-rig.js) no contrato das peças. */
+function traduzirRig(R) {
+  const d = () => Math.min(2, globalThis.devicePixelRatio || 1)
+  const cacheTec = new Map(), cacheBoneco = new Map()
+  const o = {}
+  if (typeof R.retrato === 'function') o.retrato = (partes, px) => R.retrato(partes, px, { densidade: 1 })
+  if (typeof R.iconeDoTipo === 'function') o.iconeDoTipo = (tipo, px) => noTamanho(R.iconeDoTipo(tipo, Math.max(8, Math.round(px / d()))), px)
+  if (typeof R.iconeDoLugar === 'function') o.iconeDoLugar = (lugar, px) => noTamanho(R.iconeDoLugar(lugar, Math.max(8, Math.round(px / d()))), px)
+  if (typeof R.padraoDoTecido === 'function') o.padraoDoTecido = (tipo, px) => {
+    const chave = tipo + '|' + px
+    let cv = cacheTec.get(chave)
+    if (cv) return cv
+    cv = document.createElement('canvas'); cv.width = cv.height = px
+    const c = cv.getContext('2d'), U = 48 // o azulejo do rig mede 48 unidades: aqui 1 azulejo = px pixels
+    c.setTransform(px / U, 0, 0, px / U, 0, 0); c.fillStyle = R.padraoDoTecido(c, tipo); c.fillRect(0, 0, U, U)
+    if (cacheTec.size > 60) cacheTec.clear()
+    cacheTec.set(chave, cv)
+    return cv
+  }
+  if (typeof R.desenharParte === 'function') o.desenharParte = (c, partes, lugar, caixa) => {
+    const id = partes?.[lugar]
+    if (!id) throw new Error(`sem a parte ${lugar}`)
+    R.desenharParte(c, id, caixa.x + caixa.w / 2, caixa.y + caixa.h / 2, Math.min(caixa.w, caixa.h))
+  }
+  if (typeof R.criarRig === 'function') o.boneco = (partes, altura, pose = 'vivo') => {
+    const chave = Object.values(partes).join('|') + '|' + altura + '|' + pose
+    let cv = cacheBoneco.get(chave)
+    if (cv) return cv
+    const caido = pose === 'caido', w = Math.ceil(altura * (caido ? 1.24 : 0.9)), h = Math.ceil(altura * 1.1)
+    cv = document.createElement('canvas'); cv.width = w; cv.height = h
+    R.criarRig(partes).desenhar(cv.getContext('2d'), w / 2, h - altura * 0.04, altura, 0, { pose: POSE_DO_RIG[pose] ?? 'parado', progresso: 1, menosAnimacao: true, fioAteY: 0 })
+    if (cacheBoneco.size > 40) cacheBoneco.clear()
+    cacheBoneco.set(chave, cv)
+    return cv
+  }
+  return o
+}
+
 /** Promessa: cumpre quando a busca do desenho terminou. Valor: 'rig' | 'provisorio' | 'nenhum'. */
 export const pronta = (async () => {
-  try { fonte.rig = await import('../boneco-rig.js') } catch { fonte.rig = null }
+  try { fonte.rig = traduzirRig(await import('../boneco-rig.js')) } catch { fonte.rig = null }
   try { fonte.velho = await import('../bonecos.js') } catch { fonte.velho = null }
   fonte.origem = fonte.rig ? 'rig' : fonte.velho ? 'provisorio' : 'nenhum'
   return fonte.origem

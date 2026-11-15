@@ -1,0 +1,116 @@
+/* Frayz — ENCAIXE das peças (css/pecas.css) na luta de verdade (index.html) e no fim da luta.
+   O layout base é o da montagem da luta (.fz-luta em pecas.css); aqui só o que é da tela do jogo:
+   a arena em canvas por baixo, as placas que seguem cada boneco, o HUD do rival, a carta do rival, a mesa e o fim. */
+
+/* ---------------- a tela da luta ocupa a janela inteira (o .tela do frayz.css é absoluto; o .fz-tela é relativo) */
+#luta.fz-luta { position: absolute; inset: 0; overflow: clip; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+#luta .fz-luta__topo { z-index: 20; gap: var(--e3); }
+#luta .fz-luta__tempo { min-width: 0; }
+#luta .fz-luta__tesoura { padding: 4px 8px; border-radius: 999px; }
+#luta .fz-luta__tesoura.aviso { color: var(--ouro-de-vela); box-shadow: inset 0 0 0 2px rgba(255, 200, 87, 0.55); }
+#luta .fz-luta__tesoura.alerta { color: var(--noite-funda); background-color: var(--chama); box-shadow: 0 0 0 2px var(--noite-funda); }
+#luta .menu { top: 58px; right: var(--e3); }
+
+/* ---------------- cena: canvas por baixo, peças por cima */
+#arenaBox.fz-luta__cena { position: relative; min-height: 0; overflow: hidden; background-color: #160E20; }
+#arena { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; cursor: pointer; }
+.fz-arena__camada { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
+.fz-arena__sobre { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.fz-arena__camada .fz-arena__placa { --fz-fita-l: 132px; position: absolute; left: 0; top: 0; transform: translateX(-50%); }
+.fz-arena__camada[data-formato="celular"] .fz-arena__placa { --fz-fita-l: 100px; }
+.fz-arena__placa .fz-alfinetes__botao, .fz-arena__placa .fz-alfinetes__legenda { pointer-events: auto; }
+.fz-arena__sobre--caido .fz-arena__placa { opacity: 0.7; }
+.fz-arena__marca { position: absolute; left: calc(var(--alto) * 0.14); top: calc(var(--alto) * -0.98); z-index: 2; }
+.fz-arena__camada[data-formato="pc"] .fz-arena__marca { left: calc(var(--alto) * 0.2); top: calc(52px + var(--alto) * 0.1); }
+.fz-luta__cena .fz-numero { z-index: 30; }
+
+/* HUD do rival (Linha, mão, baralho) e o bastidor: em cima da cena */
+#banda.fz-luta__rival { z-index: 6; }
+#roda.fz-luta__bastidor { z-index: 8; }
+#luta[data-formato="celular"] #roda.fz-luta__bastidor { position: relative; left: auto; top: auto; transform: none; flex: none; height: 44px; display: flex; align-items: flex-end; }
+
+/* avisos (etiquetas) sobem do pé da cena; a faixa de vez atravessa a cena */
+#toast.fz-luta__avisos { position: absolute; inset: 0; z-index: 40; pointer-events: none; }
+#toast.fz-luta__avisos .fz-etiquetas { top: var(--e4); bottom: auto; left: var(--e4); right: auto; width: min(380px, 34%); align-items: flex-start; }
+#luta[data-formato="celular"] #toast.fz-luta__avisos .fz-etiquetas { top: auto; bottom: 50%; left: var(--e3); right: var(--e3); width: auto; align-items: center; transform: translateY(50%); }
+#toast .fz-etiqueta { pointer-events: auto; }
+
+/* intenção do rival (Aventura): uma etiqueta de papel presa no alto da cena */
+.fz-intencao { position: absolute; z-index: 7; left: 50%; transform: translateX(-50%); bottom: var(--e2); max-width: min(560px, calc(100% - 24px)); padding: 6px 12px; border-radius: 6px;
+  background-color: var(--linho); color: var(--noite-funda); font: 600 13px/1.25 var(--letra-texto); text-align: center; box-shadow: 0 0 0 2px var(--noite-funda), 0 3px 0 2px rgba(10, 4, 18, 0.5); }
+.fz-intencao b { font-weight: 800; color: #9A1F33; }
+.fz-intencao small { font-size: 13px; color: #4A3466; }
+#luta[data-formato="celular"] .fz-intencao { bottom: auto; top: 50%; transform: translate(-50%, -50%); width: calc(100% - 24px); padding: 4px 10px; font-size: 13px; }
+
+/* carta jogada pelo rival: aparece grande no meio da cena por um instante */
+.fz-carta-do-rival { position: absolute; z-index: 20; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: var(--e2); pointer-events: none; }
+.fz-carta-do-rival__quem { padding: 3px 12px; border-radius: 999px; background-color: var(--noite-funda); color: var(--linho); font: 400 16px/1.2 var(--letra-titulo); box-shadow: 0 0 0 2px var(--borda); }
+
+/* a mesa: cartas jogadas neste turno ficam à vista até o fim do turno (carretel pequeno + nome) */
+.fz-mesa { position: absolute; z-index: 5; right: var(--e5); top: 64px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 34%; pointer-events: none; }
+.fz-mesa:empty { display: none; }
+.fz-mesa__titulo { width: 100%; text-align: right; font: 800 12px/1 var(--letra-texto); letter-spacing: 0.12em; text-transform: uppercase; color: var(--linho-apagado); }
+.fz-mesa__carta { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 4px; border-radius: 6px; color: var(--linho); font: 800 13px/1 var(--letra-texto);
+  background-color: var(--pano-claro); background-size: 48px 48px; box-shadow: inset 0 0 0 2px var(--noite-funda), inset 0 0 0 4px var(--fz-tecido, var(--borda)); }
+.fz-mesa__carta b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background-color: var(--madeira); color: var(--noite-funda); font: 400 14px/1 var(--letra-titulo); }
+.fz-mesa__carta span { white-space: nowrap; text-shadow: 0 1px 0 var(--noite-funda); }
+
+/* combo "x2": número de linho com pesponto */
+#luta .combo { position: absolute; z-index: 13; left: 50%; top: 30%; transform: translateX(-50%); font: 400 44px/1 var(--letra-titulo); color: var(--ouro-de-vela); -webkit-text-stroke: 6px var(--noite-funda); paint-order: stroke fill; }
+#luta .combo[data-quem="rival"] { color: var(--escudo); }
+#luta .combo.anima { animation: fz-combo 0.4s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes fz-combo { from { opacity: 0; transform: translateX(-50%) scale(0.5); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
+
+/* base: Linha, mão, botões; o leitor de tela ouve a dica */
+#baixo.fz-luta__base { z-index: 6; }
+#maoWrap { position: relative; }
+#maoBox { overflow: visible; }
+#maoMais { display: none !important; } /* o leque sempre cabe: nada rola */
+.fz-so-leitor { position: absolute !important; left: 0; top: 0; width: 1px; height: 1px; margin: 0; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+body.replay #botoes { visibility: hidden; }
+body.replay #baixo::after { content: "Replay"; position: absolute; right: var(--e4); bottom: var(--e4); font: 400 22px/1 var(--letra-titulo); color: var(--ouro-de-vela); }
+
+/* ---------------- fim da luta (montagem do fim em pecas.css; aqui só o encaixe) */
+#fim.fz-fim { position: absolute; inset: 0; z-index: 45; padding: var(--e4); background: none; overflow: hidden; }
+#fim .fz-fim__folha { max-height: calc(100% - 8px); }
+#fim .fz-fim__numeros { list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
+#fim .fz-fim__vida { width: 100%; text-align: center; color: var(--linho-apagado); font: 600 14px/1.2 var(--letra-texto); }
+#fim .fz-fim__vida b { color: var(--linho); font-weight: 800; }
+#fim .fz-fim__botoes .fz-botao[hidden] { display: none; }
+#fim .fz-fim__botoes .fz-botao:first-child:not([hidden]) + .fz-botao { grid-column: auto; }
+#fim .fz-fim__botoes .fz-botao:first-child[hidden] + .fz-botao { grid-column: 1 / -1; min-height: 56px; font-size: 22px; } /* sem "próxima fase": a Revanche é o botão grande */
+#fim .fz-fim__botoes .fz-botao:first-child:not([hidden]) ~ .fz-botao:last-child { grid-column: auto; }
+#fim .fz-fim__extra { margin: 0; color: var(--ouro-de-vela); font: 800 14px/1.2 var(--letra-texto); text-align: center; }
+#fim .fz-fim__extra:empty { display: none; }
+#fim[data-formato="celular"] { padding: var(--e2); }
+#fim[data-formato="celular"] .fz-fim__folha { padding: var(--e5) var(--e3) var(--e3); gap: 6px; justify-content: center; }
+#fim[data-formato="celular"] .fz-fim__titulo { font-size: 46px; margin: 4px 0 6px; flex: none; }
+#fim[data-formato="celular"].fz-fim--derrota .fz-fim__titulo { margin-bottom: 30px; } /* os fios que desfiam do título não caem na cabeça do boneco */
+#fim[data-formato="celular"] .fz-fim__palco { flex: none; }
+#fim[data-formato="celular"] .fz-fim__palco .fz-boneco { margin-top: 6px; }
+#fim[data-formato="celular"] .fz-fim__luz { width: 170px; height: 170px; margin-left: -85px; bottom: 18px; }
+#fim[data-formato="celular"] .fz-fim__numeros { gap: 6px; }
+#fim[data-formato="celular"] .fz-fim__numero { width: 76px; height: 76px; }
+#fim[data-formato="celular"] .fz-fim__numero b { font-size: 22px; }
+#fim[data-formato="celular"] .fz-fim__numero .fz-icone { width: 16px; height: 16px; }
+#fim[data-formato="celular"] .fz-fim__vida { font-size: 13px; }
+#fim[data-formato="celular"] .fz-fim__botoes { gap: var(--e2); }
+#fim[data-formato="celular"] .fz-fim__botoes .fz-botao { min-height: 44px; padding: 4px 10px; font-size: 16px; }
+#fim[data-formato="celular"] .fz-fim__botoes .fz-botao:first-child[hidden] + .fz-botao, #fim[data-formato="celular"] .fz-fim__botoes .fz-botao:first-child:not([hidden]) { min-height: 50px; font-size: 20px; }
+
+/* ---------------- "Menos animação": nada infinito na luta */
+[data-menos="1"] #luta *, [data-menos="1"] #fim * { animation: none !important; transition: none !important; }
+
+/* ---------------- Luta livre: os 3 lugares bordados e o botão-retalho Lutar (montagem do "escolher time") */
+#timeEscolhido.fz-time__circulos { gap: var(--e2); }
+#timeEscolhido .fz-circulo { width: 84px; height: 96px; gap: 4px; }
+#timeEscolhido .fz-circulo__anel { bottom: 15px; height: 30px; }
+#timeEscolhido .fz-circulo .fz-boneco { margin-bottom: 2px; }
+#btnLutar.fz-botao { min-width: 132px; min-height: 52px; font-size: 20px; }
+@media (max-width: 639px) {
+  #timeEscolhido.fz-time__circulos { gap: 2px; }
+  #timeEscolhido .fz-circulo { width: 64px; height: 84px; }
+  #timeEscolhido .fz-circulo__anel { left: 2px; right: 2px; bottom: 14px; height: 24px; }
+  #timeEscolhido .fz-circulo__nome { letter-spacing: 0.06em; font-size: 12px; }
+  #btnLutar.fz-botao { min-width: 0; flex: 1 1 auto; font-size: 18px; }
+}

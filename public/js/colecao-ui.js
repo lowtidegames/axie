@@ -145,8 +145,9 @@ function desenharFicha() {
     const det = el('details', 'proto'); det.open = protoAberto; det.addEventListener('toggle', () => { protoAberto = det.open }); det.append(el('summary', null, 'Protótipo: gastar este boneco'))
     const d1 = el('button', 'btn mini', '+240 lutas de treino'); d1.id = 'btnEnvelhecer'; d1.type = 'button'
     const d2 = el('button', 'btn mini', 'Gastar até o limite'); d2.id = 'btnEnvelhecerTudo'; d2.type = 'button'
-    d1.addEventListener('click', () => { Col.envelhecerDemo(b.id, 240); desenharFicha(); renderColecao() })
-    d2.addEventListener('click', () => { Col.envelhecerDemo(b.id, lim); desenharFicha(); renderColecao() })
+    const remendou = (fn) => { const antes = P.nivelDeRemendo(Col.obter(b.id)); fn(); if (P.nivelDeRemendo(Col.obter(b.id)) > antes) Som.tocar('remendo') } // remendo novo: agulha passando 3 vezes
+    d1.addEventListener('click', () => { remendou(() => Col.envelhecerDemo(b.id, 240)); desenharFicha(); renderColecao() })
+    d2.addEventListener('click', () => { remendou(() => Col.envelhecerDemo(b.id, lim)); desenharFicha(); renderColecao() })
     det.append(el('p', 'fc-nota', 'Chama registrarLuta do motor várias vezes. Só para o protótipo.'), d1, d2); c.append(det)
   }
 }

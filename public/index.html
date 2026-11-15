@@ -6,6 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b1226">
 <link rel="stylesheet" href="css/frayz.css">
+<link rel="stylesheet" href="css/pecas.css">
+<link rel="stylesheet" href="css/luta.css">
 </head>
 <body>
 <main id="app">
@@ -103,13 +105,13 @@
     </div>
   </div>
 
-  <!-- ============ LUTA ============ -->
-  <section id="luta" class="tela" hidden>
-    <header id="topo">
-      <div class="t-turno"><b id="tTurno">Turno 1/12</b><span id="tVez" class="chip vez">Sua vez</span></div>
-      <div class="t-tesoura chip" id="tTesoura" title="A Tesoura corta todos os bonecos"></div>
-      <div class="t-relogio" id="tRelogio" aria-label="Relógio do turno"><div class="barra"><i id="tBarra"></i></div><span id="tSeg">20</span></div>
-      <button id="btnMenu" class="btn mini" aria-label="Menu" aria-haspopup="true">&#9881;</button>
+  <!-- ============ LUTA (peças do ateliê: js/pecas/*; arena: js/arena.js) ============ -->
+  <section id="luta" class="tela fz-tela fz-luta" data-palco hidden>
+    <header id="topo" class="fz-luta__topo">
+      <div id="tTurno" class="fz-luta__turno" role="status"></div>
+      <div id="tTesoura" class="fz-luta__tesoura" role="img"></div>
+      <div id="tRelogio" class="fz-luta__tempo" aria-label="Relógio do turno"></div>
+      <button id="btnMenu" class="fz-botao-de-roupa" type="button" aria-label="Menu" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.6 9 h.01 M15.4 9 h.01 M8.6 15 h.01 M15.4 15 h.01"/><path class="fz-botao-de-roupa__fio" d="M8.6 9 H15.4 M8.6 15 H15.4"/></svg></button>
       <div id="menu" class="menu" hidden>
         <label class="opc"><input type="checkbox" id="optMenos2"> <span>Menos animação</span></label>
         <button id="btnMudo2" class="btn mini" aria-pressed="false">&#9835; Som</button>
@@ -118,49 +120,38 @@
       </div>
     </header>
 
-    <div id="arenaBox">
-      <canvas id="arena" aria-label="Arena: os dois times" role="img"></canvas>
-      <div id="banda">
-        <div class="b-linhas">
-          <div class="bl" id="blRival"></div>
-          <div class="bl" id="blEu"></div>
-        </div>
-        <button id="roda" class="roda" aria-label="Roda dos tipos (toque para ver a legenda)"><canvas id="rodaCv"></canvas></button>
-      </div>
-      <div id="bannerTurno" class="banner" hidden></div>
-      <div id="bannerCarta" class="banner-carta" hidden></div>
-      <div id="legenda" class="legenda" hidden></div>
+    <div id="arenaBox" class="fz-luta__cena">
+      <canvas id="arena" aria-label="Arena: os dois times na mesa de costura" role="img"></canvas>
+      <div id="arenaCamada" class="fz-arena__camada"></div>
+      <div id="banda" class="fz-luta__rival"></div>
+      <div id="roda" class="fz-luta__bastidor"></div>
+      <div id="mesa" class="fz-mesa" aria-live="polite"></div>
+      <div id="intencao" class="fz-intencao" aria-live="polite" hidden></div>
+      <div id="bannerCarta" class="fz-carta-do-rival" hidden></div>
       <div id="combo" class="combo" hidden></div>
+      <div id="toast" class="fz-luta__avisos"></div>
     </div>
 
-    <footer id="baixo">
-      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-      <div id="intencao" class="intencao" aria-live="polite" hidden></div>
-      <div id="info" class="info" aria-live="polite"></div>
-      <div id="maoWrap"><div id="maoBox"><div id="mao" class="mao" role="list"></div></div><span id="maoMais" class="mao-mais" hidden aria-hidden="true">mais &#8250;</span></div>
-      <div id="botoes" class="botoes">
-        <button id="btnTrocar" class="btn">Trocar lugares <small>1 Linha</small></button>
-        <button id="btnPassar" class="btn grande">Passar</button>
-      </div>
+    <footer id="baixo" class="fz-luta__base">
+      <div id="blEu" class="fz-luta__meu"></div>
+      <div id="maoWrap" class="fz-luta__mao"><div id="maoBox"><div id="mao"></div></div><span id="maoMais" class="mao-mais" hidden aria-hidden="true">mais &#8250;</span></div>
+      <div id="botoes" class="fz-luta__botoes"></div>
+      <p id="info" class="fz-so-leitor" aria-live="polite"></p>
     </footer>
   </section>
 
   <!-- ============ FIM DA LUTA ============ -->
-  <div id="fim" class="modal" hidden>
-    <div class="folha fim-folha" role="dialog" aria-modal="true" aria-labelledby="fimTitulo">
-      <h2 id="fimTitulo" class="fim-titulo">Vitória!</h2>
-      <div id="fimHeroi" class="fim-heroi" hidden></div>
-      <p id="fimMotivo" class="fim-motivo"></p>
-      <ul id="fimResumo" class="fim-resumo"></ul>
-      <textarea id="replaySaida" readonly rows="2" aria-label="Texto do replay" spellcheck="false"></textarea>
-      <div class="fim-botoes">
-        <button id="btnProxima" class="btn grande" hidden>Próxima fase</button>
-        <button id="btnRevanche" class="btn grande">Revanche</button>
-        <button id="btnTrocarTime" class="btn">Trocar time</button>
-        <button id="btnRever" class="btn">Rever</button>
-        <button id="btnCopiar" class="btn">Copiar replay</button>
+  <div id="fim" class="modal fz-tela fz-fim" hidden>
+    <div class="fz-fim__fundo"></div>
+    <div class="fim-folha fz-fim__folha" role="dialog" aria-modal="true" aria-labelledby="fimTitulo">
+      <div id="fimHeroi" class="fz-fim__palco"></div>
+      <div class="fz-fim__lado">
+        <h2 id="fimTitulo" class="fim-titulo fz-fim__titulo"></h2>
+        <p id="fimMotivo" class="fz-fim__motivo"></p>
+        <ul id="fimResumo" class="fz-fim__numeros"></ul>
+        <div id="fimBotoes" class="fz-fim__botoes"></div>
+        <p id="copiaMsg" class="fz-fim__aviso" role="status"></p>
       </div>
-      <p id="copiaMsg" class="msg" role="status"></p>
     </div>
   </div>
 

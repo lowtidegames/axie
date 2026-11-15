@@ -68,6 +68,36 @@ async function rodarFormato(fmt) {
   }
   const toque = async (x, y) => (fmt.toque ? page.touchscreen.tap(x, y) : page.mouse.click(x, y))
   const clique = async (sel) => (fmt.toque ? page.locator(sel).first().tap() : page.locator(sel).first().click())
+  // carta da mão (leque): no PC um clique na faixa da esquerda (a vizinha cobre a borda direita); no toque a carta amplia e o botão Jogar escolhe
+  const carta = (cid) => page.locator(`#mao .fz-carta[data-mao="${cid}"]`)
+  const escolherCarta = async (cid) => {
+    if (fmt.toque) { await carta(cid).tap({ position: { x: 12, y: 40 } }); await page.locator('.fz-lupa__jogar').tap() }
+    else await carta(cid).click({ position: { x: 20, y: 60 } })
+  }
+  // ENCAIXE (tarefa 11): o boneco novo desenhado na arena, as peças do ateliê presentes e nada do HUD em cima de outra coisa
+  const conferirEncaixe = async (onde) => {
+    const r = await page.evaluate(() => {
+      const a = window.__frayz.arena
+      const pintados = a.desenhados // quantos bonecos o último quadro desenhou pelo rig
+      const conta = (s) => document.querySelectorAll(s).length
+      const caixas = []
+      for (const s of ['#tTurno', '#tTesoura', '#tRelogio', '#btnMenu', '#banda', '#roda .fz-bastidor__botao', '#btnTrocar', '#btnPassar', '.fz-arena__placa .fz-fita'])
+        for (const e of document.querySelectorAll(s)) { const q = e.getBoundingClientRect(); if (q.width && q.height && getComputedStyle(e).visibility !== 'hidden') caixas.push({ s, q }) }
+      const batem = []
+      for (let i = 0; i < caixas.length; i++) for (let j = i + 1; j < caixas.length; j++) {
+        const A = caixas[i].q, B = caixas[j].q, lx = Math.min(A.right, B.right) - Math.max(A.left, B.left), ly = Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top)
+        if (lx > 1.5 && ly > 1.5) batem.push(`${caixas[i].s} × ${caixas[j].s}`)
+      }
+      // texto cortado: rótulos e números do HUD inteiros
+      const cortados = [...document.querySelectorAll('#luta .fz-botao__rotulo, #luta .fz-fita__numero, #luta .fz-carreteis__numero, #luta .fz-luta__nome, #tTesoura span')]
+        .filter((e) => e.getClientRects().length && (e.scrollWidth > e.clientWidth + 1)).map((e) => e.textContent)
+      return { rigs: Object.keys(a.rigs).length, pintados, mao: conta('#mao .fz-mao'), carreteis: conta('#luta .fz-carreteis'), bastidor: conta('#roda .fz-bastidor__botao'), fio: conta('#tRelogio .fz-fio-tempo'), placas: conta('.fz-arena__placa'), botoes: conta('#botoes .fz-botao'), velho: !!document.querySelector('#mao .carta'), batem, cortados }
+    })
+    confere(r.rigs === 6 && r.pintados === 6, `${onde}: os 6 bonecos novos (rig) desenhados na arena (${r.pintados} no último quadro)`)
+    confere(r.mao === 1 && r.carreteis === 2 && r.bastidor === 1 && r.fio === 1 && r.placas === 6 && r.botoes === 2 && !r.velho, `${onde}: peças do ateliê no lugar (mão em leque, 2 carretéis, bastidor, fio do tempo, 6 placas, 2 botões-retalho)`)
+    confere(r.batem.length === 0, `${onde}: nenhuma peça do HUD em cima de outra` + (r.batem.length ? ' → ' + r.batem.slice(0, 4).join('; ') : ''))
+    confere(r.cortados.length === 0, `${onde}: nenhum texto do HUD cortado` + (r.cortados.length ? ' → ' + r.cortados.slice(0, 4).join('; ') : ''))
+  }
 
   await abrir(SEMENTES[0])
   await page.evaluate(() => { try { localStorage.removeItem('menos_animacao') } catch { /* ok */ } })
@@ -106,23 +136,35 @@ async function rodarFormato(fmt) {
       const info = await page.evaluate(() => ({ cmd: window.__frayz.sugestao(), turno: window.__frayz.estado().turno }))
       if (!info.cmd) break
       // 1ª vez: tenta uma carta apagada e confere o aviso de recusa do motor
-      if (!recusaVista && await page.locator('#mao .carta.apagada').count()) {
+      const apagada = '#mao .fz-carta:not([data-estado~="jogavel"]):not([data-estado~="fiapo"])'
+      if (!recusaVista && await page.locator(apagada).count()) {
         recusaVista = true
-        await clique('#mao .carta.apagada')
-        await page.waitForSelector('#toast:not([hidden])', { timeout: 3000 }).catch(() => {})
-        const txt = (await page.locator('#toast').textContent()).trim()
-        confere(txt.length > 3 && await page.locator('#toast').isVisible(), `carta apagada mostra o motivo do motor: "${txt}"`)
+        let txt, visivel
+        if (fmt.toque) { // tocar amplia a carta: o motivo do motor aparece embaixo dela e o Jogar fica desligado
+          await page.locator(apagada).first().tap({ position: { x: 12, y: 40 } })
+          await page.waitForSelector('.fz-lupa__motivo', { timeout: 3000 }).catch(() => {})
+          txt = ((await page.locator('.fz-lupa__motivo').textContent().catch(() => '')) ?? '').trim(); visivel = await page.locator('.fz-lupa__motivo').isVisible() && await page.locator('.fz-lupa__jogar').isDisabled()
+          await page.locator('.fz-lupa__fechar').tap()
+        } else { // clicar mostra o motivo numa etiqueta
+          await page.locator(apagada).first().click({ position: { x: 20, y: 60 } })
+          await page.waitForSelector('#toast .fz-etiqueta', { timeout: 3000 }).catch(() => {})
+          txt = ((await page.locator('#toast .fz-etiqueta').last().textContent().catch(() => '')) ?? '').trim(); visivel = await page.locator('#toast .fz-etiqueta').last().isVisible()
+        }
+        confere(txt.length > 3 && visivel, `carta apagada mostra o motivo do motor: "${txt}"`)
       }
       if (!fotoMeio && info.turno >= 4) { fotoMeio = true; await page.waitForTimeout(150); await foto(page, fmt, 'meio') }
       const c = info.cmd
       if (c.tipo === 'jogar') {
-        await clique(`#mao .carta[data-cid="${c.carta}"]`)
-        await page.waitForFunction((cid) => window.__frayz.S.sel === cid, c.carta, { timeout: 4000 })
-        if (c.alvo) {
-          const pos = await page.evaluate((id) => window.__frayz.pagina(id), c.alvo)
-          await toque(pos.x, pos.y)
-        } else await clique(`#mao .carta[data-cid="${c.carta}"]`)
-      } else if (c.tipo === 'fiapo') await clique(`#mao .carta[data-cid="${c.carta}"]`)
+        await escolherCarta(c.carta)
+        // escolhida (alvos acesos) — ou já jogada, quando a carta só tinha um jeito e veio do botão Jogar
+        await page.waitForFunction((cid) => window.__frayz.S.sel === cid || !window.__frayz.livre(), c.carta, { timeout: 4000 })
+        if (await page.evaluate((cid) => window.__frayz.S.sel === cid, c.carta)) {
+          if (c.alvo) {
+            const pos = await page.evaluate((id) => window.__frayz.pagina(id), c.alvo)
+            await toque(pos.x, pos.y)
+          } else await escolherCarta(c.carta)
+        }
+      } else if (c.tipo === 'fiapo') await escolherCarta(c.carta)
       else if (c.tipo === 'trocar') {
         await clique('#btnTrocar')
         for (const id of [c.a, c.b]) { const pos = await page.evaluate((x) => window.__frayz.pagina(x), id); await toque(pos.x, pos.y); await page.waitForTimeout(40) }
@@ -133,8 +175,9 @@ async function rodarFormato(fmt) {
         confere(fora.length === 0, 'luta: nada importante fora da janela' + (fora.length ? ' → ' + fora.join('; ') : ''))
         const sobra = await page.evaluate(() => { const l = document.querySelector('#luta'); return l.scrollHeight - l.clientHeight })
         confere(sobra <= 1, 'luta cabe na altura da janela sem rolar')
-        const cartas = await page.evaluate(() => [...document.querySelectorAll('#mao .carta')].map((e) => { const r = e.getBoundingClientRect(); return r.height > 20 && r.top >= 0 && r.bottom <= window.innerHeight }))
+        const cartas = await page.evaluate(() => [...document.querySelectorAll('#mao .fz-carta')].map((e) => { const r = e.getBoundingClientRect(); return r.height > 20 && r.top >= 0 && r.bottom <= window.innerHeight }))
         confere(cartas.length > 0 && cartas.every(Boolean), 'cartas da mão inteiras na vertical')
+        await conferirEncaixe('luta')
       }
     }
     await page.waitForSelector('#fim:not([hidden])', { timeout: 20000 })
@@ -150,6 +193,9 @@ async function rodarFormato(fmt) {
   const res1 = await page.evaluate(() => JSON.stringify(window.__frayz.estado().fim))
   confere(!!JSON.parse(res1), 'a luta chegou ao fim com resultado do motor: ' + res1)
   confere((await page.locator('#fimResumo li').count()) >= 4, 'resumo do fim: turnos, maior golpe, viradas e vida')
+  const sons = await page.evaluate(() => window.__frayz.Som.registro.map((x) => x[0]))
+  const fimSom = await page.evaluate(() => window.__frayz.estado().fim.vencedor === 'A' ? 'vitoria' : 'derrota')
+  confere(sons.some((n) => ['golpe', 'golpeForte', 'critico', 'golpeNoEscudo'].includes(n)) && sons.includes('queda') && sons.includes(fimSom) && sons.includes('cartaJogada'), `som disparado na luta: carta, golpe, queda e ${fimSom} (${[...new Set(sons)].length} sons diferentes)`)
   const foraFim = await foraDaTela(page, ['.fim-folha', '#btnRevanche', '#btnTrocarTime', '#btnRever', '#btnCopiar'])
   confere(foraFim.length === 0, 'tela do fim: nada fora da janela' + (foraFim.length ? ' → ' + foraFim.join('; ') : ''))
 
@@ -163,7 +209,8 @@ async function rodarFormato(fmt) {
   await page.waitForTimeout(200)
   const copia = (await page.locator('#copiaMsg').textContent()).trim()
   confere(copia.length > 0, 'Copiar replay responde: "' + copia + '"')
-  const texto = await page.inputValue('#replaySaida')
+  const texto = await page.evaluate(() => window.__frayz.textoDoReplay()) // o texto cru não aparece na tela: é o que o Copiar copia
+  confere((await page.locator('#fim textarea, #fim input').count()) === 0 && !/\{"v"/.test(await page.locator('#fim').textContent()), 'fim da luta: o texto cru do replay não aparece na tela')
   let obj = null
   try { obj = JSON.parse(texto) } catch { /* abaixo */ }
   confere(!!obj && obj.v === 1 && obj.s === semente && Array.isArray(obj.c) && obj.c.length > 5, `replay em texto JSON curto (${texto.length} letras, ${obj?.c?.length} comandos)`)

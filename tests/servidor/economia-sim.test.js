@@ -3,7 +3,7 @@
 // o pote nunca paga mais do que recebeu, nada fica negativo, o dinheiro fecha e a simulação é repetível pela semente.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { simular, verificarContas, CENARIOS, Insolvencia } from '../../tools/simular-economia.mjs'
+import { simular, verificarContas, CENARIOS, Insolvencia, CONJUNTOS, VARIACOES, conjunto, fatoresResultado, comparar } from '../../tools/simular-economia.mjs'
 
 const ESCALA = 0.2 // rápido; a escala não muda as regras
 const EPS = 1e-6
@@ -85,4 +85,66 @@ test('estresse: com ~30% de contas-bot, a fazenda não leva mais de 35% do pote'
   const pctMedio = r.temporadas.slice(1).reduce((s, x) => s + x.pctBots, 0) / 5
   assert.ok(pesoBots > 0.25 && pesoBots < 0.4, `peso ${pesoBots}`)
   assert.ok(pctMedio < 0.35, `bots levaram ${pctMedio}`)
+})
+
+// ───────── Rodada 2: os MESMOS invariantes valem para TODO conjunto de números (R1, cada caminho isolado, R2 e variações) ─────────
+const TODOS = [...Object.keys(CONJUNTOS), ...Object.keys(VARIACOES), 'R2+BOT_FORTE', 'R2+SEM_ANTIBOT']
+
+test('rodada 2: todo conjunto, nos 4 cenários, passa nos invariantes todo dia (pote nunca paga mais do que entrou)', () => {
+  for (const nome of TODOS) {
+    const params = conjunto(nome)
+    for (const cen of Object.keys(CENARIOS)) {
+      const r = simular(cen, { semente: 42, escala: ESCALA, registro: true, params })
+      const ctx = `${nome} / ${cen}`
+      assert.equal(r.temporadas.length, 6, ctx)
+      assert.equal(r.invariantesChecados, 180, ctx)
+      assert.ok(r.temporadas.every((t) => t.pagouMaisQueEntrou === false), `${ctx}: pote pagou mais do que entrou`)
+      assert.equal(r.resumo.potePagouMais, false, ctx)
+      for (const d of r.registro) {
+        assert.ok(d.pote >= -EPS && d.reserva >= -EPS, `${ctx} dia ${d.dia}: pote/reserva negativos`)
+        assert.ok(d.pagoPote <= d.entrouPote + d.reservaParaPote - d.poteParaReserva + EPS, `${ctx} dia ${d.dia}: pagou mais`)
+        assert.ok(d.sacadoLiq <= d.externo + EPS, `${ctx} dia ${d.dia}: sacou mais do que entrou de fora`)
+      }
+    }
+  }
+})
+
+test('rodada 2: o conjunto R1 é exatamente a proposta da rodada 1 (nada mudou por baixo)', () => {
+  for (const cen of ['ESTAVEL', 'ESTRESSE_BOTS']) {
+    const a = simular(cen, { semente: 42, escala: ESCALA })
+    const b = simular(cen, { semente: 42, escala: ESCALA, params: conjunto('R1') })
+    assert.deepEqual(a.temporadas, b.temporadas, cen)
+    assert.deepEqual(a.contas, b.contas, cen)
+  }
+})
+
+test('rodada 2: determinismo do R2 (mesma semente = mesmo resultado)', () => {
+  const a = simular('ESTRESSE_BOTS', { semente: 7, escala: ESCALA, params: conjunto('R2') })
+  const b = simular('ESTRESSE_BOTS', { semente: 7, escala: ESCALA, params: conjunto('R2') })
+  assert.deepEqual(a.temporadas, b.temporadas)
+  assert.deepEqual(a.resumo, b.resumo)
+})
+
+test('rodada 2: farmador entra de graça (não põe dinheiro para entrar) e o anti-bot do R2 segura bots abaixo de 10% do pote', () => {
+  const r = simular('ESTRESSE_BOTS', { semente: 42, escala: 0.5, params: conjunto('R2') })
+  assert.ok(r.resumo.pctBots < 0.10, `bots levaram ${r.resumo.pctBots}`)
+  const sem = simular('ESTRESSE_BOTS', { semente: 42, escala: 0.5, params: conjunto('A_GRATIS') })
+  assert.ok(sem.resumo.pctBots > r.resumo.pctBots, 'sem anti-bot, a entrada de graça tem de deixar os bots levarem mais')
+  const e = simular('ESTAVEL', { semente: 42, escala: 0.5, params: conjunto('R2') })
+  assert.ok(e.porTipo.farmador.pos < e.porTipo.farmador.contas * 0.5, 'farmador quase não põe dinheiro de fora')
+})
+
+test('rodada 2: ganho por resultado usa as taxas medidas no motor — bom > mediano > bot simples', () => {
+  const f = fatoresResultado(CONJUNTOS.R2.RESULTADO)
+  assert.equal(f.mediano, 1)
+  assert.ok(f.bom > 1.2 && f.fraco < 0.8, JSON.stringify(f))
+})
+
+test('rodada 2: --comparar devolve uma linha por conjunto × cenário com as colunas pedidas', () => {
+  const linhas = comparar(['R1', 'R2'], { semente: 42, escala: ESCALA })
+  assert.equal(linhas.length, 8)
+  for (const l of linhas) {
+    for (const k of ['farmMediano', 'farmTop25', 'pctComTime', 'donoPaybackDias', 'baleiaMediana', 'baleiaTop10', 'pctBots', 'mercadoPct', 'caixaEstudio']) assert.ok(k in l, k)
+    assert.equal(l.potePagouMais, false)
+  }
 })

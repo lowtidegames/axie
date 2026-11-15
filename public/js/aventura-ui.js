@@ -69,8 +69,7 @@ function renderTime() {
   const bs = Col.ativos().filter((x) => !Col.casuloFechado(x))
   prateleira = criarPrateleira($('#avTime'), bs.map((b) => {
     const pode = Col.podeLutar(b)
-    return { id: b.id, nome: P.fichaDoBoneco(b).nome, desenho: () => bonecoCanvas(b, Math.round((pc ? 92 : 80) / 1.547)), desligado: !pode.ok, motivo: pode.motivo,
-      sub: pc ? (pode.ok ? `Remendos ${P.nivelDeRemendo(b)}/${P.PARAMS_COSTURA.desgaste.niveisDeRemendo}` : 'só aposentar') : null }
+    return { id: b.id, nome: P.fichaDoBoneco(b).nome, desenho: () => bonecoCanvas(b, Math.round((pc ? 88 : 80) / 1.547)), desligado: !pode.ok, motivo: pode.motivo }
   }), { porTabua: pc ? 5 : 3, nomes: pc, classe: 'mini-cartao', aoTocar: alternar, rotulo: 'Escolha 3 bonecos para a fase' })
   prateleira.marcar({ escolhidos: ids, aberto: null })
   const sl = $('#avSlots'); sl.replaceChildren(); sl.classList.add('fz-time__circulos')

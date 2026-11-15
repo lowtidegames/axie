@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Frayz — protótipo local</title>
+<title>Frayz</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b1226">
 <link rel="stylesheet" href="css/frayz.css">
@@ -11,6 +11,22 @@
 </head>
 <body>
 <main id="app">
+
+  <!-- ============ ENTRADA (modo servidor): o apelido da conta de teste; a tela do hub só abre depois ============ -->
+  <section id="entrada" class="tela" hidden>
+    <div class="ent-corpo">
+      <h1 class="logo ent-logo" id="entLogo" aria-label="Frayz"><span>Frayz</span></h1>
+      <form id="entForm" class="ent-folha" novalidate>
+        <h2 class="hub-titulo">Entrar no ateliê</h2>
+        <p class="hub-dica">Escolha um apelido para a sua conta de teste. Seus bonecos ficam guardados no servidor.</p>
+        <label for="entApelido" id="entRotulo" class="ent-rotulo">Apelido</label>
+        <input id="entApelido" name="apelido" type="text" autocomplete="nickname" maxlength="20" spellcheck="false" autocapitalize="words">
+        <button id="btnEntrar" class="btn grande" type="submit">Entrar</button>
+        <button id="btnTentar" class="btn" type="button" hidden>Tentar de novo</button>
+        <p id="entMsg" class="msg erro" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </section>
 
   <!-- ============ HUB: cabeçalho, abas e os painéis (Luta livre, Aventura, Meus bonecos, Costura, Mural) — peças do ateliê ============ -->
   <div id="hub" class="tela">
@@ -74,7 +90,8 @@
   <!-- ============ MEUS BONECOS ============ -->
   <section id="colecao" class="tela aba-tela" hidden>
     <div class="sub-rolagem hub-corpo">
-      <header class="hub-topo"><h2 class="hub-titulo">Meus bonecos</h2><p class="hub-dica" id="colResumo"></p></header>
+      <header class="hub-topo"><h2 class="hub-titulo">Meus bonecos</h2><p class="hub-dica" id="colResumo"></p>
+        <p class="hub-dica col-conta" id="colConta" hidden>Conta: <b id="colApelido"></b> <button id="btnSairConta" class="btn mini" type="button">Sair da conta</button></p></header>
       <div id="colLista" class="hub-prateleira" role="list" aria-label="Seus bonecos"></div>
     </div>
   </section>
@@ -115,6 +132,7 @@
         <label class="opc"><input type="checkbox" id="optMenos2"> <span>Menos animação</span></label>
         <button id="btnMudo2" class="btn mini" aria-pressed="false">&#9835; Som</button>
         <button id="btnParar" class="btn mini" hidden>Parar replay</button>
+        <button id="btnDesistir" class="btn mini" hidden>Desistir</button>
         <button id="btnSair" class="btn mini">Sair da luta</button>
       </div>
     </header>

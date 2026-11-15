@@ -53,6 +53,10 @@ export function renderAventura() {
   const topo = el('div', 'av-topo'); topo.append(el('span', null, `Fase ${F.n}: ${F.nome}`))
   const rb = el('span', 'chip'); rb.textContent = `Rival ${NOME_ROBO[F.robo]}`; rb.title = DESC_ROBO[F.robo]; topo.append(rb); info.append(topo)
   const ini = el('div', 'av-inimigos'); ini.id = 'avInimigos'
+  if (P.modo() === 'servidor') { // no servidor o time rival é sorteado por ele na hora de abrir a luta (a tela não inventa)
+    const dica = el('p', 'av-dica'); dica.append(`O rival ${NOME_ROBO[F.robo]} ${DESC_ROBO[F.robo]}. O time dele é sorteado na hora da luta. `, el('b', null, 'Na luta ele mostra o que vai fazer no próximo turno.'))
+    info.append(dica); renderTime(); return
+  }
   F.time.forEach((id, i) => {
     const f = P.ficha(id), cx = el('div', 'av-inimigo'); cx.dataset.id = id
     const c = el('div', 'fz-circulo fz-circulo--cheio'); c.append(el('span', 'fz-circulo__anel'), bonecoEm(partesDaFicha(f), pc ? 96 : 76), el('span', 'fz-circulo__nome', NOME_LUGAR[i]))

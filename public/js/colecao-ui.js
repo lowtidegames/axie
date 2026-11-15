@@ -25,7 +25,8 @@ function estadoTxt(b) {
 
 export function renderColecao() {
   const bs = Col.ativos(), pc = formatoDe(null) === 'pc'
-  $('#colResumo').textContent = `${bs.length} bonecos · ${Col.retalhos()} Retalhos Honrados · toque num boneco para ver a ficha.`
+  const ret = Col.retalhos()
+  $('#colResumo').textContent = `${bs.length} bonecos · ${ret == null ? '' : `${ret} Retalhos Honrados · `}toque num boneco para ver a ficha.`
   // a prateleira (peça do ateliê): cada boneco com o desgaste no desenho e o Carretel na etiqueta
   criarPrateleira($('#colLista'), bs.map((b) => {
     const { f, voltas } = resumoDoBoneco(b)
@@ -127,7 +128,8 @@ function desenharFicha() {
     const nota = el('small', 'fc-nota', P.podeAposentar(b) ? 'Ele vai para o Mural e devolve Retalhos Honrados.' : 'Só quando os Pontos de Costura chegarem ao limite.')
     ap.addEventListener('click', () => cerimonia(b.id))
     const l = el('div', 'fc-acao'); l.append(ap, nota); c.append(l)
-    // ferramentas do protótipo (para ver os remendos sem jogar centenas de lutas)
+    // ferramentas do protótipo (para ver os remendos sem jogar centenas de lutas; só no modo local)
+    if (!Col.temFerramentasDePrototipo()) return
     const det = el('details', 'proto'); det.open = protoAberto; det.addEventListener('toggle', () => { protoAberto = det.open }); det.append(el('summary', null, 'Protótipo: gastar este boneco'))
     const d1 = el('button', 'btn mini', '+240 lutas de treino'); d1.id = 'btnEnvelhecer'; d1.type = 'button'
     const d2 = el('button', 'btn mini', 'Gastar até o limite'); d2.id = 'btnEnvelhecerTudo'; d2.type = 'button'
@@ -140,7 +142,7 @@ function desenharFicha() {
 
 async function cerimonia(id) {
   const b = Col.obter(id), nome = P.fichaDoBoneco(b).nome
-  const r = Col.aposentar(id)
+  const r = await Col.aposentar(id)
   if (!r.ok) { avisoHub(r.motivo); return }
   Som.aposentadoria()
   const c = $('#bonecoCorpo'); c.replaceChildren()
@@ -159,7 +161,8 @@ async function cerimonia(id) {
 export function renderMural() {
   const lista = $('#murLista'); lista.replaceChildren()
   const m = Col.mural()
-  $('#murResumo').textContent = m.length ? `${m.length} bonecos aposentados · ${Col.retalhos()} Retalhos Honrados.` : ''
+  const ret = Col.retalhos()
+  $('#murResumo').textContent = m.length ? `${m.length} bonecos aposentados${ret == null ? '' : ` · ${ret} Retalhos Honrados`}.` : ''
   if (!m.length) lista.append(el('p', 'hub-vazio', 'Ainda ninguém se aposentou. Quando os Pontos de Costura de um boneco chegarem ao limite, ele ganha um quadro aqui, com tudo o que lutou.'))
   for (const x of m) { // cada aposentado num quadro de moldura de madeira
     const b = Col.obter(x.id)
@@ -168,7 +171,7 @@ export function renderMural() {
     const info = el('div', 'f-info')
     info.append(el('div', 'f-nome', x.nome), el('div', 'f-partes', `Geração ${x.geracao} · voltas de costura dadas: ${x.voltasUsadas}`))
     info.append(el('div', 'f-stats', `Lutas ${x.lutas} · Vitórias ${x.vitorias} · Maior golpe ${x.maiorGolpe}`))
-    info.append(el('div', 'mural-ret', `+${x.retalhos} Retalhos Honrados`))
+    if (x.retalhos != null) info.append(el('div', 'mural-ret', `+${x.retalhos} Retalhos Honrados`))
     c.append(info); lista.append(c)
   }
 }

@@ -3,9 +3,9 @@
 // Nada de moeda, prêmio, pote ou saque aqui.
 import { createHash, randomBytes, randomInt } from 'node:crypto'
 import { comandosValidos, criarLuta, resultado as resultadoDaLuta, aplicarNoLugar, visaoDoTime, reproduzir, VERSAO_DO_MOTOR } from '../shared/batalha.js'
-import { jogarTurno, ROBOS } from '../shared/robos.js'
+import { intencaoDoRobo, jogarTurno, ROBOS } from '../shared/robos.js'
 import {
-  PARAMS_COSTURA, PARTES_DO_BONECO, aposentar, chancesDaCostura, costurar, custoDaCostura, gerarBonecoInicial,
+  PARAMS_COSTURA, PARTES_DO_BONECO, abrirCasulo, aposentar, chancesDaCostura, costurar, custoDaCostura, gerarBonecoInicial,
   nivelDeRemendo, paraLuta, podeAposentar, podeCosturar, registrarLuta,
 } from '../shared/costura.js'
 import { BONECOS_PRONTOS, ECONOMIA_DO_BETA } from '../shared/config.js'
@@ -17,7 +17,7 @@ export const EU = 'A'
 export const RIVAL = 'B'
 
 // ASSUMPTION (PROVISÓRIO; não há chave em shared/config.js ainda): fases da Aventura = nível do robô rival.
-// O time rival é sorteado pelo servidor entre os bonecos prontos. Intenção visível ainda não existe.
+// O time rival é sorteado pelo servidor entre os bonecos prontos. A intenção do rival vai com a visão (tarefa 20).
 export const FASES_DA_AVENTURA = [
   { robo: 'ganancioso' },
   { robo: 'ganancioso' },
@@ -216,7 +216,8 @@ export function criarJogo(db, {
     // S3-1 (tarefa 17): dia gravado >= hoje ainda vale (relógio que volta); o mostrado fica entre 0 e o máximo.
     const vale = conta.energia_dia != null && conta.energia_dia >= hoje
     const gasta = vale ? Math.max(0, Number(conta.energia_gasta) || 0) : 0
-    const dia = vale ? conta.energia_dia : hoje
+    // energia_dia corrompido (muito à frente) não derruba o estado: o dia mostrado vai no máximo até amanhã (parecer nº 2, rodada 4)
+    const dia = vale ? Math.min(conta.energia_dia, hoje + 1) : hoje
     const atual = Math.min(energiaPorDia, Math.max(0, energiaPorDia - gasta))
     return { atual, maximo: energiaPorDia, recarregaEm: new Date((dia + 1) * DIA_MS).toISOString() }
   }
@@ -376,6 +377,8 @@ export function criarJogo(db, {
       visao: v,
       eventos: v.eventos.slice(desde),
       validos: !e.fim && e.vez === EU ? comandosValidos(e) : [],
+      // Aventura: o rival mostra o que vai fazer no próximo turno (o mesmo cálculo da tela local; tarefa 20)
+      ...(linha.modo === 'aventura' && !e.fim && e.vez === EU ? { intencao: intencaoDoRobo(e, linha.robo, EU) } : {}),
       resultado: e.fim ? resultadoDaLuta(e) : null,
       prazo: e.fim ? null : linha.prazo,
       agora: quando,
@@ -698,6 +701,15 @@ export function criarJogo(db, {
     })
   }
 
+  /** A tela terminou de abrir o casulo do filho (só aparência: as partes já foram sorteadas na costura). Repetir não muda nada. */
+  function abrirCasuloDoBoneco(contaId, id) {
+    return transacao(db, () => {
+      const { linha, b } = bonecoDaConta(contaId, id)
+      if (b.casulo && b.casulo.aberto === false) gravarBoneco(contaId, linha, abrirCasulo(b))
+      return { boneco: bonecoParaTela(lerBoneco(q.boneco.get(id, contaId))) }
+    })
+  }
+
   function aposentarBoneco(contaId, id) {
     return transacao(db, () => {
       const { linha, b } = bonecoDaConta(contaId, id)
@@ -711,6 +723,6 @@ export function criarJogo(db, {
 
   return {
     criarConta, contaPorToken, sair, aoPedido, estado, bonecos, boneco, novaLuta, verLuta, comando, desistir, replay,
-    chances, costurarPar, aposentarBoneco,
+    chances, costurarPar, aposentarBoneco, abrirCasuloDoBoneco,
   }
 }

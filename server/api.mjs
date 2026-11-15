@@ -3,7 +3,7 @@
 // Erros nunca levam pilha; logs nunca levam token nem cabeçalho.
 import { isIP } from 'node:net'
 import { ErroDoJogo } from './jogo.mjs'
-import { lerArquivo } from './estatico.mjs'
+import { lerArquivo, redirecionamento } from './estatico.mjs'
 import { apelidoPermitido, limparApelido } from './apelido.mjs'
 
 // ---------------------------------------------------------------------------------------------
@@ -31,6 +31,9 @@ export const PARAMS_SERVIDOR = {
 }
 // Economia (energia para abrir luta, A6) fica em shared/config.js (ECONOMIA_DO_BETA), não aqui. Custo da costura e
 // prêmio: só com o "sim" do dono.
+
+/** Resposta de `/public/modo.json` no servidor (o arquivo parado diz "local"): a ponte da tela escolhe o modo por ele. */
+export const MODO_SERVIDOR = Object.freeze({ modo: 'servidor', api: '/api/' })
 
 export const CABECALHOS_DE_SEGURANCA = {
   'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
@@ -391,6 +394,10 @@ export function criarTratador({ jogo, agora = Date.now, log = console.log, limit
       lerCorpoVazio(await lerCorpo(req))
       return [200, jogo.aposentarBoneco(conta.id, texto(m[1], RE.boneco, 'id'))]
     }],
+    ['POST', /^\/api\/boneco\/([^/]+)\/casulo$/, true, async (req, conta, m) => {
+      lerCorpoVazio(await lerCorpo(req))
+      return [200, jogo.abrirCasuloDoBoneco(conta.id, texto(m[1], RE.boneco, 'id'))]
+    }],
     ['POST', /^\/api\/luta$/, true, async (req, conta) => [201, jogo.novaLuta(conta.id, lerCorpoLuta(await lerCorpo(req)))]],
     ['GET', /^\/api\/luta\/([^/]+)$/, true, (req, conta, m) => [200, jogo.verLuta(conta.id, texto(m[1], RE.luta, 'id'))]],
     ['POST', /^\/api\/luta\/([^/]+)\/comando$/, true, async (req, conta, m) => {
@@ -435,8 +442,11 @@ export function criarTratador({ jogo, agora = Date.now, log = console.log, limit
         enviar(res, st, corpo)
         return
       }
-      // estáticos
+      // estáticos: o mesmo desenho de pastas do server/dev.mjs (`/` → `/public/`; só public/ e shared/)
       if (req.method !== 'GET' && req.method !== 'HEAD') { status = 405; res.writeHead(405, { ...CABECALHOS_DE_SEGURANCA, Allow: 'GET, HEAD' }); res.end(); return }
+      if (url.pathname === '/public/modo.json') { status = 200; enviar(res, 200, MODO_SERVIDOR); return } // a ponte joga contra o servidor
+      const destino = await redirecionamento(url.pathname)
+      if (destino) { status = 302; res.writeHead(302, { ...CABECALHOS_DE_SEGURANCA, 'Cache-Control': 'no-store', Location: destino + url.search }); res.end(); return }
       const arq = await lerArquivo(url.pathname)
       if (!arq) { status = 404; res.writeHead(404, { ...CABECALHOS_DE_SEGURANCA, 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Não encontrado'); return }
       status = 200

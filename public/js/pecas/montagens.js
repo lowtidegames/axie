@@ -61,8 +61,8 @@ export function lutaDeExemplo({ semente = 'pecas-210', ate = 9, timeA = TIME_DE_
   for (let passo = 0; passo < 400 && !e.fim; passo++) {
     if (ate != null && e.vez === P.EU && e.comandos.length >= ate) break
     const plano = P.planoDoRobo(e, 'planejador'); let ok = plano.length > 0
-    for (const c of plano) { const r = P.enviar(e, c); if (!r.ok) { ok = false; break } colher(r); e = r.estado; if (e.fim) break }
-    if (!ok) { const r = P.enviar(e, { tipo: 'passar', time: e.vez }); if (!r.ok) break; colher(r); e = r.estado }
+    for (const c of plano) { const r = P.enviarLocal(e, c); if (!r.ok) { ok = false; break } colher(r); e = r.estado; if (e.fim) break }
+    if (!ok) { const r = P.enviarLocal(e, { tipo: 'passar', time: e.vez }); if (!r.ok) break; colher(r); e = r.estado }
   }
   return { estado: e, visao: P.visao(e), resumo }
 }
@@ -74,7 +74,7 @@ export function cartasDaMao(estado, visao) {
     const dados = dadosDaCarta(inst.carta, { partes: dono.partes, nome: dono.nome }, cid)
     if (P.podeFiapo(estado, cid) || dono.estado === 'caido') return { id: cid, dados, estado: { fiapo: true, fraseDoFiapo: FRASE_DO_FIAPO } }
     if (P.jogadasDaCarta(estado, cid).length) return { id: cid, dados, estado: { jogavel: true } }
-    const r = P.enviar(estado, { tipo: 'jogar', time: estado.vez, carta: cid, alvo: null })
+    const r = P.enviarLocal(estado, { tipo: 'jogar', time: estado.vez, carta: cid, alvo: null })
     return { id: cid, dados, estado: { semLinha: !r.ok && r.codigo === 'LINHA_INSUFICIENTE' }, motivo: r.ok ? null : r.motivo }
   })
 }

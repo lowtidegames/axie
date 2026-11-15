@@ -1,0 +1,2 @@
+motor: turno do planejador — média 0.2 ms, pior 3.9 ms (1381 turnos)
+HTTP: 'passar' (robô joga dentro do pedido) — média 3.1 ms, pior 7.9 ms (76 pedidos)

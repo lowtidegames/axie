@@ -1,0 +1,43 @@
+GET /../server/db.mjs                        HTTP/1.1 404 Not Found | 640 bytes
+GET /%2e%2e/server/db.mjs                    HTTP/1.1 404 Not Found | 640 bytes
+GET /%252e%252e/server/db.mjs                HTTP/1.1 404 Not Found | 640 bytes
+GET /shared/..%2fserver/db.mjs               HTTP/1.1 404 Not Found | 640 bytes
+GET /shared/%2e%2e%2fpackage.json            HTTP/1.1 404 Not Found | 640 bytes
+GET /..%5cserver%5cdb.mjs                    HTTP/1.1 404 Not Found | 640 bytes
+GET /shared/rng.js%00.png                    HTTP/1.1 404 Not Found | 640 bytes
+GET /.git/config                             HTTP/1.1 404 Not Found | 640 bytes
+GET /shared/../.git/HEAD                     HTTP/1.1 404 Not Found | 640 bytes
+GET /shared/..%2f.git%2fHEAD                 HTTP/1.1 404 Not Found | 640 bytes
+GET /dados/frayz-teste.db                    HTTP/1.1 404 Not Found | 640 bytes
+GET /shared                                  HTTP/1.1 404 Not Found | 640 bytes
+GET /shared/                                 HTTP/1.1 404 Not Found | 640 bytes
+GET /js/                                     HTTP/1.1 404 Not Found | 640 bytes
+GET /%2fetc%2fpasswd                         HTTP/1.1 404 Not Found | 640 bytes
+GET //etc/passwd                             HTTP/1.1 404 Not Found | 640 bytes
+GET /shared//..//..//package.json            HTTP/1.1 404 Not Found | 640 bytes
+GET /index.html                              HTTP/1.1 200 OK | 5638 bytes
+GET /shared/config.js                        HTTP/1.1 200 OK | 19808 bytes
+GET /tests/servidor/api.test.js              HTTP/1.1 404 Not Found | 640 bytes
+GET /package.json                            HTTP/1.1 404 Not Found | 640 bytes
+OPTIONS  /api/estado HTTP/1.1 405 Method Not Allowed | 735 bytes
+TRACE    /api/estado HTTP/1.1 405 Method Not Allowed | 735 bytes
+PUT      /api/estado HTTP/1.1 405 Method Not Allowed | 735 bytes
+DELETE   /api/estado HTTP/1.1 405 Method Not Allowed | 735 bytes
+PATCH    /api/estado HTTP/1.1 405 Method Not Allowed | 735 bytes
+CONNECT  /api/estado  | 0 bytes
+PROPFIND /api/estado HTTP/1.1 405 Method Not Allowed | 735 bytes
+OPTIONS *  HTTP/1.1 405 Method Not Allowed | 607 bytes
+URL absoluta HTTP/1.1 401 Unauthorized | 718 bytes
+URL quebrada HTTP/1.1 500 Internal Server Error | 742 bytes
+cabeçalho 20KB HTTP/1.1 431 Request Header Fields Too Large | 67 bytes
+CORS: Access-Control-Allow-Origin = null
+file:///tmp/seg-frayz-1/lib.mjs:21
+  if (r.status !== 201) throw new Error('conta: ' + r.status + ' ' + r.txt)
+                              ^
+
+Error: conta: 429 {"erro":{"codigo":"MUITAS_CONTAS","motivo":"Muitas contas criadas daqui. Espere um pouco."}}
+    at novaConta (file:///tmp/seg-frayz-1/lib.mjs:21:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///tmp/seg-frayz-1/ataque-http.mjs:36:11
+
+Node.js v22.23.4

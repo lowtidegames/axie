@@ -1,0 +1,9 @@
+motor: 96/300 vitórias contra o planejador; 0 acabaram num turno do jogador com >30 comandos (até 0)
+HTTP luta 1 (Aventura fase 5, planejador): encerrada, vencedor=A; maior turno do jogador: 6 comandos aceitos (turno 6), Linha no fim: 0
+HTTP luta 2 (Aventura fase 5, planejador): encerrada, vencedor=B; maior turno do jogador: 13 comandos aceitos (turno 9), Linha no fim: 6
+HTTP luta 3 (Aventura fase 5, planejador): encerrada, vencedor=A; maior turno do jogador: 12 comandos aceitos (turno 9), Linha no fim: 0
+HTTP luta 4 (Aventura fase 5, planejador): encerrada, vencedor=A; maior turno do jogador: 8 comandos aceitos (turno 7), Linha no fim: 2
+HTTP luta 5 (Aventura fase 5, planejador): encerrada, vencedor=B; maior turno do jogador: 7 comandos aceitos (turno 7), Linha no fim: 3
+HTTP luta 6 (Aventura fase 5, planejador): encerrada, vencedor=A; maior turno do jogador: 5 comandos aceitos (turno 2), Linha no fim: 0
+HTTP luta 7 (Aventura fase 5, planejador): encerrada, vencedor=A; maior turno do jogador: 7 comandos aceitos (turno 3), Linha no fim: 0
+HTTP luta 8 (Aventura fase 5, planejador): encerrada, vencedor=B; maior turno do jogador: 12 comandos aceitos (turno 10), Linha no fim: 1

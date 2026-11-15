@@ -1,0 +1,9 @@
+luta lu_8954f74a2ce7e478f17ea537 começou B vez A chaves da visão: versao,turno,vez,comecou,fim,registro,times,bonecos,cartas,eventos,comandos
+compras que a tela viu (índices das cartas A): 5 16 11 7 2 0 12
+força bruta: 26 candidatos em 177 s com 4 núcleos
+candidatos que batem com tudo o que a tela viu: 1 (turno agora 10)
+estado do sorteio achado: 1006539664 (força bruta + 0 passes)
+PREVISÃO mão do robô: Bc17=ultimo_ponto, Bc15=nevoa_de_tule, Bc13=veu_de_tule, Bc7=botaozada, Bc16=ultimo_ponto
+PREVISÃO próximas 5 do meu baralho: laco_de_cadarco, rasgo, laco_de_cadarco, alfinete_de_feltro, sola_grossa
+replay: semente de 128 bits; hashSemente(semente) = 1006539664 → IGUAL ao estado achado
+mão real do robô naquele momento (pelo replay): Bc17,Bc15,Bc13,Bc7,Bc16 → IGUAL à prevista

@@ -1,0 +1,3 @@
+time cascudo+desfiado+mudo: comandos por turno — média 4.9, lutas com turno >5000 comandos: 12/200; máximo 5001 (visão nesse ponto: 1397 KB)
+time cascudo+desfiado+pisoteador: comandos por turno — média 4.9, lutas com turno >5000 comandos: 12/200; máximo 5001 (visão nesse ponto: 1279 KB)
+time rasgao+brigao+mordedor: comandos por turno — média 4.6, lutas com turno >5000 comandos: 0/200; máximo 15 (visão nesse ponto: 17 KB)

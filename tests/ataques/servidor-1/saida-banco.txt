@@ -1,0 +1,3 @@
+6 lutas, 160 comandos em 0 s; respostas guardadas: 160, 1.77 MB (maior 19 KB); estado das lutas 97 KB
+média 11.3 KB por comando → no limite de 240 pedidos/min: ~159 MB/h por conta; 5 contas por IP: ~0.8 GB/h (teto do IP 600/min: ~399 MB/h por IP)
+rolar de novo: 30 aberturas+desistências em 0.1 s; custo ao boneco: pontosDeCostura=36/1200, lutas=36; nenhum outro custo

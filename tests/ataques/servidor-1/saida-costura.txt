@@ -1,0 +1,5 @@
+costuras 500 em 122 s (247/min); bonecos na conta: 509; recusadas 0
+bonecos que ainda podem costurar: 476 (a coleção não para de crescer)
+GET /api/estado: 10.6 ms, 376 KB
+GET /api/estado: 9.9 ms, 376 KB
+GET /api/estado: 8.8 ms, 376 KB

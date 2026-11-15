@@ -215,7 +215,7 @@ export function montarLuta(raiz, formato) {
 
 // ------------------------------------------------------------------ 2. ESCOLHER TIME
 
-function fichaDoBoneco(f, pc) {
+export function montarFicha(f, pc) {
   const caixa = el('div', 'fz-ficha'), partes = partesDaFicha(f), raridade = f.partes.tronco.raridade
   const cabeca = el('div', 'fz-ficha__cabeca')
   const tit = el('div', 'fz-ficha__titulo')
@@ -288,7 +288,7 @@ export function montarTime(raiz, formato) {
     por.setAttribute('aria-label', dentro ? `Tirar ${f.nome} do time` : `Pôr ${f.nome} no time`)
     por.classList.add('fz-time__por')
     por.addEventListener('click', () => { escolha = dentro ? escolha.filter((x) => x !== aberta) : [...escolha, aberta]; atualizar() })
-    painel.append(fichaDoBoneco(f, pc), por)
+    painel.append(montarFicha(f, pc), por)
     circulos.replaceChildren()
     LUGARES.forEach((nome, i) => {
       const c = el('div', 'fz-circulo'), id = escolha[i]

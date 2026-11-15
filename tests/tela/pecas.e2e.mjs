@@ -151,7 +151,8 @@ function medirCartas(seletor) {
     } else {
       const f = fita.getBoundingClientRect(), m = miolo.getBoundingClientRect(), n = nome.getBoundingClientRect()
       if (f.bottom > m.bottom + 4 || n.bottom > f.bottom + 0.5 || n.top < f.top - 0.5) ruins.push(`${quem}: nome não cabe na mini`)
-      if (parseFloat(getComputedStyle(nome).fontSize) < 12.99) ruins.push(`${quem}: nome menor que 13 px`)
+      // carta coberta no leque (tarefa 18): o nome que aparece é o abreviado, desenhado no ::before — mede ele
+      if (parseFloat(getComputedStyle(nome, c.classList.contains('fz-carta--coberta') ? '::before' : null).fontSize) < 12.99) ruins.push(`${quem}: nome menor que 13 px`)
     }
   }
   return { medidas, ruins }

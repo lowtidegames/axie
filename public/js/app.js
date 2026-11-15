@@ -3,7 +3,7 @@
 // e a arena (js/arena.js: cenário, bonecos de pano e efeitos). Som em cada acontecimento (som.js) e música por momento (musica.js).
 import * as P from './ponte.js'
 import { Arena } from './arena.js'
-import { iconeDoBordado, FIOS } from './bonecos.js'
+import { iconeDoBordado } from './bonecos.js'
 import * as Col from './colecao.js'
 import * as Som from './som.js'
 import * as Musica from './musica.js'
@@ -11,8 +11,8 @@ import { FASES } from './aventura-dados.js'
 import { $, el, desenharBonecoEm, iconeTipo, bonecoCanvas, avisoHub, NOME_LUGAR } from './ui.js'
 import { abrirBoneco, fecharBoneco, ligarColecao, renderColecao, renderMural } from './colecao-ui.js'
 import { fecharCasulo, iniciarCostura, ligarCostura, renderCostura } from './costura-ui.js'
-import { iniciarAventura, ligarAventura, renderAventura } from './aventura-ui.js'
-import { criarMao } from './pecas/mao.js'
+import { horaDaRecarga, iniciarAventura, ligarAventura, renderAventura } from './aventura-ui.js'
+import { abreviar, criarMao } from './pecas/mao.js'
 import { criarCarta } from './pecas/carta.js'
 import { criarCarreteis, criarContador } from './pecas/carreteis.js'
 import { criarBastidor } from './pecas/bastidor.js'
@@ -20,10 +20,12 @@ import { mostrarFaixa } from './pecas/faixa.js'
 import { criarFioDoTempo } from './pecas/fio-do-tempo.js'
 import { criarEtiquetas } from './pecas/etiqueta.js'
 import { atualizarBotao, criarBotao } from './pecas/botao.js'
-import { pesponto, svg } from './pecas/base.js'
+import { formatoDe, pesponto, svg } from './pecas/base.js'
+import { criarPrateleira } from './pecas/prateleira.js'
+import { criarLogotipo } from './pecas/logotipo.js'
 import { corDoTecido, urlDoTecido } from './pecas/arte-adaptador.js'
 import * as arte from './pecas/arte-adaptador.js'
-import { BONUS, FRASE_DO_FIAPO, ICONES, PARES, TEXTO_DA_RODA, bonecoEm, dadosDaCarta } from './pecas/montagens.js'
+import { BONUS, FRASE_DO_FIAPO, ICONES, PARES, TEXTO_DA_RODA, bonecoEm, dadosDaCarta, montarFicha } from './pecas/montagens.js'
 
 const url = new URLSearchParams(location.search)
 const TESTE = url.get('teste') === '1'
@@ -71,6 +73,7 @@ function mostrar(qual) {
 }
 function irParaAba(aba) {
   S.aba = aba
+  $('#hub').dataset.formato = formatoDoHub()
   for (const a of ABAS) $('#' + a).hidden = a !== aba
   for (const b of document.querySelectorAll('.aba')) { const on = b.dataset.aba === aba; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)) }
   document.body.dataset.tela = aba
@@ -85,52 +88,40 @@ function musica(momento) {
   try { Musica.momento(momento) } catch { /* sem áudio */ }
 }
 
-// ------------------------------------------------------------------ TELA INICIAL
+// ------------------------------------------------------------------ TELA INICIAL (Luta livre): prateleira + ficha do escolhido
 const icone = (cv, px = 18) => { cv.style.width = cv.style.height = px + 'px'; return cv }
-
-function fichaDeLista(boneco) {
-  const id = boneco.id, f = P.fichaDoBoneco(boneco), pode = Col.podeLutar(boneco)
-  const b = el('button', 'ficha'); b.type = 'button'; b.dataset.id = id; b.setAttribute('role', 'listitem'); b.setAttribute('aria-pressed', 'false')
-  if (!pode.ok) { b.disabled = true; b.title = pode.motivo; b.classList.add('apagado') }
-  b.append(bonecoCanvas(boneco, 78))
-  const info = el('div', 'f-info')
-  info.append(el('div', 'f-nome', f.nome))
-  const tp = el('div', 'f-tipo'); tp.append(iconeTipo(f.tipo, 16), el('span', null, P.NOMES_DOS_TIPOS[f.tipo]))
-  const rar = P.RARIDADES[f.partes.tronco.raridade].nome
-  const r = el('span', 'f-rar', rar); r.dataset.rar = f.partes.tronco.raridade; r.style.setProperty('--rar', FIOS[f.partes.tronco.raridade]); tp.append(r)
-  info.append(tp)
-  const st = el('div', 'f-stats')
-  for (const [n, v, dica] of [['Vida', f.vidaMax, 'Vida máxima'], ['Rapidez', f.rapidez, 'Rapidez: chance de golpe crítico'], ['Firmeza', f.firmeza, 'Firmeza: reduz o dano recebido']]) { const s = el('span', null); s.title = dica; s.append(el('small', null, n + ' '), el('b', null, String(v))); st.append(s) }
-  info.append(st)
-  const cs = el('div', 'f-cartas')
-  for (const c of f.cartasInfo) { const ch = el('span', 'f-carta'); ch.title = c.texto; ch.append(iconeTipo(c.tipo, 12), el('i', null, String(c.linha)), el('span', null, c.nome)); cs.append(ch) }
-  info.append(cs)
-  const bd = el('div', 'f-bordado'); const ib = iconeDoBordado(f.bordado, 44); bd.append(icone(ib, 22)); const tx = el('span'); tx.append(el('b', null, f.bordadoInfo.nome + ': '), f.bordadoInfo.texto); bd.append(tx)
-  info.append(bd)
-  const pt = el('div', 'f-partes', pode.ok ? ['tronco', 'cabeca', 'bracos', 'pernas'].map((s) => f.partes[s].nome).join(' · ') : pode.motivo)
-  info.append(pt)
-  b.append(info, el('div', 'f-check', '✓'))
-  b.addEventListener('click', () => alternar(id))
-  return b
-}
+/** Formato do hub (o mesmo critério das peças: PC = largo e deitado). */
+const formatoDoHub = () => formatoDe(null)
+/** Desenho do boneco para a prateleira (com os remendos do desgaste), na altura pedida. */
+const desenhoDe = (b, alto) => () => bonecoCanvas(b, Math.round(alto / 1.547))
 
 function alternar(id) {
   const i = S.escolha.indexOf(id)
   if (i >= 0) S.escolha.splice(i, 1)
   else if (S.escolha.length < 3) S.escolha.push(id)
   else { S.escolha.shift(); S.escolha.push(id) }
+  S.aberto = id
   Som.tocar('botao')
   atualizarEscolha()
 }
 function atualizarEscolha() {
-  for (const b of document.querySelectorAll('.ficha')) { const on = S.escolha.includes(b.dataset.id); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)) }
+  H.prateleira?.marcar({ escolhidos: S.escolha, aberto: S.aberto })
+  // a ficha do boneco tocado por último (peças: etiqueta, números, cartas, bordado) e o botão de pôr/tirar
+  const painel = $('#livreFicha'), bo = S.aberto && Col.obter(S.aberto)
+  if (painel && bo) {
+    const pc = formatoDoHub() === 'pc', dentro = S.escolha.includes(S.aberto), f = P.fichaDoBoneco(bo)
+    const por = criarBotao({ rotulo: dentro ? (pc ? 'Tirar do time' : 'Tirar') : (pc ? 'Pôr no time' : 'Escolher'), variante: dentro ? 'secundario' : 'principal' })
+    por.classList.add('fz-time__por'); por.setAttribute('aria-label', dentro ? `Tirar ${f.nome} do time` : `Pôr ${f.nome} no time`)
+    por.addEventListener('click', () => alternar(bo.id))
+    painel.replaceChildren(pesponto({ recuo: 5, raio: 9 }), montarFicha(f, pc), por)
+  }
   // os 3 lugares bordados (Frente, Meio, Trás): o boneco escolhido sobe para o círculo dele
   const box = $('#timeEscolhido'); box.replaceChildren(); box.classList.add('fz-time__circulos')
-  const alto = window.innerWidth < 640 ? 50 : 60
+  const alto = formatoDoHub() === 'pc' ? 64 : 54
   for (let i = 0; i < 3; i++) {
     const c = el('div', 'fz-circulo'), id = S.escolha[i]
     c.append(el('span', 'fz-circulo__anel'))
-    if (id) { const bo = Col.obter(id); c.classList.add('fz-circulo--cheio'); c.append(bonecoEm(P.facesDe(bo), alto)); c.title = P.fichaDoBoneco(bo).nome }
+    if (id) { const bo2 = Col.obter(id); c.classList.add('fz-circulo--cheio'); c.append(bonecoEm(P.facesDe(bo2), alto)); c.title = P.fichaDoBoneco(bo2).nome }
     else c.append(el('span', 'fz-circulo__vazio', String(i + 1)))
     c.append(el('span', 'fz-circulo__nome', NOME_LUGAR[i]))
     box.append(c)
@@ -141,8 +132,11 @@ function atualizarEscolha() {
 
 function montarListaLivre() {
   S.escolha = S.escolha.filter((id) => Col.obter(id) && Col.podeLutar(Col.obter(id)).ok)
-  const g = $('#grade'); g.replaceChildren()
-  for (const b of Col.ativos().filter((x) => !Col.casuloFechado(x))) g.append(fichaDeLista(b))
+  const pc = formatoDoHub() === 'pc'
+  const bs = Col.ativos().filter((x) => !Col.casuloFechado(x))
+  if (!S.aberto || !bs.some((b) => b.id === S.aberto)) S.aberto = S.escolha[S.escolha.length - 1] ?? bs[0]?.id ?? null
+  const itens = bs.map((b) => { const pode = Col.podeLutar(b); return { id: b.id, nome: P.fichaDoBoneco(b).nome, desenho: desenhoDe(b, pc ? 112 : 84), desligado: !pode.ok, motivo: pode.motivo } })
+  H.prateleira = criarPrateleira($('#grade'), itens, { porTabua: pc ? 5 : 3, nomes: pc, classe: 'ficha', aoTocar: alternar, rotulo: 'Seus bonecos' })
   atualizarEscolha()
 }
 
@@ -241,6 +235,10 @@ async function iniciarLuta(opc = {}) {
   if (!timeA) { try { timeA = Col.defsDoTime(idsA) } catch (e) { avisoHub(e.message); return } }
   const rivalFixo = TESTE && url.get('rival') ? url.get('rival').split(',') : null
   const timeB = opc.timeB ?? (fase ? fase.time.slice() : rivalFixo ?? sortearRival(idsA))
+  if (modo === 'aventura') { // abrir uma luta da Aventura gasta energia (a ponte decide); sem energia a luta não abre e a tela diz quando volta
+    const en = P.energia({ abrirLuta: true })
+    if (!en.ok) { if (!$('#luta').hidden) sairParaInicio(); else irParaAba('aventura'); avisoHub(`Sem energia agora: ela volta inteira às ${horaDaRecarga(en)}. A Luta livre não gasta energia.`); return }
+  }
   const semente = opc.semente ?? url.get('semente') ?? P.novaSemente()
   S.timeA = timeA; S.timeB = timeB; S.semente = semente; S.replay = false; S.parar = false
   S.modo = modo; S.fase = fase?.n ?? opc.fase ?? null; S.idsA = idsA; S.abaDeOrigem = modo === 'aventura' ? 'aventura' : 'inicio'
@@ -538,20 +536,21 @@ function atualizarBastidor(v = P.visao(S.estado)) {
   if (H.tipoAceso !== tipo) { H.tipoAceso = tipo; H.bastidor.acender(tipo) }
 }
 
-/** A mesa (cartas jogadas neste turno, dos dois lados): fica à vista até o fim do turno. Só no PC (no celular a carta do rival já aparece grande). */
+/** A mesa (cartas jogadas neste turno, dos dois lados): fica à vista até o fim do turno (no celular, pequena, no alto à direita). */
 function renderMesa(v) {
   const box = $('#mesa')
   const cids = [...(v.times.A.mesa ?? []), ...(v.times.B.mesa ?? [])].filter((cid) => v.cartas[cid]?.carta)
-  const chave = $('#luta').dataset.formato === 'pc' ? cids.join(',') : ''
+  const chave = cids.join(',') + '|' + $('#luta').dataset.formato
   if (box.dataset.chave === chave) return
   box.dataset.chave = chave; box.replaceChildren()
-  if (!chave) return
+  if (!cids.length) return
   box.append(el('span', 'fz-mesa__titulo', 'Na mesa'))
   for (const cid of cids) {
     const i = P.infoDaCarta(v.cartas[cid].carta), c = el('span', 'fz-mesa__carta')
     c.style.setProperty('--fz-tecido', corDoTecido(i.tipo).base)
     c.title = `${v.bonecos[v.cartas[cid].dono]?.time === P.EU ? 'Você' : 'Rival'}: ${i.nome}`
-    c.append(el('b', null, String(i.linha)), el('span', null, i.nome)); box.append(c)
+    const nome = $('#luta').dataset.formato === 'pc' ? i.nome : abreviar(i.nome, 96, 13) // celular: nome limpo que cabe na plaquinha
+    c.append(el('b', null, String(i.linha)), el('span', null, nome)); box.append(c)
   }
 }
 
@@ -683,8 +682,10 @@ async function fimDaLuta() {
   } else if (S.modo === 'aventura') extra = ganhei ? 'Fase vencida.' : 'A fase continua liberada.'
   arena.comemorar(r.vencedor)
   await esperar(700)
-  if (ganhei) Som.vitoria(); else Som.derrota()
+  // derrota: um pico na entrada — o baque mole do pano caindo e, logo depois, o tema descendo (o som segue com "Menos animação")
+  if (ganhei) Som.vitoria(); else { Som.tocar('queda'); setTimeout(() => Som.derrota(), 260) }
   montarFim(r, ganhei, extra)
+  const fimEl = $('#fim'); fimEl.classList.remove('fz-fim--entrou'); void fimEl.offsetWidth; fimEl.classList.add('fz-fim--entrou') // a folha cai com um baque (só sem "Menos animação")
   S.textoReplay = P.exportarReplay(S.ultima)
   $('#copiaMsg').textContent = ''
   $('#fim').hidden = false; H.fimBotoes.revanche.hidden || H.fimBotoes.proxima.hidden ? H.fimBotoes.revanche.focus() : H.fimBotoes.proxima.focus()
@@ -778,6 +779,7 @@ function aplicarMudo() {
 function ligar() {
   if (TESTE && url.get('recomecar') === '1') Col.recomecar(); else Col.carregar()
   montarPecasDaLuta()
+  const logo = criarLogotipo({ altura: formatoDoHub() === 'pc' ? 46 : 38 }); $('#logo').replaceChildren(logo.el) // logotipo de retalhos (o fio do z para com "Menos animação")
   arena = new Arena($('#arena'), $('#arenaCamada'))
   aplicarMenos(lerMenos(), false)
   aplicarMudo()
@@ -825,7 +827,10 @@ function ligar() {
   document.addEventListener('pointerdown', (e) => {
     if (!$('#menu').hidden && !e.target.closest('#menu, #btnMenu')) $('#menu').hidden = true
   })
-  window.addEventListener('resize', () => { if (!$('#luta').hidden) { aplicarFormato(); renderTudo() } })
+  window.addEventListener('resize', () => {
+    if (!$('#luta').hidden) { aplicarFormato(); renderTudo() }
+    else if (!$('#hub').hidden && $('#hub').dataset.formato !== formatoDoHub()) irParaAba(S.aba) // PC ⇄ celular: a prateleira e a ficha mudam de tamanho
+  })
   montarInicio()
   let aba = url.get('aba')
   if (!ABAS.includes(aba)) { try { aba = TESTE ? 'inicio' : localStorage.getItem('frayz_aba') } catch { aba = null } }

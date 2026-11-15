@@ -1,3 +1,4 @@
+@import url("hub.css"); /* o hub nas peças (tarefa 18): o head do index.html não muda */
 /* Frayz — ENCAIXE das peças (css/pecas.css) na luta de verdade (index.html) e no fim da luta.
    O layout base é o da montagem da luta (.fz-luta em pecas.css); aqui só o que é da tela do jogo:
    a arena em canvas por baixo, as placas que seguem cada boneco, o HUD do rival, a carta do rival, a mesa e o fim. */

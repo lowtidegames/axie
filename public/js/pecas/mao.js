@@ -22,6 +22,19 @@ import { criarBotao } from './botao.js'
 import { corDoTecido } from './arte-adaptador.js'
 
 const limitar = (v, a, b) => Math.max(a, Math.min(b, v))
+const LIGA = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o'])
+/** Nome que cabe em `largura` px (Lilita One no tamanho pedido): palavras inteiras; se nem a primeira cabe, letras inteiras + ponto. */
+export function abreviar(nome, largura, px = 13) {
+  const c = abreviar.c ?? (abreviar.c = document.createElement('canvas').getContext('2d'))
+  c.font = `400 ${px}px "Lilita One", system-ui, sans-serif`
+  const cabe = (t) => c.measureText(t).width <= largura
+  if (cabe(nome)) return nome
+  const p = String(nome).split(' ')
+  for (let k = p.length - 1; k >= 1; k--) { const q = p.slice(0, k); while (q.length > 1 && LIGA.has(q[q.length - 1].toLowerCase())) q.pop(); const t = q.join(' '); if (cabe(t)) return t }
+  const letras = [...p[0]]
+  for (let k = letras.length - 1; k >= 2; k--) { const t = letras.slice(0, k).join('') + '.'; if (cabe(t)) return t }
+  return letras.slice(0, 2).join('') + '.'
+}
 const LARGURA_INTEIRA = 132, LARGURA_MINI = 88, MINI_MINIMA = 64, FAIXA_DE_TOQUE = 44, MAO_MAXIMA = 900
 
 export function criarMao(container, opcoes = {}) {
@@ -90,6 +103,20 @@ export function criarMao(container, opcoes = {}) {
       s.setProperty('--r', (d * g.giro).toFixed(2) + 'deg'); s.setProperty('--z', String(i + 1))
       it.el.dataset.indice = String(i + 1)
       atualizarCarta(it.el, { jogavel: false, semLinha: false, fiapo: false, ...it.estado, selecionada: selecionada === id, vezDoRival: rival })
+      // celular: a carta coberta pela vizinha mostra o nome abreviado limpo (palavras inteiras ou "Abc."), do tamanho da faixa à vista;
+      // a carta de cima (a última) e a escolhida mostram o nome inteiro
+      // (a escolhida fica por cima: cobre o começo da vizinha da direita, que então mostra o nome mais para dentro)
+      const sobre = Math.max(0, g.L - g.passo), iSel = selecionada == null ? -2 : ordem.indexOf(selecionada)
+      const direita = i < n - 1 && i !== iSel ? sobre : 0, esquerda = i === iSel + 1 ? sobre : 0
+      const coberta = g.variante === 'mini' && i !== iSel && direita + esquerda > 6
+      const nome = it.el.querySelector('.fz-carta__nome')
+      it.el.classList.toggle('fz-carta--coberta', coberta)
+      it.el.style.setProperty('--fz-nome-recuo', coberta ? esquerda + 'px' : '0px')
+      if (nome) {
+        const livre = g.L - direita - esquerda - g.L * (7 / 88) - 4
+        if (coberta) nome.dataset.curto = livre < 18 ? '' : abreviar(it.dados.nome, livre, Math.max(13, 13.5 * (g.L / 88)))
+        else delete nome.dataset.curto
+      }
     })
     raiz.dataset.rival = rival ? '1' : '0'
     raiz.dataset.cartas = String(n)
@@ -267,6 +294,7 @@ export function criarMao(container, opcoes = {}) {
     }
   }
   document.addEventListener('keydown', tecla)
+  document.fonts?.ready?.then(() => { if (!destruida && ordem.length) arrumar() }) // a medida do nome abreviado usa a fonte de verdade
 
   const olho = typeof ResizeObserver === 'function' ? new ResizeObserver(() => { const g = medidas(); if (g.variante !== geometria.variante || g.L !== geometria.L || g.passo !== geometria.passo) arrumar() }) : null
   olho?.observe(container)

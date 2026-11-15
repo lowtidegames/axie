@@ -57,11 +57,39 @@ async function rodarFormato(fmt) {
   }
   const toque = async (x, y) => (fmt.toque ? page.touchscreen.tap(x, y) : page.mouse.click(x, y))
   const sem = async (fn) => page.evaluate(fn)
+  // TAREFA 18: nada cortado nem sobreposto nas telas do hub (prateleira, ficha, mesa), botões de toque ≥ 44 px e foco visível
+  const conferirTela = async (onde, raiz) => {
+    const r = await page.evaluate((raiz) => {
+      const R = document.querySelector(raiz), vis = (e) => { const q = e.getBoundingClientRect(), cs = getComputedStyle(e); return q.width > 0 && q.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' }
+      const vw = innerWidth, vh = innerHeight, dentro = (q) => q.bottom > 0 && q.top < vh && q.right > 0 && q.left < vw
+      const textos = '.fz-time__nome span, .hub-titulo, .hub-dica, .fz-botao__rotulo, .fz-botao__detalhe, .av-nome, .av-in-txt b, .fz-circulo__nome, .fz-ficha__nome, .fz-ficha__carta-nome, .cos-nome b, .aba, .hub-energia b, .hub-energia small, .av-topo, #cab .opc span'
+      const cortados = [...R.querySelectorAll(textos), ...document.querySelectorAll('#abas .aba, #cab .opc span')].filter((e) => vis(e) && (e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 2)).map((e) => e.textContent.trim().slice(0, 30))
+      // etiqueta de nome de uma tábua em cima dos bonecos da tábua de baixo
+      const batem = []
+      const tabuas = [...R.querySelectorAll('.fz-time__tabua')]
+      for (let i = 0; i + 1 < tabuas.length; i++) for (const n of tabuas[i].querySelectorAll('.fz-time__nome span')) { if (!vis(n)) continue; const a = n.getBoundingClientRect(); for (const b of tabuas[i + 1].querySelectorAll('.fz-boneco')) { const q = b.getBoundingClientRect(); if (Math.min(a.right, q.right) - Math.max(a.left, q.left) > 2 && Math.min(a.bottom, q.bottom) - Math.max(a.top, q.top) > 2) batem.push(n.textContent.trim()) } }
+      // botões de toque pequenos (o que está na janela)
+      const pequenos = [...document.querySelectorAll('#cab button, #abas button'), ...R.querySelectorAll('button, summary')].filter((e) => vis(e) && dentro(e.getBoundingClientRect())).filter((e) => { const q = e.getBoundingClientRect(); return q.height < 43.5 || q.width < 43.5 }).map((e) => (e.id || e.className || e.tagName) + ' ' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height))
+      // o pé fixo (mesa) não tapa a ficha nem a prateleira de quem não rola
+      return { cortados, batem: [...new Set(batem)], pequenos }
+    }, raiz)
+    confere(r.cortados.length === 0, `${onde}: nenhum texto cortado` + (r.cortados.length ? ' → ' + r.cortados.slice(0, 5).join('; ') : ''))
+    confere(r.batem.length === 0, `${onde}: etiquetas da prateleira não cobrem os bonecos de baixo` + (r.batem.length ? ' → ' + r.batem.slice(0, 4).join('; ') : ''))
+    confere(r.pequenos.length === 0, `${onde}: botões com pelo menos 44 px` + (r.pequenos.length ? ' → ' + r.pequenos.slice(0, 5).join('; ') : ''))
+    // foco visível no teclado: o primeiro botão da prateleira ganha contorno ao receber foco pelo Tab
+    if (!fmt.toque) {
+      const tem = await page.evaluate((raiz) => { const b = document.querySelector(raiz + ' .fz-time__boneco:not(:disabled)'); if (b) b.focus(); return !!b }, raiz)
+      if (tem) { await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab') } // volta pelo teclado: o navegador mostra o foco
+      const contorno = !tem ? 'sem botão' : await page.evaluate(() => { const b = document.activeElement, cs = getComputedStyle(b); return b.matches(':focus-visible') ? cs.outlineStyle + ' ' + cs.outlineWidth : 'sem foco-visível em ' + (b.id || b.className) })
+      confere(/solid [1-9]/.test(contorno) || contorno === 'sem botão', `${onde}: foco do teclado visível (${contorno})`)
+    }
+  }
 
   // ============================================================ COLEÇÃO
   await abrir('colecao')
   confere((await page.locator('#colLista .ficha').count()) === 9, 'coleção começa com os 9 bonecos prontos (com genes)')
   await foto('colecao')
+  await conferirTela('bonecos', '#colecao')
   confere((await foraDaTela(page, ['#cab', '#abas', '.aba', '#colLista .ficha'])).filter((x) => !x.startsWith('#colLista')).length === 0, 'coleção: cabeçalho e abas dentro da janela')
   await clique('#colLista .ficha[data-id=rasgao]')
   await page.waitForSelector('#bonecoModal:not([hidden])')
@@ -131,6 +159,7 @@ async function rodarFormato(fmt) {
   confere(bate, 'números da tela = chancesDaCostura do motor')
   confere(/Custo: [\d,]+/.test(await page.locator('#cosCusto').textContent()) && /sem cobrança no protótipo/.test(await page.locator('#cosCusto').textContent()), 'custo mostrado como informação: ' + (await page.locator('#cosCusto').textContent()))
   confere(/0\/5 → 1\/5/.test(await page.locator('#cosCarretel').textContent()), 'mostra o que muda no Carretel dos pais: ' + (await page.locator('#cosCarretel').textContent()).replace(/\s+/g, ' '))
+  await conferirTela('costura', '#costura')
   await page.evaluate(() => document.querySelector('#cosCusto').scrollIntoView({ block: 'start' }))
   await foto('costura-antes')
   const total0 = await page.evaluate(() => window.__frayz.Col.ativos().length)
@@ -147,6 +176,7 @@ async function rodarFormato(fmt) {
   await page.waitForSelector('#casPartes .cas-parte.aberta')
   confere((await page.locator('#casPartes .cas-parte.aberta').count()) === 1 && (await page.locator('#casPartes .cas-parte.fechada').count()) === 4, 'tocar abre UMA parte (a primeira da ordem)')
   await foto('casulo-abrindo')
+  await conferirTela('casulo', '#casulo')
   confere((await foraDaTela(page, ['#casulo .folha', '#btnCasAbrir', '#btnCasTudo'])).length === 0, 'casulo cabe na janela')
   for (let i = 0; i < 30 && (await page.locator('#casPartes .cas-parte.aberta').count()) < 2; i++) { await clique('#btnCasAbrir'); await page.waitForTimeout(300) } // o clique durante a abertura é ignorado
   confere((await page.locator('#casPartes .cas-parte.aberta').count()) === 2, 'o botão "Abrir próxima parte" abre a seguinte')
@@ -177,8 +207,13 @@ async function rodarFormato(fmt) {
   await foto('aventura-mapa')
   confere((await foraDaTela(page, ['#avMapa .av-estacao', '#btnJogarFase', '#avSlots', '#cab', '#abas'])).length === 0, 'aventura: mapa e botão dentro da janela')
   confere(await page.locator('#btnJogarFase').isDisabled(), 'Jogar fase desligado sem time')
+  // TAREFA 18: energia à vista (o número vem da ponte: P.energia)
+  const en0 = await page.evaluate(() => window.__frayz.P.energia())
+  const txtEn0 = (await page.locator('#avEnergia').textContent()).replace(/\s+/g, ' ')
+  confere(new RegExp(`Energia ${en0.atual}/${en0.maximo}`).test(txtEn0) && /recarrega às \d\d:\d\d/.test(txtEn0) && en0.atual === en0.maximo, 'Aventura mostra a energia cheia e quando recarrega: ' + txtEn0)
   for (const id of ['pisoteador', 'desfiado', 'assombrado']) await clique(`#avTime .mini-cartao[data-id=${id}]`)
   confere(await page.locator('#btnJogarFase').isEnabled(), 'Jogar fase liga com 3 bonecos')
+  await conferirTela('aventura', '#aventura')
   await clique('#btnJogarFase')
   await page.waitForSelector('#luta:not([hidden])')
   let vistaIntencao = false, fotoInt = false, jogadasTotal = 0
@@ -219,6 +254,7 @@ async function rodarFormato(fmt) {
     jogadasTotal += jogadas
     return jogadas
   }
+  confere((await page.evaluate(() => window.__frayz.P.energia().atual)) === en0.maximo - 1, 'abrir a luta da Aventura gastou energia (a ponte conta)')
   const jogadas = await lutarAteOFim()
   confere(vistaIntencao, `fase 1 jogada até o fim (${jogadas} comandos na 1ª luta) com a intenção visível`)
   const lerFim = () => page.evaluate(() => ({ fim: window.__frayz.estado().fim, col: window.__frayz.Col.aventura(), pontos: ['pisoteador', 'desfiado', 'assombrado'].map((id) => window.__frayz.Col.obter(id).pontosDeCostura), lutas: ['pisoteador', 'desfiado', 'assombrado'].map((id) => window.__frayz.Col.obter(id).lutas) }))
@@ -248,6 +284,15 @@ async function rodarFormato(fmt) {
   await clique('#btnTrocarTime')
   await page.waitForSelector('#aventura:not([hidden])')
   confere((await page.locator('#avMapa .av-estacao:disabled').count()) === 3 && (await page.locator('#avMapa .av-estacao.vencida').count()) === 1, 'mapa mostra a fase 1 vencida e a 2 liberada')
+  const en1 = await page.evaluate(() => window.__frayz.P.energia())
+  confere(en1.atual === en0.maximo - lutasFeitas && (await page.locator('#avEnergia').textContent()).includes(`Energia ${en1.atual}/${en1.maximo}`), `cada luta aberta gastou 1 de energia e a tela mostra (${en1.atual}/${en1.maximo} depois de ${lutasFeitas} luta(s))`)
+  // sem energia: a luta não abre e a tela explica quando volta (sem punir)
+  await page.evaluate(() => { localStorage.setItem('frayz_energia', JSON.stringify({ dia: Math.floor(Date.now() / 86400000), gasta: 999 })); window.__frayz.irParaAba('aventura') })
+  const semEn = { botao: await page.locator('#btnJogarFase').isDisabled(), rotulo: (await page.locator('#btnJogarFase').textContent()).replace(/\s+/g, ' '), etiqueta: (await page.locator('#avEnergia').textContent()).replace(/\s+/g, ' ') }
+  confere(semEn.botao && /Sem energia/.test(semEn.rotulo) && /volta inteira às \d\d:\d\d/.test(semEn.etiqueta), `sem energia: Jogar desligado e a tela diz quando volta ("${semEn.rotulo.trim()}" · "${semEn.etiqueta.trim()}")`)
+  await page.locator('#btnJogarFase').click({ force: true }).catch(() => {})
+  confere(await page.locator('#luta').isHidden(), 'sem energia a luta não abre')
+  await page.evaluate(() => { localStorage.removeItem('frayz_energia'); window.__frayz.irParaAba('aventura') })
   await clique('#btnMudo')
   confere((await page.locator('#btnMudo').getAttribute('aria-pressed')) === 'true' && await page.evaluate(() => window.__frayz.Som.estaMudo()), 'botão de mudo liga o mudo')
   confere(await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('frayz_som') || 'null')?.mudo === true } catch { return false } }), 'mudo fica guardado')
@@ -282,6 +327,7 @@ async function rodarFormato(fmt) {
   confere(sobrepoe.cabBaixo <= sobrepoe.corpoTopo + 0.5, `cabeçalho e abas ficam acima da lista (abas até ${Math.round(sobrepoe.cabBaixo)}, lista começa em ${Math.round(sobrepoe.corpoTopo)})`)
   await page.evaluate(() => { document.querySelector('#inicio .ini-corpo').scrollTop = 0 })
   await foto('luta-livre')
+  await conferirTela('luta livre', '#inicio')
   confere((await foraDaTela(page, ['#cab', '#abas', '.aba', '#btnLutar', '#timeEscolhido'])).length === 0, 'luta livre: cabeçalho, abas e botão dentro da janela')
 
   confere(erros.length === 0, 'nenhum erro no console' + (erros.length ? ' → ' + erros.slice(0, 5).join(' | ') : ''))

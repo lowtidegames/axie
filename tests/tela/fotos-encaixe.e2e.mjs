@@ -1,5 +1,6 @@
-// Frayz — fotos de conferência do ENCAIXE (tarefa 11): 6 fotos PEQUENAS (densidade 1, largura ≤ 1280) em tests/tela/fotos/encaixe/.
+// Frayz — fotos de conferência do ENCAIXE (tarefas 11 e 18): fotos PEQUENAS (densidade 1, largura ≤ 1280) em tests/tela/fotos/encaixe/.
 //   luta-pc (1280×720) · luta-celular (360×740) · time-pc · vitoria-pc · derrota-celular · costura-pc
+//   tarefa 18: time-celular · costura-celular · aventura-pc · aventura-celular · colecao-pc
 // Joga de verdade pelo gancho de teste (?teste=1): só tira as fotos e confere que nenhuma passou de 400 KB.
 // Rode pela trava de um robô por vez:  node tools/trava-robos.mjs rodar "node tests/tela/fotos-encaixe.e2e.mjs"
 import { createRequire } from 'node:module'
@@ -119,6 +120,45 @@ try {
   await page.waitForTimeout(1200)
   await foto(page, 'costura-pc')
   confere(erros.length === 0, 'costura: nenhum erro no console' + (erros.length ? ' → ' + erros.slice(0, 3).join(' | ') : ''))
+  await ctx.close()
+
+  // ---- tarefa 18: Aventura (PC) com o time escolhido · Bonecos (PC)
+  ;({ ctx, page, erros } = await abrir(PC, '&recomecar=1&aba=aventura'))
+  await page.waitForSelector('#aventura:not([hidden])')
+  for (const id of TIME) await page.locator(`#avTime .mini-cartao[data-id=${id}]`).first().click()
+  await page.evaluate(() => { document.querySelector('#aventura .sub-rolagem').scrollTop = 0 })
+  await page.waitForTimeout(500)
+  await foto(page, 'aventura-pc')
+  await page.locator('.aba[data-aba=colecao]').click()
+  await page.waitForSelector('#colecao:not([hidden])'); await page.waitForTimeout(500)
+  await foto(page, 'colecao-pc')
+  confere(erros.length === 0, 'aventura e bonecos (PC): nenhum erro no console' + (erros.length ? ' → ' + erros.slice(0, 3).join(' | ') : ''))
+  await ctx.close()
+
+  // ---- tarefa 18: time (celular) · Aventura (celular) · casulo abrindo (celular)
+  ;({ ctx, page, erros } = await abrir(CEL, '&recomecar=1&aba=inicio'))
+  await comecar(page, true)
+  await page.evaluate(() => { document.querySelector('#inicio .ini-corpo').scrollTop = 0 })
+  await page.waitForTimeout(500)
+  await foto(page, 'time-celular')
+  await page.locator('.aba[data-aba=aventura]').tap()
+  await page.waitForSelector('#aventura:not([hidden])')
+  for (const id of TIME) await page.locator(`#avTime .mini-cartao[data-id=${id}]`).first().tap()
+  await page.evaluate(() => { document.querySelector('#aventura .sub-rolagem').scrollTop = 0 })
+  await page.waitForTimeout(500)
+  await foto(page, 'aventura-celular')
+  await page.locator('.aba[data-aba=costura]').tap()
+  await page.waitForSelector('#costura:not([hidden])')
+  await page.locator('#cosEscolha .mini-cartao[data-id=mordedor]').first().tap()
+  await page.locator('#cosEscolha .mini-cartao[data-id=pisoteador]').first().tap()
+  await page.waitForSelector('#cosChances')
+  await page.locator('#btnCosturar').tap()
+  await page.waitForSelector('#casulo:not([hidden])')
+  await page.locator('#casPartes .cas-parte[data-k="0"]').tap()
+  await page.waitForSelector('#casPartes .cas-parte.aberta')
+  await page.waitForTimeout(900)
+  await foto(page, 'costura-celular')
+  confere(erros.length === 0, 'telas do celular: nenhum erro no console' + (erros.length ? ' → ' + erros.slice(0, 3).join(' | ') : ''))
   await ctx.close()
 } catch (e) { falhas.push(String(e)); console.log('FALHA: exceção: ' + (e?.stack ?? e).split('\n').slice(0, 4).join(' / ')) }
 await browser.close(); servidor.close()

@@ -1,0 +1,13 @@
+{
+  "name": "nome-do-jogo",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Jogo original de navegador: criaturas colecionáveis com partes, batalha 3 contra 3 com cartas, cruzamento e mercado (nome a definir)",
+  "scripts": {
+    "test": "node tools/verde.mjs rodar servidor \"node --test 'tests/servidor/*.test.js'\"",
+    "test:travas": "node tools/verde.mjs rodar travas \"node --test tests/travas.test.mjs\""
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

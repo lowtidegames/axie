@@ -1,0 +1,4 @@
+{
+  "_comentario": "Só o dono escreve aqui. Cada aprovação: 'acao' = trecho do comando (6+ letras; a trava mostra a linha pronta) e 'aprovado_em' = data e hora (Brasília). Vale depois de 24 h e até 7 dias. Lido por tools/trava-24h.mjs.",
+  "aprovacoes": []
+}

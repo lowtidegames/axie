@@ -1,0 +1,6 @@
+{
+  "_comentario": "Modo do estúdio. Só o dono muda. ABERTO = pode publicar: o site de teste publica sozinho pela orquestra (docs/orquestra.md); o site de verdade (production) só com o 'sim' do dono; CONGELADO = nada vai ao ar; EMERGENCIA = incidente, nada vai ao ar, só a parada de emergência (variável CHAVE=1 na hospedagem) passa. Valor desconhecido = trava. Lido por tools/trava-congelado.mjs.",
+  "modo": "ABERTO",
+  "desde": "2026-11-15 22:58 BRT",
+  "motivo": "ABERTO só para desenvolvimento local; nada está publicado e não existe ambiente de teste nem de production ainda"
+}

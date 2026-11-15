@@ -3,6 +3,7 @@
 **Regra:** a decisão mais NOVA fica em cima. Vale mais que qualquer outro texto do repositório, inclusive o `CLAUDE.md`. Decisão aprovada é final: só reabre com prova nova, e alternativa recusada nunca é reoferecida. Decisão nova entra aqui no mesmo dia, no mesmo commit da mudança. Formato: `dd/mm/aaaa hh:mm BRT — o quê — "frase do dono" (onde)`.
 
 ## Abertas
+- PARA O DONO (15/11 00:05, medido pela costura): (a) time todo Lendário vence o mesmo time Comum em ~62% com o teto de +10% (alvo era até 58%); com teto de +4% cai para 56,5%; (b) cruzando só raros com raros, as partes Lendárias vão de 3% a 50% em ~170 dias e a quase tudo depois, se não entrar freio (chance de o gene cair 1 raridade ao ser copiado, ou venda contínua de bonecos de origem). Os dois vão ao dono junto com a proposta da economia; nada aplicado.
 - Rede: Solana (documento do dono, 14/11 23:07). Token, carteiras e contrato: sem decisão; os agentes de carteira e token só entram com o "sim" do dono. (14/11/2026)
 - ASSUMPTION: hospedagem, domínio e ambiente de teste ainda sem decisão — nada é publicado até o dono criar o ambiente. (14/11/2026)
 - ASSUMPTION (14/11 23:27, diretor) — batalha: raridade dá opções com teto de +10% de força; desgaste igual na Aventura e no Ranqueado; time alugado só na Aventura no começo; turnos alternados. Números de carta e de luta PROVISÓRIOS, só para o protótipo sem dinheiro. O dono troca quando quiser.

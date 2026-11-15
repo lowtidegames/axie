@@ -221,7 +221,7 @@ export const conferirReplay = ({ semente, timeA, timeB, comandos: cmds }) => rep
 // Mesmo formato do servidor (server/jogo.mjs): { atual, maximo, recarregaEm (ISO) }; recarrega na virada do dia em UTC.
 // energia({ abrirLuta: true }) tenta gastar o custo de abrir uma luta da Aventura e diz se gastou (ok). O gasto do dia
 // fica no armazenamento do navegador. Os números vêm de shared/config.js (ECONOMIA_DO_BETA); a tela só mostra.
-import { ECONOMIA_DO_BETA } from '/shared/config.js'
+import { ECONOMIA_DO_BETA } from '../../shared/config.js'
 export function energia({ abrirLuta = false } = {}) {
   const DIA = 86400000, hoje = Math.floor(Date.now() / DIA), chave = 'frayz_energia', maximo = ECONOMIA_DO_BETA.energiaPorDia
   let gasta = 0

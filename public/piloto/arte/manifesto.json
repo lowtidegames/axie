@@ -1,4 +1,5 @@
 {
+  "arena": "arena.png",
   "monsters": {
     "mordedor": {
       "idle": "monsters/mordedor-idle.png",

@@ -230,3 +230,24 @@ Conselheiros: guardião 73 (aprovado, sem veto, 6 ajustes) · diversão 68 (abai
 **Diversão (68).** Bom: primeiros 60 s (85) e o ovo (88). Fraco: sessão diária (58), dia 30 (50), terça a domingo sem decisão nova; nenhum número do monstro sobe (Scars só descem); sem prestígio e sem ritmo irregular. Melhorias: (1) ficha com história do monstro (placar por lugar, pais, títulos) e cartão para postar; (2) Chronicle como revelação (a luta mais apertada com o resultado escondido; a fita do mapa não mostra WIN/LOSS antes); (3) lutas 2 a 5 da patrulha como carimbos de ~3 s com a barra da sequência; (4) visitante do dia na guarda de um lugar, avisado na véspera (regra nova); (5) fecho de temporada com cerimônia e brasão (enfeite). Com as cinco: 80–82. Piloto: resultado da 1ª tentativa ao lado da 2ª; golpes Strong como sinal principal; dois lugares com diferença grande medida.
 
 **Economista (85).** O idle não cria fonte (teto de 20 e pote de receita iguais; o pote nunca pagou mais do que entrou nos cenários rodados). Piora: bots de 2,1% para 6,2–8,2% do pote quando a detecção por comportamento enfraquece; o aluguel de time passa a incentivar conta dupla (a baleia ganha mais com 40 contas próprias do que alugando). "Todos na fase 5" confirmado (0,90 por energia na fase 5 contra 0,82 na 4). Proposta: pesos dos lugares pelo inverso da taxa média de vitória da matriz (ex.: 1 · 1,17 · 1,54 · 1,99 · 2,12), fixos na temporada. Critérios do simulador da matriz (84 trios × 6 formações × 3 táticas × 5 lugares, 400 lutas por casa): nenhum lugar melhor para mais de 40% dos trios; cada lugar melhor para pelo menos 10%; ir ao lugar popular em vez do seu custa 10% ou mais; em 100 contas, pelo menos 5 divisões ótimas diferentes; depois do Road Report, 30% das contas mudam de melhor lugar; vale com pesos ±10%; ponto médio por energia a ±5% do de hoje. Números propostos (todos esperam o dono): sino 30 min; ordens 3 dias; ovo 12 h com 1 vaga; aposentar antes do limite só acima de 50% da vida, por metade das medalhas; base: 2ª patrulha grátis, Scout Post 6, 3ª patrulha 8, 2ª vaga no ninho 12 medalhas. Prestígio sem inflar: Renome = raiz quadrada dos pontos da temporada, acumulado; dá só título, enfeite e vaga no Hall. Antes de qualquer prêmio: 1 conta por carteira + aparelho + verificação humana; ordem vencida não pontua e renovar exige entrar; saldo preso 7–14 dias e aluguel só entre contas sem ligação.
+
+## 10. Medição da matriz trio × lugar (15/11/2026 11:00 BRT, `tools/simular-patrulhas.mjs`, 3.024.000 lutas)
+
+**Resultado: com o motor de hoje, a escolha "qual trio vai para qual lugar" é quase enfeite.**
+
+| Critério | Pesos de hoje | Cenário B (pesos pelo inverso da vitória média) |
+|---|---|---|
+| a) nenhum lugar melhor para mais de 40% dos trios | REPROVADO (lugar 5: 85,7%) | REPROVADO (lugar 4: 41,7%) |
+| b) cada lugar melhor para pelo menos 10% | REPROVADO (0%) | APROVADO (11,9%) |
+| c) ir ao lugar popular custa 10% ou mais | REPROVADO (0%) | REPROVADO (3,5%) |
+| d) 5 ou mais planos ótimos em 100 contas | APROVADO (14, mas só 2 lugares) | APROVADO (15, só 2 lugares) |
+| e) troca de guardas muda 30% das contas | REPROVADO (8%) | APROVADO (65%) |
+| f) vale com pesos ±10% | REPROVADO | REPROVADO |
+
+- Posição (melhor × pior formação do mesmo trio no mesmo lugar): mediana de 26,3 pontos (o acaso explica 6,2). É a decisão que pesa de verdade.
+- Tática: 6,3 pontos (o acaso explica 4,0).
+- Golpes com vantagem de elemento: 0,9 a 2,1 por luta, com +25% de dano. Um trio forte é forte em todo lugar.
+- Pontos crescem em linha com a energia: a melhor divisão das 20 energias é sempre pôr as 20 num trio e num lugar. Repartir também é enfeite.
+- Tempo: 0,435 ms por luta automática (pior caso 7,8 ms).
+
+**O que pode consertar (tudo é número de luta ou de economia; medir no simulador e levar ao dono):** vantagem de elemento maior ou resistência do corpo; guardas de um elemento só; regra própria de cada lugar; ganho que diminui por lugar no mesmo dia.

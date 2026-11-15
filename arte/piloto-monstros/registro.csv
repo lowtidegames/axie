@@ -55,3 +55,15 @@ hora_BRT,item,tentativa,ferramenta,custo_geracoes,arquivo,nota
 15/11 10:44,elemento-tule,2,/create-image-pixen,1.0,bruto/elemento-tule-2.png,
 15/11 10:44,lugar-5,3,/create-image-pixflux,1.0,bruto/lugar-5-3.png,
 15/11 10:45,elemento-tule,3,/create-image-pixen,1.0,bruto/elemento-tule-3.png,
+15/11 10:51,arena-nova,1,/create-image-pixflux,1.0,bruto/arena-nova-1.png,pennants lisas sem simbolos
+15/11 10:51,embolado-idle-novo,1,/create-image-pixflux,1.0,bruto/embolado-idle-novo-1.png,"prompt monstro de pedra, nao humano"
+15/11 10:52,embolado-idle-novo,2,/create-image-pixflux,2.0,bruto/embolado-idle-novo-2.png,"prompt monstro de pedra, nao humano"
+15/11 10:52,embolado-idle-novo,3,/create-image-pixflux,1.0,bruto/embolado-idle-novo-3.png,"prompt monstro de pedra, nao humano"
+15/11 11:04,prova-embolado,1,/create-image-pixflux,1.0,prova-criaturas/brutos/embolado-guia120-1.png,guia sombra pintada forca 120
+15/11 11:05,prova-embolado,2,/create-image-pixflux,1.0,prova-criaturas/brutos/embolado-texto-2.png,so texto pedido da biblia: ESCOLHIDO
+15/11 11:05,prova-embolado,3,/create-image-pixflux,1.0,prova-criaturas/brutos/embolado-texto-3.png,so texto
+15/11 11:06,prova-brigao,1,/create-image-pixflux,1.0,prova-criaturas/brutos/brigao-texto-1.png,so texto pedido da biblia: ESCOLHIDO
+15/11 11:06,prova-brigao,2,/create-image-pixflux,1.0,prova-criaturas/brutos/brigao-texto-2.png,so texto pedido variado: parece canhao sem chifre
+15/11 11:07,prova-embolado,4,/create-image-pixflux,1.0,prova-criaturas/brutos/embolado-texto-4.png,so texto com pedido variado (cara de buldogue + roda)
+15/11 11:07,prova-embolado,5,/create-image-pixflux,1.0,prova-criaturas/brutos/embolado-texto-5.png,so texto pedido variado: virou urso real (descartado)
+15/11 11:08,prova-embolado,6,/create-image-pixflux,1.0,prova-criaturas/brutos/embolado-texto-6.png,so texto pedido variado: ocre mas de frente

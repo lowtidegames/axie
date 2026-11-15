@@ -13,7 +13,7 @@ export const TEMA = Som.TEMA
 const ANTECEDENCIA = 0.1 // s: cada nota é marcada 100 ms antes, pelo relógio do áudio
 const PASSOS = 12 // semicolcheias por compasso
 const NIVEL = 0.0435 // ganho do barramento: põe a música ~12 dB abaixo dos efeitos (medido em tests/tela/som.e2e.mjs)
-const ALVO_RMS_GRAVADA = -31 // dBFS: um arquivo de música gravado é nivelado para o mesmo volume médio da música gerada
+const ALVO_RMS_GRAVADA = -34 // dBFS: um arquivo de música gravado é nivelado perto do volume médio da música gerada (−38), com pico até −18
 const TROCA_GRAVADA = 0.6 // s de esmaecimento entre música gerada e arquivo
 const LUTA = ['luta', 'tesouraDescendo', 'tesouraCortando']
 

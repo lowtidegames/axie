@@ -358,7 +358,7 @@ await dorme(650)
   confere(e.som.iniciado && e.som.rodando, `depois do primeiro toque o áudio liga (${e.som.taxa} Hz)`)
   confere(e.mus.tocando && e.mus.camada === 'luta', 'a música que estava anotada começa sozinha no primeiro toque')
   await page.evaluate(() => window.__m.Musica.parar(100))
-  await dorme(1300)
+  await page.waitForFunction(() => window.__m.Musica.estado().momento === null, null, { timeout: 8000 }).catch(() => {})
   const r = await page.evaluate(async () => {
     const { Som } = window.__m, s = {}
     Som.zerarContagem()
@@ -375,12 +375,13 @@ await dorme(650)
   confere(r.pedidos.aposentadoria === 20 && r.tocados.aposentadoria === 20 && r.pedidos.botao === 40, 'contagem de chamadas por efeito confere (20 e 40)')
   const repete = r.seq.some((v, i) => i > 0 && v === r.seq[i - 1])
   confere(!repete && new Set(r.seq).size === 3, `a mesma variação nunca toca duas vezes seguidas (40 toques: ${r.seq.slice(0, 14).join('')}…)`)
-  await dorme(3100)
+  await page.waitForFunction(() => window.__m.Som.estado().vozes === 0, null, { timeout: 12000 }).catch(() => {})
+  await dorme(120)
   const fim = await page.evaluate(() => window.__m.Som.estado())
   confere(fim.vozes === 0 && fim.nosVivos === 0, `depois do fim nenhum nó de áudio fica vivo (vozes ${fim.vozes}, nós ${fim.nosVivos})`)
 
   // o laço do tempo acabando para quando mandam
-  const laco = await page.evaluate(async () => { const { Som } = window.__m; Som.tocar('tempoAcabando'); await new Promise((ok) => setTimeout(ok, 300)); const a = Som.estado().tocando.slice(); Som.parar('tempoAcabando'); await new Promise((ok) => setTimeout(ok, 120)); return { a, b: Som.estado() } })
+  const laco = await page.evaluate(async () => { const { Som } = window.__m; Som.tocar('tempoAcabando'); await new Promise((ok) => setTimeout(ok, 300)); const a = Som.estado().tocando.slice(); Som.parar('tempoAcabando'); for (let i = 0; i < 40 && Som.estado().nosVivos > 0; i++) await new Promise((ok) => setTimeout(ok, 50)); return { a, b: Som.estado() } })
   confere(laco.a.includes('tempoAcabando') && laco.b.vozes === 0 && laco.b.nosVivos === 0, 'o tique-taque do tempo acabando toca e para na hora (parar)')
 
   // mudo
@@ -418,7 +419,10 @@ cabecalho('Música ao vivo: troca na virada do compasso, abaixar nos golpes gran
     for (let i = 0; i < 70; i++) { const e = Musica.estado(); s.linha.push([e.compassos - c0, e.camada]); if (e.camada === 'tesouraDescendo' && e.compassos - c0 >= 2) break; await espera(40) }
     // golpe grande: a música abaixa 6 dB e volta
     const duck = Som.cadeia().duck.gain
-    s.antes = duck.value; Som.tocar('critico'); await espera(150); s.durante = duck.value; await espera(700); s.depois = duck.value
+    s.antes = duck.value; Som.tocar('critico')
+    let menor = 1, de = null, ate = null
+    for (const t0 = performance.now(); performance.now() - t0 < 750; await espera(12)) { const v = duck.value, t = performance.now() - t0; if (v < menor) menor = v; if (v < 0.6) { de ??= t; ate = t } }
+    s.durante = menor; s.embaixoMs = ate - de; await espera(250); s.depois = duck.value
     // Tesoura cortando afina os efeitos meio tom acima
     Musica.momento('tesouraCortando'); await espera(2300); s.afinacao = Som.estado().afinacao; s.cortando = Musica.estado()
     Musica.momento('ultimoFio'); await espera(2700); s.fio = Musica.estado(); s.filtro = Som.cadeia().abafa.frequency.value
@@ -430,16 +434,17 @@ cabecalho('Música ao vivo: troca na virada do compasso, abaixar nos golpes gran
     Object.defineProperty(document, 'hidden', { value: false, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); await espera(400)
     s.devolta = Som.contexto().state; s.andou = Som.contexto().currentTime - t0
     // vitória pela música: o fim toca uma vez só, na virada
-    Som.zerarContagem(); Musica.momento('vitoria'); Som.vitoria(); await espera(2400)
-    s.fim = Musica.estado(); s.vitorias = Som.contagem('tocados').vitoria; await espera(900); Som.vitoria(); s.vitorias2 = Som.contagem('tocados').vitoria
-    Musica.parar(100); await espera(1200); s.parada = Musica.estado(); s.nos = Som.estado()
+    Som.zerarContagem(); Musica.momento('vitoria'); Som.vitoria(); await espera(500)
+    s.fim = Musica.estado(); s.vitorias = Som.contagem('tocados').vitoria; await espera(500); Som.vitoria(); s.vitorias2 = Som.contagem('tocados').vitoria
+    Musica.parar(100); for (let i = 0; i < 160 && (Musica.estado().momento !== null || Som.estado().vozes > 0); i++) await espera(50)
+    s.parada = Musica.estado(); s.nos = Som.estado()
     return s
   })
   confere(r.inicio.tocando && r.inicio.camada === 'luta' && r.inicio.bpm === 92, 'botão da folha começa a música da luta (92 bpm)')
   confere(r.logoDepois.camada === 'luta' && r.logoDepois.pendente === 'tesouraDescendo', 'troca pedida no meio do compasso fica pendente')
   const troca = r.linha.findIndex((x) => x[1] === 'tesouraDescendo'), noMeio = r.linha.some((x, i) => i > 0 && x[1] !== r.linha[i - 1][1] && x[0] === r.linha[i - 1][0])
   confere(troca > 0 && !noMeio, `a camada só troca na virada do compasso (trocou quando o compasso virou: ${JSON.stringify(r.linha[troca])})`)
-  confere(r.antes > 0.98 && Math.abs(r.durante - 0.5) < 0.04 && r.depois > 0.98, `no crítico a música abaixa 6 dB e volta (${r.antes.toFixed(2)} → ${r.durante.toFixed(2)} → ${r.depois.toFixed(2)})`)
+  confere(r.antes > 0.98 && Math.abs(r.durante - 0.5) < 0.04 && r.depois > 0.98 && r.embaixoMs > 280 && r.embaixoMs < 600, `no crítico a música abaixa 6 dB por ~400 ms e volta (${r.antes.toFixed(2)} → ${r.durante.toFixed(2)} por ${Math.round(r.embaixoMs)} ms → ${r.depois.toFixed(2)})`)
   confere(r.cortando.camada === 'tesouraCortando' && r.afinacao === 1 && r.afinacao2 === 0, 'Tesoura cortando: música meio tom acima e as notas dos efeitos acompanham')
   confere(r.fio.momento === 'ultimoFio' && r.fio.camada === 'tesouraCortando' && r.filtro < 1500 && r.filtro2 > 15000, `Último Fio abafa a camada que estava tocando (filtro em ${Math.round(r.filtro)} Hz) e depois solta`)
   confere(r.escondida === 'suspended' && r.parado < 0.02 && r.pedidoEscondido === null && r.devolta === 'running', 'aba escondida: o áudio para e nada toca; volta sozinho quando a aba aparece')
@@ -454,6 +459,7 @@ cabecalho('Folha: a luta de exemplo')
   await page.locator('#btnLuta').click()
   const momentos = new Set()
   for (let i = 0; i < 68; i++) { await dorme(500); const m = await page.evaluate(() => window.__m.Musica.estado().momento); if (m) momentos.add(m) }
+  await page.waitForFunction(() => window.__folha.roteiro.length === 30, null, { timeout: 20000 }).catch(() => {})
   const r = await page.evaluate(() => ({ tocados: window.__m.Som.contagem('tocados'), passos: window.__folha.roteiro.length, linhas: document.querySelectorAll('#diario li').length }))
   const precisa = { cartaJogada: 8, golpe: 2, escudo: 1, golpeNoEscudo: 1, critico: 2, tesouraDesce: 1, erroDoVeu: 1, ultimoFio: 1, queda: 2, tesoura: 1, vitoria: 1 }
   const faltam = Object.entries(precisa).filter(([k, n]) => r.tocados[k] !== n).map(([k, n]) => `${k}: ${r.tocados[k] ?? 0} (esperado ${n})`)
@@ -541,7 +547,8 @@ cabecalho('Amostras gravadas: manifesto de teste com um WAV escrito pelo própri
     document.querySelector('#optAmostras').click()
     s.chave = Som.usarAmostras(); s.golpeSem = Som.tocar('golpe')?.fonte; s.fonteSem = Som.fonteDoEfeito('golpe'); s.etiqueta = document.querySelector('#fx-golpe header .etiqueta').textContent
     document.querySelector('#optAmostras').click(); s.golpeCom = Som.tocar('golpe')?.fonte
-    await espera(900); s.nos = Som.estado()
+    for (let i = 0; i < 80 && Som.estado().nosVivos > 0; i++) await espera(50)
+    s.nos = Som.estado()
     // música: arquivo por momento, com troca por esmaecimento
     Musica.tocar('entrada'); await espera(1500); s.entrada = Musica.estado()
     Musica.momento('luta'); await espera(3200); s.luta = Musica.estado()

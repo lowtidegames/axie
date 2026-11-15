@@ -173,10 +173,10 @@ costura            80   0      36.0      -22.5       -39.9             13.0 dB  
 == Ao vivo: primeiro toque, teto de vozes, mudo, volumes guardados ==
   ok: depois do primeiro toque o áudio liga (44100 Hz)
   ok: a música que estava anotada começa sozinha no primeiro toque
-  ok: tocar devolve o que tocou ({"fonte":"codigo","variacao":1,"nome":"golpe"}) e a voz fica viva (21 nós)
+  ok: tocar devolve o que tocou ({"fonte":"codigo","variacao":2,"nome":"golpe"}) e a voz fica viva (21 nós)
   ok: teto de 16 vozes: 21 pedidos de som longo → 16 vozes; mais 40 cliques → 16
   ok: contagem de chamadas por efeito confere (20 e 40)
-  ok: a mesma variação nunca toca duas vezes seguidas (40 toques: 10121201010212…)
+  ok: a mesma variação nunca toca duas vezes seguidas (40 toques: 02120120120202…)
   ok: depois do fim nenhum nó de áudio fica vivo (vozes 0, nós 0)
   ok: o tique-taque do tempo acabando toca e para na hora (parar)
   ok: mudo: nada toca
@@ -189,7 +189,7 @@ costura            80   0      36.0      -22.5       -39.9             13.0 dB  
   ok: botão da folha começa a música da luta (92 bpm)
   ok: troca pedida no meio do compasso fica pendente
   ok: a camada só troca na virada do compasso (trocou quando o compasso virou: [1,"tesouraDescendo"])
-  ok: no crítico a música abaixa 6 dB e volta (1.00 → 0.50 → 1.00)
+  ok: no crítico a música abaixa 6 dB por ~400 ms e volta (1.00 → 0.50 por 403 ms → 1.00)
   ok: Tesoura cortando: música meio tom acima e as notas dos efeitos acompanham
   ok: Último Fio abafa a camada que estava tocando (filtro em 650 Hz) e depois solta
   ok: aba escondida: o áudio para e nada toca; volta sozinho quando a aba aparece

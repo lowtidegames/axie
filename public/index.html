@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Frayz — protótipo local</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b1226">
+<link rel="stylesheet" href="css/frayz.css">
+</head>
+<body>
+<main id="app">
+
+  <!-- ============ TELA INICIAL ============ -->
+  <section id="inicio" class="tela">
+    <header class="ini-topo">
+      <h1 class="logo" aria-label="Frayz"><span>F</span><span>r</span><span>a</span><span>y</span><span>z</span></h1>
+      <p class="sub">Bonecos de pano amaldiçoados. Escolha 3 e vá brigar.</p>
+      <label class="opc"><input type="checkbox" id="optMenos"> <span>Menos animação</span></label>
+    </header>
+
+    <div class="ini-corpo">
+      <div id="grade" class="grade" role="list"></div>
+    </div>
+
+    <footer class="ini-base">
+      <div class="ini-linha">
+        <div class="time-escolhido" id="timeEscolhido" aria-live="polite"></div>
+        <button id="btnLutar" class="btn grande" disabled>Lutar</button>
+      </div>
+      <div class="ini-linha2">
+        <fieldset class="robo" id="roboEscolha">
+          <legend>Rival</legend>
+          <label><input type="radio" name="robo" value="ganancioso"> <span>Ganancioso</span></label>
+          <label><input type="radio" name="robo" value="planejador" checked> <span>Planejador</span></label>
+        </fieldset>
+      </div>
+      <details class="colar" id="colar">
+        <summary>Colar um replay</summary>
+        <textarea id="replayEntrada" rows="3" placeholder='Cole aqui o texto do replay ({"v":1,...})' spellcheck="false"></textarea>
+        <div class="colar-linha"><button id="btnAssistir" class="btn">Assistir</button><span id="replayMsg" class="msg" role="status"></span></div>
+      </details>
+    </footer>
+  </section>
+
+  <!-- ============ LUTA ============ -->
+  <section id="luta" class="tela" hidden>
+    <header id="topo">
+      <div class="t-turno"><b id="tTurno">Turno 1/12</b><span id="tVez" class="chip vez">Sua vez</span></div>
+      <div class="t-tesoura chip" id="tTesoura" title="A Tesoura corta todos os bonecos"></div>
+      <div class="t-relogio" id="tRelogio" aria-label="Relógio do turno"><div class="barra"><i id="tBarra"></i></div><span id="tSeg">20</span></div>
+      <button id="btnMenu" class="btn mini" aria-label="Menu" aria-haspopup="true">&#9881;</button>
+      <div id="menu" class="menu" hidden>
+        <label class="opc"><input type="checkbox" id="optMenos2"> <span>Menos animação</span></label>
+        <button id="btnParar" class="btn mini" hidden>Parar replay</button>
+        <button id="btnSair" class="btn mini">Sair da luta</button>
+      </div>
+    </header>
+
+    <div id="arenaBox">
+      <canvas id="arena" aria-label="Arena: os dois times" role="img"></canvas>
+      <div id="banda">
+        <div class="b-linhas">
+          <div class="bl" id="blRival"></div>
+          <div class="bl" id="blEu"></div>
+        </div>
+        <button id="roda" class="roda" aria-label="Roda dos tipos (toque para ver a legenda)"><canvas id="rodaCv"></canvas></button>
+      </div>
+      <div id="bannerTurno" class="banner" hidden></div>
+      <div id="bannerCarta" class="banner-carta" hidden></div>
+      <div id="legenda" class="legenda" hidden></div>
+    </div>
+
+    <footer id="baixo">
+      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+      <div id="info" class="info" aria-live="polite"></div>
+      <div id="maoBox"><div id="mao" class="mao" role="list"></div></div>
+      <div id="botoes" class="botoes">
+        <button id="btnTrocar" class="btn">Trocar lugares <small>1 Linha</small></button>
+        <button id="btnPassar" class="btn grande">Passar</button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============ FIM DA LUTA ============ -->
+  <div id="fim" class="modal" hidden>
+    <div class="folha fim-folha" role="dialog" aria-modal="true" aria-labelledby="fimTitulo">
+      <h2 id="fimTitulo" class="fim-titulo">Vitória!</h2>
+      <p id="fimMotivo" class="fim-motivo"></p>
+      <ul id="fimResumo" class="fim-resumo"></ul>
+      <textarea id="replaySaida" readonly rows="2" aria-label="Texto do replay" spellcheck="false"></textarea>
+      <div class="fim-botoes">
+        <button id="btnRevanche" class="btn grande">Revanche</button>
+        <button id="btnTrocarTime" class="btn">Trocar time</button>
+        <button id="btnRever" class="btn">Rever</button>
+        <button id="btnCopiar" class="btn">Copiar replay</button>
+      </div>
+      <p id="copiaMsg" class="msg" role="status"></p>
+    </div>
+  </div>
+
+  <!-- ============ FICHA DO BONECO ============ -->
+  <div id="fichaModal" class="modal" hidden>
+    <div class="folha ficha-folha" role="dialog" aria-modal="true" aria-label="Ficha do boneco">
+      <button class="fechar" id="fichaFechar" aria-label="Fechar">&times;</button>
+      <div id="fichaCorpo"></div>
+    </div>
+  </div>
+</main>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

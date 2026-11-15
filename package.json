@@ -7,7 +7,9 @@
     "test": "node tools/verde.mjs rodar servidor \"node --test 'tests/servidor/*.test.js'\"",
     "test:travas": "node tools/verde.mjs rodar travas \"node --test tests/travas.test.mjs\"",
     "simular": "node tools/simular-batalha.mjs",
-    "simular:economia": "node tools/simular-economia.mjs"
+    "simular:economia": "node tools/simular-economia.mjs",
+    "dev": "node server/dev.mjs",
+    "e2e": "node tools/trava-robos.mjs rodar \"node tests/tela/prototipo.e2e.mjs\""
   },
   "engines": {
     "node": ">=22.13"

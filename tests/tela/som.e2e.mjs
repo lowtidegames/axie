@@ -23,6 +23,9 @@ const { chromium } = require('playwright')
 const AQUI = path.dirname(fileURLToPath(import.meta.url))
 const FOTOS = path.join(AQUI, 'fotos')
 fs.mkdirSync(FOTOS, { recursive: true })
+// o manifesto de verdade (public/sons/manifesto.json): a folha desenha, além das 3 variações por código, 1 par de desenhos por arquivo
+const MANIFESTO_REAL = JSON.parse(fs.readFileSync(path.join(AQUI, '..', '..', 'public', 'sons', 'manifesto.json'), 'utf8'))
+const ARQUIVOS_REAIS = Object.values(MANIFESTO_REAL.efeitos || {}).reduce((n, l) => n + l.length, 0)
 
 const falhas = [], relatorio = []
 const anota = (s = '') => relatorio.push(s)
@@ -219,7 +222,7 @@ await instalarMedidor(page)
   const padrao = await page.evaluate(() => window.__m.Som.volumes())
   confere(padrao.efeitos === 0.7 && padrao.musica === 0.45 && r.estado.mudo === false, 'padrão ao abrir: efeitos em 70%, música em 45%, sem mudo')
   const cartoes = await page.locator('.efeito').count(), telas = await page.locator('.efeito canvas').count(), mom = await page.locator('.momento button[data-momento]').count()
-  confere(cartoes === 30 && telas === 30 * 3 * 2, `a folha lista os 30 efeitos, cada um com 3 variações (onda e espectro): ${cartoes} cartões, ${telas} desenhos`)
+  confere(cartoes === 30 && telas === 30 * 3 * 2 + ARQUIVOS_REAIS * 2, `a folha lista os 30 efeitos, cada um com 3 variações por código (onda e espectro) e mais um par de desenhos por arquivo gravado do manifesto (${ARQUIVOS_REAIS}): ${cartoes} cartões, ${telas} desenhos`)
   confere(mom === 8, `a folha tem os 8 momentos da música com botão (${mom})`)
   const semRolagem = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)
   confere(semRolagem, 'folha sem rolagem lateral no PC')
@@ -361,6 +364,7 @@ await dorme(650)
   await page.waitForFunction(() => window.__m.Musica.estado().momento === null, null, { timeout: 8000 }).catch(() => {})
   const r = await page.evaluate(async () => {
     const { Som } = window.__m, s = {}
+    Som.usarAmostras(false) // esta parte confere o som FABRICADO POR CÓDIGO: as amostras gravadas do manifesto ficam desligadas
     Som.zerarContagem()
     const um = Som.tocar('golpe', { lado: 'B', forca: 0.7 })
     s.um = um && { fonte: um.fonte, variacao: um.variacao, nome: um.nome }; s.depoisDeUm = Som.estado()
@@ -376,6 +380,7 @@ await dorme(650)
   const repete = r.seq.some((v, i) => i > 0 && v === r.seq[i - 1])
   confere(!repete && new Set(r.seq).size === 3, `a mesma variação nunca toca duas vezes seguidas (40 toques: ${r.seq.slice(0, 14).join('')}…)`)
   await page.waitForFunction(() => window.__m.Som.estado().vozes === 0, null, { timeout: 12000 }).catch(() => {})
+  await page.evaluate(() => window.__m.Som.usarAmostras(true)) // volta ao padrão (amostras ligadas)
   await dorme(120)
   const fim = await page.evaluate(() => window.__m.Som.estado())
   confere(fim.vozes === 0 && fim.nosVivos === 0, `depois do fim nenhum nó de áudio fica vivo (vozes ${fim.vozes}, nós ${fim.nosVivos})`)
@@ -419,10 +424,17 @@ cabecalho('Música ao vivo: troca na virada do compasso, abaixar nos golpes gran
     for (let i = 0; i < 70; i++) { const e = Musica.estado(); s.linha.push([e.compassos - c0, e.camada]); if (e.camada === 'tesouraDescendo' && e.compassos - c0 >= 2) break; await espera(40) }
     // golpe grande: a música abaixa 6 dB e volta
     const duck = Som.cadeia().duck.gain
-    s.antes = duck.value; Som.tocar('critico')
-    let menor = 1, de = null, ate = null
-    for (const t0 = performance.now(); performance.now() - t0 < 750; await espera(12)) { const v = duck.value, t = performance.now() - t0; if (v < menor) menor = v; if (v < 0.6) { de ??= t; ate = t } }
-    s.durante = menor; s.embaixoMs = ate - de; await espera(250); s.depois = duck.value
+    // A leitura é por consulta (a cada ~12 ms). Se a página travar (parada de >60 ms entre duas leituras: o Chrome de teste faz isso
+    // logo depois de a música começar), a consulta perde o fim do abaixamento; então a medida é repetida (até 5 vezes) com a tela livre.
+    s.antes = duck.value; s.tentativas = 0
+    for (; s.tentativas < 5; s.tentativas++) {
+      if (s.tentativas) await espera(1200)
+      Som.tocar('critico')
+      let menor = 1, de = null, ate = null, parada = 0, ult = performance.now()
+      for (const t0 = performance.now(); performance.now() - t0 < 750; await espera(12)) { const n = performance.now(), v = duck.value, t = n - t0; parada = Math.max(parada, n - ult); ult = n; if (v < menor) menor = v; if (v < 0.6) { de ??= t; ate = t } }
+      s.durante = menor; s.embaixoMs = ate - de; s.parada = parada; await espera(250); s.depois = duck.value
+      if (parada < 60) break
+    }
     // Tesoura cortando afina os efeitos meio tom acima
     Musica.momento('tesouraCortando'); await espera(2300); s.afinacao = Som.estado().afinacao; s.cortando = Musica.estado()
     Musica.momento('ultimoFio'); await espera(2700); s.fio = Musica.estado(); s.filtro = Som.cadeia().abafa.frequency.value
@@ -444,7 +456,7 @@ cabecalho('Música ao vivo: troca na virada do compasso, abaixar nos golpes gran
   confere(r.logoDepois.camada === 'luta' && r.logoDepois.pendente === 'tesouraDescendo', 'troca pedida no meio do compasso fica pendente')
   const troca = r.linha.findIndex((x) => x[1] === 'tesouraDescendo'), noMeio = r.linha.some((x, i) => i > 0 && x[1] !== r.linha[i - 1][1] && x[0] === r.linha[i - 1][0])
   confere(troca > 0 && !noMeio, `a camada só troca na virada do compasso (trocou quando o compasso virou: ${JSON.stringify(r.linha[troca])})`)
-  confere(r.antes > 0.98 && Math.abs(r.durante - 0.5) < 0.04 && r.depois > 0.98 && r.embaixoMs > 280 && r.embaixoMs < 600, `no crítico a música abaixa 6 dB por ~400 ms e volta (${r.antes.toFixed(2)} → ${r.durante.toFixed(2)} por ${Math.round(r.embaixoMs)} ms → ${r.depois.toFixed(2)})`)
+  confere(r.antes > 0.98 && Math.abs(r.durante - 0.5) < 0.04 && r.depois > 0.98 && r.embaixoMs > 280 && r.embaixoMs < 600, `no crítico a música abaixa 6 dB por ~400 ms e volta (${r.antes.toFixed(2)} → ${r.durante.toFixed(2)} por ${Math.round(r.embaixoMs)} ms → ${r.depois.toFixed(2)}; ${r.tentativas + 1} medida(s))`)
   confere(r.cortando.camada === 'tesouraCortando' && r.afinacao === 1 && r.afinacao2 === 0, 'Tesoura cortando: música meio tom acima e as notas dos efeitos acompanham')
   confere(r.fio.momento === 'ultimoFio' && r.fio.camada === 'tesouraCortando' && r.filtro < 1500 && r.filtro2 > 15000, `Último Fio abafa a camada que estava tocando (filtro em ${Math.round(r.filtro)} Hz) e depois solta`)
   confere(r.escondida === 'suspended' && r.parado < 0.02 && r.pedidoEscondido === null && r.devolta === 'running', 'aba escondida: o áudio para e nada toca; volta sozinho quando a aba aparece')
@@ -562,6 +574,52 @@ cabecalho('Amostras gravadas: manifesto de teste com um WAV escrito pelo própri
   await page.locator('#fx-golpe').scrollIntoViewIfNeeded()
   const caixa = await page.evaluate(() => { const a = document.querySelector('#fx-golpe').getBoundingClientRect(), b = document.querySelector('#fx-critico').getBoundingClientRect(); return { x: a.left + scrollX - 4, y: a.top + scrollY - 4, width: a.width + 8, height: b.bottom - a.top + 8 } })
   await page.screenshot({ path: path.join(FOTOS, 'som-amostras.png'), fullPage: true, clip: caixa }); console.log('  foto: tests/tela/fotos/som-amostras.png')
+  await page.close()
+}
+
+// ================================================================== 11. cada arquivo gravado do manifesto de verdade
+cabecalho(`Arquivos gravados (public/sons/manifesto.json): ${ARQUIVOS_REAIS} amostras, uma a uma`)
+{
+  page = await ctxPc.newPage(); vigiar(page)
+  await page.goto(base + '/sons.html'); await folhaPronta(page); await instalarMedidor(page)
+  const arqs = await page.evaluate(async () => {
+    const { Som, SR, PRE, fora, medir } = window.__m, saida = []
+    await Som.carregarAmostras()
+    const alvo = Object.fromEntries(Som.tabela().map((t) => [t.nome, t]))
+    for (const [nome, lista] of Object.entries((await (await fetch('/sons/manifesto.json')).json()).efeitos)) {
+      const prontas = Som.amostrasDe(nome)
+      for (let i = 0; i < lista.length; i++) {
+        const a = prontas[i], r = { nome, i, arquivo: lista[i], estado: a?.estado ?? 'sem', duracao: a?.duracao ?? 0, alvoMs: alvo[nome].ms, alvoPico: alvo[nome].pico }
+        if (a?.estado === 'ok') {
+          const { L, R } = await fora(r.duracao, (ctx, q) => Som.fabricar(nome, i, ctx, { quando: q, fonte: 'amostra' }))
+          const m = medir(L, R)
+          Object.assign(r, { picoDb: m.picoDb, ms: m.ms, atrasoMs: (m.inicio - PRE) * 1000, estouros: m.estouros, fimDb: m.fimDb, caudaDb: m.caudaDb, buracoMs: m.buracoMs })
+        }
+        saida.push(r)
+      }
+    }
+    return saida
+  })
+  anota('efeito            arq  arquivo duração ms  alvo ms  pico dBFS  atraso ms  buraco ms')
+  const ruins = []
+  for (const a of arqs) {
+    anota(`${a.nome.padEnd(17)} ${a.i + 1}    ${String(Math.round(a.duracao * 1000)).padStart(6)}      ${String(a.alvoMs).padStart(6)}  ${n1(a.picoDb ?? -180).padStart(9)}  ${n1(a.atrasoMs ?? -1).padStart(9)}  ${n1(a.buracoMs ?? -1).padStart(9)}  ${a.arquivo}`)
+    const r = []
+    if (a.estado !== 'ok') r.push(`não carregou (${a.estado})`)
+    else {
+      if (a.picoDb < -12.05 || a.picoDb > -5.95) r.push(`pico ${n1(a.picoDb)} dBFS fora da faixa −12 a −6`)
+      if (a.picoDb > -3) r.push(`pico acima de −3 dBFS (${n1(a.picoDb)})`)
+      if (a.estouros) r.push(`estourou (${a.estouros} amostras em ±1)`)
+      if (a.ms < a.alvoMs * 0.25 || a.ms > a.alvoMs * 3.5) r.push(`duração ${Math.round(a.ms)} ms longe do alvo ${a.alvoMs} ms (aceito de 25% a 350%: gravação de verdade não é igual à receita)`)
+      if (a.atrasoMs > 20) r.push(`começa com atraso de ${n1(a.atrasoMs)} ms (aceito até 20 ms: 7 ms do limitador + folga)`)
+      if (a.buracoMs > 150) r.push(`buraco de silêncio de ${n1(a.buracoMs)} ms no meio`)
+      if (a.fimDb > -46) r.push(`termina com degrau (${n1(a.fimDb)} dBFS)`)
+    }
+    if (r.length) ruins.push(`${a.arquivo}: ${r.join('; ')}`)
+  }
+  for (const m of ruins) falha(m)
+  confere(arqs.length === ARQUIVOS_REAIS && arqs.every((a) => a.estado === 'ok'), `os ${ARQUIVOS_REAIS} arquivos do manifesto carregam (${arqs.filter((a) => a.estado === 'ok').length} prontos)`)
+  confere(ruins.length === 0, `cada arquivo: pico entre −12 e −6 dBFS (nunca acima de −3), sem estouro, duração perto da tabela, começa em até 20 ms, sem buraco nem degrau no fim`)
   await page.close()
 }
 

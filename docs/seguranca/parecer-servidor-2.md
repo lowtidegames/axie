@@ -52,3 +52,16 @@ Risco que fica para a economia: a luta livre não tem custo; quando Retalhos ou 
 ## Rodada 4 (tarefa 17, commit d394c74, 15/11 04:18 BRT): **GO** — juntado no main em 0bcb4ff
 S3-1 e S3-2 fechados (relógio que volta não dá energia; `::FFFF` e a forma em hexa são aceitos como proxy); `npm test` 170/0.
 Fica 1 baixo (entra na tarefa da ponte): `energia_dia` corrompido acima de ~1e8 no banco dá 500 no estado (`jogo.mjs:221`); limitar o dia mostrado a hoje+1, com o teste "energia_dia absurdo no banco não derruba o estado".
+
+## Rodada 5 (tarefa 20, commit 401deae, 15/11 06:33 BRT): **GO** — juntado no main
+`npm test` 176/0; só entraram tarefa20.test.js e tela/servidor.e2e.mjs, nada apagado.
+| Nº | Gravidade | Estado |
+|---|---|---|
+| Arquivos parados | — | FECHADO: `..`/`%2e%2e`/`%2f`/`\`/NUL/link simbólico/.git/docs/server/.db → 404; nosniff; 0 escritas no banco |
+| Redirecionamento | — | FECHADO: `//evil`, `/\evil`, Host falso → sempre `/public/...` |
+| Casulo | — | FECHADO: só o dono; 25 ao mesmo tempo → 1 escrita; só-leitura/manutenção 503 |
+| energia_dia absurdo | — | FECHADO (dia mostrado ≤ amanhã) |
+| S5-1 intenção | baixa (média se a Aventura der prêmio) | ABERTO: `robos.js:164` mostra mão escondida e a próxima compra do rival (102 em 207); sem semente nem crítico. Fechar antes de a Aventura valer prêmio |
+| S5-2 `/public//modo.json` | baixa | ABERTO: `api.mjs:447` devolve "local" (igual a `?modo=local`) |
+
+Riscos que ficam: sessão guardada no aparelho (qualquer brecha futura de texto do jogador na tela levaria a conta); arquivos parados sem limite de pedidos; as folhas `arte.html`, `pecas.html` e `sons.html` têm script na página e não funcionam atrás da CSP do servidor (funcionam no dev e na página de teste).

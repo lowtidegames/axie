@@ -7,11 +7,11 @@
 // volta à mão no mesmo turno). Teto de REGRAS.maxComandosPorTurno comandos por turno (passar sempre vale).
 //
 // API pública:
-//   criarLuta({ semente, timeA, timeB })         → estado
+//   criarLuta({ semente, timeA, timeB, regras? }) → estado   (regras: SÓ EXPERIMENTO do simulador; ver regrasDeExperimento)
 //   comandosValidos(estado)                       → [comando]  (todos os que a vez atual pode mandar)
 //   aplicar(estado, comando)                      → { ok: true, estado, eventos } | { ok: false, codigo, motivo }
 //   resultado(estado)                             → null | { vencedor, motivo, turno, pct }
-//   reproduzir({ semente, timeA, timeB, comandos }) → { ok, estado, resultado } | { ok: false, indice, codigo, motivo }
+//   reproduzir({ semente, timeA, timeB, comandos, regras? }) → { ok, estado, resultado } | { ok: false, indice, codigo, motivo }
 //   montarBoneco(definicao)                       → ficha do boneco (vida, tipo, cartas...)
 //   visaoDoTime(estado, time)                     → o que a tela daquele time pode ver (sem mão do rival)
 //   textoDaCarta(id) · textoDoBordado(id)         → texto para a tela, com os números da config
@@ -120,8 +120,51 @@ function emitir(e, ev) {
   if (e.registro) e.eventos.push({ turno: e.turno, ...ev })
 }
 
-/** Cria a luta. Lança erro se a semente ou os times forem inválidos. */
-export function criarLuta({ semente, timeA, timeB } = {}) {
+// ------------------------------------------------------------------ regras de experimento (tarefa 33)
+// SÓ para o simulador (tools/experimentos-patrulhas.mjs). Sem `regras`, a luta é a de sempre, bit a bit (o estado nem
+// ganha a chave). Nada do jogo passa isto: servidor e tela chamam criarLuta sem `regras`. Nenhum número do jogo mora aqui.
+//   bonusDeTipo          → troca o BONUS_DE_TIPO da config (dano a mais quando a habilidade bate forte no corpo)
+//   resistencia          → o corpo recebe (1 − x) do dano da habilidade do elemento contra o qual ELE é forte
+//   danoPorTipo          → { tipo: x }: habilidade daquele elemento faz (1 + x) do dano ("terreno" do lugar)
+//   escudoInicialPorTipo → { tipo: n }: monstro com corpo daquele elemento começa com n de escudo
+//   vidaInicial          → { A?: [f×3], B?: [f×3] }: começa com f da vida máxima (cansaço), 0 < f ≤ 1
+const CHAVES_DE_REGRA = ['bonusDeTipo', 'resistencia', 'danoPorTipo', 'escudoInicialPorTipo', 'vidaInicial']
+const numEntre = (x, a, b) => typeof x === 'number' && Number.isFinite(x) && x >= a && x <= b
+
+/** Confere e copia as regras de experimento. undefined/null → null (luta de sempre). Lança erro se inválidas. */
+export function regrasDeExperimento(regras) {
+  if (regras === undefined || regras === null) return null
+  if (typeof regras !== 'object' || Array.isArray(regras)) throw new Error('Regras de experimento inválidas')
+  for (const k of Object.keys(regras)) if (!CHAVES_DE_REGRA.includes(k)) throw new Error(`Regra de experimento desconhecida: ${k}`)
+  const out = {}
+  if (regras.bonusDeTipo !== undefined) { if (!numEntre(regras.bonusDeTipo, 0, 3)) throw new Error('bonusDeTipo fora de 0..3'); out.bonusDeTipo = regras.bonusDeTipo }
+  if (regras.resistencia !== undefined) { if (!numEntre(regras.resistencia, 0, 0.9)) throw new Error('resistencia fora de 0..0,9'); out.resistencia = regras.resistencia }
+  for (const [k, a, b] of [['danoPorTipo', -0.9, 3], ['escudoInicialPorTipo', 0, REGRAS.escudoMaximo]]) {
+    if (regras[k] === undefined) continue
+    const m = regras[k]
+    if (!m || typeof m !== 'object') throw new Error(`${k} inválido`)
+    out[k] = {}
+    for (const [t, v] of Object.entries(m)) {
+      if (!TIPOS.includes(t)) throw new Error(`${k}: tipo desconhecido ${t}`)
+      if (!numEntre(v, a, b)) throw new Error(`${k}.${t} fora de ${a}..${b}`)
+      out[k][t] = v
+    }
+  }
+  if (regras.vidaInicial !== undefined) {
+    const m = regras.vidaInicial
+    if (!m || typeof m !== 'object') throw new Error('vidaInicial inválida')
+    out.vidaInicial = {}
+    for (const [t, fs] of Object.entries(m)) {
+      if (t !== 'A' && t !== 'B') throw new Error('vidaInicial: time inválido ' + t)
+      if (!Array.isArray(fs) || fs.length !== 3 || !fs.every((f) => numEntre(f, 0.01, 1))) throw new Error('vidaInicial: 3 fatores entre 0,01 e 1')
+      out.vidaInicial[t] = fs.slice()
+    }
+  }
+  return out
+}
+
+/** Cria a luta. Lança erro se a semente ou os times forem inválidos. `regras`: só experimento (ver acima). */
+export function criarLuta({ semente, timeA, timeB, regras } = {}) {
   if (!(typeof semente === 'string' && semente.length > 0 && semente.length <= 200) && !Number.isSafeInteger(semente)) {
     throw new Error('Semente inválida (texto de 1 a 200 letras ou número inteiro)')
   }
@@ -141,6 +184,8 @@ export function criarLuta({ semente, timeA, timeB } = {}) {
     eventos: [],
     comandos: [],
   }
+  const rx = regrasDeExperimento(regras)
+  if (rx) e.regras = rx
   const listas = {}
   for (const [t, defs] of [['A', timeA], ['B', timeB]]) {
     if (!Array.isArray(defs) || defs.length !== 3) throw new Error(`O time ${t} precisa de 3 bonecos`)
@@ -154,6 +199,12 @@ export function criarLuta({ semente, timeA, timeB } = {}) {
         rapidez: f.rapidez, firmeza: f.firmeza, bordado: f.bordado, partes: f.partes,
         estado: 'vivo', usouFio: false, fioAte: 0, cartasNoFio: 0, escudo: 0, veu: false, fioSoltoAte: 0,
         reserva: f.bordado === 'botao_reserva' ? BORDADOS.botao_reserva.valor : 0,
+      }
+      if (rx) {
+        const fv = rx.vidaInicial?.[t]?.[i]
+        if (fv !== undefined) e.bonecos[id].vida = Math.max(1, Math.round(f.vidaMax * fv))
+        const esc = rx.escudoInicialPorTipo?.[f.tipo]
+        if (esc) e.bonecos[id].escudo = esc
       }
       time.lugares.push(id)
       for (const carta of f.cartas) {
@@ -362,7 +413,13 @@ function golpear(e, fonte, alvo, bruto, { refletido = false, carta = null, criti
 
 function calcularDano(e, usuario, alvo, base, def) {
   let m = 1
-  if (bateForte(def.tipo, alvo.tipo)) m *= 1 + BONUS_DE_TIPO
+  const rx = e.regras
+  if (bateForte(def.tipo, alvo.tipo)) m *= 1 + (rx?.bonusDeTipo ?? BONUS_DE_TIPO)
+  if (rx) {
+    if (rx.resistencia && bateForte(alvo.tipo, def.tipo)) m *= 1 - rx.resistencia
+    const terreno = rx.danoPorTipo?.[def.tipo]
+    if (terreno) m *= 1 + terreno
+  }
   if (alvo.fioSoltoAte >= e.turno) m *= 1 + REGRAS.fioSoltoBonus
   if (usuario.bordado === 'agulha_afiada' && def.parte === 'bracos') m *= 1 + BORDADOS.agulha_afiada.valor
   if (usuario.bordado === 'rancor' && usuario.estado === 'fio') m *= 1 + BORDADOS.rancor.valor
@@ -632,8 +689,8 @@ export function visaoDoTime(e, t) {
 }
 
 /** Refaz a luta inteira a partir da semente e dos comandos. */
-export function reproduzir({ semente, timeA, timeB, comandos = [] }) {
-  const e = criarLuta({ semente, timeA, timeB })
+export function reproduzir({ semente, timeA, timeB, comandos = [], regras }) {
+  const e = criarLuta({ semente, timeA, timeB, regras })
   for (let i = 0; i < comandos.length; i++) {
     const r = aplicarNoLugar(e, comandos[i])
     if (!r.ok) return { ok: false, indice: i, codigo: r.codigo, motivo: r.motivo, estado: e }

@@ -11,8 +11,9 @@
 //   escolher(estado, plano)             → um comando válido para a vez atual
 //   jogarTurnoEscolhedor(estado, plano) → joga o turno inteiro no próprio estado
 //   cartasDoMonstro(estado, id)         → as 3 cartas do monstro (cabeça, braços, pernas)
-//   lutaAutomatica({ semente, timeA, timeB, ordensA, ordensB }) → { resultado, eventos, comandos }
-//     determinística; os comandos refazem a mesma luta com reproduzir() do motor.
+//   lutaAutomatica({ semente, timeA, timeB, ordensA, ordensB, regras? }) → { resultado, eventos, comandos }
+//     determinística; os comandos refazem a mesma luta com reproduzir() do motor (com as mesmas `regras`).
+//     `regras`: só experimento do simulador (shared/batalha.js, regrasDeExperimento); sem ela, a luta de sempre.
 import { aplicarNoLugar, comandosValidos, criarLuta } from './batalha.js'
 import { CARTAS, REGRAS } from './config.js'
 
@@ -193,8 +194,8 @@ const MAX_PASSOS = (REGRAS.turnoFinal + 2) * (REGRAS.maxComandosPorTurno + 2)
  * Devolve { resultado, eventos, comandos }; reproduzir({ semente, timeA, timeB, comandos }) dá o mesmo resultado.
  * `registro: false` corta os eventos (simulador em massa); os comandos vêm sempre.
  */
-export function lutaAutomatica({ semente, timeA, timeB, ordensA = {}, ordensB = {}, registro = true }) {
-  const e = criarLuta({ semente, timeA, timeB })
+export function lutaAutomatica({ semente, timeA, timeB, ordensA = {}, ordensB = {}, registro = true, regras }) {
+  const e = criarLuta({ semente, timeA, timeB, regras })
   e.registro = registro
   const planos = { A: planoCompleto(e, 'A', ordensA), B: planoCompleto(e, 'B', ordensB) }
   const comandos = []

@@ -1,7 +1,10 @@
 // Frayz — motor de batalha 3×3 (sem tela, sem banco, sem rede).
-// Puro e determinístico: semente + lista de comandos → mesma luta, sempre. Todo sorteio sai da semente,
-// em ordem fixa (embaralhar A, embaralhar B, quem começa, depois críticos/reembaralhos/desempates na ordem
-// em que acontecem). O estado é JSON puro. O servidor nunca confia na tela: todo comando é conferido.
+// Puro e determinístico: semente + lista de comandos → mesma luta, sempre. Todo sorteio sai da semente
+// (shared/rng.js: SHA-256 em modo contador), em ordem fixa: números das cartas de A, números das cartas de B,
+// embaralhar A, embaralhar B, quem começa, depois críticos/reembaralhos/desempates na ordem em que acontecem.
+// O estado é JSON puro. O servidor nunca confia na tela: todo comando é conferido.
+// Carta jogada vai para a MESA do time e só passa ao descarte no fim do turno de quem jogou (nenhuma carta
+// volta à mão no mesmo turno). Teto de REGRAS.maxComandosPorTurno comandos por turno (passar sempre vale).
 //
 // API pública:
 //   criarLuta({ semente, timeA, timeB })         → estado
@@ -15,7 +18,7 @@
 // Comandos: { tipo: 'jogar', time, carta, alvo? } · { tipo: 'trocar', time, a, b }
 //           { tipo: 'fiapo', time, carta } · { tipo: 'passar', time }
 import { BONUS_DE_TIPO, BONECOS_PRONTOS, BORDADOS, CARTAS, PARTES, RARIDADES, REGRAS, TIPOS } from './config.js'
-import { embaralhar, hashSemente, passo } from './rng.js'
+import { embaralhar, estadoDaSemente, inteiroEm, passo } from './rng.js'
 
 export const VERSAO_DO_MOTOR = 1
 const SLOTS = ['tronco', 'cabeca', 'bracos', 'pernas', 'bordado']
@@ -106,6 +109,13 @@ function sortear(e) {
   return r.valor
 }
 
+/** Inteiro em [0, n), sem viés. */
+function sortearInteiro(e, n) {
+  const r = inteiroEm(e.rng, n)
+  e.rng = r.s
+  return r.valor
+}
+
 function emitir(e, ev) {
   if (e.registro) e.eventos.push({ turno: e.turno, ...ev })
 }
@@ -118,8 +128,9 @@ export function criarLuta({ semente, timeA, timeB } = {}) {
   const e = {
     versao: VERSAO_DO_MOTOR,
     semente,
-    rng: hashSemente(semente),
+    rng: estadoDaSemente(semente),
     turno: 0,
+    comandosNoTurno: 0,
     vez: null,
     comecou: null,
     fim: null,
@@ -130,10 +141,11 @@ export function criarLuta({ semente, timeA, timeB } = {}) {
     eventos: [],
     comandos: [],
   }
+  const listas = {}
   for (const [t, defs] of [['A', timeA], ['B', timeB]]) {
     if (!Array.isArray(defs) || defs.length !== 3) throw new Error(`O time ${t} precisa de 3 bonecos`)
-    const time = { linha: 0, mao: [], baralho: [], descarte: [], fiapos: [], lugares: [], jogou: false }
-    let n = 0
+    const time = { linha: 0, mao: [], baralho: [], mesa: [], descarte: [], fiapos: [], lugares: [], jogou: false }
+    const lista = (listas[t] = [])
     defs.forEach((def, i) => {
       const f = montarBoneco(def)
       const id = `${t}${i}`
@@ -145,17 +157,26 @@ export function criarLuta({ semente, timeA, timeB } = {}) {
       }
       time.lugares.push(id)
       for (const carta of f.cartas) {
-        for (let c = 0; c < REGRAS.copiasPorCarta; c++) {
-          const cid = `${t}c${n++}`
-          e.cartas[cid] = { carta, dono: id }
-          time.baralho.push(cid)
-        }
+        for (let c = 0; c < REGRAS.copiasPorCarta; c++) lista.push({ carta, dono: id })
       }
     })
     e.times[t] = time
   }
-  e.times.A.baralho = embaralhar(e.times.A.baralho, () => sortear(e))
-  e.times.B.baralho = embaralhar(e.times.B.baralho, () => sortear(e))
+  // o número de cada carta sai de uma permutação sorteada: o id não diz qual carta é (achado A11).
+  // As cartas entram no estado na ordem do número, para a ordem das chaves também não dizer nada.
+  for (const t of ['A', 'B']) {
+    const lista = listas[t]
+    const numeros = embaralhar(lista.map((_, i) => i), (n) => sortearInteiro(e, n))
+    const porNumero = new Array(lista.length)
+    lista.forEach((c, i) => { porNumero[numeros[i]] = c })
+    porNumero.forEach((c, k) => {
+      const cid = `${t}c${k}`
+      e.cartas[cid] = { carta: c.carta, dono: c.dono }
+      e.times[t].baralho.push(cid)
+    })
+  }
+  e.times.A.baralho = embaralhar(e.times.A.baralho, (n) => sortearInteiro(e, n))
+  e.times.B.baralho = embaralhar(e.times.B.baralho, (n) => sortearInteiro(e, n))
   e.comecou = sortear(e) < 0.5 ? 'A' : 'B'
   emitir(e, { t: 'inicio', comecou: e.comecou })
   comprar(e, 'A', REGRAS.maoInicial)
@@ -185,7 +206,7 @@ function comprar(e, t, qtd) {
     if (time.mao.length >= REGRAS.maoMaxima) break
     if (time.baralho.length === 0) {
       if (time.descarte.length === 0) break
-      time.baralho = embaralhar(time.descarte, () => sortear(e))
+      time.baralho = embaralhar(time.descarte, (n) => sortearInteiro(e, n))
       time.descarte = []
       emitir(e, { t: 'reembaralha', time: t })
     }
@@ -205,6 +226,7 @@ function somarLinha(e, t, n) {
 function iniciarTurno(e, t) {
   e.turno += 1
   e.vez = t
+  e.comandosNoTurno = 0
   emitir(e, { t: 'turno', time: t })
   if (e.turno >= REGRAS.tesouraInicio) {
     for (const tt of ['A', 'B']) {
@@ -235,6 +257,9 @@ function iniciarTurno(e, t) {
 
 function fimDoTurno(e) {
   const t = e.vez
+  // a mesa (cartas jogadas neste turno) passa ao descarte só agora
+  const tt = e.times[t]
+  if (tt.mesa.length) { tt.descarte.push(...tt.mesa); tt.mesa = [] }
   for (const id of e.times[t].lugares) {
     const b = de(e, id)
     if (b.estado === 'fio' && b.fioAte <= e.turno) cair(e, b, 'fio')
@@ -448,8 +473,11 @@ export function validar(e, cmd) {
   if (cmd.time !== 'A' && cmd.time !== 'B') return recusa('COMANDO_INVALIDO', 'Time inválido.')
   if (cmd.time !== e.vez) return recusa('FORA_DO_TURNO', 'Não é a sua vez.')
   const t = cmd.time, time = e.times[t]
+  if (cmd.tipo === 'passar') return { ok: true, normal: { tipo: 'passar', time: t } }
+  if ((e.comandosNoTurno ?? 0) >= REGRAS.maxComandosPorTurno) {
+    return recusa('TETO_DE_COMANDOS', `Limite de ${REGRAS.maxComandosPorTurno} jogadas no turno: passe a vez.`)
+  }
   switch (cmd.tipo) {
-    case 'passar': return { ok: true, normal: { tipo: 'passar', time: t } }
     case 'trocar': {
       const a = typeof cmd.a === 'string' ? e.bonecos[cmd.a] : null, b = typeof cmd.b === 'string' ? e.bonecos[cmd.b] : null
       if (!a || !b || a.time !== t || b.time !== t || a.id === b.id) return recusa('TROCA_INVALIDA', 'Escolha dois bonecos diferentes do seu time.')
@@ -483,6 +511,7 @@ export function validar(e, cmd) {
 function executar(e, c) {
   const t = c.time, time = e.times[t]
   e.comandos.push(c)
+  if (c.tipo !== 'passar') e.comandosNoTurno = (e.comandosNoTurno ?? 0) + 1
   switch (c.tipo) {
     case 'passar': emitir(e, { t: 'passou', time: t }); fimDoTurno(e); return
     case 'trocar': {
@@ -505,7 +534,7 @@ function executar(e, c) {
       if (usuario.estado === 'fio') usuario.cartasNoFio++
       somarLinha(e, t, -def.linha)
       time.mao.splice(time.mao.indexOf(c.carta), 1)
-      time.descarte.push(c.carta)
+      time.mesa.push(c.carta) // só vai ao descarte no fim do turno
       emitir(e, { t: 'carta', time: t, carta: c.carta, id: def.id, de: usuario.id, alvo: c.alvo })
       executarCarta(e, usuario, c.alvo, def)
       checarFim(e, 'golpe')
@@ -528,7 +557,7 @@ export function clonar(e, { simular = false } = {}) {
   const times = {}
   for (const k in e.times) {
     const t = e.times[k]
-    times[k] = { ...t, mao: t.mao.slice(), baralho: t.baralho.slice(), descarte: t.descarte.slice(), fiapos: t.fiapos.slice(), lugares: t.lugares.slice() }
+    times[k] = { ...t, mao: t.mao.slice(), baralho: t.baralho.slice(), mesa: t.mesa.slice(), descarte: t.descarte.slice(), fiapos: t.fiapos.slice(), lugares: t.lugares.slice() }
   }
   return {
     ...e, bonecos, times, fim: e.fim ? { ...e.fim, pct: { ...e.fim.pct } } : null,
@@ -555,6 +584,7 @@ export function aplicar(e, cmd) {
 export function comandosValidos(e) {
   if (!e || e.fim) return []
   const t = e.vez, time = e.times[t], lista = []
+  if ((e.comandosNoTurno ?? 0) >= REGRAS.maxComandosPorTurno) return [{ tipo: 'passar', time: t }]
   const vistas = new Set()
   for (const cid of time.mao) {
     const inst = e.cartas[cid], usuario = de(e, inst.dono)
@@ -582,7 +612,8 @@ export function resultado(e) {
   return e && e.fim ? { ...e.fim, pct: { ...e.fim.pct } } : null
 }
 
-/** O que a tela de um time pode ver: sem a mão do rival, sem a ordem dos baralhos e sem o estado do sorteio. */
+/** O que a tela de um time pode ver: sem a mão do rival, sem a ordem dos baralhos e sem o estado do sorteio.
+ *  A mesa dos dois lados aparece inteira (carta jogada é pública). */
 export function visaoDoTime(e, t) {
   const v = clonar(e)
   delete v.rng
@@ -593,7 +624,7 @@ export function visaoDoTime(e, t) {
     time.baralho = time.baralho.length
     if (k !== t) time.mao = time.mao.length
   }
-  const visiveis = new Set([...e.times[t].mao, ...e.times.A.descarte, ...e.times.B.descarte, ...e.times.A.fiapos, ...e.times.B.fiapos])
+  const visiveis = new Set([...e.times[t].mao, ...e.times.A.mesa, ...e.times.B.mesa, ...e.times.A.descarte, ...e.times.B.descarte, ...e.times.A.fiapos, ...e.times.B.fiapos])
   for (const ev of e.eventos) if (ev.carta && (ev.t === 'carta' || ev.t === 'fiapo')) visiveis.add(ev.carta)
   v.cartas = Object.fromEntries(Object.entries(e.cartas).map(([cid, c]) => [cid, visiveis.has(cid) ? { ...c } : { dono: c.dono }]))
   v.eventos = v.eventos.map((ev) => (ev.t === 'compra' && ev.time !== t ? { turno: ev.turno, t: 'compra', time: ev.time } : ev))

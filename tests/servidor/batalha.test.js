@@ -7,7 +7,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { aplicar, bateForte, comandosValidos, criarLuta, montarBoneco, reproduzir, resultado, textoDaCarta, textoDoBordado, visaoDoTime } from '../../shared/batalha.js'
 import { BONECOS_PRONTOS, BORDADOS, CARTAS, PARTES, RARIDADES, REGRAS, TIPOS } from '../../shared/config.js'
-import { criarRng, hashSemente, passo } from '../../shared/rng.js'
+import { criarRng, estadoDaSemente, passo } from '../../shared/rng.js'
 import { jogarTurno, planejarTurno } from '../../shared/robos.js'
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -71,9 +71,11 @@ describe('rng com semente', () => {
     assert.notDeepEqual(sa, sc)
     for (const v of sa) assert.ok(v >= 0 && v < 1)
   })
-  test('estado é um inteiro de 32 bits e o passo é puro', () => {
-    const s = hashSemente('frayz')
-    assert.ok(Number.isInteger(s) && s >= 0 && s < 2 ** 32)
+  // regra mudou (parecer de segurança nº 1, A1): o estado deixou de ser um inteiro de 32 bits; agora é chave de 256 bits + contador
+  test('estado é JSON com chave de 256 bits (não cabe em 32 bits) e o passo é puro', () => {
+    const s = estadoDaSemente('frayz')
+    assert.match(s.chave, /^[0-9a-f]{64}$/)
+    assert.deepEqual(JSON.parse(JSON.stringify(s)), s)
     assert.deepEqual(passo(s), passo(s))
   })
 })
@@ -462,5 +464,129 @@ describe('robôs', () => {
     const c = planejarTurno(e, 'ganancioso')[0]
     assert.equal(c.carta, forte)
     assert.notEqual(c.carta, fraca)
+  })
+})
+
+// ---------------------------------------------------------------- tarefa 12: parecer de segurança nº 1 (A2 e A11)
+
+describe('A2 — turno sem fim (mesa + teto de comandos)', () => {
+  /** Joga de graça (fiapo ou carta de 0 Linha) enquanto puder, como o ataque laco-qual.mjs. Conta Ponto Cruz no turno. */
+  function lacoDoPontoCruz(e) {
+    const t = e.vez, turno = e.turno
+    let pontoCruz = 0
+    for (let n = 0; n < 300 && !e.fim && e.vez === t && e.turno === turno; n++) {
+      const v = comandosValidos(e)
+      const g = v.find((c) => c.tipo === 'fiapo' || (c.tipo === 'jogar' && CARTAS[e.cartas[c.carta].carta].linha === 0))
+      if (!g) break
+      if (g.tipo === 'jogar' && e.cartas[g.carta].carta === 'ponto_cruz') pontoCruz++
+      e = ok(e, g)
+    }
+    return pontoCruz
+  }
+
+  test('só o boneco do Ponto Cruz de pé e baralho vazio: no máximo 2 Ponto Cruz no turno (não volta à mão)', () => {
+    let e = vezDe(criarLuta({ semente: 'laco', timeA: ['cascudo', 'desfiado', 'mudo'], timeB: ['mordedor', 'embolado', 'cascudo'] }), 'A')
+    const A = e.times.A
+    const dono = Object.values(e.bonecos).find((b) => b.time === 'A' && b.pronto === 'cascudo').id
+    for (const id of A.lugares) if (id !== dono) Object.assign(e.bonecos[id], { estado: 'caido', vida: 0 })
+    const minhas = Object.keys(e.cartas).filter((c) => c[0] === 'A' && e.cartas[c].dono === dono)
+    const cruz = minhas.filter((c) => e.cartas[c].carta === 'ponto_cruz')
+    assert.equal(cruz.length, 2)
+    A.mao = cruz.slice()
+    A.baralho = []
+    A.descarte = minhas.filter((c) => !cruz.includes(c))
+    A.fiapos = Object.keys(e.cartas).filter((c) => c[0] === 'A' && e.cartas[c].dono !== dono)
+    A.linha = 0
+    const n = lacoDoPontoCruz(e)
+    assert.ok(n <= 2, `Ponto Cruz jogado ${n} vezes no mesmo turno`)
+  })
+
+  test('carta jogada fica na mesa do time até o fim do turno; depois vai ao descarte', () => {
+    let e = vezDe(criarLuta({ semente: 'mesa', timeA: ['rasgao', 'mudo', 'brigao'], timeB: ['assombrado', 'mordedor', 'desfiado'] }), 'A')
+    e.times.A.linha = 7
+    const cid = naMao(e, 'A', 'botaozada')
+    e = ok(e, { tipo: 'jogar', time: 'A', carta: cid })
+    assert.deepEqual(e.times.A.mesa, [cid])
+    assert.ok(!e.times.A.descarte.includes(cid))
+    for (const lado of ['A', 'B']) {
+      const v = visaoDoTime(e, lado)
+      assert.deepEqual(v.times.A.mesa, [cid], `a mesa do A aparece para ${lado}`)
+      assert.equal(v.times.A.mesa.length, 1)
+      assert.equal(v.cartas[cid].carta, 'botaozada', 'carta na mesa é pública')
+      assert.deepEqual(v.times.B.mesa, [])
+    }
+    e = passar(e)
+    assert.deepEqual(e.times.A.mesa, [])
+    assert.ok(e.times.A.descarte.includes(cid))
+  })
+
+  test('teto de comandos por turno: o comando 41 é recusado (TETO_DE_COMANDOS); passar sempre é aceito', () => {
+    assert.equal(REGRAS.maxComandosPorTurno, 40)
+    let e = vezDe(criarLuta({ semente: 'teto', timeA: ['rasgao', 'mudo', 'brigao'], timeB: ['assombrado', 'mordedor', 'desfiado'] }), 'A')
+    for (let i = 0; i < REGRAS.maxComandosPorTurno; i++) {
+      e.times.A.linha = 7 // teste: Linha à vontade para isolar o teto
+      e = ok(e, { tipo: 'trocar', time: 'A', a: 'A0', b: 'A1' })
+    }
+    e.times.A.linha = 7
+    recusa(e, { tipo: 'trocar', time: 'A', a: 'A0', b: 'A1' }, 'TETO_DE_COMANDOS')
+    assert.deepEqual(comandosValidos(e), [{ tipo: 'passar', time: 'A' }])
+    e = passar(e)
+    e = passar(e)
+    e.times.A.linha = 7
+    e = ok(e, { tipo: 'trocar', time: 'A', a: 'A0', b: 'A1' }) // turno novo: conta de novo
+  })
+
+  test('2.000 lutas robô × robô: nenhum turno passa de 40 comandos e ninguém passa de 7 de Linha', () => {
+    const pares = [['ganancioso', 'ganancioso'], ['planejador', 'ganancioso'], ['planejador', 'planejador']]
+    for (let i = 0; i < 2000; i++) {
+      const [timeA, timeB] = timesSorteados(5000 + i)
+      const [ra, rb] = pares[i % 3]
+      const e = criarLuta({ semente: `teto:${i}`, timeA, timeB })
+      for (let g = 0; g < 100 && !e.fim; g++) {
+        jogarTurno(e, e.vez === 'A' ? ra : rb)
+        for (const t of ['A', 'B']) assert.ok(e.times[t].linha <= 7, `luta ${i}: Linha ${e.times[t].linha}`)
+      }
+      assert.ok(e.fim, `luta ${i} não terminou`)
+      let n = 0
+      for (const c of e.comandos) {
+        if (c.tipo === 'passar') { n = 0; continue }
+        n++
+        assert.ok(n <= REGRAS.maxComandosPorTurno, `luta ${i}: turno com ${n} comandos`)
+      }
+    }
+  })
+})
+
+describe('A11 — o número da carta não diz qual carta é', () => {
+  test('em 200 lutas, deduzir a carta escondida do rival pelo número acerta só o acaso (~1/3)', () => {
+    // a dedução do ataque carta-pelo-numero.mjs: n → carta (n % 6) / 2 do boneco dono
+    let escondidas = 0, acertos = 0
+    for (let i = 0; i < 200; i++) {
+      const [timeA, timeB] = timesSorteados(9000 + i)
+      const e = criarLuta({ semente: `num:${i}`, timeA, timeB })
+      const v = visaoDoTime(e, 'A')
+      for (const [cid, c] of Object.entries(v.cartas)) {
+        if (!cid.startsWith('B') || c.carta) continue
+        escondidas++
+        const n = Number(cid.slice(2)), b = v.bonecos[c.dono]
+        const deduzida = montarBoneco({ partes: b.partes }).cartas[Math.floor((n % 6) / 2)]
+        if (deduzida === e.cartas[cid].carta) acertos++
+      }
+    }
+    assert.ok(escondidas > 2000)
+    const taxa = acertos / escondidas
+    assert.ok(taxa < 0.40, `acertou ${acertos}/${escondidas} (${(100 * taxa).toFixed(1)}%)`)
+  })
+  test('a ordem das cartas no estado segue o número (c0..c17), não a ordem dos bonecos', () => {
+    const e = criarLuta({ semente: 'ordem', timeA: ['rasgao', 'mudo', 'brigao'], timeB: ['assombrado', 'mordedor', 'desfiado'] })
+    for (const t of ['A', 'B']) {
+      const ids = Object.keys(e.cartas).filter((c) => c[0] === t)
+      assert.deepEqual(ids, Array.from({ length: 18 }, (_, k) => `${t}c${k}`))
+    }
+    const mesmaOrdem = (s) => {
+      const x = criarLuta({ semente: s, timeA: ['rasgao', 'mudo', 'brigao'], timeB: ['assombrado', 'mordedor', 'desfiado'] })
+      return Object.keys(x.cartas).filter((c) => c[0] === 'B').map((c) => x.cartas[c].carta).join()
+    }
+    assert.notEqual(mesmaOrdem('p1'), mesmaOrdem('p2'), 'a carta de cada número muda de luta para luta')
   })
 })

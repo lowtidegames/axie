@@ -288,7 +288,7 @@ div.fz-carta { cursor: default; }
 .fz-alfinete[data-tipo="veu"] .fz-alfinete__cabeca { fill: var(--escudo); }
 .fz-alfinete[data-tipo="ultimo-fio"] .fz-alfinete__cabeca { fill: var(--chama); }
 .fz-alfinetes { position: relative; display: inline-flex; }
-.fz-alfinetes__botao { display: inline-flex; align-items: flex-end; justify-content: center; gap: 2px; min-width: var(--toque); min-height: var(--toque); padding: 8px 6px 2px; margin: -18px -6px 0; border: 0; border-radius: var(--canto-painel); background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.fz-alfinetes__botao { display: inline-flex; align-items: flex-end; justify-content: center; gap: 6px; min-width: var(--toque); min-height: var(--toque); padding: 8px 6px 2px; margin: -18px -6px 0; border: 0; border-radius: var(--canto-painel); background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .fz-alfinetes__botao:focus-visible { outline: 3px solid var(--ouro-de-vela); outline-offset: -2px; }
 .fz-alfinetes__botao .fz-alfinete:nth-child(odd) { transform: rotate(-9deg); } .fz-alfinetes__botao .fz-alfinete:nth-child(even) { transform: rotate(7deg); }
 .fz-alfinetes__legenda { position: absolute; z-index: 40; left: 50%; bottom: calc(100% + 4px); width: max-content; max-width: 236px; transform: translateX(calc(-50% + var(--desvio, 0px))); padding: var(--e2) 10px;

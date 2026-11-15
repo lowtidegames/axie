@@ -49,7 +49,7 @@ export function todasAsCartas() {
 }
 
 /** Uma luta jogada pelo robô do motor até certo ponto (ou até o fim), com semente fixa. */
-export function lutaDeExemplo({ semente = 'pecas-180', ate = 13, timeA = TIME_DE_EXEMPLO, timeB = RIVAL_DE_EXEMPLO } = {}) {
+export function lutaDeExemplo({ semente = 'pecas-210', ate = 9, timeA = TIME_DE_EXEMPLO, timeB = RIVAL_DE_EXEMPLO } = {}) {
   let e = P.novaLuta({ semente, timeA, timeB })
   const resumo = { maior: null, golpeFinal: null, viradas: 0, lider: 0 }
   const colher = (r) => {

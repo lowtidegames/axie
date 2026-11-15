@@ -6,6 +6,9 @@
 // título e Renome subindo; cartão PNG; Pause, 4×, Skip, Reduced motion sem tremida nem flash (e com ele desligado: tremida
 // ≤ 6 px, flash ≤ 3/s); som só depois do 1º toque e mudo; cena do ovo até o fim com o filhote na conta; nada cortado nem
 // sobreposto; toque ≥ 44 px; zero erro de console, zero 404, só pede arquivos de public/ e shared/. Fotos em tests/tela/fotos/piloto/.
+// Tarefa 34 (regras provisórias do piloto, decisão do dono 15/11 14:04): aviso "Pilot rules"; golpe Strong = +75% e resistido
+// = −40%, conferidos nos eventos do motor; "Resists N" na folha; cansaço depois de 5 lutas no dia (selo, aviso da patrulha, vida
+// inicial 75%, "Tired fights: N" na tira); "New day" zera o cansaço e devolve as Rations.
 // Rode pela trava:  node tools/trava-robos.mjs rodar "timeout 700 node tests/tela/piloto.e2e.mjs"
 import { createRequire } from 'node:module'
 import { createServer } from 'node:http'
@@ -99,6 +102,43 @@ async function abrir(ctx, erros, ruins, q = '') {
   return page
 }
 const P = (page) => page.evaluate(() => window.__piloto.patrulha())
+/**
+ * Confere nos EVENTOS do motor as lutas da patrulha atual: cada golpe de carta sem outro modificador (sem crítico, alvo não
+ * Exposed, sem bordado de dano, carta sem bônus) tem o dano bruto = base × mult × (1 − armadura), com mult = 1,75 no Strong,
+ * 0,60 no resistido e 1 no resto. Devolve as contagens e quantos golpes Strong NÃO bateriam com o +25% de sempre.
+ */
+const conferirMultiplicadores = (page) => page.evaluate(async () => {
+  const { CARTAS } = await import(new URL('../../shared/config.js', location.href).href)
+  const { bateForte } = await import(new URL('../../shared/batalha.js', location.href).href)
+  const out = { forte: 0, resistido: 0, neutro: 0, erros: [], forteNaoBateCom25: 0, regras: null }
+  for (let i = 0; i < 5; i++) {
+    const luta = window.__piloto.lutaDaPatrulha(i)
+    if (!luta) continue
+    out.regras = luta.regras
+    luta.passos.forEach((p, k) => {
+      const antes = k === 0 ? luta.inicial : luta.passos[k - 1].estado
+      for (const ev of p.eventos) {
+        if (ev.t !== 'dano' || !ev.carta || ev.refletido || ev.critico || !ev.de) continue
+        const c = CARTAS[ev.carta], usuario = antes.bonecos[ev.de], alvo = antes.bonecos[ev.alvo]
+        const danos = c.efeitos.filter((x) => x.tipo === 'dano')
+        if (danos.length !== 1 || danos[0].bonusFioSolto || danos[0].bonusSeMenosVida || danos[0].bonusTras) continue
+        if (c.efeitos.some((x) => x.tipo === 'fioSolto') || alvo.fioSoltoAte >= antes.turno) continue
+        if (['agulha_afiada', 'rancor'].includes(usuario.bordado)) continue
+        const forte = bateForte(c.tipo, alvo.tipo), resistido = bateForte(alvo.tipo, c.tipo)
+        let m = 1
+        if (forte) m *= 1 + 0.75
+        if (resistido) m *= 1 - 0.4
+        m *= 1 - alvo.firmeza / 100
+        const esperado = Math.round(danos[0].valor * m)
+        if (ev.bruto !== esperado) out.erros.push(`${ev.carta} → ${ev.alvo}: ${ev.bruto} (esperado ${esperado})`)
+        if (forte) { out.forte++; if (ev.bruto !== Math.round(danos[0].valor * 1.25 * (1 - alvo.firmeza / 100))) out.forteNaoBateCom25++ }
+        else if (resistido) out.resistido++
+        else out.neutro++
+      }
+    })
+  }
+  return out
+})
 const C = (page) => page.evaluate(() => window.__piloto.conta())
 const nomesDoTrio = (page) => page.locator('#tSlots .t-ficha > b').allTextContents()
 const bordaDe = (page, pos) => page.evaluate((p) => { const s = document.querySelector(`#tSlots .t-slot[data-pos="${p}"]`); return s.querySelector('.f-edge').getAttribute('aria-label') + ' | ' + [...s.querySelectorAll('.f-pip')].map((x) => (x.classList.contains('on') ? 1 : 0)).join('') }, pos)
@@ -141,6 +181,10 @@ async function rodar(fmt) {
   const corpo = await page.locator('body').innerText()
   confere(/The Lantern Road/.test(cabecalho) && !/placeholder/i.test(cabecalho), 'cabeçalho com o nome provisório e sem "placeholder art"')
   confere(!/King's Road|Keeper|Hearthfield/.test(corpo) && /The Lantern Road/.test(await page.title()), 'nenhum nome antigo na tela (King\'s Road, Keeper, Hearthfield)')
+  const avisoRegras = await page.locator('#avisoRegras').textContent()
+  confere((await page.isVisible('#avisoRegras')) && avisoRegras === 'Pilot rules — battle numbers here are being tested.', 'aviso discreto e honesto no topo: ' + avisoRegras)
+  confere(!/\b(best|yield|earn|profit)\b/i.test(avisoRegras), 'o aviso das regras não fala em "best", "yield" nem "earn"')
+  confere(await page.isVisible('#btNovoDia') && (await page.locator('#btNovoDia').textContent()).trim() === 'New day', 'botão "New day" na Road (para testar o cansaço)')
   const q1 = await page.evaluate(() => document.querySelector('#mCanvas').toDataURL())
   await page.waitForTimeout(700)
   const q2 = await page.evaluate(() => document.querySelector('#mCanvas').toDataURL())
@@ -167,10 +211,15 @@ async function rodar(fmt) {
   confere(trio0.join(',') === 'Ramblehorn,Wispurr,Snapcoal', 'trio do jogador: ' + trio0.join(', '))
   confere((await page.locator('#tBancoLista .t-mon').count()) === 6, 'os 6 monstros da conta do piloto à escolha')
   const bordas0 = await page.locator('#tSlots .f-edge').evaluateAll((l) => l.map((x) => x.getAttribute('aria-label')))
-  confere(bordas0.length === 3 && bordas0.every((t) => /^Strong vs [0-3], Weak to [0-3]$/.test(t)), 'cada monstro com "Strong vs N · Weak to N": ' + bordas0.join(' | '))
-  confere((await page.locator('#tSlots .f-pip').count()) === 18, 'ícones de elemento da guarda em cada linha de vantagem (3 × 2 × 3)')
+  // regra mudou (tarefa 34): entrou a linha "Resists N" (de quantos da guarda ele recebe menos dano), então 3 linhas e 27 ícones
+  confere(bordas0.length === 3 && bordas0.every((t) => /^Strong vs [0-3], Weak to [0-3], Resists [0-3]$/.test(t)), 'cada monstro com "Strong vs N · Weak to N · Resists N": ' + bordas0.join(' | '))
+  confere((await page.locator('#tSlots .f-pip').count()) === 27, 'ícones de elemento da guarda em cada linha de vantagem (3 × 3 × 3)')
+  confere((await page.locator('#tSlots .f-e--resiste').count()) === 3 && /Resists \d/.test(await page.locator('#fBorda').textContent()), 'linha "Resists" em cada monstro e no total da folha')
+  const cans0 = await page.locator('#tSlots .cansaco').allTextContents()
+  confere(cans0.length === 3 && cans0.every((t) => t === 'Fights today 0/5'), 'cada monstro do trio com "Fights today 0/5": ' + cans0.join(' | '))
+  confere(/No one in this trio gets tired in this patrol\./.test(await page.locator('#fCansaco').textContent()), 'aviso de cansaço da patrulha: ninguém cansa ainda')
   const folha = await page.locator('#time').innerText()
-  confere(/Type edge only, not a win chance\./.test(folha), 'texto fixo "Type edge only, not a win chance."')
+  confere(/Type edge only, not a win chance\. Pilot rules: Strong hits \+75%, resisted hits −40%\./.test(folha), 'texto fixo "Type edge only, not a win chance. Pilot rules: Strong hits +75%, resisted hits −40%."')
   confere(/5 fights, 5 Rations/.test(folha) && /The result of each fight is decided when it starts\./.test(folha), 'avisos: quanto a ordem gasta e quando a luta é decidida')
   confere(/Send patrol\s*\(uses 5 Rations\)/.test(folha), 'botão "Send patrol (uses 5 Rations)"')
   confere(!/\b(best|yield|earn|profit)\b/i.test(folha), 'folha sem "best", "yield", "earn" nem promessa de ganho')
@@ -295,6 +344,15 @@ async function rodar(fmt) {
   const estados = await p2.locator('.r-carimbo').evaluateAll((l) => l.map((x) => x.dataset.estado))
   confere(pat1.lutas.length === 5 && estados.join('') === pat1.lutas.map((l) => (l.venceu ? 'v' : 'd')).join(''), `5 lutas feitas = 1 assistida + 4 carimbos (${estados.join(' ')})`)
   confere((await C(p2)).racoes === 15 && (await p2.locator('#cRacoesNum').textContent()) === '15', 'Send patrol gastou 5 Rations (15/20)')
+  // as regras do piloto estão em uso: os eventos do motor mostram Strong = +75% e resistido = −40%
+  const mult = await conferirMultiplicadores(p2)
+  confere(JSON.stringify(mult.regras) === JSON.stringify({ bonusDeTipo: 0.75, resistencia: 0.4 }), 'a luta usa as regras do piloto (bônus 0,75, resistência 0,40): ' + JSON.stringify(mult.regras))
+  confere(mult.forte >= 1 && mult.resistido >= 1 && mult.neutro >= 1 && mult.erros.length === 0, `golpes conferidos nos eventos: Strong ×1,75 (${mult.forte}), resistido ×0,60 (${mult.resistido}), normal ×1 (${mult.neutro})` + (mult.erros.length ? ' → ' + mult.erros.slice(0, 3).join(' | ') : ''))
+  confere(mult.forteNaoBateCom25 >= 1, `o Strong não é mais o +25% de sempre (${mult.forteNaoBateCom25} de ${mult.forte} golpes diferem)`)
+  confere(pat1.lutas.every((l) => l.cansados.length === 0) && pat1.lutas.map((l) => l.lutasHoje.join('')).join(',') === '000,111,222,333,444', '1ª patrulha do dia: ninguém cansado; lutas do dia contadas antes de cada luta: ' + pat1.lutas.map((l) => l.lutasHoje.join('')).join(','))
+  const hoje1 = (await C(p2)).hoje
+  confere(['brigao', 'assombrado', 'mordedor'].every((u) => hoje1[u] === 5) && hoje1.mudo === 0, 'cada monstro do trio fez 5 lutas hoje: ' + JSON.stringify(hoje1))
+  confere(!(await p2.locator('#rNova .r-cansadas').count()), 'sem luta cansada, a tira não mostra a linha "Tired fights"')
   await p2.waitForTimeout(2300) // os números rolam
   const sonsC = await p2.evaluate(() => window.__piloto.som().porNome)
   confere((sonsC.carimboV ?? 0) + (sonsC.carimboD ?? 0) === 5 && (sonsC.tira ?? 0) === 1 && (sonsC.renome ?? 0) === 1, 'som de carimbo em cada luta, da tira final e do Renome: ' + JSON.stringify(sonsC))
@@ -328,6 +386,30 @@ async function rodar(fmt) {
   const p3 = await abrir(ctx, erros, ruins, '?cena=time&semente=e2e-a')
   const hist2 = await p3.locator('#fHist b').textContent()
   confere(hist2 === `History: ${v1} W – ${5 - v1} L`, 'placar histórico real do trio no lugar: ' + hist2)
+  // cansaço à vista: 5 lutas no dia → "Tired (75% HP)" no trio e na lista; a folha diz que os 3 lutam cansados
+  const cans1 = await p3.locator('#tSlots .cansaco').allTextContents()
+  confere(cans1.length === 3 && cans1.every((t) => t === 'Tired (75% HP)'), 'depois de 5 lutas no dia: selo "Tired (75% HP)" nos 3 do trio: ' + cans1.join(' | '))
+  confere((await p3.locator('#tBancoLista .t-mon.cansado .f-zz').count()) === 3, 'na lista de monstros, os 3 cansados levam a marca "Tired"')
+  const avisoCans = await p3.locator('#fCansaco').textContent()
+  confere(/^3 of 3 will be tired during this patrol: .*Ramblehorn is already tired \(75% HP\)/.test(avisoCans), 'a folha avisa quem luta cansado nesta patrulha: ' + avisoCans)
+  // trocar 1 cansado por um descansado com 0 lutas: a folha conta 2 de 3 (e o descansado não cansa em 5 lutas)
+  await clique(p3, '#tBancoLista .t-mon[data-uid="mudo"]')
+  await clique(p3, '#tSlots .t-slot[data-pos="0"] .t-mon')
+  confere(/^2 of 3 will be tired during this patrol:/.test(await p3.locator('#fCansaco').textContent()) && (await p3.locator('#tSlots .t-slot[data-pos="0"] .cansaco').textContent()) === 'Fights today 0/5', 'com Lanternewt (0 lutas) no Front: "2 of 3" e "Fights today 0/5"')
+  await clique(p3, '#tBancoLista .t-mon[data-uid="brigao"]')
+  await clique(p3, '#tSlots .t-slot[data-pos="0"] .t-mon')
+  await conferirLayout(p3, 'Patrol Orders (cansados)')
+  if (pc) { await p3.waitForTimeout(600); await foto(p3, 'orders-tired-pc') } // espera o cartão terminar de virar
+  // "New day": zera só o cansaço e devolve as Rations (placar, Renome e tiras ficam)
+  const antesDia = await C(p3)
+  await clique(p3, '#fVoltar')
+  await clique(p3, '#btNovoDia')
+  const depoisDia = await C(p3)
+  confere(depoisDia.racoes === 20 && Object.values(depoisDia.hoje).every((n) => n === 0) && depoisDia.dia === antesDia.dia + 1 && (await p3.locator('#cRacoesNum').textContent()) === '20', `"New day" zera o cansaço e devolve as Rations (${antesDia.racoes} → ${depoisDia.racoes}, dia ${antesDia.dia} → ${depoisDia.dia})`)
+  confere(depoisDia.renome === antesDia.renome && depoisDia.tiras.length === antesDia.tiras.length, '"New day" não mexe no Renome nem nas tiras')
+  await clique(p3, '#mLista .m-item[data-i="1"]')
+  await p3.waitForSelector('#time:not([hidden])')
+  confere((await p3.locator('#tSlots .cansaco').allTextContents()).every((t) => t === 'Fights today 0/5'), 'depois do "New day": "Fights today 0/5" de novo')
   await clique(p3, '#btLutar')
   await p3.waitForFunction(() => window.__piloto.batalha()?.passo >= 0, null, { timeout: 20000 })
   await clique(p3, '#bPular')
@@ -340,16 +422,23 @@ async function rodar(fmt) {
   await p3.waitForFunction(() => window.__piloto.patrulha().fase === 'fim', null, { timeout: 20000 })
   const pat2 = await P(p3)
   confere(JSON.stringify(pat2.lutas) === JSON.stringify(pat1.lutas), 'mesma semente = as mesmas 5 lutas (patrulha inteira igual)')
-  confere((await C(p3)).racoes === 10, 'a 2ª patrulha gastou mais 5 Rations (10/20)')
+  confere((await C(p3)).racoes === 15, 'a 2ª patrulha (depois do "New day") gastou 5 Rations (15/20)')
   // 3ª tentativa: só troca a formação (Front ↔ Back) e manda de novo; a anterior fica ao lado
   await clique(p3, '#rOutro')
   confere(await p3.isVisible('#time'), '"Change the formation" volta à folha de ordens')
   await clique(p3, '#tSlots .t-slot[data-pos="0"] .t-mon')
   await clique(p3, '#tSlots .t-slot[data-pos="2"] .t-mon')
   confere((await p3.locator('#fHist b').textContent()) === `History: ${2 * v1} W – ${2 * (5 - v1)} L`, 'o histórico soma as duas patrulhas do trio neste lugar')
+  confere(/^3 of 3 will be tired during this patrol:/.test(await p3.locator('#fCansaco').textContent()), 'o trio já fez 5 lutas neste dia: a folha avisa que os 3 lutam cansados')
   await patrulhaRapida(p3)
   await p3.waitForTimeout(1700)
   const pat3 = await P(p3)
+  // a patrulha cansada: o motor começa cada luta com 75% da vida do trio (a guarda inteira) e a tira conta as lutas cansadas
+  confere(pat3.lutas.every((l) => l.cansados.length === 3 && l.lutasHoje.every((n) => n >= 5)), 'patrulha depois de 5 lutas no dia: as 5 lutas com o trio cansado')
+  const vidas = await p3.evaluate(() => { const l = window.__piloto.lutaDaPatrulha(0); return Object.values(l.inicial.bonecos).map((b) => ({ t: b.time, v: b.vida, m: b.vidaMax })) })
+  confere(vidas.filter((b) => b.t === 'A').every((b) => b.v === Math.max(1, Math.round(b.m * 0.75))) && vidas.filter((b) => b.t === 'B').every((b) => b.v === b.m), 'vida inicial do trio cansado = 75% da máxima; a guarda começa inteira: ' + vidas.map((b) => `${b.t} ${b.v}/${b.m}`).join(' '))
+  const linhaCans = (await p3.locator('#rNova .r-cansadas').textContent()).replace(/\s+/g, ' ').trim()
+  confere(pat3.tira.cansadas === 5 && /^Tired fights: 5/.test(linhaCans) && !(await p3.locator('#rAntes .r-cansadas').count()), 'a tira mostra "Tired fights: 5" (a anterior não tinha): ' + linhaCans)
   const lado = await p3.evaluate(() => { const a = document.querySelector('#rNova').getBoundingClientRect(), b = document.querySelector('#rAntes').getBoundingClientRect(); return { ax: a.left, ar: a.right, ay: a.top, ab: a.bottom, bx: b.left, by: b.top, vis: !document.querySelector('#rAntes').hidden } })
   confere(lado.vis && (pc ? lado.bx >= lado.ar - 1 && Math.abs(lado.ay - lado.by) < 2 : lado.by >= lado.ab - 1), `a tentativa anterior fica ${pc ? 'ao lado' : 'logo abaixo'} da nova`)
   confere((await p3.getAttribute('#rAntes', 'aria-label')) === linha1 && /Previous patrol/i.test(await p3.locator('#rAntes').innerText()), 'a tira anterior guarda os números da tentativa anterior: ' + linha1)
@@ -360,8 +449,9 @@ async function rodar(fmt) {
   await conferirLayout(p3, 'Patrol report (comparação)')
   await p3.evaluate((noPc) => { if (noPc) window.scrollTo(0, 0); else document.querySelector('#rNova').scrollIntoView({ block: 'start' }) }, pc)
   await foto(p3, 'result-compare-' + sufixo)
+  if (!pc) await foto(p3, 'result-tired-celular')
   const renome3 = (await C(p3)).renome
-  confere(renome3 > renome1 && (await C(p3)).racoes === 5, `Renome só cresce (${renome1} → ${renome3}); Rations 5/20`)
+  confere(renome3 > renome1 && (await C(p3)).racoes === 10, `Renome só cresce (${renome1} → ${renome3}); Rations 10/20`)
 
   // ---- 6. ficha do monstro com história, título e Renome; cartão PNG
   await clique(p3, '#abaMonstros')
@@ -396,7 +486,14 @@ async function rodar(fmt) {
   // ---- 7. Rations acabam: a ordem não sai; "Reset pilot" devolve tudo
   await clique(p3, '#abaMapa'); await clique(p3, '#mLista .m-item[data-i="1"]')
   await patrulhaRapida(p3)
-  confere((await C(p3)).racoes === 0, 'a 4ª patrulha zera o saco (0/20)')
+  confere((await C(p3)).racoes === 5, 'a 4ª patrulha deixa 5/20')
+  await clique(p3, '#rDeNovo')
+  await clique(p3, '#bPular')
+  await p3.waitForSelector('#bFim:not([hidden])', { timeout: 20000 })
+  await clique(p3, '#bSeguir'); await clique(p3, '#rPular')
+  await p3.waitForFunction(() => window.__piloto.patrulha().fase === 'fim', null, { timeout: 20000 })
+  await p3.waitForSelector('#rTiras:not([hidden])')
+  confere((await C(p3)).racoes === 0, 'a 5ª patrulha zera o saco (0/20)')
   confere(await p3.isDisabled('#rDeNovo'), 'sem Rations, "Send again" fica desligado')
   await clique(p3, '#rOutro')
   await clique(p3, '#btLutar')
@@ -407,6 +504,7 @@ async function rodar(fmt) {
   await clique(p3, '#btReset'); await clique(p3, '#btReset')
   const zerado = await C(p3)
   confere(zerado.racoes === 20 && zerado.renome === 0 && zerado.tiras.length === 0 && (await p3.locator('#cRacoesNum').textContent()) === '20', '"Reset pilot" (2 toques) devolve 20 Rations e zera o piloto')
+  confere(Object.values(zerado.hoje).every((n) => n === 0), '"Reset pilot" zera também as lutas do dia (cansaço)')
   await p3.close()
 
   // ---- 8. Reduced motion: sem tremida e sem flash
@@ -429,7 +527,11 @@ async function rodar(fmt) {
 
   // ---- 9. PC: fotos de Sundown e de vitória (semente com vitória e luta longa)
   if (pc) {
-    const p5 = await abrir(ctx, erros, ruins, '?cena=time&semente=h')
+    // regra mudou (tarefa 34: +75%, resistência e cansaço): a semente "h" deixou de dar vitória; "v9" é uma luta longa com
+    // vitória do trio CANSADO (a patrulha da parte 8 já fez 5 lutas neste dia), com Focus
+    const p5 = await abrir(ctx, erros, ruins, '?cena=time&semente=v9')
+    await clique(p5, '.t-tat[data-t="focus"]')
+    confere((await p5.locator('#tSlots .cansaco.cansado').count()) === 3, 'na foto do Sundown o trio luta cansado (5 lutas no dia)')
     await clique(p5, '#btLutar')
     await clique(p5, '[data-vel="4"]')
     await p5.waitForFunction(() => window.__piloto.batalha().turno >= 9, null, { timeout: 120000 })
@@ -440,8 +542,22 @@ async function rodar(fmt) {
     await clique(p5, '#bPular')
     await p5.waitForSelector('#bFim:not([hidden])', { timeout: 20000 })
     if ((await p5.locator('#bFimTit').textContent()) === 'Victory!') await foto(p5, 'victory-pc')
-    else falha('a semente "h" devia dar vitória para a foto victory-pc')
+    else falha('a semente "v9" devia dar vitória para a foto victory-pc')
+    confere((await p5.locator('.b-tired').count()) >= 3, 'na luta, o selo "Tired" aparece em quem começou cansado')
     await p5.close()
+    // golpe resistido: "Resisted" pequeno e cinza (o Strong continua grande)
+    const p7 = await abrir(ctx, erros, ruins, '?cena=time&semente=r24')
+    await clique(p7, '.t-tat[data-t="rush"]')
+    await clique(p7, '#btLutar')
+    await clique(p7, '[data-vel="1"]')
+    await p7.waitForSelector('.b-pop--resiste small.resistido', { timeout: 60000 })
+    await foto(p7, 'battle-resisted-pc')
+    const est = await p7.evaluate(() => { const s = document.querySelector('.b-pop--resiste small.resistido'), b = document.querySelector('.b-pop--resiste b'); const cs = getComputedStyle(s); return { txt: s.textContent, fs: parseFloat(cs.fontSize), num: parseFloat(getComputedStyle(b).fontSize), cor: cs.backgroundColor } })
+    const cinza = (() => { const m = est.cor.match(/\d+/g).map(Number); return Math.max(m[0], m[1], m[2]) - Math.min(m[0], m[1], m[2]) <= 24 })()
+    confere(est.txt === 'Resisted' && est.fs <= 12 && est.fs < est.num && cinza, `golpe resistido mostra "Resisted" pequeno e cinza (${est.fs}px, ${est.cor}; número ${est.num}px)`)
+    await clique(p7, '#bPular')
+    await p7.waitForSelector('#bFim:not([hidden])', { timeout: 20000 })
+    await p7.close()
   }
 
   // ---- 10. Nest: chances antes, revelação em 5 passos (toque e auto), nome, segredos; o filhote entra na conta e vai na patrulha

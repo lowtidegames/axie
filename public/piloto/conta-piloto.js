@@ -1,9 +1,11 @@
 // Piloto — A CONTA DO PILOTO: o que o jogador tem (monstros), os lugares abertos com a guarda de cada um, as Rations,
-// e o que fica guardado no aparelho (placar, títulos, Renome, filhotes, as duas últimas tiras).
+// e o que fica guardado no aparelho (placar, títulos, Renome, filhotes, as duas últimas tiras, e as lutas de cada monstro no
+// "dia" do piloto, para o cansaço de regras-piloto.js). O dia do piloto só vira no botão "New day" (ou no "Reset pilot").
 // É O ÚNICO LUGAR para trocar a lista de monstros da conta ou a guarda de um lugar.
 // Nenhum número de economia novo: Rations e gasto por luta saem de shared/config.js (ECONOMIA_DO_BETA).
 // Renome e títulos são só enfeite (decisão do dono 15/11 10:44): nunca dão força. Os limites dos títulos são do piloto.
 import { BONECOS_PRONTOS, ECONOMIA_DO_BETA, PARTES } from '../../shared/config.js'
+import { lugar as lugarDoMotor } from '../../shared/lugares.js'
 import { MONSTROS } from './tema.js'
 
 // ------------------------------------------------------------------ TROQUE AQUI
@@ -11,15 +13,13 @@ import { MONSTROS } from './tema.js'
 export const CONTA_PILOTO = ['brigao', 'mordedor', 'desfiado', 'embolado', 'assombrado', 'mudo']
 /** O trio que já vem montado na folha (Front, Middle, Back). */
 export const TRIO_INICIAL = ['brigao', 'assombrado', 'mordedor']
-/** Os 5 lugares da estrada; `aberto` = dá para mandar patrulha no piloto. Guarda em ordem Front, Middle, Back, com a
- *  tática dela — cópia de shared/lugares.js (guardas fixas do motor); se lá mudar, copie aqui. */
-export const LUGARES = [
-  { n: 1, aberto: false, guarda: ['embolado', 'mudo', 'mordedor'], tatica: 'rush' },
-  { n: 2, aberto: true, guarda: ['assombrado', 'brigao', 'cascudo'], tatica: 'guard' },
-  { n: 3, aberto: false, guarda: ['desfiado', 'rasgao', 'embolado'], tatica: 'guard' },
-  { n: 4, aberto: true, guarda: ['assombrado', 'cascudo', 'pisoteador'], tatica: 'rush' },
-  { n: 5, aberto: false, guarda: ['brigao', 'desfiado', 'pisoteador'], tatica: 'focus' },
-]
+/** Os lugares abertos no piloto (dá para mandar patrulha). Os 5 lugares, a guarda (Front, Middle, Back), a tática e a ordem
+ *  das habilidades dela vêm do motor (shared/lugares.js, guardas fixas). */
+const ABERTOS = [2, 4]
+export const LUGARES = [1, 2, 3, 4, 5].map((n) => {
+  const l = lugarDoMotor('lugar' + n)
+  return { n, aberto: ABERTOS.includes(n), guarda: l.guarda.slice(), tatica: l.ordens.tatica, ordem: l.ordens.ordem.map((o) => o.slice()) }
+})
 /** Uma ordem de patrulha no piloto: quantas lutas seguidas, e a sequência de vitórias que a barra mostra. */
 export const PATRULHA = { lutas: 5, sequencia: 3 }
 /** Feitos que dão título (só enfeite). */
@@ -36,7 +36,7 @@ export const defDoPronto = (id) => ({ pronto: id, nome: MONSTROS[id].nome, parte
 const genesDoPronto = (id) => Object.fromEntries(SLOTS.map((s) => [s, { face: BONECOS_PRONTOS[id].partes[s], forro: BONECOS_PRONTOS[id].partes[s] }]))
 
 const CHAVE = 'piloto_conta_v1'
-const vazio = () => ({ v: 1, racoes: RACOES_MAX, renome: 0, voltas: {}, filhotes: [], hist: {}, trios: {}, tiras: [], trio: TRIO_INICIAL.slice(), lugar: LUGARES.find((l) => l.aberto).n, nFilhote: 0 })
+const vazio = () => ({ v: 1, racoes: RACOES_MAX, renome: 0, voltas: {}, filhotes: [], hist: {}, trios: {}, tiras: [], trio: TRIO_INICIAL.slice(), lugar: LUGARES.find((l) => l.aberto).n, nFilhote: 0, dia: 1, hoje: {} })
 const copia = (x) => JSON.parse(JSON.stringify(x))
 
 /** A conta, guardada no aparelho. `armazem` = localStorage (ou qualquer objeto com getItem/setItem/removeItem). */
@@ -76,6 +76,11 @@ export function criarConta(armazem) {
     // ---- Rations
     get racoes() { return d.racoes },
     gastarRacao() { if (d.racoes < RACAO_POR_LUTA) return false; d.racoes -= RACAO_POR_LUTA; salvar(); return true },
+    // ---- o dia do piloto (cansaço): lutas de cada monstro hoje
+    get dia() { return d.dia },
+    lutasHoje: (uid) => d.hoje[uid] ?? 0,
+    /** "New day": zera só o cansaço (as lutas do dia) e devolve as Rations. Placar, títulos e Renome ficam. */
+    novoDia() { d.hoje = {}; d.racoes = RACOES_MAX; d.dia++; salvar() },
     // ---- placar e história
     get renome() { return d.renome },
     placarDoTrio: (n, uids) => ({ ...(d.trios[chaveTrio(n, uids)] ?? { v: 0, d: 0 }) }),
@@ -86,6 +91,7 @@ export function criarConta(armazem) {
       if (resumo.venceu) p.v++; else p.d++
       const novos = []
       uids.forEach((uid, i) => {
+        d.hoje[uid] = (d.hoje[uid] ?? 0) + 1
         const h = hist(uid), m = resumo.porMonstro['A' + i]
         h.lutas++; if (resumo.venceu) h.v++; else h.d++
         h.forte += m.forte

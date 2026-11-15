@@ -4,6 +4,7 @@ import { montarBoneco } from '../../shared/batalha.js'
 import { PARTES } from '../../shared/config.js'
 import * as Arte from './arte.js'
 import { FEITOS, LUGARES } from './conta-piloto.js'
+import { CANSACO, PCT_CANSADO, cansado } from './regras-piloto.js'
 import { AVISOS, ELEMENTOS, NOMES, RARIDADE, SLOT_EN, feitoDoTitulo, nomeDaParte, nomeDoLugar, nomeDoTitulo } from './tema.js'
 
 const $ = (s, r = document) => r.querySelector(s)
@@ -33,8 +34,10 @@ export function criarFicha({ conta, tocar, faiscas, ganchos }) {
     aberto = uid
     const def = conta.def(m), f = montarBoneco(def), t = tipoDe(def), h = conta.historia(uid), rar = rarDe(def.partes.tronco)
     const lugares = LUGARES.filter((l) => l.aberto).map((l) => { const p = h.lugares[l.n] ?? { v: 0, d: 0 }; return `<li><span>${nomeDoLugar(l.n)}</span><b>${p.v} W – ${p.d} L</b></li>` }).join('')
+    const hoje = conta.lutasHoje(uid)
+    const selo = cansado(hoje) ? `<small class="cansaco cansado">Tired (${PCT_CANSADO}% HP)</small>` : `<small class="cansaco">Fights today ${hoje}/${CANSACO.lutasPorDia}</small>`
     corpo.innerHTML = `<div class="g-cab" style="--c:${ELEMENTOS[t].cor}"><div class="g-retrato"><img class="px" src="${Arte.url(Arte.monstro(def))}" alt=""></div>
-        <div><h2 id="gNome">${m.nome}</h2><p class="g-linha">${chip(t)}<span><span class="gema" style="--g:${RARIDADE[rar].cor}"></span>${RARIDADE[rar].nome}</span></p>
+        <div><h2 id="gNome">${m.nome}</h2><p class="g-linha">${chip(t)}<span><span class="gema" style="--g:${RARIDADE[rar].cor}"></span>${RARIDADE[rar].nome}</span>${selo}</p>
         <div class="stats"><span>HP ${f.vidaMax}</span><span>Armor ${f.firmeza}%</span><span>Crit ${f.rapidez}%</span></div>
         <p class="g-partes">${['cabeca', 'bracos', 'pernas'].map((s) => `${SLOT_EN[s]}: ${nomeDaParte(idDe(def.partes[s]))}`).join(' · ')}</p>
         ${temPng(def) ? '' : '<small class="g-prov">placeholder art</small>'}</div></div>

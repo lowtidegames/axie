@@ -618,3 +618,32 @@ body.menos .b-palco::after { display: none; }
   .g-retrato { width: 76px; height: 76px; } .g-retrato img { width: 64px; height: 64px; }
   .g-cab h2 { font-size: 22px; }
 }
+
+/* ---- tarefa 34: regras provisórias do piloto (aviso, cansaço, Resists, Resisted) */
+.aviso-regras { margin: 0; padding: 3px 12px; text-align: center; font-size: 12px; font-weight: 800; color: var(--creme); background: #3A2A4E; border-bottom: 2px solid #1A1224; opacity: 0.92; }
+.m-dia { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.m-dia .bt-discreto { margin-top: 0; }
+.cansaco { display: inline-block; font-size: 11px; font-weight: 800; line-height: 1.2; padding: 1px 6px; border-radius: 6px; background: var(--creme2); color: var(--plum3); border: 1px solid var(--plum3); white-space: nowrap; }
+.cansaco.cansado { background: #E3D7F2; color: var(--plum); border: 2px solid var(--plum); }
+.f-e--resiste { background: #DCE6F0; }
+.f-cansaco { margin: 0 0 6px; font-size: 13px; color: var(--plum3); }
+.f-cansaco b { color: var(--plum); }
+.f-cansaco.alerta { background: #EFE6FA; border: 2px dashed var(--plum3); border-radius: 8px; padding: 4px 8px; }
+.t-mon--banco .f-zz { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); font-style: normal; font-weight: 800; font-size: 10px; background: #E3D7F2; color: var(--plum); border: 1px solid var(--plum); border-radius: 6px; padding: 0 4px; }
+.t-mon--banco.cansado img:first-child { opacity: 0.8; }
+.b-pop small.resistido { background: #6E6877; color: #ECE8F0; font-size: 11px; }
+.b-pop--resiste b { font-size: 18px; color: #DAD5E0; }
+.b-tired { font-size: 10px; font-weight: 800; background: #E3D7F2; border: 2px solid var(--plum); border-radius: 6px; padding: 0 4px; }
+.r-cansadas { margin: 2px 0; font-size: 14px; font-weight: 800; grid-column: 1 / -1; }
+.r-cansadas b { font-family: var(--titulo); font-weight: 400; font-size: 20px; color: #7357B8; margin-left: 3px; }
+.r-cansadas small { font-size: 12px; color: var(--plum3); font-weight: 700; }
+.g-linha .cansaco { margin-left: 6px; }
+@media (max-width: 699px) {
+  /* celular: o selo do cansaço fica embaixo do nome, ao lado do retrato; as linhas de vantagem embaixo de tudo */
+  .f-campo { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .t-slot .t-ficha > b { font-size: 13px; min-width: 0; }
+  .t-slot, .t-rival-mon { height: 166px; }
+  .t-slot { grid-template-columns: 72px minmax(0, 1fr); grid-template-rows: auto auto auto; }
+  .t-slot .t-ficha > .cansaco { grid-column: 1 / -1; grid-row: 2; justify-self: center; }
+  .t-slot .f-edge { grid-row: 3; }
+}

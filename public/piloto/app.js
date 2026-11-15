@@ -1,7 +1,8 @@
 // Piloto — a prova do IDLE POR PATRULHAS (modo local, sem servidor). Telas: Road (casa), Patrol Orders, Battle, Patrol report,
 // Monsters e Nest. Página separada do jogo antigo; só caminhos relativos.
-// A tela não calcula regra: cada luta sai inteira do motor + escolhedor (tatica.js) na hora em que começa; os ícones
-// "Strong vs / Weak to" e a tira final saem de patrulha.js (bateForte do motor); o ovo sai de costurar().
+// A tela não calcula regra: cada luta sai inteira do motor + escolhedor do motor (shared/tatica.js, lutaAutomatica) com as
+// regras provisórias do piloto (regras-piloto.js: Strong +75%, resistência 40%, cansaço depois de 5 lutas no dia) na hora em
+// que começa; os ícones "Strong vs / Weak to / Resists" e a tira final saem de patrulha.js (bateForte do motor); o ovo sai de costurar().
 import { montarBoneco } from '../../shared/batalha.js'
 import { CARTAS, PARTES } from '../../shared/config.js'
 import * as Arte from './arte.js'
@@ -11,8 +12,9 @@ import { LUGARES, PATRULHA, RACAO_POR_LUTA, RACOES_MAX, criarConta, defDoPronto,
 import { criarFicha } from './ficha-tela.js'
 import { criarOvo } from './ovo-tela.js'
 import { resumirPatrulha, rodarLuta, vantagens } from './patrulha.js'
+import { CANSACO, PCT_CANSADO, cansaDepoisDa, cansado } from './regras-piloto.js'
 import { criarSom } from './som-piloto.js'
-import { TATICAS, ordemPadrao } from './tatica.js'
+import { TATICAS, ordemPadrao } from '../../shared/tatica.js'
 import {
   AVISOS, ELEMENTOS, NOMES, POSICAO_EN, RODA, TATICAS_EN, apanhaDe, nomeDaHabilidade, nomeDoLugar, nomeDoTitulo, textoDaHabilidade, SLOT_DA_HABILIDADE,
 } from './tema.js'
@@ -37,6 +39,7 @@ $('#mTitulo').textContent = NOMES.jogo
 $('#oTitulo').textContent = NOMES.ninho
 $('#fGuarda').textContent = NOMES.guarda
 $('#fBordaAviso').textContent = AVISOS.borda
+$('#avisoRegras').textContent = AVISOS.regras
 $('#oDecide').textContent = AVISOS.ovo
 
 // ------------------------------------------------------------------ Reduced motion + som (nada toca antes do 1º toque)
@@ -66,6 +69,13 @@ const icone = (t, cls = '') => `<img class="px ${cls}" src="${Arte.url(Arte.icon
 const chipEl = (t) => `<span class="chip" style="--c:${ELEMENTOS[t].cor}"><img class="px" src="${Arte.url(Arte.iconeElemento(t))}" alt="">${ELEMENTOS[t].nome}</span>`
 const imgMonstro = (def, cls = '') => `<img class="px ${cls}" src="${Arte.url(Arte.monstro(def))}" alt="">`
 const defDe = (uid) => conta.def(conta.porUid(uid))
+/** Selo do cansaço: "Tired (75% HP)" com 5 ou mais lutas no dia; senão "Fights today 3/5". */
+const seloCansaco = (uid, cls = '') => {
+  const n = conta.lutasHoje(uid)
+  return cansado(n)
+    ? `<small class="cansaco cansado ${cls}" title="${CANSACO.lutasPorDia}+ fights today: starts each fight at ${PCT_CANSADO}% HP">Tired (${PCT_CANSADO}% HP)</small>`
+    : `<small class="cansaco ${cls}">Fights today ${n}/${CANSACO.lutasPorDia}</small>`
+}
 const guardaDe = (n) => lugarPorN(n).guarda.map(defDoPronto)
 
 /** Número que rola até o valor (com Reduced motion troca na hora). */
@@ -242,6 +252,16 @@ $('#btReset').addEventListener('click', () => {
   b.textContent = 'Reset pilot'
   mostrar('mapa')
 })
+// "New day": só para o dono testar o cansaço; zera as lutas do dia e devolve as Rations (placar, títulos e Renome ficam)
+$('#btNovoDia').addEventListener('click', () => {
+  conta.novoDia()
+  const a = $('#mAviso')
+  a.textContent = `Day ${conta.dia}: Rations back to ${conta.racoes}, nobody is tired.`
+  a.hidden = false
+  clearTimeout(irPara.t); irPara.t = setTimeout(() => { a.hidden = true }, 2600)
+  atualizarTopo(true)
+  T.mudou()
+})
 
 // ================================================================== PATROL ORDERS
 const time = { tatica: TATICAS.includes(ler('piloto_tatica', 'rush')) ? ler('piloto_tatica', 'rush') : 'rush', ordens: {}, sel: null }
@@ -273,7 +293,7 @@ function desenharOrdens({ animar = true } = {}) {
   trio.forEach((uid, pos) => {
     const m = conta.porUid(uid), def = conta.def(m), t = tipoDe(def), v = bordas[pos]
     const pips = (lista) => lista.map((on, j) => icone(tipoDe(guarda[j]), 'f-pip' + (on ? ' on' : ''))).join('')
-    const chave = `${uid}|${n}|${v.forte.map(Number).join('')}|${v.fraco.map(Number).join('')}`
+    const chave = `${uid}|${n}|${v.forte.map(Number).join('')}|${v.fraco.map(Number).join('')}|${v.resiste.map(Number).join('')}`
     const virou = animar && ultimaBorda[pos] !== undefined && ultimaBorda[pos] !== chave
     ultimaBorda[pos] = chave
     if (virou) viradas.push(pos)
@@ -282,21 +302,31 @@ function desenharOrdens({ animar = true } = {}) {
     el.dataset.pos = pos
     el.innerHTML = `<span class="pos">${POSICAO_EN[pos]}</span>
       <button type="button" class="t-mon${time.sel === uid ? ' sel' : ''}" data-uid="${uid}" data-som-proprio="1" aria-label="${m.nome} in ${POSICAO_EN[pos]}: tap, then tap another to swap">${imgMonstro(def)}</button>
-      <div class="t-ficha"><b>${m.nome}</b>${chipEl(t)}
-        <div class="f-edge" aria-label="Strong vs ${v.nForte}, Weak to ${v.nFraco}">
+      <div class="t-ficha"><b>${m.nome}</b>${chipEl(t)}${seloCansaco(uid)}
+        <div class="f-edge" aria-label="Strong vs ${v.nForte}, Weak to ${v.nFraco}, Resists ${v.nResiste}">
           <span class="f-e f-e--forte"><em>Strong vs</em><b>${v.nForte}</b><span class="f-pips">${pips(v.forte)}</span></span>
           <span class="f-e f-e--fraco"><em>Weak to</em><b>${v.nFraco}</b><span class="f-pips">${pips(v.fraco)}</span></span>
+          <span class="f-e f-e--resiste"><em>Resists</em><b>${v.nResiste}</b><span class="f-pips">${pips(v.resiste)}</span></span>
         </div></div>`
     slots.appendChild(el)
   })
   if (viradas.length) tocar('vira')
   for (const b of $$('.t-mon', slots)) ligarArraste(b)
   const tf = bordas.reduce((s, v) => s + v.nForte, 0), tw = bordas.reduce((s, v) => s + v.nFraco, 0)
-  $('#fBorda').textContent = `Type edge: Strong vs ${tf} · Weak to ${tw}.`
+  const tr = bordas.reduce((s, v) => s + v.nResiste, 0)
+  $('#fBorda').textContent = `Type edge: Strong vs ${tf} · Weak to ${tw} · Resists ${tr}.`
+  // cansaço: quem do trio fica cansado DURANTE esta patrulha (pelas lutas de hoje, contadas no aparelho)
+  const quando = trio.map((uid) => ({ nome: conta.porUid(uid).nome, k: cansaDepoisDa(conta.lutasHoje(uid), PATRULHA.lutas) }))
+  const vaoCansar = quando.filter((q) => q.k !== null)
+  $('#fCansaco').innerHTML = vaoCansar.length
+    ? `<b>${vaoCansar.length} of 3 will be tired during this patrol:</b> ${vaoCansar.map((q) => (q.k === 0 ? `${q.nome} is already tired (${PCT_CANSADO}% HP)` : `${q.nome} gets tired after fight ${q.k}`)).join(' · ')}.`
+    : `<b>No one in this trio gets tired in this patrol.</b> After ${CANSACO.lutasPorDia} fights in a day, a monster starts each fight at ${PCT_CANSADO}% HP.`
+  $('#fCansaco').classList.toggle('alerta', vaoCansar.length > 0)
   // a conta (os 6 + filhotes)
   $('#tBancoLista').innerHTML = conta.todos().map((m) => {
     const pos = trio.indexOf(m.uid), def = conta.def(m)
-    return `<button type="button" class="t-mon t-mon--banco${time.sel === m.uid ? ' sel' : ''}${pos >= 0 ? ' no-trio' : ''}" data-uid="${m.uid}" data-som-proprio="1" aria-label="${m.nome}${pos >= 0 ? ', in ' + POSICAO_EN[pos] : ''}">${imgMonstro(def)}<small>${m.nome}</small>${icone(tipoDe(def), 'f-el')}${pos >= 0 ? `<i class="f-onde">${POSICAO_EN[pos]}</i>` : ''}</button>`
+    const zz = cansado(conta.lutasHoje(m.uid))
+    return `<button type="button" class="t-mon t-mon--banco${time.sel === m.uid ? ' sel' : ''}${pos >= 0 ? ' no-trio' : ''}${zz ? ' cansado' : ''}" data-uid="${m.uid}" data-som-proprio="1" aria-label="${m.nome}${pos >= 0 ? ', in ' + POSICAO_EN[pos] : ''}${zz ? `, tired (${PCT_CANSADO}% HP)` : ''}">${imgMonstro(def)}<small>${m.nome}</small>${icone(tipoDe(def), 'f-el')}${pos >= 0 ? `<i class="f-onde">${POSICAO_EN[pos]}</i>` : ''}${zz ? '<i class="f-zz">Tired</i>' : ''}</button>`
   }).join('')
   for (const b of $$('#tBancoLista .t-mon')) ligarArraste(b)
   // tática
@@ -343,7 +373,7 @@ function desenharOrdens({ animar = true } = {}) {
   $('#btLutar').classList.toggle('sem', !da)
   $('#fAvisos').textContent = da
     ? `This order: ${PATRULHA.lutas} fights, ${custo} Rations. ${AVISOS.decidido}`
-    : `Not enough Rations for this order (${conta.racoes} left, it uses ${custo}). "Reset pilot" on the Road screen refills the bag.`
+    : `Not enough Rations for this order (${conta.racoes} left, it uses ${custo}). "New day" on the Road screen refills the bag.`
   T.mudou()
 }
 
@@ -409,7 +439,7 @@ function mandarPatrulha() {
   const defs = uids.map(defDe), guarda = guardaDe(conta.lugar)
   defs.forEach((d, i) => { nomes['A' + i] = d.nome }); guarda.forEach((d, i) => { nomes['B' + i] = d.nome })
   R.patrulha = {
-    n: conta.lugar, uids, nomes, defs, guarda, tatica: time.tatica, taticaDaGuarda: lugarPorN(conta.lugar).tatica,
+    n: conta.lugar, uids, nomes, defs, guarda, tatica: time.tatica, taticaDaGuarda: lugarPorN(conta.lugar).tatica, ordemDaGuarda: lugarPorN(conta.lugar).ordem,
     ordem: uids.map((u) => { const o = ordemDe(u); return o.lista.filter((c) => !o.off.includes(c)) }),
     base: sementeDaUrl ?? novaSemente(), lutas: [], novos: [],
   }
@@ -424,10 +454,11 @@ function fazerLuta(i) {
   conta.gastarRacao()
   const semente = `${P.base}-${i + 1}`
   const t0 = performance.now()
-  const { luta, resumo } = rodarLuta({ semente, trio: P.defs, guarda: P.guarda, tatica: P.tatica, ordem: P.ordem, taticaDaGuarda: P.taticaDaGuarda })
-  P.lutas[i] = { luta, resumo, semente }
+  const lutasHoje = P.uids.map((u) => conta.lutasHoje(u)) // contadas ANTES desta luta (cansaço)
+  const { luta, resumo } = rodarLuta({ semente, trio: P.defs, guarda: P.guarda, tatica: P.tatica, ordem: P.ordem, taticaDaGuarda: P.taticaDaGuarda, ordemDaGuarda: P.ordemDaGuarda, lutasHoje })
+  P.lutas[i] = { luta, resumo, semente, lutasHoje }
   P.novos.push(...conta.anotarLuta({ n: P.n, uids: P.uids, resumo }))
-  T.luta = { semente, resultado: luta.resultado, total: luta.passos.length, ms: Math.round(performance.now() - t0) }
+  T.luta = { semente, resultado: luta.resultado, total: luta.passos.length, ms: Math.round(performance.now() - t0), lutasHoje, regras: luta.regras }
   atualizarTopo(true)
   tocar('racao')
 }
@@ -544,7 +575,7 @@ $('#rPular').addEventListener('click', () => { R.pular = true })
 function fecharPatrulha() {
   const P = R.patrulha
   const res = resumirPatrulha(P.lutas.map((l) => l.resumo), P.nomes)
-  const tira = { n: P.n, uids: P.uids, nomes: P.uids.map((_, i) => P.nomes['A' + i]), partes: P.defs.map((d) => ({ pronto: d.pronto, partes: d.partes })), tatica: P.tatica, v: res.v, d: res.d, dados: res.dados, levados: res.levados, porLugar: res.porLugar, causa: res.causa.texto, causaUid: res.causa.id?.startsWith('A') ? P.uids[+res.causa.id[1]] : null }
+  const tira = { n: P.n, uids: P.uids, nomes: P.uids.map((_, i) => P.nomes['A' + i]), partes: P.defs.map((d) => ({ pronto: d.pronto, partes: d.partes })), tatica: P.tatica, v: res.v, d: res.d, dados: res.dados, levados: res.levados, cansadas: res.cansadas, porLugar: res.porLugar, causa: res.causa.texto, causaUid: res.causa.id?.startsWith('A') ? P.uids[+res.causa.id[1]] : null }
   R.fecho = conta.fecharPatrulha({ tira, uids: P.uids })
   R.fecho.novos = [...P.novos, ...R.fecho.novos]
   R.tira = tira
@@ -559,6 +590,7 @@ function htmlDaTira(t, rotulo, antes = null) {
     <div class="r-quem">${t.partes.map((d, i) => `<span>${mini(d)}<small>${POSICAO_EN[i]}</small></span>`).join('')}</div>
     <p class="r-placar"><b data-rola="${t.v}">${t.v}</b> W – <b data-rola="${t.d}">${t.d}</b> L</p>
     <p class="r-fortes"><span>Strong hits given <b data-rola="${t.dados}">${t.dados}</b>${delta(t.dados, antes?.dados, true)}</span><span>taken <b data-rola="${t.levados}">${t.levados}</b>${delta(t.levados, antes?.levados, false)}</span></p>
+    ${t.cansadas ? `<p class="r-cansadas">Tired fights: <b>${t.cansadas}</b>${delta(t.cansadas, antes?.cansadas ?? 0, false)} <small>started at ${PCT_CANSADO}% HP</small></p>` : ''}
     <p class="r-causa">${t.causaUid ? `<button type="button" class="r-link" data-uid="${t.causaUid}">${t.causa}</button>` : t.causa}</p>
     <div class="r-spots" aria-label="Damage taken by spot"><small>Damage taken by spot</small>${t.porLugar.map((v, i) => `<div><span>${POSICAO_EN[i]}</span><i style="--p:${Math.round((v / max) * 100)}%"></i><b>${v}</b></div>`).join('')}</div>`
 }
@@ -634,8 +666,10 @@ const T = (window.__piloto = {
   ovo: () => ({ fase: ovo.O.fase, passo: ovo.O.passo, nome: ovo.O.nome }),
   menos: () => menos,
   som: () => som.estado(),
-  conta: () => ({ racoes: conta.racoes, renome: conta.renome, trio: conta.trio, lugar: conta.lugar, monstros: conta.todos().map((m) => m.uid), tiras: conta.tiras }),
-  patrulha: () => (R.patrulha ? { fase: R.fase, n: R.patrulha.n, base: R.patrulha.base, lutas: R.patrulha.lutas.map((l) => ({ semente: l.semente, venceu: l.resumo.venceu, turnos: l.resumo.turnos, forteDados: l.resumo.forteDados, forteLevados: l.resumo.forteLevados })), tira: R.tira, fecho: R.fecho } : null),
+  conta: () => ({ racoes: conta.racoes, renome: conta.renome, trio: conta.trio, lugar: conta.lugar, monstros: conta.todos().map((m) => m.uid), tiras: conta.tiras, dia: conta.dia, hoje: Object.fromEntries(conta.todos().map((m) => [m.uid, conta.lutasHoje(m.uid)])) }),
+  patrulha: () => (R.patrulha ? { fase: R.fase, n: R.patrulha.n, base: R.patrulha.base, lutas: R.patrulha.lutas.map((l) => ({ semente: l.semente, venceu: l.resumo.venceu, turnos: l.resumo.turnos, forteDados: l.resumo.forteDados, forteLevados: l.resumo.forteLevados, resistidos: l.resumo.resistidos, lutasHoje: l.lutasHoje, cansados: l.resumo.cansados })), tira: R.tira, fecho: R.fecho } : null),
+  /** A luta i da patrulha atual, como o motor a fez (só para o teste conferir os eventos dentro da página). */
+  lutaDaPatrulha: (i) => R.patrulha?.lutas[i]?.luta ?? null,
   historia: (uid) => conta.historia(uid),
   cartao: null,
   mudou() {},

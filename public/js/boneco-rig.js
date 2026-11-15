@@ -1266,7 +1266,9 @@ function emAssado(pd, fn) {
 /** Assa uma camada num canvas: caixa = [x0, y0, x1, y1] em unidades, relativa ao pivô. */
 function assar(caixa, pd, fn) {
   const [x0, y0, x1, y1] = caixa, s = pd.escala
-  const cv = novoCanvas((x1 - x0) * s, (y1 - y0) * s), c = cv.getContext('2d')
+  // willReadFrequently: o canvas assado é lido UMA vez por aparar(); na memória comum a leitura não espera a placa de vídeo
+  // (sem isso, cada leitura custava ~3 ms e abrir a luta travava a tela 100–200 ms bem quando a música começa)
+  const cv = novoCanvas((x1 - x0) * s, (y1 - y0) * s), c = cv.getContext('2d', { willReadFrequently: true })
   c.setTransform(s, 0, 0, s, -x0 * s, -y0 * s)
   const costuras = emAssado(pd, () => fn(c))
   return { canvas: cv, escala: s, pivo: { x: -x0 * s, y: -y0 * s }, costuras }
@@ -1595,7 +1597,7 @@ class Rig {
   _rostoParado(C, tipoCab) {
     if (C.rosto) return C.rosto
     const cb = C.cb, m = 18, s = C.s, x0 = cb.x0 - m, y0 = cb.y0 - m
-    const cv = novoCanvas((cb.w + 2 * m) * s, (cb.h + 2 * m) * s), c = cv.getContext('2d')
+    const cv = novoCanvas((cb.w + 2 * m) * s, (cb.h + 2 * m) * s), c = cv.getContext('2d', { willReadFrequently: true })
     c.setTransform(s, 0, 0, s, -x0 * s, -y0 * s)
     desenharRosto(c, cb, novoQ(), 0, s, C.luz, cb.frente ? () => c.drawImage(cb.frente, cb.x0, cb.y0, cb.w, cb.h) : null, tipoCab)
     return (C.rosto = normalizar(aparar({ canvas: cv, escala: s, pivo: { x: -x0 * s, y: -y0 * s } }), 'rosto', 0))
@@ -1627,7 +1629,7 @@ class Rig {
     // membros: a curva do repouso mole fica assada aqui (o membro parado sai com UM desenho; as poses dobram por cima)
     const rc = CURVA_DE_REPOUSO[key] ? this.rep[CURVA_DE_REPOUSO[key]] : 0, jt = cm.encaixes.juntas
     if (rc && jt && jt.length && o.x0 != null) {
-      const m = 34, cv = novoCanvas(o.canvas.width + 2 * m * s, o.canvas.height + 2 * m * s), c = cv.getContext('2d'), px = Math.round(-o.x0 * s + m * s), py = Math.round(-o.y0 * s + m * s)
+      const m = 34, cv = novoCanvas(o.canvas.width + 2 * m * s, o.canvas.height + 2 * m * s), c = cv.getContext('2d', { willReadFrequently: true }), px = Math.round(-o.x0 * s + m * s), py = Math.round(-o.y0 * s + m * s)
       c.setTransform(s, 0, 0, s, px, py); mole(c, o.canvas, o, rc)
       const da = rc / jt.length, co = Math.cos(da), si = Math.sin(da), jt2 = []
       let M = [1, 0, 0, 1, 0, 0]

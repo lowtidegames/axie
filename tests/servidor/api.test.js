@@ -74,6 +74,9 @@ function semSegredo(texto, lutaId) {
     for (const cid of e.times.B.mao) if (!publicas.has(cid)) assert.equal(v.cartas[cid]?.carta, undefined, `carta ${cid} da mão do rival vazou`)
     for (const cid of e.times.B.baralho) if (!publicas.has(cid)) assert.equal(v.cartas[cid]?.carta, undefined, `carta ${cid} do baralho do rival vazou`)
     for (const ev of [...v.eventos, ...(o.eventos ?? [])]) if (ev.t === 'compra' && ev.time === 'B') assert.equal(ev.carta, undefined, 'compra do rival vazou')
+    // tarefa 13 (motor 2): a mesa vem na visão; a do rival (e a minha) só tem carta já jogada, nunca carta escondida
+    assert.ok(Array.isArray(v.times.B.mesa) && Array.isArray(v.times.A.mesa), 'mesa fora da visão')
+    for (const k of ['A', 'B']) for (const cid of v.times[k].mesa) assert.ok(publicas.has(cid), `carta ${cid} na mesa de ${k} sem ter sido jogada`)
   }
 }
 
@@ -505,7 +508,9 @@ describe('limites e erros', () => {
     let t = 1_000
     const s = await iniciar({ dbPath: ':memory:', porta: 0, agora: () => t, log: () => {}, limites: { contasPorIp: { max: 2, janelaMs: 60_000 }, pedidosPorConta: { max: 3, janelaMs: 60_000 } } })
     const url = `http://127.0.0.1:${s.porta}`
-    const criar = () => fetch(url + '/api/conta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"apelido":"Teste"}' })
+    // regra mudou (tarefa 13, A10): apelido é único — cada conta pede um apelido diferente
+    let k = 0
+    const criar = () => fetch(url + '/api/conta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apelido: `Teste ${++k}` }) })
     const r1 = await criar(), r2 = await criar(), r3 = await criar()
     assert.deepEqual([r1.status, r2.status, r3.status], [201, 201, 429])
     const { token } = await r1.json()
@@ -566,8 +571,219 @@ describe('banco', () => {
     assert.equal(db.prepare('PRAGMA user_version').get().user_version, VERSAO_DO_BANCO + 1)
     db.close()
     const copias = fs.readdirSync(path.join(pasta, 'copias'))
-    assert.ok(copias.some((n) => n.startsWith('migra.db.v1.123')), copias.join(','))
+    // regra mudou (tarefa 13): o banco atual é a versão VERSAO_DO_BANCO (era 1), e a cópia leva a versão de antes da migração
+    assert.ok(copias.some((n) => n.startsWith(`migra.db.v${VERSAO_DO_BANCO}.123`)), copias.join(','))
     assert.throws(() => abrirBanco(arq, { modo: 'producao', migracoes: [...MIGRACOES, extra] }), /modo/)
     assert.throws(() => abrirBanco(arq), /mais novo/)
+  })
+})
+
+// ---------------------------------------------------------------- tarefa 13: servidor rodada 2 (parecer de segurança nº 1)
+
+/** Põe bonecos a mais na coleção direto no banco (cópias dos dados de um boneco da conta). */
+function encherColecao(contaId, vivos, aposentados) {
+  const modelo = app.db.prepare('SELECT dados FROM bonecos WHERE conta_id = ? ORDER BY n LIMIT 1').get(contaId).dados
+  const ins = app.db.prepare(`INSERT INTO bonecos (id, conta_id, dados, estado, ocupado_por, versao, criado_em, n)
+    VALUES (?, ?, ?, ?, NULL, 0, ?, (SELECT COALESCE(MAX(n), 0) + 1 FROM bonecos WHERE conta_id = ?))`)
+  for (let i = 0; i < vivos + aposentados; i++) ins.run(`bo_${randomBytes(12).toString('hex')}`, contaId, modelo, i < vivos ? 'ativo' : 'aposentado', agora(), contaId)
+}
+
+describe('tarefa 13 — coleção, luta e Aventura', () => {
+  test('A3: coleção no teto (60 vivos + 300 aposentados): estado em tamanho limitado, resto pelo cursor, costura recusada', async () => {
+    const c = await novaConta()
+    encherColecao(c.conta.id, 60 - 9, 300)
+    const est = await api('GET', '/api/estado', { token: c.token })
+    assert.equal(est.status, 200)
+    assert.equal(est.json.bonecos.length, 50, 'estado devolveu a coleção inteira')
+    assert.ok(est.texto.length < 40 * 1024, `estado com ${est.texto.length} bytes`)
+    assert.deepEqual(est.json.colecao, { total: 360, vivos: 60, aposentados: 300, maxVivos: 60 })
+    assert.equal(typeof est.json.proximo, 'string')
+    // páginas pelo cursor: ordem estável, sem repetir nem faltar
+    const ids = est.json.bonecos.map((b) => b.id)
+    let cursor = est.json.proximo, paginas = 1
+    while (cursor) {
+      const p = await api('GET', `/api/bonecos?cursor=${cursor}&limite=50`, { token: c.token })
+      assert.equal(p.status, 200, p.texto)
+      assert.ok(p.json.bonecos.length <= 50)
+      ids.push(...p.json.bonecos.map((b) => b.id))
+      cursor = p.json.proximo
+      assert.ok(++paginas < 20)
+    }
+    assert.equal(ids.length, 360); assert.equal(new Set(ids).size, 360)
+    const ordem = app.db.prepare('SELECT id FROM bonecos WHERE conta_id = ? ORDER BY n').all(c.conta.id).map((x) => x.id)
+    assert.deepEqual(ids, ordem)
+    const primeira = await api('GET', '/api/bonecos?limite=5', { token: c.token })
+    assert.deepEqual(primeira.json.bonecos.map((b) => b.id), ordem.slice(0, 5))
+    for (const q of ['limite=51', 'limite=0', 'limite=abc', 'cursor=%25%25', `cursor=${Buffer.from('x:1').toString('base64url')}`, 'outra=1']) {
+      const r = await api('GET', `/api/bonecos?${q}`, { token: c.token })
+      assert.equal(r.status, 400, q)
+    }
+    // a página de outra conta não vem pelo cursor
+    const d = await novaConta()
+    const alheia = await api('GET', `/api/bonecos?cursor=${est.json.proximo}`, { token: d.token })
+    assert.equal(alheia.json.bonecos.length, 0)
+    // costura no teto: 409 COLECAO_CHEIA, nada nasce
+    const [a, b] = c.bonecos
+    const cheia = await api('POST', '/api/costura', { token: c.token, corpo: { a: a.id, b: b.id, pedido: 'pedido-teto-1' } })
+    assert.equal(cheia.status, 409, cheia.texto); assert.equal(cheia.json.erro.codigo, 'COLECAO_CHEIA')
+    assert.equal(app.db.prepare('SELECT COUNT(*) n FROM bonecos WHERE conta_id = ?').get(c.conta.id).n, 360)
+    // aposentado não conta: com um vivo a menos, a costura passa
+    app.db.prepare("UPDATE bonecos SET estado = 'aposentado' WHERE id = ?").run(ordem.at(-301))
+    const passa = await api('POST', '/api/costura', { token: c.token, corpo: { a: a.id, b: b.id, pedido: 'pedido-teto-2' } })
+    assert.equal(passa.status, 201, passa.texto)
+  })
+
+  test('A4: luta inteira grava menos de 2 KB por comando; encerrada, não sobra resposta guardada; repetir o último comando dá a mesma resposta', async () => {
+    const c = await novaConta()
+    const nova = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'livre', robo: 'planejador', time: timeDe(c) } })
+    let r = nova.json, turno = r.visao.turno, noTurno = 0
+    const tamanhos = []
+    const tamanho = app.db.prepare('SELECT LENGTH(luta_id) + 8 + LENGTH(comando) + LENGTH(resposta) b FROM luta_respostas WHERE luta_id = ? AND seq = ?')
+    let ultima = null, ultimoCorpo = null
+    while (r.status === 'aberta') {
+      assert.ok(tamanhos.length < 500)
+      if (r.visao.turno !== turno) { turno = r.visao.turno; noTurno = 0 }
+      const jogar = r.validos.find((x) => x.tipo === 'jogar') ?? r.validos.find((x) => x.tipo === 'fiapo')
+      const comando = noTurno++ < 6 && jogar ? jogar : { tipo: 'passar' }
+      const corpo = { seq: r.seq, comando }
+      const res = await api('POST', `/api/luta/${r.id}/comando`, { token: c.token, corpo })
+      assert.equal(res.status, 200, res.texto)
+      const linha = tamanho.get(r.id, r.seq)
+      if (res.json.status === 'aberta') {
+        tamanhos.push(linha.b)
+        // repetir o último comando de uma luta aberta: a mesma resposta, com repetido
+        if (tamanhos.length % 7 === 0) {
+          const de2 = await api('POST', `/api/luta/${r.id}/comando`, { token: c.token, corpo })
+          assert.equal(de2.status, 200)
+          assert.equal(de2.json.repetido, true)
+          assert.deepEqual({ ...de2.json, repetido: undefined }, { ...res.json, repetido: undefined })
+        }
+      }
+      ultima = res.json; ultimoCorpo = corpo
+      r = res.json
+    }
+    const media = tamanhos.reduce((x, y) => x + y, 0) / tamanhos.length
+    assert.ok(tamanhos.length > 5)
+    assert.ok(media < 2048, `média de ${media.toFixed(0)} bytes por comando`)
+    assert.equal(app.db.prepare('SELECT COUNT(*) n FROM luta_respostas WHERE luta_id = ?').get(r.id).n, 0, 'sobrou resposta guardada')
+    // o replay fica inteiro
+    const rep = await api('GET', `/api/luta/${r.id}/replay`, { token: c.token })
+    assert.deepEqual(reproduzir(rep.json).resultado, rep.json.resultado)
+    // repetir o comando que encerrou: devolve o fim; outro seq antigo: 409 LUTA_ACABOU
+    const fimDe2 = await api('POST', `/api/luta/${r.id}/comando`, { token: c.token, corpo: ultimoCorpo })
+    assert.equal(fimDe2.status, 200, fimDe2.texto)
+    assert.equal(fimDe2.json.repetido, true)
+    assert.deepEqual({ ...fimDe2.json, repetido: undefined }, { ...ultima, repetido: undefined })
+    const velho = await api('POST', `/api/luta/${r.id}/comando`, { token: c.token, corpo: { seq: 0, comando: { tipo: 'passar' } } })
+    assert.equal(velho.status, 409)
+  })
+
+  test('A7: conta nova não abre a fase 2; vencer a fase 1 libera a 2 (e só ela); perder não libera', async () => {
+    const c = await novaConta()
+    const est = await api('GET', '/api/estado', { token: c.token })
+    assert.equal(est.json.faseLiberada, 1)
+    const f2 = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'aventura', fase: 2, time: timeDe(c) } })
+    assert.equal(f2.status, 409, f2.texto); assert.equal(f2.json.erro.codigo, 'FASE_BLOQUEADA')
+    const f5 = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'aventura', fase: 5, time: timeDe(c) } })
+    assert.equal(f5.json.erro.codigo, 'FASE_BLOQUEADA')
+    // perder (desistir) a fase 1 não libera nada
+    const perde = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'aventura', fase: 1, time: timeDe(c) } })
+    await api('POST', `/api/luta/${perde.json.id}/desistir`, { token: c.token })
+    assert.equal((await api('GET', '/api/estado', { token: c.token })).json.faseLiberada, 1)
+    // vencer a fase 1: banco de teste deixa o rival com 1 de vida; cliente honesto joga até o fim
+    let venceu = false
+    for (let i = 0; i < 6 && !venceu; i++) {
+      const l = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'aventura', fase: 1, time: timeDe(c, 3 * (i % 3)) } })
+      assert.equal(l.status, 201, l.texto)
+      app.db.prepare("UPDATE lutas SET estado = json_set(estado, '$.bonecos.B0.vida', 1, '$.bonecos.B1.vida', 1, '$.bonecos.B2.vida', 1) WHERE id = ?").run(l.json.id)
+      const ver = await api('GET', `/api/luta/${l.json.id}`, { token: c.token })
+      const fim = await jogarAteOFim(c.token, ver.json)
+      venceu = fim.resultado.vencedor === 'A'
+    }
+    assert.ok(venceu, 'não venceu a fase 1')
+    assert.equal((await api('GET', '/api/estado', { token: c.token })).json.faseLiberada, 2)
+    const abre2 = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'aventura', fase: 2, time: timeDe(c) } })
+    assert.equal(abre2.status, 201, abre2.texto)
+    await api('POST', `/api/luta/${abre2.json.id}/desistir`, { token: c.token })
+    const f3 = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'aventura', fase: 3, time: timeDe(c) } })
+    assert.equal(f3.json.erro.codigo, 'FASE_BLOQUEADA')
+  })
+
+  test('motor 2: replay devolve a versão com que a luta nasceu; o comando 41 do turno volta 422 TETO_DE_COMANDOS', async () => {
+    const c = await novaConta()
+    const l = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'livre', robo: 'ganancioso', time: timeDe(c) } })
+    assert.equal(linhaDaLuta(l.json.id).versao_motor, 2)
+    // 40 comandos já feitos neste turno (banco de teste): o 41º é recusado pela rota com o código do motor
+    app.db.prepare("UPDATE lutas SET estado = json_set(estado, '$.comandosNoTurno', 40) WHERE id = ?").run(l.json.id)
+    const carta = estadoInterno(l.json.id).times.A.mao[0]
+    const x = await api('POST', `/api/luta/${l.json.id}/comando`, { token: c.token, corpo: { seq: 0, comando: { tipo: 'jogar', carta } } })
+    assert.equal(x.status, 422, x.texto); assert.equal(x.json.erro.codigo, 'TETO_DE_COMANDOS')
+    const v = await api('GET', `/api/luta/${l.json.id}`, { token: c.token })
+    assert.deepEqual(v.json.validos, [{ tipo: 'passar', time: 'A' }])
+    const passa = await api('POST', `/api/luta/${l.json.id}/comando`, { token: c.token, corpo: { seq: 0, comando: { tipo: 'passar' } } })
+    assert.equal(passa.status, 200, passa.texto)
+    await api('POST', `/api/luta/${l.json.id}/desistir`, { token: c.token })
+    const rep = await api('GET', `/api/luta/${l.json.id}/replay`, { token: c.token })
+    assert.equal(rep.json.versaoDoMotor, 2)
+    app.db.prepare('UPDATE lutas SET versao_motor = 1 WHERE id = ?').run(l.json.id) // luta "de antes": o replay diz a versão dela
+    const rep1 = await api('GET', `/api/luta/${l.json.id}/replay`, { token: c.token })
+    assert.equal(rep1.json.versaoDoMotor, 1)
+  })
+})
+
+describe('tarefa 13 — luta parada (abandono), relógio próprio', () => {
+  let s, url, t = 2_000_000_000_000
+  before(async () => {
+    s = await iniciar({ dbPath: ':memory:', porta: 0, agora: () => t, log: () => {} })
+    url = `http://127.0.0.1:${s.porta}`
+  })
+  after(() => { s.servidor.closeAllConnections(); s.servidor.close() })
+  const pedir = async (metodo, caminho, token, corpo) => {
+    const r = await fetch(url + caminho, { method: metodo, headers: { Authorization: `Bearer ${token}`, ...(corpo ? { 'Content-Type': 'application/json' } : {}) }, body: corpo ? JSON.stringify(corpo) : undefined })
+    return { status: r.status, json: await r.json() }
+  }
+  let n = 0
+  async function conta() {
+    const r = await fetch(url + '/api/conta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apelido: `Parado ${++n}` }) })
+    const { token, conta: c } = await r.json()
+    return { token, id: c.id, bonecos: (await pedir('GET', '/api/estado', token)).json.bonecos.map((b) => b.id) }
+  }
+
+  test('31 min sem pedido do dono: o próximo pedido de QUALQUER rota encerra como derrota por abandono (com desgaste)', async () => {
+    const c = await conta()
+    const l = await pedir('POST', '/api/luta', c.token, { modo: 'livre', robo: 'ganancioso', time: c.bonecos.slice(0, 3) })
+    assert.equal(l.status, 201)
+    t += 31 * 60_000
+    const est = await pedir('GET', '/api/estado', c.token)
+    assert.equal(est.json.lutaAberta, null, 'a luta parada continuou aberta')
+    const v = await pedir('GET', `/api/luta/${l.json.id}`, c.token)
+    assert.equal(v.json.status, 'encerrada')
+    assert.equal(v.json.resultado.vencedor, 'B'); assert.equal(v.json.resultado.motivo, 'abandono')
+    for (const id of c.bonecos.slice(0, 3)) {
+      const b = est.json.bonecos.find((x) => x.id === id)
+      assert.equal(b.ocupado, false); assert.equal(b.lutas, 1)
+    }
+  })
+
+  test('abrir outra luta depois de 31 min parada: a velha vira abandono e a nova abre', async () => {
+    const c = await conta()
+    const l = await pedir('POST', '/api/luta', c.token, { modo: 'livre', robo: 'ganancioso', time: c.bonecos.slice(0, 3) })
+    t += 31 * 60_000
+    const outra = await pedir('POST', '/api/luta', c.token, { modo: 'livre', robo: 'ganancioso', time: c.bonecos.slice(3, 6) })
+    assert.equal(outra.status, 201, JSON.stringify(outra.json))
+    const velha = s.db.prepare('SELECT status, resultado FROM lutas WHERE id = ?').get(l.json.id)
+    assert.equal(velha.status, 'encerrada'); assert.equal(JSON.parse(velha.resultado).motivo, 'abandono')
+  })
+
+  test('pedido do dono na luta renova a contagem; 29 min não é abandono, 31 min é', async () => {
+    const c = await conta()
+    const l = await pedir('POST', '/api/luta', c.token, { modo: 'livre', robo: 'ganancioso', time: c.bonecos.slice(0, 3) })
+    t += 5_000
+    await pedir('GET', `/api/luta/${l.json.id}`, c.token)
+    assert.equal(s.db.prepare('SELECT tocada_em FROM lutas WHERE id = ?').get(l.json.id).tocada_em, t)
+    s.db.prepare('UPDATE lutas SET tocada_em = ? WHERE id = ?').run(t - 29 * 60_000, l.json.id)
+    assert.equal((await pedir('GET', '/api/estado', c.token)).json.lutaAberta, l.json.id)
+    s.db.prepare('UPDATE lutas SET tocada_em = ? WHERE id = ?').run(t - 31 * 60_000, l.json.id)
+    assert.equal((await pedir('GET', '/api/estado', c.token)).json.lutaAberta, null)
   })
 })

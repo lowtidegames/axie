@@ -19,7 +19,7 @@ import { CARTAS, TIPOS } from '../shared/config.js'
 import { criarRng } from '../shared/rng.js'
 import { LUGARES } from '../shared/lugares.js'
 import { TATICAS, lutaAutomatica, ordemPadrao } from '../shared/tatica.js'
-import { FORMACOES, MONSTROS, amplitudeDoAcaso, economiaDeHoje, mediana, pontos, sortearContas, todosOsTrios } from './simular-patrulhas.mjs'
+import { FORMACOES, MONSTROS, amplitudeDoAcaso, economiaDeHoje, mediana, pontos, todosOsTrios } from './simular-patrulhas.mjs'
 
 const TIPO = Object.fromEntries(MONSTROS.map((m) => [m, montarBoneco(m).tipo]))
 
@@ -114,6 +114,15 @@ export const EXPERIMENTOS = {
   'c-v3v1v2v5v6': { nota: 'mono + 50% + resist. −25% + v5 + v6', guardas: 'mono', ...R({ bonusDeTipo: 0.50, resistencia: 0.25 }), divisao: { v5: { n: 6, fator: 0.5 }, v6: { k: 5, vida: 0.75 } } },
   'c-v3v7v5': { nota: 'mono + proibido + v5 (6 vitórias)', guardas: 'mono', proibir: true, divisao: { v5: { n: 6, fator: 0.5 } } },
   'c-v3v7v5v6': { nota: 'mono + proibido + v5 + v6', guardas: 'mono', proibir: true, divisao: { v5: { n: 6, fator: 0.5 }, v6: { k: 5, vida: 0.75 } } },
+  // as finalistas: uma regra de luta (lugar vira escolha) + V5 e V6 (divisão vira escolha)
+  'c-v2-40v7': { nota: 'resistência −40% + proibido', proibir: true, ...R({ resistencia: 0.40 }) },
+  'c-v3v2-40': { nota: 'mono + resistência −40%', guardas: 'mono', ...R({ resistencia: 0.40 }) },
+  'o1-v2v5v6': { nota: 'resistência −40% + v5 (6 vitórias) + v6 (5 lutas, 75%)', ...R({ resistencia: 0.40 }), divisao: { v5: { n: 6, fator: 0.5 }, v6: { k: 5, vida: 0.75 } } },
+  'o2-v1v2v5v6': { nota: '+75% + resistência −40% + v5 + v6', ...R({ bonusDeTipo: 0.75, resistencia: 0.40 }), divisao: { v5: { n: 6, fator: 0.5 }, v6: { k: 5, vida: 0.75 } } },
+  'o1-so-v6': { nota: 'resistência −40% + só v6 (cansaço)', ...R({ resistencia: 0.40 }), divisao: { v6: { k: 5, vida: 0.75 } } },
+  'o2-so-v6': { nota: '+75% + resistência −40% + só v6 (cansaço; sem número de economia)', ...R({ bonusDeTipo: 0.75, resistencia: 0.40 }), divisao: { v6: { k: 5, vida: 0.75 } } },
+  'o2-so-v5': { nota: '+75% + resistência −40% + só v5 (teto por lugar)', ...R({ bonusDeTipo: 0.75, resistencia: 0.40 }), divisao: { v5: { n: 6, fator: 0.5 } } },
+  'o3-v3v1v2v7v5v6': { nota: 'mono + 50% + resist. −25% + proibido + v5 + v6', guardas: 'mono', proibir: true, ...R({ bonusDeTipo: 0.50, resistencia: 0.25 }), divisao: { v5: { n: 6, fator: 0.5 }, v6: { k: 5, vida: 0.75 } } },
 }
 
 // ------------------------------------------------------------------ medição (pura; worker ou direto)
@@ -208,7 +217,7 @@ export function criteriosABC(T) {
     fatias, popular,
     a: { medido: Math.max(...fatias), ok: Math.max(...fatias) <= 0.40 },
     b: { medido: Math.min(...fatias), ok: Math.min(...fatias) >= 0.10 },
-    c: { medido: mediana(custos), ok: mediana(custos) >= 0.10 },
+    c: { medido: mediana(custos), podem: mediana(custos.filter((_, t) => T[t][popular] > 0)), ok: mediana(custos) >= 0.10 },
   }
 }
 
@@ -255,7 +264,7 @@ export function planoDaConta({ Bm, Bt, trios, semana, pesos, eco, div = {}, tem,
   for (let l = 0; l < semana.length; l++) {
     const a = semana[l]
     const lista = []
-    trios.forEach((tr, t) => { if (tr.every((m) => tem.has(m)) && podeIr(tr, l, proibir)) lista.push(t) })
+    trios.forEach((tr, t) => { if (tr.every((m) => (tem instanceof Map ? (tem.get(m) ?? 0) > 0 : tem.has(m))) && podeIr(tr, l, proibir)) lista.push(t) })
     lista.sort((x, y) => Bm[y][a] - Bm[x][a])
     for (const t of lista.slice(0, porLugar)) {
       const val = []
@@ -264,7 +273,16 @@ export function planoDaConta({ Bm, Bt, trios, semana, pesos, eco, div = {}, tem,
     }
   }
   let best = { v: -1, patrulhas: [] }
-  const disj = (x, y) => !trios[x.t].some((m) => trios[y.t].includes(m)) && (!div.v5 || x.l !== y.l)
+  // monstros repetidos na conta (tem = Map tipo → cópias) podem estar em patrulhas diferentes; Set = 1 cópia de cada
+  const copias = (m) => (tem instanceof Map ? tem.get(m) ?? 0 : tem.has(m) ? 1 : 0)
+  const cabe = (...ps) => {
+    const uso = new Map()
+    for (const p of ps) for (const m of trios[p.t]) uso.set(m, (uso.get(m) ?? 0) + 1)
+    for (const [m, u] of uso) if (u > copias(m)) return false
+    return true
+  }
+  const lugarOk = (x, y) => !div.v5 || x.l !== y.l
+  const disj = (x, y) => lugarOk(x, y) && cabe(x, y)
   const n = cands.length
   for (let i = 0; i < n; i++) {
     const A = cands[i]
@@ -275,7 +293,7 @@ export function planoDaConta({ Bm, Bt, trios, semana, pesos, eco, div = {}, tem,
       for (let ea = 1; ea < energia; ea++) { const v = A.val[ea] + B.val[energia - ea]; if (v > best.v + 1e-12) best = { v, patrulhas: [{ t: A.t, l: A.l, E: ea }, { t: B.t, l: B.l, E: energia - ea }] } }
       for (let k = j + 1; k < n; k++) {
         const C = cands[k]
-        if (!disj(A, C) || !disj(B, C)) continue
+        if (!lugarOk(A, C) || !lugarOk(B, C) || !cabe(A, B, C)) continue
         for (let ea = 1; ea < energia - 1; ea++) for (let eb = 1; ea + eb < energia; eb++) {
           const v = A.val[ea] + B.val[eb] + C.val[energia - ea - eb]
           if (v > best.v + 1e-12) best = { v, patrulhas: [{ t: A.t, l: A.l, E: ea }, { t: B.t, l: B.l, E: eb }, { t: C.t, l: C.l, E: energia - ea - eb }] }
@@ -344,6 +362,10 @@ export function analisar({ exp, M, Mt, arenas, semana1, semana2, contas }) {
   const planos1 = contas.map((tem) => plano(semana1, tem))
   const planos2 = contas.map((tem) => plano(semana2, tem))
   const de = criteriosDE(planos1, planos2, trios)
+  // e com os pesos recalculados para as guardas da semana 2 (o peso acompanha a dificuldade nova)
+  const pesos2 = pesosCalibrados(P, Bm, trios, semana2, eco, proibir).pesos
+  const planos2r = contas.map((tem) => planoDaConta({ Bm, Bt, trios, semana: semana2, pesos: pesos2, eco, div, tem, proibir }))
+  de.e.recalibrado = criteriosDE(planos1, planos2r, trios).e.medido
   // efeitos na matriz: Strong por luta e turnos (semana 1)
   let d = 0, lv = 0, tu = 0, n = 0
   for (const c of M.casas) for (let f2 = 0; f2 < FORMACOES.length; f2++) for (let k = 0; k < NK; k++) for (const a of semana1) {
@@ -393,6 +415,22 @@ export function espelhadas(exp, n = 3000, semente = 'espelho') {
   return { lutas, turnos: turnos / lutas, quemComeca: comecouVenceu / lutas, porMonstro: pm, porElemento: pt, pior: { min: Math.min(...todos), max: Math.max(...todos) }, ok: Math.min(...todos) >= 0.42 && Math.max(...todos) <= 0.58 }
 }
 
+/**
+ * As mesmas 100 contas de sortearContas (mesmo sorteio: 9 a 15 monstros dos 9 prontos, com repetição), mas guardando
+ * as CÓPIAS: Map índice → quantas. Um monstro repetido pode ir em duas patrulhas ao mesmo tempo.
+ */
+export function contasComCopias(semente, n = 100) {
+  const rng = criarRng(`contas:${semente}`)
+  const out = []
+  for (let i = 0; i < n; i++) {
+    const tam = 9 + rng.inteiro(7)
+    const tem = new Map()
+    for (let j = 0; j < tam; j++) { const m = rng.inteiro(MONSTROS.length); tem.set(m, (tem.get(m) ?? 0) + 1) }
+    out.push(tem)
+  }
+  return out
+}
+
 // ------------------------------------------------------------------ rodar uma variante (com cache de matriz)
 
 function chaveDaMatriz(arenas, lutas, semente, regrasA) {
@@ -416,7 +454,7 @@ export async function rodarExperimento(nome, { lutas = 40, semente = 'patrulhas'
   const M = await matrizComCache({ arenas, lutas, semente, workers })
   const v6 = exp.divisao?.v6
   const Mt = v6 ? await matrizComCache({ arenas, lutas, semente, workers, regrasA: { vidaInicial: { A: [v6.vida, v6.vida, v6.vida] } } }) : null
-  const contas = sortearContas(semente)
+  const contas = contasComCopias(semente)
   const r = analisar({ exp, M, Mt, arenas, semana1, semana2, contas })
   r.espelho = espelhadas(exp, espelho)
   r.nome = nome; r.nota = exp.nota; r.lutas = lutas; r.segundos = (Date.now() - t0) / 1000
@@ -443,10 +481,10 @@ if (ehPrincipal) {
   const pct = (x) => (100 * x).toFixed(1) + '%'
   const ok = (b) => (b ? 'OK ' : 'NÃO')
   mkdirSync('.cache/experimentos', { recursive: true })
-  console.log('variante         a(≤40)      b(≥10)      c(≥10)      d(≥5)   e(≥30)      f      | turnos começa  pior(42–58)  posição obrig.')
+  console.log('variante         a(≤40)      b(≥10)      c(≥10)      d(≥5)   e(≥30) (peso novo)  f      | turnos começa  pior(42–58)  posição obrig.')
   for (const nome of nomes) {
     const r = await rodarExperimento(nome, { lutas, semente, workers, espelho })
     writeFileSync(`.cache/experimentos/${nome}-${lutas}.json`, JSON.stringify(r, null, 1))
-    console.log(`${nome.padEnd(16)} ${ok(r.a.ok)}${pct(r.a.medido).padStart(6)}  ${ok(r.b.ok)}${pct(r.b.medido).padStart(6)}  ${ok(r.c.ok)}${pct(r.c.medido).padStart(6)}  ${ok(r.d.ok)}${String(r.d.medido).padStart(3)}  ${ok(r.e.ok)}${pct(r.e.medido).padStart(6)}  ${ok(r.f.ok)}${r.f.falhas}/10 | ${r.espelho.turnos.toFixed(2)}  ${pct(r.espelho.quemComeca)}  ${pct(r.espelho.pior.min)}–${pct(r.espelho.pior.max)}  ${r.g.formacao.toFixed(1)}  ${r.obrigatorio.monstro} ${pct(r.obrigatorio.presenca)}  (${r.segundos.toFixed(0)} s)`)
+    console.log(`${nome.padEnd(16)} ${ok(r.a.ok)}${pct(r.a.medido).padStart(6)}  ${ok(r.b.ok)}${pct(r.b.medido).padStart(6)}  ${ok(r.c.ok)}${pct(r.c.medido).padStart(6)}  ${ok(r.d.ok)}${String(r.d.medido).padStart(3)}  ${ok(r.e.ok)}${pct(r.e.medido).padStart(6)} (${pct(r.e.recalibrado)})  ${ok(r.f.ok)}${r.f.falhas}/10 | ${r.espelho.turnos.toFixed(2)}  ${pct(r.espelho.quemComeca)}  ${pct(r.espelho.pior.min)}–${pct(r.espelho.pior.max)}  ${r.g.formacao.toFixed(1)}  ${r.obrigatorio.monstro} ${pct(r.obrigatorio.presenca)}  (${r.segundos.toFixed(0)} s)`)
   }
 }

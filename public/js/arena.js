@@ -17,6 +17,8 @@ const DUR = { carta: 140, dano: 420, errou: 520, escudo: 520, cura: 420, caiu: 6
 // poses passageiras (ms de animação e quanto ficam no último quadro antes de voltar ao repouso)
 const POSE = { preparo: [120, 60], golpe: [420, 120], golpeado: [420, 80], escudo: [620, 200], vitoria: [720, 99999] }
 const GOLPE_FORTE = 100 // PROVISÓRIO (só visual): a partir daqui o golpe soa e pesa como "golpe forte"
+// Tremida da cena (só visual, tarefa 21): golpe forte 3 px, crítico 6 px (o teto do guia §9), 200 ms (pedido da tarefa 21)
+const TREMIDA = { forte: 3, critico: 6, ms: 200 }
 const limita = (v, a, b) => Math.max(a, Math.min(b, v))
 
 export class Arena {
@@ -42,6 +44,8 @@ export class Arena {
     this.W = 0; this.H = 0; this.dpr = 1; this.formato = 'pc'
     this.L = null
     this.eventosVistos = { critico: 0, dano: 0 }
+    this.tremidas = [] // só para o teste: { px, t } de cada tremida (nenhuma com "Menos animação")
+    this.marcasDeGolpe = 0
     this.cena = criarCenario({ semente: 'atelie', folgaEmbaixo: 40 })
     this.efeitos = criarEfeitos({ maxParticulas: 90 })
     this.tAnt = performance.now()
@@ -205,9 +209,12 @@ export class Arena {
         else if (forte) Som.golpeForte(lado(ev.alvo))
         else Som.golpe({ lado: lado(ev.alvo), forca: limita(ev.valor / 150, 0.2, 1) })
         const tipoCarta = ev.carta ? CARTAS[ev.carta]?.tipo : null
-        if (tipoCarta && ev.de && temVantagem(tipoCarta, v.bonecos[ev.alvo].tipo)) Som.tocar('vantagem', { lado: lado(ev.alvo) })
+        const vant = !!(tipoCarta && ev.de && temVantagem(tipoCarta, v.bonecos[ev.alvo].tipo))
+        if (vant) Som.tocar('vantagem', { lado: lado(ev.alvo) })
         if (ev.escudo > 0) this.numero(p.x + 30 * escala(ev.alvo), p.y + 18, { valor: ev.escudo, tipo: 'escudo', forca: 0, texto: `−${ev.escudo}` })
         if (ev.valor > 0 || !ev.escudo) this.numero(p.x, p.y, { valor: ev.valor, tipo: ev.critico ? 'critico' : 'dano', forca: limita(ev.valor / 180, 0, 1) })
+        if (vant) this.marcaNoNumero(p.x, p.y) // tarefa 21: a etiqueta de vantagem aparece junto do número, no mesmo quadro
+        if (forte && !calmo) this.tremer(ev.critico ? TREMIDA.critico : TREMIDA.forte) // peso do golpe (sem tremida com "Menos animação")
         if (ev.refletido) this.numero(p.x, p.y - 34, { tipo: 'texto', texto: 'Espinho!', forca: 0 })
         if (!calmo) {
           const tec = TECIDOS[v.bonecos[ev.alvo].tipo]?.base
@@ -282,6 +289,28 @@ export class Arena {
       }
       default: break
     }
+  }
+
+  /** Tremida curta da cena (canvas e camada juntos), no golpe forte e no crítico. Nunca com "Menos animação". */
+  tremer(px) {
+    if (this.menos || !this.cv.animate) return
+    const k = (f) => `translate(${(px * f).toFixed(1)}px, ${(px * f * -0.5).toFixed(1)}px)`
+    const quadros = [{ transform: 'none' }, { transform: k(1) }, { transform: k(-0.8) }, { transform: k(0.5) }, { transform: k(-0.25) }, { transform: 'none' }]
+    for (const e of [this.cv, this.camada]) e?.animate(quadros, { duration: TREMIDA.ms * this.vel, easing: 'linear' })
+    this.tremidas.push({ px, t: performance.now() })
+  }
+
+  /** A etiqueta dourada de vantagem de tecido, presa ao lado do número de dano; some junto com ele. */
+  marcaNoNumero(x, y) {
+    if (!this.camada) return
+    const m = criarMarcaDeVantagem(BONUS, { pequena: this.formato !== 'pc', descricao: `Vantagem de tecido: ${BONUS}` })
+    m.classList.add('fz-arena__marca-golpe')
+    m.style.left = limita(x + 30, 34, this.W - 60) + 'px'; m.style.top = limita(y - 34, 6, this.H - 30) + 'px'
+    this.camada.append(m)
+    this.marcasDeGolpe++
+    const fora = () => m.remove()
+    if (this.menos || !m.animate) setTimeout(fora, 900)
+    else m.animate([{ opacity: 0, transform: 'scale(0.6) rotate(-10deg)' }, { opacity: 1, transform: 'scale(1) rotate(-4deg)', offset: 0.15 }, { opacity: 1, offset: 0.75 }, { opacity: 0, transform: 'translateY(-12px) rotate(-4deg)' }], { duration: 900, fill: 'both' }).finished.then(fora, fora)
   }
 
   numero(x, y, opcoes) {

@@ -211,3 +211,5 @@ export function energia({ abrirLuta = false } = {}) {
   }
   return { atual: Math.max(0, maximo - gasta), maximo, recarregaEm: new Date((hoje + 1) * DIA).toISOString(), ok }
 }
+/** Quanto de energia uma luta da Aventura gasta (o número de shared/config.js; o servidor usa o mesmo). */
+export const custoDeEnergia = () => ECONOMIA_DO_BETA.energiaPorLutaDaAventura

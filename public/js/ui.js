@@ -51,3 +51,39 @@ export function chipParte(gene, { forro = false } = {}) {
   return c
 }
 export const pct = (x) => `${Math.round(x * 1000) / 10}%`.replace('.', ',')
+
+// ---------------------------------------------------------------- pergunta antes de uma ação sem volta (tarefa 21)
+let confirmaAberta = null
+/** Janela de confirmação (etiqueta de pano): fecha pelo X, Esc, "Voltar" ou clique fora (= não). → Promise<boolean>.
+ *  { titulo, texto, linhas: [texto], sim, nao, perigo } — o texto vem de quem chama (números lidos na ponte). */
+export function confirmar({ titulo, texto, linhas = [], sim = 'Sim', nao = 'Voltar', perigo = false } = {}) {
+  if (confirmaAberta) confirmaAberta(false)
+  return new Promise((ok) => {
+    const fundo = el('div', 'modal fz-confirma'); fundo.id = 'confirma'
+    const folha = el('div', 'folha fz-confirma__folha'); folha.setAttribute('role', 'alertdialog'); folha.setAttribute('aria-modal', 'true'); folha.setAttribute('aria-labelledby', 'confirmaTit')
+    const x = el('button', 'fechar', '×'); x.type = 'button'; x.id = 'confirmaFechar'; x.setAttribute('aria-label', 'Fechar')
+    const h = el('h2', 'fz-confirma__titulo', titulo); h.id = 'confirmaTit'
+    folha.append(x, h)
+    if (texto) folha.append(el('p', 'fz-confirma__texto', texto))
+    if (linhas.length) { const ul = el('ul', 'fz-confirma__lista'); for (const l of linhas) ul.append(el('li', null, l)); folha.append(ul) }
+    const bts = el('div', 'fz-confirma__botoes')
+    const bNao = el('button', 'fz-confirma__nao', nao); bNao.type = 'button'; bNao.id = 'btnConfirmaNao'
+    const bSim = el('button', 'fz-confirma__sim' + (perigo ? ' fz-confirma__sim--perigo' : ''), sim); bSim.type = 'button'; bSim.id = 'btnConfirmaSim'
+    bts.append(bNao, bSim); folha.append(bts); fundo.append(folha)
+    const fim = (v) => {
+      if (confirmaAberta !== fim) return
+      confirmaAberta = null
+      document.removeEventListener('keydown', tecla, true)
+      fundo.remove(); ok(v)
+    }
+    const tecla = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); fim(false) } }
+    confirmaAberta = fim
+    x.addEventListener('click', () => fim(false)); bNao.addEventListener('click', () => fim(false)); bSim.addEventListener('click', () => fim(true))
+    fundo.addEventListener('click', (e) => { if (e.target === fundo) fim(false) })
+    document.addEventListener('keydown', tecla, true)
+    ;(document.getElementById('app') ?? document.body).append(fundo)
+    requestAnimationFrame(() => bNao.focus())
+  })
+}
+/** Há uma confirmação aberta? Fecha (= não). A tecla Voltar do navegador fecha ela primeiro. */
+export const fecharConfirmacao = () => { if (!confirmaAberta) return false; confirmaAberta(false); return true }

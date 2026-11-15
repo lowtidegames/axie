@@ -5,6 +5,7 @@
 <title>Frayz</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b1226">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/frayz.css">
 <link rel="stylesheet" href="css/pecas.css">
 <link rel="stylesheet" href="css/luta.css">
@@ -105,6 +106,7 @@
       <div id="cosPrevia" class="cos-previa" aria-live="polite"></div>
     </div>
     <footer class="ini-base av-base hub-mesa">
+      <p id="cosResumo" class="cos-resumo" aria-live="polite" hidden></p>
       <p id="cosMsg" class="msg erro" role="status"></p>
       <button id="btnCosturar" class="btn grande" disabled>Costurar</button>
     </footer>
@@ -191,6 +193,7 @@
   <!-- ============ CASULO (revelação parte por parte: a caixinha sobe e mostra a parte; o filho no fim, em destaque) ============ -->
   <div id="casulo" class="modal casulo-modal" hidden>
     <div class="folha casulo-folha" role="dialog" aria-modal="true" aria-labelledby="casTit">
+      <button class="fechar" id="casFechar" type="button" aria-label="Fechar (o casulo fica guardado para abrir depois)">&times;</button>
       <h2 id="casTit" class="cas-tit">Casulo de retalhos</h2>
       <p id="casSub" class="cas-sub" role="status"></p>
       <div id="casFilho" class="cas-filho" hidden></div>

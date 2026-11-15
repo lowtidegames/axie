@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Frayz: um botão de costura de linho com quatro furos e a linha do fio da maldição em X (desenhado à mão, em código) -->
+  <circle cx="32" cy="32" r="29" fill="#140C1F"/>
+  <circle cx="32" cy="32" r="26" fill="#F2E6C9"/>
+  <circle cx="32" cy="32" r="19" fill="none" stroke="#B9A98C" stroke-width="3"/>
+  <circle cx="24" cy="24" r="4.5" fill="#140C1F"/>
+  <circle cx="40" cy="24" r="4.5" fill="#140C1F"/>
+  <circle cx="24" cy="40" r="4.5" fill="#140C1F"/>
+  <circle cx="40" cy="40" r="4.5" fill="#140C1F"/>
+  <path d="M24 24 L40 40 M40 24 L24 40" stroke="#FF4D8D" stroke-width="4.5" stroke-linecap="round"/>
+</svg>

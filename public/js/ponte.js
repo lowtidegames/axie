@@ -7,7 +7,7 @@
 // Leituras (catálogo, fichas, a visão da luta, os comandos válidos, a energia guardada) são síncronas nos dois modos;
 // AÇÕES (abrir luta, mandar comando, costurar, abrir casulo, aposentar, carregar a coleção) são promessas nos dois modos.
 // A tela nunca calcula regra nem número: pergunta aqui e mostra o que voltar.
-import { aplicar, comandosValidos, criarLuta, resultado, visaoDoTime } from '../../shared/batalha.js'
+import { aplicar, comandosValidos, criarLuta, reproduzir, resultado, visaoDoTime } from '../../shared/batalha.js'
 import { planejarTurno } from '../../shared/robos.js'
 import * as L from './ponte-local.js'
 import * as R from './ponte-servidor.js'
@@ -62,11 +62,49 @@ export async function abrirLuta(opc) {
     const en = L.energia({ abrirLuta: true })
     if (!en.ok) return { ok: false, codigo: 'SEM_ENERGIA', motivo: 'Sua energia acabou por hoje.', energia: en }
   }
-  return { ok: true, estado: criarLuta({ semente: opc.semente, timeA: opc.timeA, timeB: opc.timeB }) }
+  const estado = criarLuta({ semente: opc.semente, timeA: opc.timeA, timeB: opc.timeB })
+  // tarefa 21: a luta da Aventura (que já gastou energia) fica guardada no aparelho: recarregar a página volta a ela
+  if (opc.modo === 'aventura') guardarLutaLocal({ modo: 'aventura', fase: opc.fase ?? null, ids: opc.ids ?? null, timeA: opc.timeA, timeB: opc.timeB, semente: opc.semente, robo: opc.robo ?? null, comandos: [] })
+  return { ok: true, estado }
 }
 
 /** Manda um comando. → { ok:true, estado, eventos, cmd?, aviso? } ou { ok:false, codigo, motivo }. */
-export function enviar(e, cmd) { return doServidor(e) ? R.enviar(e, cmd) : Promise.resolve(aplicar(e, cmd)) }
+export function enviar(e, cmd) {
+  if (doServidor(e)) return R.enviar(e, cmd)
+  const r = aplicar(e, cmd)
+  if (r.ok) anotarComandoLocal(r.estado)
+  return Promise.resolve(r)
+}
+
+// ---------------------------------------------------------------- luta aberta guardada no aparelho (modo local; tarefa 21)
+// { modo, fase, ids, timeA, timeB, semente, robo, comandos } — semente + times + comandos: o motor refaz a luta igual.
+const CHAVE_LUTA_LOCAL = 'frayz_luta_local'
+function lerLutaLocal() { try { const g = JSON.parse(localStorage.getItem(CHAVE_LUTA_LOCAL) || 'null'); return g && Array.isArray(g.comandos) && Array.isArray(g.timeA) ? g : null } catch { return null } }
+function guardarLutaLocal(g) { try { localStorage.setItem(CHAVE_LUTA_LOCAL, JSON.stringify(g)) } catch { /* sem armazenamento: a luta só não volta */ } }
+/** Depois de cada comando aceito: guarda a lista de comandos (a luta acabou: esquece). */
+function anotarComandoLocal(estado) {
+  const g = lerLutaLocal()
+  if (!g || g.semente !== estado.semente) return
+  if (estado.fim) { esquecerLuta(); return }
+  g.comandos = estado.comandos.map((c) => ({ ...c }))
+  guardarLutaLocal(g)
+}
+/** Tem luta aberta para voltar? (local: guardada no aparelho; servidor: a que o servidor diz) */
+export const lutaAberta = () => (MODO === 'servidor' ? !!R.lutaAberta() : !!lerLutaLocal())
+/** Esquece a luta guardada no aparelho (saiu, acabou ou o teste recomeçou). No servidor não há o que esquecer aqui. */
+export function esquecerLuta() { try { localStorage.removeItem(CHAVE_LUTA_LOCAL) } catch { /* ok */ } }
+
+/** Volta à luta aberta. Servidor: pede a ele. Local: refaz pelo motor (semente + times + comandos guardados).
+ *  → { ok, aberta, estado, modo, fase, robo, ids, timeA?, timeB?, semente? } */
+export async function retomarLuta() {
+  if (MODO === 'servidor') return R.retomarLuta()
+  const g = lerLutaLocal()
+  if (!g) return { ok: true, aberta: false }
+  let r
+  try { r = reproduzir({ semente: g.semente, timeA: g.timeA, timeB: g.timeB, comandos: g.comandos }) } catch { r = { ok: false } }
+  if (!r.ok || r.estado.fim) { esquecerLuta(); return { ok: true, aberta: false } }
+  return { ok: true, aberta: true, estado: r.estado, modo: g.modo, fase: g.fase, robo: g.robo, ids: g.ids, timeA: g.timeA, timeB: g.timeB, semente: g.semente }
+}
 
 /** Por que esse comando não vale agora? { codigo, motivo } ou null (pergunta ao motor; no servidor, o motor daqui olha a visão). */
 export function recusaDe(e, cmd) {
@@ -106,5 +144,3 @@ export const replayDaLuta = (e) => (doServidor(e) ? R.replay(e) : Promise.resolv
 export const conferirRelogio = (e) => (doServidor(e) ? R.atualizar(e) : Promise.resolve(null))
 /** Segundos que faltam no turno: servidor = pelo prazo dele; local = o relógio inteiro. */
 export const segundosDoTurno = (e) => (doServidor(e) ? R.segundosDoTurno(e) ?? L.TEMPO_DO_TURNO_S : L.TEMPO_DO_TURNO_S)
-/** Volta à luta que ficou aberta no servidor. */
-export const retomarLuta = () => R.retomarLuta()

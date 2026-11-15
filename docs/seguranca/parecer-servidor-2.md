@@ -35,3 +35,16 @@ Riscos baixos que ficam (tarefa 16): `apelido.mjs:15` "rn"/"m" e pontuação nas
 
 ## Lição
 Comando do SQLite com `RETURNING` lido com `.get()` fica aberto e trava o descarregamento do WAL. Sempre use `.all()` ou `.run()`, e todo teste de banco em arquivo mede o tamanho do `-wal`.
+
+## Rodada 3 (tarefa 16, commit eb6ce11, 15/11 04:13 BRT): **GO** — juntado no main em df45982
+`npm test` 165/0; só entrou `tarefa16.test.js`, nada apagado.
+| Nº | Gravidade | Estado |
+|---|---|---|
+| A6 rolar de novo | — | FECHADO: 1 de energia por abertura (máx 20/dia), gasto na transação; 60 ao mesmo tempo → 1; 2 processos → 20/20 |
+| S3-1 | baixa (média se 2+ servidores) | EM CONSERTO (tarefa 17): relógio que volta na virada zera a energia (`jogo.mjs:116`, `:214`); 2 processos com 1 s de diferença → 100 aberturas. Usar `>=` e `MAX` |
+| S3-2 | baixa | EM CONSERTO (tarefa 17): `::FFFF:a.b.c.d` em TRUST_PROXY_IPS não bate e o boot não avisa (`api.mjs:106`) |
+| Migração v4 | — | FECHADO: v3→v4 e v1→v4 com banco usado, cópia antes, apelidos únicos |
+| LUTA_ILEGIVEL | — | FECHADO: 0 em 400 lutas ao acaso; 500 genérico + 1 linha de log; obs.: `/replay` também dá 500 |
+| Histórico do boneco | — | FECHADO: teto de 100 |
+
+Risco que fica para a economia: a luta livre não tem custo; quando Retalhos ou prêmio virarem saldo, a luta livre não pode dar nenhum dos dois.

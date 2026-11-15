@@ -8,7 +8,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import fs from 'node:fs'
 import path from 'node:path'
-import { apelidoValido, chaveDoApelido, chaveDoApelidoV2, limparApelido } from './apelido.mjs'
+import { apelidoValido, chaveDoApelido, chaveDoApelidoV2, chaveDoApelidoV3, limparApelido } from './apelido.mjs'
 
 export const MIGRACOES = [
   // v1 — contas, bonecos (com dono), livro-razão dos bonecos, lutas, respostas de comandos (idempotência), pedidos.
@@ -132,18 +132,42 @@ export const MIGRACOES = [
     for (const { id, apelido } of db.prepare('SELECT id, apelido FROM contas ORDER BY id').all()) {
       const base = apelidoValido(apelido, id)
       let nome = base, k = 1
-      while (usados.has(chaveDoApelido(nome))) {
+      while (usados.has(chaveDoApelidoV3(nome))) {
         k++
         const sufixo = ` ${k}`
         nome = base.slice(0, Math.max(1, 20 - sufixo.length)).trimEnd() + sufixo
       }
-      usados.add(chaveDoApelido(nome))
-      gravar.run(nome, chaveDoApelido(nome), id)
+      usados.add(chaveDoApelidoV3(nome))
+      gravar.run(nome, chaveDoApelidoV3(nome), id)
     }
     db.exec(`
     CREATE UNIQUE INDEX contas_apelido ON contas(apelido_norm);
     CREATE INDEX lutas_encerradas ON lutas(conta_id, encerrada_em) WHERE status = 'encerrada';
     `)
+  },
+  // v4 — tarefa 16: energia da Aventura (dia UTC do gasto + quanto já gastou nesse dia; dia novo = cheia) e sequência
+  // de vitórias na Aventura (desistir e abandonar zeram, como qualquer derrota). Apelido comparado com "rn" = "m" e
+  // sem . _ - espaço nas pontas: repetido na forma nova ganha sufixo " 2", " 3"... (o mais antigo fica com o nome).
+  (db) => {
+    db.exec(`
+    ALTER TABLE contas ADD COLUMN energia_dia INTEGER;
+    ALTER TABLE contas ADD COLUMN energia_gasta INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE contas ADD COLUMN vitorias_seguidas INTEGER NOT NULL DEFAULT 0;
+    DROP INDEX contas_apelido;
+    `)
+    const usados = new Set()
+    const gravar = db.prepare('UPDATE contas SET apelido = ?, apelido_norm = ? WHERE id = ?')
+    for (const { id, apelido } of db.prepare('SELECT id, apelido FROM contas ORDER BY id').all()) {
+      let nome = apelido, k = 1
+      while (usados.has(chaveDoApelido(nome))) {
+        k++
+        const sufixo = ` ${k}`
+        nome = apelido.slice(0, Math.max(1, 20 - sufixo.length)).trimEnd() + sufixo
+      }
+      usados.add(chaveDoApelido(nome))
+      gravar.run(nome, chaveDoApelido(nome), id)
+    }
+    db.exec('CREATE UNIQUE INDEX contas_apelido ON contas(apelido_norm)')
   },
 ]
 

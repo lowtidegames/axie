@@ -208,3 +208,14 @@ export const BONECOS_PRONTOS = {
   assombrado: { partes: { tronco: 'tr_tule_rasgado@comum', cabeca: 'cab_veu@comum', bracos: 'br_nevoa@comum', pernas: 'pe_ultimo@comum', bordado: 'bo_rancor@comum' } },
   mudo: { partes: { tronco: 'tr_tule_armado@comum', cabeca: 'cab_abafada@comum', bracos: 'br_cetim@comum', pernas: 'pe_rolo@comum', bordado: 'bo_bolso_de_linha@comum' } },
 }
+
+// ---------------------------------------------------------------------------------------------
+// 8. Economia do BETA SEM DINHEIRO — *** PROVISÓRIO ***
+//    Números da rodada 2 (docs/ideias/economia-do-pote.md), valendo só para o beta sem dinheiro (decisão 15/11 03:18).
+//    Nenhum número de dinheiro aqui. Energia: abrir luta na Aventura gasta energia; a energia recarrega INTEIRA na
+//    virada do dia em UTC (00:00 UTC = 21:00 BRT), pelo relógio do servidor. Desistir e abandonar contam como derrota.
+// ---------------------------------------------------------------------------------------------
+export const ECONOMIA_DO_BETA = {
+  energiaPorDia: 20, // teto de energia por conta por dia ("energia 20 lutas")
+  energiaPorLutaDaAventura: 1, // cada luta ABERTA na Aventura gasta isto (gasto na abertura, mesmo se desistir)
+}

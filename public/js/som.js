@@ -220,12 +220,15 @@ function kit(ctx, voz, t0, v, opc) {
       K.tom({ a, dur: dur * 0.65, f: f * 1.47, atk: 0.002, piso: 0.02, pico: pico * 0.4 })
       K.chiado({ a, dur: 0.016, tipo: 'highpass', f: 6000, atk: 0.002, rel: 0.01, piso: 0.2, pico: pico * 0.45 })
     },
-    /** Baque de enchimento: corpo senoidal que cai + oitava (aparece em alto-falante pequeno) + ruído grave + tapa de pano. */
+    /** Baque de enchimento: corpo senoidal que cai + ruído grave; a oitava, a quinta acima dela e o pano batendo (médios)
+     *  são o que se ouve em alto-falante de celular, que não toca o grave. */
     baque({ a = 0, corpo = 1, dur = 0.18, f = 110, f1 = 70, lp = 300, tapa = 0.3, enchimento = 0.8 }) {
-      K.tom({ a, dur, f: f * v.tom, f1: f1 * v.tom, glide: dur * 0.66, atk: 0.004, piso: 0.03, pico: corpo })
-      K.tom({ a, dur: dur * 0.6, f: 2 * f * v.tom, f1: 2 * f1 * v.tom, glide: dur * 0.4, atk: 0.004, piso: 0.03, pico: corpo * 0.3 })
+      K.tom({ a, dur, f: f * v.tom, f1: f1 * v.tom, glide: dur * 0.66, atk: 0.004, piso: 0.03, pico: corpo * 0.8 })
+      K.tom({ a, dur: dur * 0.6, f: 2 * f * v.tom, f1: 2 * f1 * v.tom, glide: dur * 0.4, atk: 0.004, piso: 0.03, pico: corpo * 0.5 })
+      K.tom({ a, dur: dur * 0.42, f: 3 * f * v.tom, f1: 3 * f1 * v.tom, glide: dur * 0.3, atk: 0.004, piso: 0.03, pico: corpo * 0.3 })
       K.chiado({ a, dur: dur * 0.75, tipo: 'lowpass', f: lp, Q: 0.8, atk: 0.005, piso: 0.04, pico: enchimento })
-      if (tapa > 0) K.chiado({ a, dur: 0.032, f: 900, Q: 0.9, atk: 0.003, rel: 0.012, piso: 0.06, pico: tapa })
+      K.chiado({ a, dur: dur * 0.55, f: 640, Q: 0.8, atk: 0.004, piso: 0.04, pico: enchimento, desloc: 0.37 })
+      if (tapa > 0) { K.chiado({ a, dur: 0.036, f: 950, Q: 0.9, atk: 0.003, rel: 0.012, piso: 0.06, pico: tapa * 2 }); K.chiado({ a, dur: 0.018, f: 2300, Q: 1.2, atk: 0.002, rel: 0.01, piso: 0.1, pico: tapa * 0.8, desloc: 0.2 }) }
     },
     /** A linha puxada pelo pano: faixa estreita que sobe, com o atrito picotado. */
     puxada({ a = 0, dur = 0.19, f = 600, f1 = 2400, pico = 1, Q = 5 }) {
@@ -235,9 +238,11 @@ function kit(ctx, voz, t0, v, opc) {
     },
     /** Batida de coração (um "tum"). */
     coracao(a, forca = 1) {
-      K.tom({ a, dur: 0.13, f: 72, f1: 46, glide: 0.09, atk: 0.006, piso: 0.03, pico: 1.1 * forca })
-      K.tom({ a, dur: 0.085, f: 144, f1: 92, glide: 0.06, atk: 0.006, piso: 0.03, pico: 0.42 * forca })
+      K.tom({ a, dur: 0.13, f: 76, f1: 48, glide: 0.09, atk: 0.006, piso: 0.03, pico: 1.1 * forca })
+      K.tom({ a, dur: 0.09, f: 152, f1: 96, glide: 0.06, atk: 0.006, piso: 0.03, pico: 0.5 * forca })
+      K.tom({ a, dur: 0.06, f: 228, f1: 144, glide: 0.045, atk: 0.006, piso: 0.03, pico: 0.22 * forca })
       K.chiado({ a, dur: 0.06, tipo: 'lowpass', f: 180, atk: 0.006, piso: 0.05, pico: 0.4 * forca })
+      K.chiado({ a, dur: 0.04, f: 420, Q: 0.8, atk: 0.005, rel: 0.012, piso: 0.06, pico: 0.22 * forca, desloc: 0.4 })
     },
     /** Ponto arrebentando (o casulo abrindo), afinado no degrau da escala. */
     ponto(a = 0, dur = 0.2) {
@@ -264,11 +269,12 @@ const R = {
     K.chiado({ dur: 0.09, f: 2200, f1: 7200, glide: 0.075, Q: 1.4, hp: 1400, atk: 0.006, seg: 0.022, piso: 0.06, pico: 1, para: gr })
   },
   semLinha(K) { // dois toques graves e surdos (o segundo mais baixo: "não")
-    const { v } = K, l = K.filtro('lowpass', 720, 0.7); l.connect(K.saida)
+    const { v } = K, l = K.filtro('lowpass', 1100, 0.7); l.connect(K.saida)
     for (const [i, a] of [[0, 0], [1, 0.066]]) {
       const f = (i ? 136 : 165) * v.tom
       K.tom({ a, dur: 0.072, tipo: 'triangle', f, f1: f * 0.72, glide: 0.05, atk: 0.003, piso: 0.03, pico: i ? 0.85 : 1, para: l })
       K.chiado({ a, dur: 0.036, tipo: 'lowpass', f: 420, atk: 0.003, rel: 0.012, piso: 0.06, pico: 0.3 })
+      K.chiado({ a, dur: 0.024, f: 780, Q: 0.9, atk: 0.003, rel: 0.012, piso: 0.08, pico: 0.38, desloc: 0.3 })
     }
   },
   cartaJogada(K) { // linha puxada 600 → 2.400 Hz + tique de agulha
@@ -478,34 +484,34 @@ const T = {}
 function linha(nome, rotulo, receita, ms, pico, extra = {}) { T[nome] = { nome, rotulo, receita, ms, pico, f: R[nome], ...extra } }
 linha('botao', 'Tocar em botão', 'clique de botão de madeira: senoide 800 Hz curtíssima + estalo de ruído', 60, -11.5)
 linha('escolherCarta', 'Escolher carta', 'papel de molde: ruído agudo curto com filtro subindo', 90, -11)
-linha('semLinha', 'Carta sem Linha', 'dois toques graves e surdos', 140, -10.5)
+linha('semLinha', 'Carta sem Linha', 'dois toques graves e surdos', 140, -9.5)
 linha('cartaJogada', 'Jogar carta', 'linha puxada: ruído em faixa subindo de 600 a 2.400 Hz + tique de agulha', 220, -9)
-linha('golpe', 'Golpe', 'baque de enchimento: ruído grave com filtro em 300 Hz + corpo senoidal 110 → 70 Hz', 180, -8)
-linha('golpeForte', 'Golpe forte', 'o mesmo, com 30% mais corpo, + estalo de costura', 260, -7)
-linha('critico', 'Crítico', 'pano rasgando (faixa descendo de 3.000 a 500 Hz, picotada a 40 por segundo) + estouro abafado + 3 notas agudas da caixinha', 520, -6.5, { grande: true })
-linha('vantagem', 'Vantagem de tecido', 'uma nota da caixinha, quinta acima, junto do golpe', 200, -9.5)
-linha('escudo', 'Escudo ganho', 'dedal: sino pequeno com parciais 1 · 2,76 · 5,4 a partir de 1.900 Hz', 300, -9)
+linha('golpe', 'Golpe', 'baque de enchimento: ruído grave com filtro em 300 Hz + corpo senoidal 110 → 70 Hz', 180, -7.4)
+linha('golpeForte', 'Golpe forte', 'o mesmo, com 30% mais corpo, + estalo de costura', 260, -6.6)
+linha('critico', 'Crítico', 'pano rasgando (faixa descendo de 3.000 a 500 Hz, picotada a 40 por segundo) + estouro abafado + 3 notas agudas da caixinha', 520, -6.2, { grande: true })
+linha('vantagem', 'Vantagem de tecido', 'uma nota da caixinha, quinta acima, junto do golpe', 200, -10.5)
+linha('escudo', 'Escudo ganho', 'dedal: sino pequeno com parciais 1 · 2,76 · 5,4 a partir de 1.900 Hz', 300, -9.5)
 linha('golpeNoEscudo', 'Golpe no escudo', '"tink" curto do dedal + baque menor', 160, -8.5)
 linha('erroDoVeu', 'Véu fez errar', 'sopro de tule: ruído agudo suave que passa de um lado ao outro', 300, -10, { varre: true })
-linha('cura', 'Cura', '3 notas da caixinha subindo (ré, fá, lá) + linha puxada baixinho', 420, -9.5)
-linha('fioSolto', 'Fio Solto aplicado', 'corda que afrouxa: nota que escorrega para baixo', 250, -9.5)
+linha('cura', 'Cura', '3 notas da caixinha subindo (ré, fá, lá) + linha puxada baixinho', 420, -10.5)
+linha('fioSolto', 'Fio Solto aplicado', 'corda que afrouxa: nota que escorrega para baixo', 250, -10.5)
 linha('trocarLugares', 'Trocar lugares', 'dois passinhos de pano + deslize', 240, -10)
 linha('comprarCarta', 'Comprar carta', 'folha de papel virada', 80, -11)
 linha('fiapo', 'Fiapo descartado', 'fiapo cortado: tesourinha fina', 110, -10.5)
 linha('linhaGanha', 'Linha ganha', 'carretel girando: 3 tiques subindo', 180, -10.5)
-linha('suaVez', 'Sua vez', 'duas notas da caixinha (lá, ré agudo)', 350, -9)
+linha('suaVez', 'Sua vez', 'duas notas da caixinha (lá, ré agudo)', 350, -10)
 linha('tempoAcabando', 'Tempo acabando (5 s)', 'tique-taque que aperta (laço de 5 s; para com parar("tempoAcabando"))', 5000, -10, { laco: true })
 linha('ultimoFio', 'Último Fio', 'corda esticada que geme (serra com filtro e tremor) + um baque de coração', 700, -7)
-linha('queda', 'Queda', 'assobio curto descendo + baque mole + flocos', 500, -7, { grande: true })
+linha('queda', 'Queda', 'assobio curto descendo + baque mole + flocos', 500, -6.6, { grande: true })
 linha('tesouraDesce', 'Tesoura desce um degrau', 'rangido metálico curto (e o clac do degrau)', 300, -8)
-linha('tesoura', 'Tesoura corta', '"snip" grande: dois estalos metálicos + anel de metal + baque grave', 600, -6.5, { grande: true, calmo: true })
+linha('tesoura', 'Tesoura corta', '"snip" grande: dois estalos metálicos + anel de metal + baque grave', 600, -6.2, { grande: true, calmo: true })
 linha('casuloParte', 'Casulo: abrir parte', 'ponto arrebentando; cada parte um degrau acima da anterior', 200, -9)
-linha('casuloRara', 'Casulo: parte Rara', 'o mesmo + brilho de 4 notas', 500, -8)
-linha('casuloLendaria', 'Casulo: parte Lendária', 'o mesmo + tema do Frayz em oitava alta com eco', 1200, -7)
+linha('casuloRara', 'Casulo: parte Rara', 'o mesmo + brilho de 4 notas', 500, -9)
+linha('casuloLendaria', 'Casulo: parte Lendária', 'o mesmo + tema do Frayz em oitava alta com eco', 1200, -8)
 linha('remendo', 'Remendo novo', 'agulha passando 3 vezes', 300, -10)
-linha('aposentadoria', 'Aposentadoria', 'tema lento, só a caixinha, terminando na nota longa', 2500, -9, { musical: true })
-linha('vitoria', 'Vitória', 'tema em ré maior, 2 compassos, com arpejo final', 2500, -7.5, { musical: true, unico: 4000 })
-linha('derrota', 'Derrota', 'tema descendo e desacelerando, como caixinha perdendo a corda', 2500, -8.5, { musical: true, unico: 4000 })
+linha('aposentadoria', 'Aposentadoria', 'tema lento, só a caixinha, terminando na nota longa', 2500, -10, { musical: true })
+linha('vitoria', 'Vitória', 'tema em ré maior, 2 compassos, com arpejo final', 2500, -8, { musical: true, unico: 4000 })
+linha('derrota', 'Derrota', 'tema descendo e desacelerando, como caixinha perdendo a corda', 2500, -9.5, { musical: true, unico: 4000 })
 T.critico.calmo = true // "Menos animação": crítico e Tesoura 6 dB mais baixos
 
 // Pico de cada variação com ganho 1 (medido fora do tempo real a 48 kHz, no centro). É daqui que sai o ganho que põe cada
@@ -514,14 +520,14 @@ T.critico.calmo = true // "Menos animação": crítico e Tesoura 6 dB mais baixo
 const PICO_BRUTO = {
   botao: [0.882, 0.8631, 0.8433],
   escolherCarta: [0.6691, 1.002, 0.7294],
-  semLinha: [0.6511, 0.7517, 0.6902],
+  semLinha: [0.6266, 0.9016, 0.8149],
   cartaJogada: [0.9598, 0.8067, 0.9129],
-  golpe: [0.9944, 0.8324, 0.9661],
-  golpeForte: [1.238, 1.21, 1.199],
-  critico: [1.026, 1.043, 0.9808],
+  golpe: [1.191, 1.027, 1.387],
+  golpeForte: [1.467, 1.333, 1.679],
+  critico: [1.238, 1.062, 1.172],
   vantagem: [0.8326, 0.8566, 1.114],
   escudo: [1.467, 1.474, 1.369],
-  golpeNoEscudo: [1.33, 1.355, 1.372],
+  golpeNoEscudo: [1.449, 1.382, 1.372],
   erroDoVeu: [0.7901, 0.7921, 0.715],
   cura: [0.9679, 0.9558, 0.9901],
   fioSolto: [0.8584, 0.8587, 0.8539],
@@ -531,10 +537,10 @@ const PICO_BRUTO = {
   linhaGanha: [0.9986, 0.8052, 0.8731],
   suaVez: [0.8758, 0.8562, 1.126],
   tempoAcabando: [0.9545, 0.8995, 0.9455],
-  ultimoFio: [0.8182, 0.8516, 1.08],
-  queda: [0.7982, 0.779, 1.08],
+  ultimoFio: [0.8384, 0.9781, 1.129],
+  queda: [0.8573, 0.9932, 1.336],
   tesouraDesce: [1.181, 1.111, 1.234],
-  tesoura: [2.246, 2.532, 2.171],
+  tesoura: [2.31, 2.329, 2.362],
   casuloParte: [1.029, 0.9076, 1.018],
   casuloRara: [1.029, 0.9076, 1.018],
   casuloLendaria: [1.029, 1.028, 1.018],

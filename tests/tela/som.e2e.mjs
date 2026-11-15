@@ -526,7 +526,8 @@ cabecalho('Amostras gravadas: manifesto de teste com um WAV escrito pelo própri
   confere(r.fontes.golpe === 'amostra' && r.fontes.escudo === 'codigo', 'fonteDoEfeito: com arquivo no manifesto → amostra; sem arquivo → código')
   confere(r.botao[0]?.estado === 'falhou' && r.fontes.botao === 'codigo' && r.botaoErro, 'arquivo que não carrega (404) cai para o som feito por código')
   confere(r.amostra.apito > r.amostra.grave + 20 && r.codigo.grave > r.codigo.apito + 10, `a amostra toca no lugar do código (o apito de 1.000 Hz do WAV: ${n1(r.amostra.apito)} dB na amostra, ${n1(r.codigo.apito)} dB no código)`)
-  confere(Math.abs(r.amostra.picoDb + 8) < 0.6 && Math.abs(r.codigo.picoDb + 8) < 0.5, `a medição de pico vale para as duas fontes: golpe por amostra ${n1(r.amostra.picoDb)} dBFS, por código ${n1(r.codigo.picoDb)} dBFS (alvo −8)`)
+  const alvoGolpe = por.golpe.alvoPico
+  confere(Math.abs(r.amostra.picoDb - alvoGolpe) < 0.6 && Math.abs(r.codigo.picoDb - alvoGolpe) < 0.5, `a medição de pico vale para as duas fontes: golpe por amostra ${n1(r.amostra.picoDb)} dBFS, por código ${n1(r.codigo.picoDb)} dBFS (alvo ${alvoGolpe})`)
   confere(r.amostra.atraso < 0.012 && r.amostra.fimDb < -46 && r.amostra.caudaDb < -90, `a amostra sai na hora (${Math.round(r.amostra.atraso * 1000)} ms, o atraso do limitador) e termina sem clique`)
   confere(Math.abs(r.criticoAmostra.picoDb + 6) < 0.6 && r.criticoAmostra.ms <= 125, `ganhoDb e cortarMs do manifesto valem, sem sair da faixa (crítico +3 dB → ${n1(r.criticoAmostra.picoDb)} dBFS, ${Math.round(r.criticoAmostra.ms)} ms)`)
   confere(r.lado[1] > r.lado[0] + 6, 'a amostra sai do lado do boneco, como o código')

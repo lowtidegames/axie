@@ -547,8 +547,28 @@ function leitor(partes) {
   return o
 }
 
-/** Desenha o boneco no espaço 160×232 (a tela escala). est: 'vivo' | 'fio' | 'caido'. */
-export function desenharBoneco(c, partes, est = 'vivo') {
+// Remendos de desgaste (Pontos de Costura): o nível 0..5 vem de nivelDeRemendo(); aqui só se desenha (nível n = n remendos).
+const REMENDOS = [
+  { x: 44, y: 126, w: 20, h: 17, tipo: 'jeans', rot: -0.12 },
+  { x: 94, y: 96, w: 19, h: 17, tipo: 'feltro', rot: 0.1 },
+  { x: 52, y: 160, w: 17, h: 15, tipo: 'couro', rot: 0.08 },
+  { x: 92, y: 168, w: 17, h: 15, tipo: 'la', rot: -0.1 },
+  { x: 100, y: 128, w: 17, h: 15, tipo: 'seda', rot: 0.14 },
+]
+function remendos(c, nivel) {
+  for (let i = 0; i < Math.min(nivel, REMENDOS.length); i++) {
+    const r = REMENDOS[i]
+    c.save(); c.translate(r.x + r.w / 2, r.y + r.h / 2); c.rotate(r.rot); c.translate(-(r.x + r.w / 2), -(r.y + r.h / 2))
+    const f = patch(r.x, r.y, r.w, r.h, 2, 2, 31 + i * 7)
+    tecido(c, r.tipo, f, '#f4efe0', 17 + i, { contorno: 1.9 })
+    c.strokeStyle = '#f4efe0'; c.lineWidth = 1.6; c.lineCap = 'round'
+    c.beginPath(); c.moveTo(r.x + 4, r.y + 4); c.lineTo(r.x + r.w - 4, r.y + r.h - 4); c.moveTo(r.x + r.w - 4, r.y + 4); c.lineTo(r.x + 4, r.y + r.h - 4); c.stroke()
+    c.restore()
+  }
+}
+
+/** Desenha o boneco no espaço 160×232 (a tela escala). est: 'vivo' | 'fio' | 'caido'. remendo: 0..5 (desgaste). */
+export function desenharBoneco(c, partes, est = 'vivo', remendo = 0) {
   const P = leitor(partes), S = (id) => Math.abs(hash(id)) % 9973 + 1
   const trTipo = tipoDaParte(P.tronco.id)
   const fio = (s) => FIO_RARIDADE[P[s].rar] ?? FIO_RARIDADE.comum
@@ -560,6 +580,7 @@ export function desenharBoneco(c, partes, est = 'vivo') {
   tronco(c, P.tronco.id, trTipo, fio('tronco'), S(P.tronco.id))
   BORDADOS_DESENHO[PARTES[P.bordado.id].bordado](c)
   for (const lado of [-1, 1]) BRACOS[P.bracos.id](c, lado, tipoDaParte(P.bracos.id), fio('bracos'), S(P.bracos.id) + (lado > 0 ? 5 : 0))
+  remendos(c, remendo)
   CABECAS[P.cabeca.id](c, tipoDaParte(P.cabeca.id), fio('cabeca'), est, S(P.cabeca.id))
   c.restore()
 }
@@ -568,14 +589,14 @@ export function desenharBoneco(c, partes, est = 'vivo') {
 
 const cacheSprites = new Map()
 /** Bitmap do boneco (com a escala de tela embutida). Variantes: vivo · fio (pendurado) · caido (apagado). */
-export function spriteDoBoneco(partes, est, escala) {
-  const chave = `${Object.values(partes).join('|')}|${est}|${escala.toFixed(2)}`
+export function spriteDoBoneco(partes, est, escala, remendo = 0) {
+  const chave = `${Object.values(partes).join('|')}|${est}|${escala.toFixed(2)}|${remendo}`
   let s = cacheSprites.get(chave)
   if (s) return s
   const cv = document.createElement('canvas'); cv.width = Math.ceil(SW * escala); cv.height = Math.ceil(SH * escala)
   const c = cv.getContext('2d'); c.scale(escala, escala)
   if (est === 'fio') { c.translate(0, -10) }
-  desenharBoneco(c, partes, est)
+  desenharBoneco(c, partes, est, remendo)
   if (est === 'fio') { // o fio que o segura
     c.setTransform(escala, 0, 0, escala, 0, 0)
     linha(c, [[80, -2], [80, 16]], TINTA, 4.4); linha(c, [[80, -2], [80, 16]], '#efe6cf', 2.2)

@@ -2,12 +2,78 @@
 // No protótipo local o motor roda aqui no navegador (módulo ES de /shared). Quando houver servidor, SÓ ESTE ARQUIVO
 // troca: as mesmas funções passam a chamar a rede. A tela (app.js, arena.js) nunca importa /shared direto
 // e nunca calcula regra nem número: pergunta aqui e mostra o que voltar.
-import { aplicar, bateForte, comandosValidos, criarLuta, montarBoneco, reproduzir, resultado, textoDaCarta, textoDoBordado, visaoDoTime } from '/shared/batalha.js'
+import { aplicar, aplicarNoLugar, bateForte, clonar, comandosValidos, criarLuta, montarBoneco, reproduzir, resultado, textoDaCarta, textoDoBordado, visaoDoTime } from '/shared/batalha.js'
+import * as C from '/shared/costura.js'
+import { criarRng } from '/shared/rng.js'
 import { planejarTurno } from '/shared/robos.js'
 import { BONECOS_PRONTOS, BONUS_DE_TIPO, BORDADOS, CARTAS, NOMES_DOS_TIPOS, PARTES, RARIDADES, REGRAS, TIPOS } from '/shared/config.js'
 
 export { BONUS_DE_TIPO, BORDADOS, CARTAS, NOMES_DOS_TIPOS, PARTES, RARIDADES, REGRAS, TIPOS }
 export const ROBOS = ['ganancioso', 'planejador']
+export const PARAMS_COSTURA = C.PARAMS_COSTURA
+export const PARTES_DO_BONECO = C.PARTES_DO_BONECO
+export const chancesDaCostura = C.chancesDaCostura
+export const podeCosturar = C.podeCosturar
+export const custoDaCostura = C.custoDaCostura
+export const costurar = C.costurar
+export const abrirCasulo = C.abrirCasulo
+export const olharOAvesso = C.olharOAvesso
+export const registrarLuta = C.registrarLuta
+export const nivelDeRemendo = C.nivelDeRemendo
+export const podeAposentar = C.podeAposentar
+export const aposentar = C.aposentar
+export const validarBoneco = C.validarBoneco
+
+// ---------------------------------------------------------------- bonecos com genes (coleção)
+
+/** Boneco pronto → boneco com genes: a FACE é o pronto; o FORRO é sorteado pela semente (gerarBonecoInicial). */
+export function bonecoDoPronto(idPronto, semente) {
+  const g = C.gerarBonecoInicial(criarRng(`${semente}:${idPronto}`), { id: idPronto })
+  for (const p of C.PARTES_DO_BONECO) g.partes[p].face = BONECOS_PRONTOS[idPronto].partes[p]
+  return g
+}
+/** As faces (o que luta e o que se desenha): { slot: 'id@raridade' }. */
+export const facesDe = (b) => Object.fromEntries(C.PARTES_DO_BONECO.map((p) => [p, b.partes[p].face]))
+/** Ficha (stats, cartas, nome montado pelas partes) de um boneco com genes. */
+export const fichaDoBoneco = (b) => ficha({ ...(b.nome ? { nome: b.nome } : {}), partes: facesDe(b) })
+/** Definição para a luta, ou { erro } com o motivo do motor (aposentado, limite de remendos...). */
+export function defParaLuta(b) {
+  try { return { def: C.paraLuta(b) } } catch (e) { return { erro: e.message } }
+}
+/** Ficha de uma parte 'id@raridade' (nome, carta, tipo) para mostrar na tela. */
+export function infoDaParte(gene) {
+  const [id, raridade] = gene.split('@')
+  const p = PARTES[id]
+  return { id, raridade, nome: p.nome, slot: p.slot, carta: p.carta ? infoDaCarta(p.carta) : null, bordado: p.bordado ? { id: p.bordado, nome: BORDADOS[p.bordado].nome, texto: textoDoBordado(p.bordado) } : null, tipo: p.tipo ?? (p.carta ? CARTAS[p.carta].tipo : null) }
+}
+/** Nome montado pelas partes de um gene de parte (apelido) — usa o catálogo. */
+export const apelidoDaParte = (gene) => PARTES[gene.split('@')[0]].apelido ?? PARTES[gene.split('@')[0]].nome
+
+/** Intenção do rival para o PRÓXIMO turno dele, como se você passasse agora (o robô só lê o estado; crítico pela média).
+ *  Devolve [{ carta, dono, alvo, dano, tipo }] com os primeiros comandos do plano (até a primeira compra). */
+export function intencaoDoRival(estado, robo) {
+  if (!estado || estado.fim || estado.vez !== EU) return null
+  const r = aplicar(estado, { tipo: 'passar', time: EU })
+  if (!r.ok || r.estado.fim) return null
+  const plano = planejarTurno(r.estado, robo)
+  const sim = clonar(r.estado, { simular: true }), out = []
+  for (const c of plano) {
+    if (c.tipo === 'jogar') {
+      const inst = sim.cartas[c.carta], def = CARTAS[inst.carta]
+      const antes = Object.fromEntries(Object.entries(sim.bonecos).map(([k, b]) => [k, b.vida + b.escudo]))
+      const ok = aplicarNoLugar(sim, c)
+      if (!ok.ok) break
+      let dano = 0
+      if (temDano(inst.carta)) for (const [k, b] of Object.entries(sim.bonecos)) if (b.time === EU) dano += Math.max(0, antes[k] - (b.vida + b.escudo))
+      const alvo = c.alvo ? sim.bonecos[c.alvo] : null
+      out.push({ tipo: 'jogar', carta: def.nome, cartaId: inst.carta, dono: sim.bonecos[inst.dono].nome, donoId: inst.dono, alvoId: c.alvo ?? null, alvo: alvo?.nome ?? null, dano, tipoCarta: def.tipo })
+    } else if (c.tipo === 'trocar') { out.push({ tipo: 'trocar' }); aplicarNoLugar(sim, c) }
+    else if (c.tipo === 'passar') out.push({ tipo: 'passar' })
+    else if (c.tipo === 'fiapo') { out.push({ tipo: 'fiapo' }); aplicarNoLugar(sim, c) }
+    if (sim.fim || sim.vez !== RIVAL) break
+  }
+  return out
+}
 /** ASSUMPTION: o relógio de 20 s vem do desenho (docs/ideias/batalha-e-criaturas.md §5); ainda não tem chave em shared/config.js. */
 export const TEMPO_DO_TURNO_S = 20
 export const EU = 'A'
@@ -99,9 +165,17 @@ function codificarComando(c) {
   throw new Error('Comando desconhecido')
 }
 
+const mesmasPartes = (a, b) => ['tronco', 'cabeca', 'bracos', 'pernas', 'bordado'].every((k) => a[k] === b[k])
+/** Boneco da luta → texto curto: igual a um pronto vai pelo nome; os outros vão pelas partes. */
+function codificarBoneco(d) {
+  if (typeof d === 'string') return d
+  const pronto = Object.keys(BONECOS_PRONTOS).find((k) => mesmasPartes(BONECOS_PRONTOS[k].partes, d.partes))
+  if (pronto && !d.nome) return pronto
+  return { ...(d.nome ? { n: d.nome } : {}), p: d.partes }
+}
 /** Texto JSON curto do replay. Os bonecos prontos vão pelo nome. */
 export function exportarReplay({ semente, timeA, timeB, comandos: cmds, robo }) {
-  return JSON.stringify({ v: 1, s: semente, a: timeA, b: timeB, r: robo, c: cmds.map(codificarComando) })
+  return JSON.stringify({ v: 1, s: semente, a: timeA.map(codificarBoneco), b: timeB.map(codificarBoneco), r: robo, c: cmds.map(codificarComando) })
 }
 
 /** Texto do replay → { semente, timeA, timeB, robo, comandos } ou lança Error com o motivo. */
@@ -110,8 +184,13 @@ export function lerReplay(texto) {
   try { o = JSON.parse(String(texto).trim()) } catch { throw new Error('Isso não parece um replay (JSON inválido).') }
   if (!o || o.v !== 1 || !(typeof o.s === 'string' || Number.isSafeInteger(o.s)) || !Array.isArray(o.a) || !Array.isArray(o.b) || !Array.isArray(o.c)) throw new Error('Replay incompleto ou de outra versão.')
   const montar = (l) => l.map((x) => {
-    if (typeof x !== 'string' || !BONECOS_PRONTOS[x]) throw new Error('Replay com boneco desconhecido.')
-    return x
+    if (typeof x === 'string' && BONECOS_PRONTOS[x]) return x
+    if (x && typeof x === 'object' && x.p && typeof x.p === 'object') {
+      const d = { ...(typeof x.n === 'string' ? { nome: x.n } : {}), partes: x.p }
+      try { montarBoneco(d) } catch { throw new Error('Replay com boneco inválido.') }
+      return d
+    }
+    throw new Error('Replay com boneco desconhecido.')
   })
   const timeA = montar(o.a), timeB = montar(o.b)
   let e

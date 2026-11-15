@@ -98,7 +98,7 @@ test('congelado: o modo do estúdio do repositório é um valor válido', () => 
 test('economia: número novo exige linha no registro de decisões no mesmo commit', () => {
   assert.equal(E.mudouNumero('+++ b/shared/config.js\n-  preco: 10,\n+  preco: 12,\n'), true)
   assert.equal(E.mudouNumero('+++ b/shared/config.js\n-  // texto antigo\n+  // texto novo\n'), false)
-  assert.equal(E.acrescentouDecisao('+++ b/docs/decisions.md\n+- 15/11/2026 10:00 BRT — economia: preço 12 — "sim" (conversa)\n'), true)
+  assert.equal(E.acrescentouDecisao('+++ b/docs/decisions.md\n+- 14/11/2026 10:00 BRT — economia: preço 12 — "sim" (conversa)\n'), true)
   assert.equal(E.acrescentouDecisao('+++ b/docs/decisions.md\n+- sem data nenhuma\n'), false)
 })
 

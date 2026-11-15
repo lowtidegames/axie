@@ -1,6 +1,6 @@
 # Status
 
-_Atualizado: 15/11/2026 22:58 BRT_
+_Atualizado: 14/11/2026 22:58 BRT_
 
 ## Pronto
 - Estúdio montado: regras (`CLAUDE.md`), equipe (`.claude/EQUIPE.md`, 25 agentes), skills de método e de ofício, travas automáticas (`tools/`, `.claude/settings.json`) e docs de método (`docs/`).

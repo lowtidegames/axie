@@ -1,6 +1,7 @@
 # PASSAGEM — Frayz
 
 ## ⚑ 15/11/2026 03:18 BRT — ESTADO ATUAL (vale acima do resto; a seção de 02:30 abaixo continua valendo no que esta não muda)
+- **Diretor atual:** `session_019N76nV3k1ns7CNtk1EEECx` ("Frayz — diretor", aberta às 03:19 pela conversa anterior, no ambiente `frayz`). A conversa anterior (`session_019N76nV6wFUb2aP2SLbeotJ`) está encerrada.
 - **Decisões novas do dono (02:55):** (1) visual = desenho por código; (2) som pelo ElevenLabs com teto de 5.000 créditos (gasto 1.284; sobra 3.716; novo gasto: avisar o dono em 1 linha antes); (3) **AUTONOMIA: até o jogo estar completamente jogável o diretor decide sozinho, desde que a opção tenha nota 95+ (se não tiver, refina até ter) e registre cada decisão com nota e motivo no `docs/decisions.md`.** Continuam só do dono: dinheiro de verdade, créditos além dos tetos, token e carteira, publicar fora da página de teste, apagar, cliques nas contas dele.
 - **Decidido pelo diretor por delegação (topo do decisions.md):** efeitos de ateliê por amostra e caixinha de música por código; números da rodada 2 só para o beta sem dinheiro; teto de força do Lendário +4%; abrir luta gasta energia e desistir conta como derrota; link de teste pela página do GitHub quando o acabamento estiver encaixado (1 clique do dono em Settings → Pages).
 - **Pacote de som instalado:** 18 efeitos, 53 arquivos em `public/sons/`, ligados pelo `public/sons/manifesto.json`. Material bruto e escolha em `sons/pacote-elevenlabs/`. Ninguém ouviu: o dono aprova de ouvido pela folha `/sons.html` quando houver link.

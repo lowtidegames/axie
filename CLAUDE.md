@@ -32,7 +32,7 @@ Detalhes e números (PROVISÓRIOS) em `docs/modo-de-operar.md`. Rede do token: *
 ## Código
 - Servidor decide moedas, sorteios, batalhas, cruzamentos, trocas e pagamentos; a tela só mostra. Número de balanceamento só no arquivo único de configuração (a criar; sugestão `shared/config.js`); nomes de criaturas, partes e cartas só da lista oficial do jogo.
 - Mudou servidor → teste do servidor. Mexeu em banco ou boot → testar também com um banco "usado" (com dados). Mudou número → simulador econômico (a criar).
-- Tela nova: com "Menos animação" sem tremida nem flash; flash no máximo 3 por segundo; partículas abaixo do limite de `docs/guia-de-estilo.md` (a criar). Diversão: `docs/kit-diversao.md`. Som: `docs/direcao-de-som.md` (a criar).
+- Tela nova: com "Menos animação" sem tremida nem flash; flash no máximo 3 por segundo; partículas abaixo do limite de `docs/guia-de-estilo.md` (a régua de interface, layout e arte). Diversão: `docs/kit-diversao.md`. Som: `docs/direcao-de-som.md`.
 - Nunca apagar nem enfraquecer um teste; teste só muda quando a regra mudou (diga qual). Sem `push --force` e sem `reset --hard`.
 - Falhou: ache a causa; no máximo 2 caminhos diferentes; depois pare e relate com prova.
 - Commits: autor `lowtidegames <345732410+lowtidegames@users.noreply.github.com>`, sem GPG, sem linhas "Co-Authored-By" ou de sessão. PR sem "Generated with Claude Code". Aviso "Unverified" ou pedindo outro autor: é esperado, não trocar o autor.

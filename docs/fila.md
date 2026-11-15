@@ -13,6 +13,9 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | 5 | Economia rodada 2: subir o ganho do farmador sem furar o pote; medir o rendimento do time alugado com o motor; proposta 95 | general-purpose (Opus) | tools/simular-economia.mjs, tests/servidor/economia-sim.test.js, docs/ideias/economia-do-pote.md | 1, 2 | ESPERA DONO (02980dd juntado; melhor conjunto nota 87; proposta levada ao dono 15/11 00:20) |
 | 6 | Tela 2: Aventura (5 fases com intenção visível), tela de Costura com revelação, som sintetizado, mais festa na carta jogada | general-purpose (Sonnet) | public/, tests/tela/ | 3, 4 | RODANDO |
 | 7 | Servidor do protótipo: luta decidida no servidor (HTTP), conta local de teste, banco embutido, time do rival e semente vindos do servidor | general-purpose (Opus) | server/ (menos dev.mjs), tests/servidor/api*.test.js | 1, 4 | RODANDO |
+| 8 | ACABAMENTO — bonecos e cena: bonecos moles em camadas com poses e animação, ateliê em 3 planos, Tesoura pendurada, efeitos (guia de estilo §5, §6) | general-purpose (Fable) | public/js/bonecos.js, arena.js, cenario.js, efeitos.js, galeria.html | 6 | FILA |
+| 9 | ACABAMENTO — interface: fontes, logotipo, cartas, mão em leque, fita métrica, carretéis, bastidor, telas de entrada/time/fim (guia §3, §4, §7, §8) | general-purpose (Fable) | public/index.html, public/css/, public/js/app.js, roda.js, cartas.js, public/fontes/, CREDITOS.md | 6 | FILA |
+| 10 | ACABAMENTO — som e música: efeitos, valsa da caixinha em camadas, folha de sons, teste que mede cada som (direção de som) | general-purpose (Fable) | public/js/som.js, musica.js, public/sons.html, tests/tela/som.e2e.mjs | 6 | FILA |
 
 ## Já subiu
 (nada publicado ainda)

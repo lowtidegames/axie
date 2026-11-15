@@ -5,7 +5,8 @@
   "description": "Jogo original de navegador: criaturas colecionáveis com partes, batalha 3 contra 3 com cartas, cruzamento e mercado",
   "scripts": {
     "test": "node tools/verde.mjs rodar servidor \"node --test 'tests/servidor/*.test.js'\"",
-    "test:travas": "node tools/verde.mjs rodar travas \"node --test tests/travas.test.mjs\""
+    "test:travas": "node tools/verde.mjs rodar travas \"node --test tests/travas.test.mjs\"",
+    "simular:economia": "node tools/simular-economia.mjs"
   },
   "engines": {
     "node": ">=22.13"

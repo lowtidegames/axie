@@ -431,27 +431,8 @@ export function gradeDoIconeElemento(tipo) {
   g.contorno()
   return g
 }
-/** Ícone da habilidade: medalha da cor do elemento com o desenho do que ela faz (ataque, Guard, cura, apoio). */
-export function gradeDoIconeHabilidade(cartaId) {
-  const c = CARTAS[cartaId]
-  const g = new Grade(16, 16)
-  const r = rampaDoElemento(c.tipo)
-  g.forma(E(8, 8, 7, 7), r, { linha: false })
-  const ef = c.efeitos.map((x) => x.tipo)
-  const cor = CREME
-  if (ef.includes('dano')) {
-    if (c.alvo === 'inimigo') { g.linhaPx(4, 11, 11, 4, cor); g.p(11, 5, cor); g.p(10, 4, cor); g.p(12, 4, cor); g.p(11, 3, cor) } // Reach: lança
-    else if (c.alvo === 'todos') { for (const y of [5, 8, 11]) g.linhaPx(4, y, 11, y - 1, cor) }
-    else { g.chapa(P([[4, 4], [12, 8], [4, 12], [7, 8]]), cor) } // golpe
-  } else if (ef.includes('escudo')) g.chapa(P([[4, 4], [12, 4], [12, 8], [8, 13], [4, 8]]), cor)
-  else if (ef.includes('cura')) { g.chapa(R(7, 4, 3, 9), cor); g.chapa(R(4, 7, 9, 3), cor) }
-  else if (ef.includes('veu')) { g.chapa(E(8, 8, 4, 4), cor); g.chapa(E(10, 7, 3, 3), r.base) }
-  else { g.chapa(P([[5, 3], [11, 8], [5, 13]]), cor); g.p(4, 8, cor) } // apoio: seta
-  g.contorno()
-  return g
-}
 
-// ------------------------------------------------------------------ MARCADORES DO MAPA 32×32
+// ------------------------------------------------------------------ LUGARES 32×32
 const LUGARES = {
   1(g) { // poço da vila com bandeirinhas
     g.forma(E(16, 18, 9, 7), R_PEDRA); g.chapa(E(16, 17, 6, 4), '#2E6FB8'); g.p(14, 16, '#8CC8FF')
@@ -497,7 +478,7 @@ export async function carregarManifesto(base = new URL('./arte/', import.meta.ur
   const lista = []
   const add = (v) => { if (typeof v === 'string' && /\.png$/i.test(v) && !/^[a-z]+:|^\/|\.\./i.test(v)) lista.push(v) }
   for (const v of Object.values(m.monsters ?? {})) { add(v?.idle); add(v?.attack) }
-  add(m.arena); add(m.nest); add(m.map)
+  add(m.arena); add(m.nest)
   for (const v of Object.values(m.egg ?? {})) add(v)
   for (const v of Object.values(m.places ?? {})) add(v)
   for (const v of Object.values(m.elements ?? {})) add(v)
@@ -521,23 +502,10 @@ export function monstro(def, pose = 'idle') {
   const chave = 'm:' + JSON.stringify(partes) + pose
   return guardar(chave, () => gradeDoMonstro(partes, pose).canvas())
 }
-/** O monstro só com as partes já reveladas (cena do ovo): ex. ['pernas', 'bracos']. */
-export function monstroEmPartes(partes, slots) {
-  return guardar('mp:' + JSON.stringify(partes) + slots.join(','), () => gradeDoMonstro(partes, 'idle', slots).canvas())
-}
 export function ovo(estado = 'whole') { return img(manifesto().egg?.[estado]) ?? guardar('ovo:' + estado, () => gradeDoOvo(estado).canvas()) }
 export function iconeElemento(tipo) { return img(manifesto().elements?.[tipo]) ?? guardar('el:' + tipo, () => gradeDoIconeElemento(tipo).canvas()) }
-export function iconeHabilidade(id) { return guardar('hab:' + id, () => gradeDoIconeHabilidade(id).canvas()) }
 export function lugar(n) { return img(manifesto().places?.[String(n)]) ?? guardar('lug:' + n, () => gradeDoLugar(n).canvas()) }
 export const pngDe = (chave) => img(manifesto()[chave])
-/** A marca sozinha, num quadro 16×16 (cena do ovo: a runa que acende dentro da casca). */
-export function marcaSozinha(boId) {
-  return guardar('marca:' + boId, () => {
-    const g = new Grade(16, 16)
-    ;(MARCAS[idDe(boId)] ?? (() => {}))(g, [8, 8])
-    return g.canvas()
-  })
-}
 /** Jeito do corpo ('bola', 'baixo', 'flutua', 'pe'): a tela usa para o monstro que flutua balançar. */
 export function formaDoCorpo(partes) {
   return CORPOS[idDe(partes?.tronco ?? '')]?.encaixe.tipo ?? 'bola'

@@ -1,6 +1,6 @@
-// Piloto — cenários desenhados por código em pixel art: arena de lado (com o sol do Sundown), mapa de cima (a estrada)
-// e o ninho da cena do ovo. Cada cena aceita o PNG do manifesto (arte/manifesto.json: arena, map, nest) por cima do desenho.
-import { CREME, Grade, PALETA, PLUM, misturar, rampa, pngDe, criarCanvas } from './arte.js'
+// Piloto — cenários desenhados por código em pixel art: arena de lado (com o sol do Sundown) e o ninho da cena do ovo.
+// Cada cena aceita o PNG do manifesto (arte/manifesto.json: arena, nest) por cima do desenho.
+import { CREME, Grade, PALETA, PLUM, misturar, rampa, pngDe } from './arte.js'
 import { ELEMENTOS } from './tema.js'
 
 const E = (cx, cy, rx, ry) => (x, y) => ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 <= 1
@@ -119,58 +119,6 @@ export function desenharArena(cx, LW, LH, { sol = 0, laranja = 0, chao: CH = CHA
   const chave = LW + 'x' + LH + 'x' + CH + cunha
   if (!cacheFrente.has(chave)) cacheFrente.set(chave, frenteDaArena(LW, LH, { chao: CH, cunha }))
   cx.drawImage(cacheFrente.get(chave), 0, 0)
-}
-
-// ------------------------------------------------------------------ MAPA de cima (384×216)
-// Onde fica cada lugar (1..5), o ninho e o caminho da patrulha. Há duas geometrias: a do mapa desenhado por código e a do
-// map.png do manifesto (se a arte do mapa mudar, ajuste só `png`; o manifesto também pode trazer "mapPlaces": [[x, y]×5]).
-export const MAPA = {
-  w: 384, h: 216,
-  lugares: [[52, 176], [118, 128], [196, 158], [262, 92], [334, 44]], ninho: [20, 196],
-  png: {
-    lugares: [[30, 116], [76, 152], [128, 106], [330, 150], [336, 52]], ninho: [214, 190],
-    caminhos: { 1: [[214, 190], [214, 142], [60, 142], [34, 124]], 2: [[214, 190], [214, 142], [96, 142]], 3: [[214, 190], [214, 142], [128, 142], [128, 118]], 4: [[214, 190], [214, 142], [296, 142], [316, 150]], 5: [[214, 190], [214, 142], [296, 142], [316, 150]] },
-  },
-}
-/** A geometria que vale agora (com ou sem PNG do mapa): { comPng, lugares, ninho, caminho(n) }. */
-export function geometriaDoMapa(extra = null) {
-  const comPng = !!pngDe('map')
-  if (!comPng) return { comPng, lugares: MAPA.lugares, ninho: MAPA.ninho, caminho: (n) => [MAPA.ninho, ...MAPA.lugares.slice(0, n)] }
-  const ok = Array.isArray(extra) && extra.length === 5 && extra.every((p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))
-  return { comPng, lugares: ok ? extra : MAPA.png.lugares, ninho: MAPA.png.ninho, caminho: (n) => (ok ? [MAPA.png.ninho, extra[n - 1]] : MAPA.png.caminhos[n]) }
-}
-export function desenharMapa() {
-  const png = pngDe('map')
-  if (png) { const cv = criarCanvas(MAPA.w, MAPA.h); cv.getContext('2d').drawImage(png, 0, 0, MAPA.w, MAPA.h); return cv }
-  const { w, h } = MAPA
-  const g = new Grade(w, h)
-  g.chapa(R(0, 0, w, h), '#6CC067')
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const n = ruido(x >> 2, y >> 2)
-    if (n > 0.8) g.p(x, y, '#63B55E')
-    if (ruido(x, y) > 0.993) g.p(x, y, '#F7F1E3')
-  }
-  // colina do castelo
-  g.forma(E(334, 50, 46, 30), rampa('#7FCF78', '#9BE08F', '#5FA35E'), { linha: false })
-  // rio
-  const rio = [[150, -4], [170, 40], [230, 70], [262, 92], [300, 130], [330, 170], [360, 222]]
-  g.forma(T(rio, 9), rampa('#2E8BEA', '#8CC8FF', '#1D5AA8'), { linha: false })
-  for (let i = 0; i < 40; i++) { const t = i / 40, k = Math.floor(t * (rio.length - 1)), f = t * (rio.length - 1) - k; const [ax, ay] = rio[k], [bx, by] = rio[k + 1]; g.p(ax + (bx - ax) * f + 2, ay + (by - ay) * f - 2, '#E6F4FF') }
-  // mata (borda com espinhos)
-  for (let i = 0; i < 26; i++) {
-    const x = 160 + ruido(i, 3) * 90, y = 180 + ruido(i, 9) * 40
-    g.forma(E(x, y, 9, 8), rampa(PALETA.folhagem, '#5A8F62', '#2C4E34'))
-  }
-  for (let i = 0; i < 14; i++) { const x = 20 + ruido(i, 5) * 110, y = 10 + ruido(i, 7) * 80; g.forma(E(x, y, 8, 7), rampa(PALETA.folhagem, '#5A8F62', '#2C4E34')) }
-  // estrada de terra ligando os 5 lugares
-  const L = MAPA.lugares
-  const estrada = [[-6, 200], ...L, [400, 30]]
-  g.forma(T(estrada, 5), rampa('#D9B77E', '#EAD2A2', '#B08A52'), { linha: false, semLuz: true })
-  g.chapa(T(estrada, 1), '#C9A46A')
-  // ponte de pedra sobre o rio (lugar 4)
-  g.forma(R(252, 86, 22, 12), rampa(PALETA.pedra, '#E8E3DC', '#9A9188'), { semLuz: true })
-  g.contorno()
-  return g.canvas()
 }
 
 // ------------------------------------------------------------------ NINHO (cena do ovo), tamanho livre

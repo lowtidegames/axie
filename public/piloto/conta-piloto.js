@@ -1,122 +1,168 @@
-// Piloto — A CONTA DO PILOTO: o que o jogador tem (monstros), os lugares abertos com a guarda de cada um, as Rations,
-// e o que fica guardado no aparelho (placar, títulos, Renome, filhotes, as duas últimas tiras, e as lutas de cada monstro no
-// "dia" do piloto, para o cansaço de regras-piloto.js). O dia do piloto só vira no botão "New day" (ou no "Reset pilot").
-// É O ÚNICO LUGAR para trocar a lista de monstros da conta ou a guarda de um lugar.
-// Nenhum número de economia novo: Rations e gasto por luta saem de shared/config.js (ECONOMIA_DO_BETA).
-// Renome e títulos são só enfeite (decisão do dono 15/11 10:44): nunca dão força. Os limites dos títulos são do piloto.
+// Piloto — A CONTA DO PILOTO, guardada no aparelho: os ovos por abrir, os monstros, o time de 3, a energia do dia, as lutas
+// de cada monstro no "dia" do piloto (cansaço), os lugares abertos e os pontos. O dia do piloto só vira no botão "New day".
+// É O ÚNICO LUGAR para trocar os ovos do começo, as espécies do ovo e a coleção inicial.
+// Nenhum número de economia novo: energia e gasto por luta saem de shared/config.js (ECONOMIA_DO_BETA); chance de raridade,
+// vida do monstro (lutas) e clutches saem de shared/costura.js (PARAMS_COSTURA); cansaço e pontos, de regras-piloto.js.
 import { BONECOS_PRONTOS, ECONOMIA_DO_BETA, PARTES } from '../../shared/config.js'
-import { lugar as lugarDoMotor } from '../../shared/lugares.js'
+import { PARAMS_COSTURA, PARTES_DO_BONECO, gerarBonecoInicial } from '../../shared/costura.js'
+import { LUGARES as LUGARES_DO_MOTOR } from '../../shared/lugares.js'
+import { criarRng } from '../../shared/rng.js'
+import { pontosDaVitoria } from './regras-piloto.js'
 import { MONSTROS } from './tema.js'
 
 // ------------------------------------------------------------------ TROQUE AQUI
-/** Os 6 monstros que a conta do piloto tem (ids de BONECOS_PRONTOS). Conjunto indicado pela medição do motor (15/11). */
-export const CONTA_PILOTO = ['brigao', 'mordedor', 'desfiado', 'embolado', 'assombrado', 'mudo']
-/** O trio que já vem montado na folha (Front, Middle, Back). */
-export const TRIO_INICIAL = ['brigao', 'assombrado', 'mordedor']
-/** Os lugares abertos no piloto (dá para mandar patrulha). Os 5 lugares, a guarda (Front, Middle, Back), a tática e a ordem
- *  das habilidades dela vêm do motor (shared/lugares.js, guardas fixas). */
-const ABERTOS = [2, 4]
-export const LUGARES = [1, 2, 3, 4, 5].map((n) => {
-  const l = lugarDoMotor('lugar' + n)
-  return { n, aberto: ABERTOS.includes(n), guarda: l.guarda.slice(), tatica: l.ordens.tatica, ordem: l.ordens.ordem.map((o) => o.slice()) }
-})
-/** Uma ordem de patrulha no piloto: quantas lutas seguidas, e a sequência de vitórias que a barra mostra. */
-export const PATRULHA = { lutas: 5, sequencia: 3 }
-/** Feitos que dão título (só enfeite). */
-export const FEITOS = { veteranoLutas: PATRULHA.lutas, forteGolpes: 10 }
-/** Renome ganho por patrulha: 1 por luta feita + 1 por vitória (só cresce; só enfeite). */
-export const renomeDaPatrulha = (lutas, vitorias) => lutas + vitorias
+/** Quantos ovos o jogador abre na primeira vez. */
+export const OVOS_INICIAIS = 3
+/** As espécies que saem do ovo do piloto (ids de BONECOS_PRONTOS): as que já têm desenho em PNG no manifesto da arte. */
+export const ESPECIES_DO_OVO = ['mordedor', 'cascudo', 'rasgao', 'assombrado', 'desfiado']
+/** A coleção inicial que o jogador ganha depois dos ovos (ids de BONECOS_PRONTOS; as que têm PNG primeiro). */
+export const COLECAO_INICIAL = ['mordedor', 'desfiado', 'assombrado', 'rasgao', 'cascudo', 'brigao']
 // ------------------------------------------------------------------ fim do "troque aqui"
 
-export const RACOES_MAX = ECONOMIA_DO_BETA.energiaPorDia
-export const RACAO_POR_LUTA = ECONOMIA_DO_BETA.energiaPorLutaDaAventura
-export const SLOTS = ['tronco', 'cabeca', 'bracos', 'pernas', 'bordado']
+export const ENERGIA_MAX = ECONOMIA_DO_BETA.energiaPorDia
+export const ENERGIA_POR_LUTA = ECONOMIA_DO_BETA.energiaPorLutaDaAventura
+export const LUTAS_DA_VIDA = PARAMS_COSTURA.desgaste.limite
+export const CHANCES_DO_OVO = PARAMS_COSTURA.chancesDeRaridade
+/** Os 5 lugares em fila, com a guarda fixa do motor (shared/lugares.js). */
+export const LUGARES = LUGARES_DO_MOTOR.map((l, i) => ({ n: i + 1, guarda: l.guarda.slice(), ordens: l.ordens }))
 export const lugarPorN = (n) => LUGARES.find((l) => l.n === Number(n))
 export const defDoPronto = (id) => ({ pronto: id, nome: MONSTROS[id].nome, partes: BONECOS_PRONTOS[id].partes })
-const genesDoPronto = (id) => Object.fromEntries(SLOTS.map((s) => [s, { face: BONECOS_PRONTOS[id].partes[s], forro: BONECOS_PRONTOS[id].partes[s] }]))
 
-const CHAVE = 'piloto_conta_v1'
-const vazio = () => ({ v: 1, racoes: RACOES_MAX, renome: 0, voltas: {}, filhotes: [], hist: {}, trios: {}, tiras: [], trio: TRIO_INICIAL.slice(), lugar: LUGARES.find((l) => l.aberto).n, nFilhote: 0, dia: 1, hoje: {} })
+const idDe = (g) => String(g).split('@')[0]
+const rarDe = (g) => String(g).split('@')[1] ?? 'comum'
+const genesDoPronto = (id) => Object.fromEntries(PARTES_DO_BONECO.map((s) => [s, { face: BONECOS_PRONTOS[id].partes[s], forro: BONECOS_PRONTOS[id].partes[s] }]))
+
+const CHAVE = 'piloto_conta_v2'
+const vazio = () => ({ v: 2, ovos: OVOS_INICIAIS, nOvo: 0, ganhouInicial: false, ovoDeCruza: null, monstros: [], nMon: 0, trio: [null, null, null], energia: ENERGIA_MAX, dia: 1, hoje: {}, abertos: 1, lugar: 1, nLuta: 0, total: { v: 0, d: 0, pontos: 0 }, avisoVisto: false })
 const copia = (x) => JSON.parse(JSON.stringify(x))
 
-/** A conta, guardada no aparelho. `armazem` = localStorage (ou qualquer objeto com getItem/setItem/removeItem). */
+/** A conta. `armazem` = localStorage (ou qualquer objeto com getItem/setItem/removeItem). */
 export function criarConta(armazem) {
   let d = vazio()
   try {
     const cru = JSON.parse(armazem?.getItem(CHAVE) ?? 'null')
-    if (cru && cru.v === 1) d = { ...vazio(), ...cru }
+    if (cru && cru.v === 2) d = { ...vazio(), ...cru }
   } catch { /* guardado estragado: começa do zero */ }
   const salvar = () => { try { armazem?.setItem(CHAVE, JSON.stringify(d)) } catch { /* sem armazenamento: segue na memória */ } }
-  const prontos = () => CONTA_PILOTO.map((id) => ({ uid: id, pronto: id, nome: MONSTROS[id].nome, genes: genesDoPronto(id), voltasUsadas: d.voltas[id] ?? 0, pais: [], geracao: 0 }))
-  const lista = () => [...prontos(), ...d.filhotes.map((f) => ({ ...copia(f), pronto: null, voltasUsadas: d.voltas[f.uid] ?? 0 }))]
-  const hist = (uid) => (d.hist[uid] ??= { lutas: 0, v: 0, d: 0, forte: 0, lugares: {}, titulos: [] })
-  const chaveTrio = (n, uids) => n + '|' + uids.slice().sort().join('+')
-  // conserta um trio guardado que aponte para monstro que não existe mais
-  const consertar = () => {
-    const todos = lista().map((m) => m.uid)
-    d.trio = d.trio.filter((u, i, a) => todos.includes(u) && a.indexOf(u) === i).slice(0, 3)
-    for (const u of todos) if (d.trio.length < 3 && !d.trio.includes(u)) d.trio.push(u)
-    if (!lugarPorN(d.lugar)?.aberto) d.lugar = LUGARES.find((l) => l.aberto).n
+  const achar = (uid) => d.monstros.find((m) => m.uid === uid)
+  const novo = ({ pronto = null, nome, genes, pais = [], geracao = 0 }) => {
+    const m = { uid: 'm' + ++d.nMon, pronto, nome, genes, pais, geracao, lutas: 0, voltas: 0, aposentado: false }
+    d.monstros.push(m)
+    return m
   }
-  consertar()
+  const preencherTrio = () => {
+    const livres = d.monstros.filter((m) => !m.aposentado && !d.trio.includes(m.uid)).map((m) => m.uid)
+    d.trio = d.trio.map((u) => (u && achar(u) && !achar(u).aposentado ? u : livres.shift() ?? null))
+  }
 
   const conta = {
-    // ---- coleção (mesma forma que a cena do ovo usa)
-    todos: lista,
-    porUid: (u) => lista().find((m) => m.uid === u),
-    def: (m) => ({ pronto: m.pronto ?? null, nome: m.nome, partes: Object.fromEntries(SLOTS.map((s) => [s, m.genes[s].face])) }),
-    tipo: (m) => PARTES[String(m.genes.tronco.face).split('@')[0]].tipo,
-    paraCostura: (m) => ({ id: m.uid, nome: m.nome, partes: m.genes, voltasUsadas: m.voltasUsadas, pais: m.pais, geracao: m.geracao, estado: 'ativo' }),
-    usarClutch(u) { d.voltas[u] = (d.voltas[u] ?? 0) + 1; salvar() },
-    adicionar({ nome, genes, pais, geracao }) { const f = { uid: 'h' + ++d.nFilhote, nome, genes, pais, geracao }; d.filhotes.push(f); salvar(); return conta.porUid(f.uid) },
-    renomear(uid, nome) { const f = d.filhotes.find((x) => x.uid === uid); if (f && nome) { f.nome = String(nome).slice(0, 20); salvar() } },
-    // ---- ordens
-    get trio() { return d.trio.slice() }, set trio(t) { d.trio = t.slice(0, 3); salvar() },
-    get lugar() { return d.lugar }, set lugar(n) { if (lugarPorN(n)?.aberto) { d.lugar = Number(n); salvar() } },
-    // ---- Rations
-    get racoes() { return d.racoes },
-    gastarRacao() { if (d.racoes < RACAO_POR_LUTA) return false; d.racoes -= RACAO_POR_LUTA; salvar(); return true },
-    // ---- o dia do piloto (cansaço): lutas de cada monstro hoje
+    // ---- ovos
+    get ovos() { return d.ovos + (d.ovoDeCruza ? 1 : 0) },
+    get ovosDoComeco() { return d.ovos },
+    get ovoDeCruza() { return d.ovoDeCruza ? copia(d.ovoDeCruza) : null },
+    get comecou() { return d.ganhouInicial },
+    /**
+     * Abre UM ovo do começo: a espécie e a raridade de cada parte saem do sorteio do motor (gerarBonecoInicial com a
+     * semente dada; a raridade pela tabela publicada). Ao abrir o último, a coleção inicial entra e o time fica montado
+     * com os 3 que nasceram. Devolve { monstro, ganhou: [monstros da coleção inicial] }.
+     */
+    abrirOvo(semente) {
+      if (d.ovos <= 0) return null
+      const rng = criarRng('ovo:' + semente)
+      const especie = ESPECIES_DO_OVO[rng.inteiro(ESPECIES_DO_OVO.length)]
+      const partesFixas = Object.fromEntries(PARTES_DO_BONECO.map((s) => [s, idDe(BONECOS_PRONTOS[especie].partes[s])]))
+      const b = gerarBonecoInicial(rng, { id: 'ovo', partesFixas })
+      const monstro = novo({ pronto: especie, nome: MONSTROS[especie].nome, genes: b.partes })
+      d.ovos--; d.nOvo++
+      let ganhou = []
+      if (d.ovos === 0 && !d.ganhouInicial) {
+        d.ganhouInicial = true
+        ganhou = COLECAO_INICIAL.map((id) => novo({ pronto: id, nome: MONSTROS[id].nome, genes: genesDoPronto(id) }))
+        preencherTrio()
+      }
+      salvar()
+      return { monstro: copia(monstro), ganhou: copia(ganhou) }
+    },
+    get nOvo() { return d.nOvo },
+    /** Guarda o ovo do cruzamento (o filhote já decidido pelo motor) até o jogador abrir. */
+    guardarOvoDeCruza({ nome, filho, paisUids }) {
+      for (const u of paisUids) achar(u).voltas++
+      d.ovoDeCruza = { nome, genes: filho.partes, pais: filho.pais, geracao: filho.geracao }
+      salvar()
+    },
+    abrirOvoDeCruza() {
+      if (!d.ovoDeCruza) return null
+      const monstro = novo(d.ovoDeCruza)
+      d.ovoDeCruza = null
+      preencherTrio()
+      salvar()
+      return { monstro: copia(monstro), ganhou: [] }
+    },
+    // ---- coleção
+    todos: () => copia(d.monstros),
+    ativos: () => copia(d.monstros.filter((m) => !m.aposentado)),
+    porUid: (u) => { const m = achar(u); return m ? copia(m) : null },
+    def: (m) => ({ pronto: m.pronto ?? null, nome: m.nome, partes: Object.fromEntries(PARTES_DO_BONECO.map((s) => [s, m.genes[s].face])) }),
+    tipo: (m) => PARTES[idDe(m.genes.tronco.face)].tipo,
+    /** Raridade do monstro = a do corpo (a parte que define o elemento); é a que a tabela do ovo anuncia. */
+    raridade: (m) => rarDe(m.genes.tronco.face),
+    paraCostura: (m) => ({ id: m.uid, nome: m.nome, partes: m.genes, voltasUsadas: m.voltas, pontosDeCostura: m.lutas, pais: m.pais, geracao: m.geracao, estado: m.aposentado ? 'aposentado' : 'ativo' }),
+    fimDaVida: (m) => m.lutas >= LUTAS_DA_VIDA,
+    /** "Retire": só no fim da vida. Sai do time e fica na coleção como aposentado. */
+    aposentar(uid) {
+      const m = achar(uid)
+      if (!m || m.aposentado || m.lutas < LUTAS_DA_VIDA) return false
+      m.aposentado = true
+      d.trio = d.trio.map((u) => (u === uid ? null : u))
+      salvar()
+      return true
+    },
+    // ---- time (Front, Middle, Back) e lugar escolhido
+    get trio() { return d.trio.slice() },
+    /** Põe `uid` no lugar `pos` do time; se ele já estava em outro lugar, os dois trocam. */
+    por(uid, pos) {
+      const m = achar(uid)
+      if (!m || m.aposentado || pos < 0 || pos > 2) return false
+      const de = d.trio.indexOf(uid)
+      if (de === pos) return false
+      if (de >= 0) d.trio[de] = d.trio[pos]
+      d.trio[pos] = uid
+      salvar()
+      return true
+    },
+    timePronto: () => d.trio.every((u) => u && achar(u) && !achar(u).aposentado && achar(u).lutas < LUTAS_DA_VIDA),
+    get abertos() { return d.abertos },
+    get lugar() { return d.lugar }, set lugar(n) { if (Number(n) >= 1 && Number(n) <= d.abertos) { d.lugar = Number(n); salvar() } },
+    // ---- energia e o dia do piloto
+    get energia() { return d.energia },
     get dia() { return d.dia },
     lutasHoje: (uid) => d.hoje[uid] ?? 0,
-    /** "New day": zera só o cansaço (as lutas do dia) e devolve as Rations. Placar, títulos e Renome ficam. */
-    novoDia() { d.hoje = {}; d.racoes = RACOES_MAX; d.dia++; salvar() },
-    // ---- placar e história
-    get renome() { return d.renome },
-    placarDoTrio: (n, uids) => ({ ...(d.trios[chaveTrio(n, uids)] ?? { v: 0, d: 0 }) }),
-    historia: (uid) => copia(d.hist[uid] ?? { lutas: 0, v: 0, d: 0, forte: 0, lugares: {}, titulos: [] }),
-    /** Anota UMA luta feita (placar do trio no lugar e de cada monstro). Devolve os títulos novos: [{ uid, id, n, q }]. */
-    anotarLuta({ n, uids, resumo }) {
-      const p = (d.trios[chaveTrio(n, uids)] ??= { v: 0, d: 0 })
-      if (resumo.venceu) p.v++; else p.d++
-      const novos = []
-      uids.forEach((uid, i) => {
-        d.hoje[uid] = (d.hoje[uid] ?? 0) + 1
-        const h = hist(uid), m = resumo.porMonstro['A' + i]
-        h.lutas++; if (resumo.venceu) h.v++; else h.d++
-        h.forte += m.forte
-        const l = (h.lugares[n] ??= { v: 0, d: 0 })
-        if (resumo.venceu) l.v++; else l.d++
-        const ganha = (id, alvo, q) => { const k = id + (alvo ? ':' + alvo : ''); if (!h.titulos.some((t) => t.k === k)) { h.titulos.push({ k, id, n: alvo ?? null, q }); novos.push({ uid, id, n: alvo ?? null, q }) } }
-        if (l.v + l.d >= FEITOS.veteranoLutas) ganha('veterano', n, FEITOS.veteranoLutas)
-        if (resumo.venceu && m.ultimoFio) ganha('clutch', null, 1)
-        if (h.forte >= FEITOS.forteGolpes) ganha('forte', null, FEITOS.forteGolpes)
-      })
+    /** "New day": devolve a energia e o descanso (zera as lutas do dia). */
+    novoDia() { d.hoje = {}; d.energia = ENERGIA_MAX; d.dia++; salvar() },
+    // ---- lutas e pontos
+    get total() { return { ...d.total } },
+    get nLuta() { return d.nLuta },
+    /** Abre uma luta: gasta a energia e devolve o número dela (a semente usa este número). false se não há energia. */
+    abrirLuta() {
+      if (d.energia < ENERGIA_POR_LUTA) return false
+      d.energia -= ENERGIA_POR_LUTA
+      d.nLuta++
       salvar()
-      return novos
+      return d.nLuta
     },
-    /** Fecha a patrulha: Renome sobe (só cresce), título de patrulha limpa, e a tira nova empurra a anterior. */
-    fecharPatrulha({ tira, uids }) {
-      const antes = d.renome
-      d.renome += renomeDaPatrulha(tira.v + tira.d, tira.v)
-      const novos = []
-      if (tira.d === 0 && tira.v >= PATRULHA.lutas) for (const uid of uids) { const h = hist(uid); if (!h.titulos.some((t) => t.k === 'limpa')) { h.titulos.push({ k: 'limpa', id: 'limpa', n: null, q: tira.v }); novos.push({ uid, id: 'limpa', n: null, q: tira.v }) } }
-      d.tiras = [tira, ...d.tiras].slice(0, 2)
+    /** Anota a luta feita no lugar n: lutas do dia e da vida de cada monstro, pontos, e abre o próximo lugar na vitória. */
+    anotarLuta({ n, uids, venceu }) {
+      for (const uid of uids) { d.hoje[uid] = (d.hoje[uid] ?? 0) + 1; achar(uid).lutas++ }
+      const pontos = venceu ? pontosDaVitoria(n) : 0
+      if (venceu) d.total.v++; else d.total.d++
+      d.total.pontos += pontos
+      let abriu = null
+      if (venceu && n === d.abertos && n < LUGARES.length) { d.abertos++; abriu = d.abertos }
       salvar()
-      return { antes, depois: d.renome, novos }
+      return { pontos, abriu }
     },
-    get tiras() { return copia(d.tiras) },
-    zerar() { try { armazem?.removeItem(CHAVE) } catch { /* nada */ } d = vazio(); consertar() },
+    get avisoVisto() { return d.avisoVisto }, set avisoVisto(v) { d.avisoVisto = !!v; salvar() },
+    zerar() { try { armazem?.removeItem(CHAVE) } catch { /* nada */ } d = vazio() },
   }
   return conta
 }

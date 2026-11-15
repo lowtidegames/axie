@@ -1,10 +1,7 @@
 // Piloto — a "roupa" do tema de monstros elementais: ids do config → nome, texto e cor em inglês.
-// Desenho: docs/ideias/piloto-monstros.md §2–§5. NENHUM número escrito aqui: todo número sai de shared/config.js
-// (os textos usam os mesmos campos {i.campo} do config, preenchidos com o valor do config, como o textoDaCarta do motor).
-import { BORDADOS, CARTAS, PARTES, RARIDADES, REGRAS, TIPOS } from '../../shared/config.js'
+// Desenho: docs/ideias/piloto-monstros.md §2–§5. NENHUM número escrito aqui: todo número sai do motor (shared/).
+import { PARTES, RARIDADES, TIPOS } from '../../shared/config.js'
 import { PARAMS_COSTURA } from '../../shared/costura.js'
-import { SEGURANCA } from '../../shared/tatica.js'
-import { PCT_FORTE, PCT_RESISTE } from './regras-piloto.js'
 
 // ------------------------------------------------------------------ elementos (a roda do motor não muda)
 export const ELEMENTOS = {
@@ -15,11 +12,7 @@ export const ELEMENTOS = {
   tule: { nome: 'Mist', cor: '#A98BE8', escuro: '#7357B8', claro: '#DCCBFF', frase: 'Mist smothers Ember' },
   couro: { nome: 'Ember', cor: '#F05A3C', escuro: '#A8331F', claro: '#FFA27A', frase: 'Ember burns Bloom' },
 }
-export const RODA = TIPOS.slice() // cada um bate forte no seguinte
-export const bateEm = (tipo) => TIPOS[(TIPOS.indexOf(tipo) + 1) % TIPOS.length]
-export const apanhaDe = (tipo) => TIPOS[(TIPOS.indexOf(tipo) + TIPOS.length - 1) % TIPOS.length]
-// o piloto luta com as regras provisórias (regras-piloto.js), não com o BONUS_DE_TIPO do jogo de sempre
-export const BONUS_FORTE_PCT = PCT_FORTE
+for (const t of TIPOS) if (!ELEMENTOS[t]) throw new Error('elemento sem roupa: ' + t)
 
 // raridade: nunca a cor de um elemento (moldura e gema)
 export const RARIDADE = {
@@ -61,134 +54,26 @@ for (const k of Object.keys(PARTES)) if (!PARTES_EN[k]) throw new Error('parte s
 export const SLOT_EN = { cabeca: 'Head', bracos: 'Arms', pernas: 'Legs', tronco: 'Body', bordado: 'Mark' }
 export const nomeDaParte = (id) => PARTES_EN[id]?.[0] ?? id
 export const apelidoDaParte = (id) => PARTES_EN[id]?.[1] ?? ''
-/** Cor (elemento) da parte: a parte segue o elemento da habilidade que traz; o corpo, o seu tipo; a marca, a do corpo. */
-export function elementoDaParte(id, tipoDoCorpo) {
-  const p = PARTES[id]
-  if (!p) return tipoDoCorpo
-  if (p.carta) return CARTAS[p.carta].tipo
-  if (p.tipo) return p.tipo
-  return tipoDoCorpo
-}
 /** Nome do filhote pelos apelidos das partes (cabeça-braços-pernas), como o motor monta o nome. */
 export function nomePorApelidos(partes) {
   const id = (g) => String(g).split('@')[0]
   return ['cabeca', 'bracos', 'pernas'].map((s) => (partes[s] ? apelidoDaParte(id(partes[s])) : null)).filter(Boolean).join('-')
 }
 
-// ------------------------------------------------------------------ marcas e habilidades (modelos de texto em inglês)
-export const MARCAS = {
-  espinho: { nome: 'Spiked Hide', texto: 'Deals {valor} damage back to whoever hits it with a skill.' },
-  remendo_vivo: { nome: 'Mending Moss', texto: "Heals {valor} at the start of each of its team's turns." },
-  botao_reserva: { nome: 'Lucky Scale', texto: 'The first hit it takes deals {valor} less.' },
-  agulha_afiada: { nome: 'Keen Claws', texto: '+{valor%} damage with Arms skills.' },
-  pe_de_chumbo: { nome: 'Rooted', texto: "Takes {valor} less per hit and can't be pushed or pulled." },
-  olho_de_vidro: { nome: 'Hawk Eye', texto: '+{valor}% crit chance.' },
-  rancor: { nome: 'Last Roar', texto: '+{valor%} damage while in Last Stand.' },
-  bolso_de_linha: { nome: 'Glow Pouch', texto: 'When it falls for good, its team gains {valor} Glow.' },
-}
-export const HABILIDADES = {
-  botaozada: { nome: 'Thorn Bash', texto: '{0.valor} damage to the Front.' },
-  testada_de_brim: { nome: 'Bramble Ram', texto: '{0.valor} damage to the Front; it takes {1.valor}.' },
-  rasgo: { nome: 'Thorn Lash', texto: '{0.valor} damage and Exposed on the target for {1.turnos} turns.' },
-  rebite_solto: { nome: 'Root Breaker', texto: "Breaks the target's Guard, then {1.valor} damage." },
-  mordida_de_ziper: { nome: 'Cinder Bite', texto: '{0.valor} damage; +{0.bonusFioSolto%} if the target is Exposed.' },
-  laco_de_cadarco: { nome: 'Ember Whip', texto: 'Reach; {0.valor} damage and pulls the target one spot forward.' },
-  pisao_de_tamanco: { nome: 'Magma Stomp', texto: '{0.valor} damage; +{0.bonusSeMenosVida} if it has less HP than the target.' },
-  sola_grossa: { nome: 'Ash Guard', texto: 'Guard {0.valor} on itself.' },
-  desfiar: { nome: 'Tidal Crash', texto: '{0.valor} damage to every standing enemy.' },
-  agulha_longa: { nome: 'Water Lance', texto: 'Reach; {0.valor} damage anywhere.' },
-  lacada_fina: { nome: 'Riptide', texto: 'Reach; {0.valor} damage; +{0.bonusTras} if the target is in the Back.' },
-  passo_de_cetim: { nome: 'Current Step', texto: 'Swaps places with an ally and readies {1.qtd} more skill.' },
-  gorro_felpudo: { nome: 'Stone Ward', texto: 'Guard {0.valor} on every ally.' },
-  abraco_apertado: { nome: 'Bulwark Hug', texto: 'Guard {0.valor} on itself and {1.valor} on a neighbor.' },
-  novelo_rolante: { nome: 'Rolling Boulder', texto: '{0.valor} damage and pushes the target one spot back.' },
-  rolo_de_la: { nome: 'Quake Stomp', texto: '{0.valor} damage; the rival loses {1.valor} stored Glow.' },
-  feltro_pesado: { nome: 'Downdraft', texto: '{0.valor} damage; it heals {1.valor}.' },
-  ponto_cruz: { nome: 'Tailwind', texto: 'Readies {0.qtd} more skill; +{0.linhaSeMesmoTipo} Glow if it matches its element.' },
-  alfinete_de_feltro: { nome: 'Gust Dart', texto: 'Reach; {0.valor} damage.' },
-  remendo_rapido: { nome: 'Soothing Breeze', texto: 'Heals {0.valor} on an ally.' },
-  veu_de_tule: { nome: 'Mist Veil', texto: 'The next attack against it misses (guaranteed).' },
-  grito_abafado: { nome: 'Fading Howl', texto: '+{0.valor} Glow now; it loses {1.valor} HP.' },
-  nevoa_de_tule: { nome: 'Haze Bolt', texto: 'Reach; {0.valor} damage and Exposed on the target for {1.turnos} turns.' },
-  ultimo_ponto: { nome: 'Final Wisp', texto: 'Only below {c.limite%} HP or in Last Stand: {0.valor} damage.' },
-}
-for (const k of Object.keys(CARTAS)) if (!HABILIDADES[k]) throw new Error('habilidade sem roupa: ' + k)
-for (const k of Object.keys(BORDADOS)) if (!MARCAS[k]) throw new Error('marca sem roupa: ' + k)
-
-function preencher(modelo, achar) {
-  return modelo.replace(/\{([\w.]+?)(%?)\}/g, (_, chave, pct) => {
-    const v = achar(chave)
-    if (typeof v !== 'number') throw new Error(`Texto com campo desconhecido: {${chave}}`)
-    return pct ? `${Math.round(v * 100)}%` : String(v)
-  })
-}
-/** Texto da habilidade com os números do config (mesmos campos do motor). */
-export function textoDaHabilidade(id) {
-  const c = CARTAS[id]
-  return preencher(HABILIDADES[id].texto, (k) => {
-    const [a, b] = k.split('.')
-    if (a === 'c') return c.condicao?.[b]
-    return c.efeitos[Number(a)]?.[b]
-  })
-}
-export function textoDaMarca(id) {
-  const b = BORDADOS[id]
-  return preencher(MARCAS[id].texto, (k) => b[k])
-}
-export const nomeDaHabilidade = (id) => HABILIDADES[id]?.nome ?? id
-export const SLOT_DA_HABILIDADE = (id) => SLOT_EN[CARTAS[id].parte]
-
-// ------------------------------------------------------------------ equivalentes (textos de regra com números do config)
-export const TERMOS = {
-  glow: `Glow: ${REGRAS.linhaPorTurno} orbs each turn, up to ${REGRAS.linhaMaxima}. Each skill spends its cost.`,
-  guard: 'Guard: absorbs damage before HP.',
-  veil: 'Veil: the next attack against it misses.',
-  exposed: `Exposed: takes +${Math.round(REGRAS.fioSoltoBonus * 100)}% damage.`,
-  lastStand: 'Last Stand: at 0 HP for the first time it stays up until the end of its next turn. It can’t be targeted and only uses its Legs skill.',
-  sundown: `Sundown: from turn ${REGRAS.tesouraInicio}, everyone loses ${Math.round(REGRAS.tesouraCorte * 100)}% of max HP each turn.`,
-  nightfall: `Nightfall: after turn ${REGRAS.turnoFinal}, the team with the higher total HP % wins.`,
-  strong: `Strong!: +${BONUS_FORTE_PCT}% damage when the skill's element beats the target's.`,
-  resisted: `Resisted: −${PCT_RESISTE}% damage when the target's body beats the skill's element.`,
-  crit: `Critical: +${Math.round(REGRAS.critico * 100)}% damage. Crit % is the chance.`,
-  decidido: 'The result is decided when the fight starts.',
-}
-export const SOL = { desceDe: REGRAS.tesouraInicio - 3, encosta: REGRAS.tesouraInicio, final: REGRAS.turnoFinal }
 export const POSICAO_EN = ['Front', 'Middle', 'Back']
-export const TATICAS_EN = {
-  rush: { nome: 'Rush', texto: 'Attacks first. Reach skills hit the enemy Front.' },
-  focus: { nome: 'Focus', texto: 'Attacks first. Reach skills hit the enemy with the lowest HP %.' },
-  guard: { nome: 'Guard', texto: `If an ally is at ${Math.round(SEGURANCA.defesaSeAliadoAte * 100)}% HP or less, Guard, Veil and heals come first.` },
-}
 export const CLUTCHES = PARAMS_COSTURA.carretelVoltas
-export const ORDEM_DO_OVO = PARAMS_COSTURA.ordemDeRevelacao // mark, legs, arms, head, body
+export const ORDEM_DAS_PARTES = ['tronco', 'cabeca', 'bracos', 'pernas', 'bordado']
 
 // ------------------------------------------------------------------ NOMES do jogo e dos lugares (PROVISÓRIOS: o dono troca)
 // Todo nome de jogo/lugar que aparece na tela sai DAQUI. Para trocar um nome, mude só este bloco.
 export const NOMES = {
   jogo: 'The Lantern Road',
   lugares: { 1: 'Hollyfield', 2: 'Millbrook', 3: 'Thornwood Edge', 4: 'Stonebridge Watch', 5: 'Crownhold Keep' },
-  ninho: 'The Nest', energia: 'Rations', renome: 'Renown', ordens: 'Patrol Orders', guarda: 'The guard',
 }
 export const nomeDoLugar = (n) => NOMES.lugares[n] ?? `Place ${n}`
-/** Primeira palavra do lugar (para o título "Thornwood Veteran"). */
-export const apelidoDoLugar = (n) => nomeDoLugar(n).split(' ')[0]
 
-// Títulos do monstro (só enfeite: nunca dão força). O texto diz o FEITO que deu o título.
-export const TITULOS = {
-  veterano: { nome: (n) => `${apelidoDoLugar(n)} Veteran`, feito: (n, q) => `${q} fights at ${nomeDoLugar(n)}` },
-  clutch: { nome: () => 'Clutch Hero', feito: () => 'Won a fight after entering Last Stand' },
-  forte: { nome: () => 'Heavy Hitter', feito: (_, q) => `${q} Strong hits landed` },
-  limpa: { nome: () => 'Clean Sweep', feito: (_, q) => `Won all ${q} fights of one patrol` },
-}
-export const nomeDoTitulo = (t) => TITULOS[t.id]?.nome(t.n) ?? t.id
-export const feitoDoTitulo = (t) => TITULOS[t.id]?.feito(t.n, t.q) ?? ''
-
-// Textos honestos da folha de ordens (sem promessa de ganho)
+// Os dois avisos que ficam (curtos, sem promessa de ganho)
 export const AVISOS = {
-  borda: `Type edge only, not a win chance. Pilot rules: Strong hits +${PCT_FORTE}%, resisted hits −${PCT_RESISTE}%.`,
-  regras: 'Pilot rules — battle numbers here are being tested.',
+  regras: 'Pilot — numbers are being tested.',
   decidido: 'The result of each fight is decided when it starts.',
-  ovo: 'Decided when you confirm.',
-  amostra: (n) => `${n} fights is a small sample. Strong hits are the steadier sign.`,
-  renome: 'Renown only grows. It is for show: it never adds power.',
 }

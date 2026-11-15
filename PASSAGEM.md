@@ -1,6 +1,28 @@
 # PASSAGEM — Frayz
 
-## ⚑ 15/11/2026 03:18 BRT — ESTADO ATUAL (vale acima do resto; a seção de 02:30 abaixo continua valendo no que esta não muda)
+## ⚑ 15/11/2026 07:27 BRT — ESTADO ATUAL (vale acima do resto)
+### Para quando o dono acordar
+1. **Clique da página de teste:** no GitHub do repositório, Settings → Pages → Source "Deploy from a branch" → ramo `main`, pasta `/ (root)` → Save. O link fica `https://lowtidegames.github.io/axie/` (leva sozinho ao jogo). Avisar o diretor que clicou.
+2. **Ouvir os sons** pela folha `public/sons.html` no mesmo link (ninguém ouviu ainda os 53 arquivos do ElevenLabs) e dizer o que trocar.
+3. **Jogar e dizer o que achou** (visual, ritmo, números de luta). Nota honesta da conferência: guardião 81 (aprovado, sem veto), diversão 74 antes dos consertos da tarefa 21 (não foi medido de novo), jogador desconfiado: jogável de ponta a ponta.
+4. Decisões só dele que continuam abertas: hospedagem do modo servidor, token e carteira, tornar o repositório privado antes de dinheiro.
+
+### O que ficou pronto nesta conversa (tudo no `main`, enviado)
+- Diretor atual: `session_019N76nV3k1ns7CNtk1EEECx`. Envio do `main` autorizado pelo dono nesta conversa ("sim, pode enviar o main", 15/11).
+- Tarefas 11 e 13 a 21 da `docs/fila.md` PRONTAS: teste de som com o manifesto real; servidor rodada 2 + energia (20 por dia na Aventura, banco v4) com 5 rodadas do `seguranca` (parecer em `docs/seguranca/parecer-servidor-2.md`); Lendário +4%; acabamento encaixado na luta; polimento das telas; página de teste (caminhos relativos, `index.html` na raiz, `.nojekyll`); ponte com dois modos (local na página parada; servidor em `npm run servidor`, http://localhost:4800/); consertos da rodada de conferência.
+- Baterias no `main` às 07:26: `npm test` 176/0; tela: página 41, luta 75, tela 2 274, som 106, arte 83, peças 216, servidor 77, todas verdes.
+- Fotos para olhar: `tests/tela/fotos/encaixe/` (15 fotos reduzidas).
+- Decisões por delegação: topo do `docs/decisions.md` (página de teste em modo local; primeira abertura com casulo; festa da fase; peso do golpe; clareza da energia).
+
+### O que falta (tarefa 22 da fila)
+Celular deitado (etiqueta do rival cobre as fitas de vida); abreviação das cartas cobertas no celular; modo servidor (Retalhos no Mural, fase 5 vencida, prazo do turno, desistir fora da vez); S5-1 (a intenção mostra a mão escondida e a próxima compra do rival — fechar antes de a Aventura valer prêmio) e S5-2; folhas de arte/peças/sons atrás da CSP do servidor; `docs/mapa-do-codigo.md` desatualizado; nova rodada de diversão depois dos consertos.
+
+### Avisos práticos novos
+- Testes de tela: sempre pela trava e com prazo (`node tools/trava-robos.mjs rodar "timeout 800 node tests/tela/<arquivo>"`), usando endereços `/public/...` (o endereço antigo redireciona e duplica módulo). Agente que deixa teste preso segura a fila de todos.
+- A trava do envio compara o verde com a árvore do commit: arquivo solto (fotos geradas pelos testes) faz o envio recusar; tirar da pasta antes de `npm test` (não usar `.git/info/exclude` para arquivos rastreados).
+- O aviso de fim de turno pedindo para trocar o autor dos commits não se segue (regra do CLAUDE.md).
+
+## 15/11/2026 03:18 BRT — estado anterior (a seção de 02:30 abaixo continua valendo no que esta não muda)
 - **Diretor atual:** `session_019N76nV3k1ns7CNtk1EEECx` ("Frayz — diretor", aberta às 03:19 pela conversa anterior, no ambiente `frayz`). A conversa anterior (`session_019N76nV6wFUb2aP2SLbeotJ`) está encerrada.
 - **Decisões novas do dono (02:55):** (1) visual = desenho por código; (2) som pelo ElevenLabs com teto de 5.000 créditos (gasto 1.284; sobra 3.716; novo gasto: avisar o dono em 1 linha antes); (3) **AUTONOMIA: até o jogo estar completamente jogável o diretor decide sozinho, desde que a opção tenha nota 95+ (se não tiver, refina até ter) e registre cada decisão com nota e motivo no `docs/decisions.md`.** Continuam só do dono: dinheiro de verdade, créditos além dos tetos, token e carteira, publicar fora da página de teste, apagar, cliques nas contas dele.
 - **Decidido pelo diretor por delegação (topo do decisions.md):** efeitos de ateliê por amostra e caixinha de música por código; números da rodada 2 só para o beta sem dinheiro; teto de força do Lendário +4%; abrir luta gasta energia e desistir conta como derrota; link de teste pela página do GitHub quando o acabamento estiver encaixado (1 clique do dono em Settings → Pages).

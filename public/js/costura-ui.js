@@ -7,6 +7,10 @@ import * as Som from './som.js'
 import * as Musica from './musica.js'
 import { $, el, bonecoCanvas, chipParte, iconeTipo, pct, menos } from './ui.js'
 import { carretel } from './colecao-ui.js'
+import { formatoDe } from './pecas/base.js'
+import { atualizarBotao, criarBotao } from './pecas/botao.js'
+import { criarPrateleira } from './pecas/prateleira.js'
+import { bonecoEm } from './pecas/montagens.js'
 
 const NOME_PARTE = { tronco: 'Tronco', cabeca: 'Cabeça', bracos: 'Braços', pernas: 'Pernas', bordado: 'Bordado' }
 const S = { a: null, b: null, ativo: 'a' }
@@ -27,7 +31,8 @@ function renderPais() {
     slot.setAttribute('role', 'button'); slot.tabIndex = 0
     slot.append(el('em', 'cos-rot', k === 'a' ? 'Pai A' : 'Pai B'))
     if (S[k]) {
-      const b = Col.obter(S[k]); slot.append(bonecoCanvas(b, 56)); const l = el('div', 'cos-nome'); l.append(el('b', null, nomeDe(S[k])), carretel(b, true)); slot.append(l)
+      const b = Col.obter(S[k]), c = el('div', 'fz-circulo fz-circulo--cheio'); c.append(el('span', 'fz-circulo__anel'), bonecoEm(P.facesDe(b), formatoDe(null) === 'pc' ? 76 : 62)); slot.append(c)
+      const l = el('div', 'cos-nome'); l.append(el('b', null, nomeDe(S[k])), carretel(b, true)); slot.append(l)
       const x = el('button', 'cos-x', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Tirar'); x.addEventListener('click', (ev) => { ev.stopPropagation(); S[k] = null; S.ativo = k; renderCostura() }); slot.append(x)
     } else slot.append(el('span', 'cos-vazio', 'toque num boneco abaixo'))
     const ativar = () => { S.ativo = k; renderPais() }
@@ -38,17 +43,12 @@ function renderPais() {
 }
 
 function renderEscolha() {
-  const g = $('#cosEscolha'); g.replaceChildren()
+  const pc = formatoDe(null) === 'pc'
   const bs = Col.ativos().filter((b) => !Col.casuloFechado(b))
-  for (const b of bs) {
-    const f = P.fichaDoBoneco(b)
-    const c = el('button', 'mini-cartao'); c.type = 'button'; c.dataset.id = b.id; c.setAttribute('role', 'listitem')
-    c.classList.toggle('on', S.a === b.id || S.b === b.id)
-    c.append(bonecoCanvas(b, 54), el('span', 'mini-nome', f.nome))
-    const cr = el('span', 'mini-sub'); cr.append(iconeTipo(f.tipo, 11), el('span', null, `Carretel ${b.voltasUsadas ?? 0}/${P.PARAMS_COSTURA.carretelVoltas}`)); c.append(cr)
-    c.addEventListener('click', () => escolher(b.id))
-    g.append(c)
-  }
+  const p = criarPrateleira($('#cosEscolha'), bs.map((b) => ({ id: b.id, nome: P.fichaDoBoneco(b).nome, desenho: () => bonecoCanvas(b, Math.round((pc ? 88 : 76) / 1.547)),
+    sub: `Carretel ${b.voltasUsadas ?? 0}/${P.PARAMS_COSTURA.carretelVoltas}` })), { porTabua: pc ? 4 : 3, nomes: pc, classe: 'mini-cartao', aoTocar: escolher, rotulo: 'Escolha os pais' })
+  p.marcar({ escolhidos: [S.a, S.b].filter(Boolean), aberto: null })
+  for (const b of bs) { const i = [S.a, S.b].indexOf(b.id); if (i >= 0) p.botoes[b.id].querySelector('.fz-time__ordem').textContent = i ? 'B' : 'A' }
 }
 
 function escolher(id) {
@@ -122,20 +122,21 @@ export function abrirCasuloDe(id) {
   $('#casSub').textContent = 'Os pais deram as partes. Abra uma de cada vez: a última (o Tronco) define o tipo.'
   cas.ordem.forEach((slot, k) => {
     const p = el('button', 'cas-parte fechada'); p.type = 'button'; p.dataset.slot = slot; p.dataset.k = String(k)
-    p.append(el('em', null, NOME_PARTE[slot]), el('span', 'cas-ponto', '?'))
+    p.append(el('em', null, NOME_PARTE[slot]), el('span', 'cas-caixa'))
     p.setAttribute('aria-label', `Parte fechada: ${NOME_PARTE[slot]}`)
     p.addEventListener('click', () => { if (k === cas.i) abrirProxima(); else aviso(`Abra primeiro: ${NOME_PARTE[cas.ordem[cas.i]]}.`) })
     box.append(p)
   })
   for (const s of ['#btnCasAbrir', '#btnCasTudo']) $(s).hidden = false
   $('#btnCasFim').hidden = true
+  $('#casulo').dataset.formato = formatoDe(null)
   marcarProxima(); $('#casulo').hidden = false; $('#btnCasAbrir').focus()
   try { Musica.momento('costura'); Musica.degrau(0) } catch { /* sem áudio */ }
 }
 const aviso = (t) => { $('#casSub').textContent = t }
 function marcarProxima() {
   for (const p of document.querySelectorAll('#casPartes .cas-parte')) p.classList.toggle('proxima', p.classList.contains('fechada') && Number(p.dataset.k) === cas.i)
-  if (cas.i < cas.ordem.length) $('#btnCasAbrir').textContent = `Abrir: ${NOME_PARTE[cas.ordem[cas.i]]}`
+  if (cas.i < cas.ordem.length) atualizarBotao($('#btnCasAbrir'), { rotulo: `Abrir: ${NOME_PARTE[cas.ordem[cas.i]]}` })
 }
 const esperarMs = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -147,11 +148,15 @@ async function abrirProxima() {
   // suspense cresce com a posição (a última é a mais demorada); sem tremida em "Menos animação"
   if (!menos()) { p.style.setProperty('--tremer', `${0.9 + k * 0.45}s`); p.classList.add('tremendo'); await esperarMs(380 + k * 220) } else await esperarMs(120)
   p.classList.remove('tremendo', 'fechada', 'proxima'); p.classList.add('aberta'); p.dataset.rar = info.raridade
-  p.replaceChildren(el('em', null, NOME_PARTE[slot]))
+  // a caixinha sobe e some; por baixo, a parte (com "Menos animação" a caixinha só sai)
+  const caixa = p.querySelector('.cas-caixa')
+  if (caixa && !menos()) { caixa.classList.add('cas-caixa--sobe'); setTimeout(() => caixa.remove(), 560) } else caixa?.remove()
+  const dentro = el('span', 'cas-dentro')
   const rp = el('em', 'rar', P.RARIDADES[info.raridade].nome); rp.dataset.rar = info.raridade
-  p.append(el('b', 'cas-apelido', P.apelidoDaParte(gene)), rp)
+  dentro.append(el('b', 'cas-apelido', P.apelidoDaParte(gene)), rp)
   const sub = info.carta ? info.carta.nome : info.bordado ? info.bordado.nome : ''
-  if (sub) p.append(el('span', 'cas-nome', sub))
+  if (sub) dentro.append(el('span', 'cas-nome', sub))
+  p.append(dentro)
   p.setAttribute('aria-label', `${NOME_PARTE[slot]}: ${P.infoDaParte(gene).nome}, ${P.RARIDADES[info.raridade].nome}`)
   p.disabled = true
   Som.casuloParte(k, info.raridade)
@@ -166,7 +171,7 @@ async function terminar() {
   $('#btnCasAbrir').hidden = true; $('#btnCasTudo').hidden = true; $('#btnCasFim').hidden = false
   $('#casSub').textContent = 'O filho nasceu!'
   const fb = $('#casFilho'); fb.replaceChildren(); fb.hidden = false
-  const cv = bonecoCanvas(b, 130); cv.classList.add('cas-boneco'); fb.append(cv)
+  const cv = bonecoCanvas(b, formatoDe(null) === 'pc' ? 132 : 92); cv.classList.add('cas-boneco'); fb.append(cv)
   const t = el('div', 'cas-info'); t.append(el('h3', null, f.nome))
   const tp = el('div', 'f-tipo'); tp.append(iconeTipo(f.tipo, 18), el('span', null, P.NOMES_DOS_TIPOS[f.tipo]), el('span', 'f-rar', `Geração ${b.geracao}`)); t.append(tp)
   const st = el('div', 'f-stats'); for (const [n, v] of [['Vida', f.vidaMax], ['Rapidez', f.rapidez], ['Firmeza', f.firmeza]]) { const s = el('span'); s.append(el('small', null, n + ' '), el('b', null, String(v))); st.append(s) }
@@ -183,6 +188,10 @@ async function abrirTudo() {
 export function fecharCasulo() { if ($('#casulo').hidden) return false; $('#casulo').hidden = true; cas = null; try { Musica.momento('entrada') } catch { /* sem áudio */ } renderCostura(); return true }
 
 export function iniciarCostura() {
+  // os botões viram botões-retalho (peça botao.js); os ids ficam
+  for (const [id, rotulo, variante] of [['btnCosturar', 'Costurar', 'principal'], ['btnCasAbrir', 'Abrir próxima parte', 'principal'], ['btnCasTudo', 'Abrir tudo', 'secundario'], ['btnCasFim', 'Ver na coleção', 'principal']]) {
+    const velho = $('#' + id), novo = criarBotao({ rotulo, variante, desligado: velho.disabled }); novo.id = id; novo.hidden = velho.hidden; velho.replaceWith(novo)
+  }
   $('#btnCosturar').addEventListener('click', costurarAgora)
   $('#btnCasAbrir').addEventListener('click', abrirProxima)
   $('#btnCasTudo').addEventListener('click', abrirTudo)

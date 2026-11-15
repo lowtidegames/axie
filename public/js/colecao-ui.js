@@ -3,6 +3,8 @@ import * as P from './ponte.js'
 import * as Col from './colecao.js'
 import * as Som from './som.js'
 import { $, el, bonecoCanvas, chipParte, iconeTipo, avisoHub, menos } from './ui.js'
+import { carretelSvg, formatoDe } from './pecas/base.js'
+import { criarPrateleira } from './pecas/prateleira.js'
 
 const SLOTS = [['tronco', 'Tronco'], ['cabeca', 'Cabeça'], ['bracos', 'Braços'], ['pernas', 'Pernas'], ['bordado', 'Bordado']]
 let aoMudar = () => {}
@@ -22,30 +24,14 @@ function estadoTxt(b) {
 }
 
 export function renderColecao() {
-  const lista = $('#colLista'); lista.replaceChildren()
-  const bs = Col.ativos()
-  $('#colResumo').textContent = `${bs.length} bonecos na coleção · ${Col.retalhos()} Retalhos Honrados · toque num boneco para ver a ficha.`
-  for (const b of bs) lista.append(cartao(b))
-}
-
-function cartao(b) {
-  const { f, voltas, remendo, niveis } = resumoDoBoneco(b)
-  const c = el('button', 'ficha col-cartao'); c.type = 'button'; c.dataset.id = b.id; c.setAttribute('role', 'listitem')
-  c.append(bonecoCanvas(b, 78))
-  const info = el('div', 'f-info')
-  info.append(el('div', 'f-nome', f.nome))
-  const tp = el('div', 'f-tipo'); tp.append(iconeTipo(f.tipo, 16), el('span', null, P.NOMES_DOS_TIPOS[f.tipo]))
-  const g = el('span', 'f-rar', `Geração ${b.geracao ?? 0}`); tp.append(g); info.append(tp)
-  const st = el('div', 'f-stats')
-  for (const [n, v] of [['Vida', f.vidaMax], ['Rapidez', f.rapidez], ['Firmeza', f.firmeza]]) { const s = el('span'); s.append(el('small', null, n + ' '), el('b', null, String(v))); st.append(s) }
-  info.append(st)
-  const lin = el('div', 'col-linha')
-  lin.append(carretel(b, true), el('span', 'col-rem', `Remendos ${remendo}/${niveis}`))
-  info.append(lin)
-  info.append(el('div', 'f-partes', estadoTxt(b)))
-  c.append(info)
-  c.addEventListener('click', () => abrirBoneco(b.id))
-  return c
+  const bs = Col.ativos(), pc = formatoDe(null) === 'pc'
+  $('#colResumo').textContent = `${bs.length} bonecos · ${Col.retalhos()} Retalhos Honrados · toque num boneco para ver a ficha.`
+  // a prateleira (peça do ateliê): cada boneco com o desgaste no desenho e o Carretel na etiqueta
+  criarPrateleira($('#colLista'), bs.map((b) => {
+    const { f, voltas } = resumoDoBoneco(b)
+    const aviso = Col.casuloFechado(b) ? 'casulo fechado' : P.podeAposentar(b) ? 'só aposentar' : `Carretel ${voltas}`
+    return { id: b.id, nome: f.nome, desenho: () => bonecoCanvas(b, Math.round((pc ? 112 : 84) / 1.547)), sub: aviso }
+  }), { porTabua: pc ? 5 : 3, nomes: true, classe: 'ficha col-cartao', aoTocar: abrirBoneco, rotulo: 'Seus bonecos' })
 }
 
 /** Carretel: uma volta por bolinha (usadas escurecem). */
@@ -55,7 +41,7 @@ function carretel(b, curto = false) {
   w.setAttribute('aria-label', `Carretel: ${usadas} de ${tot} voltas usadas`)
   w.append(curto ? el('small', null, 'Carretel') : el('b', null, 'Carretel '))
   const voltas = el('span', 'voltas')
-  for (let i = 0; i < tot; i++) voltas.append(el('i', i < usadas ? 'usada' : ''))
+  for (let i = 0; i < tot; i++) { const c = el('span', 'fz-carretel' + (i < usadas ? '' : ' fz-carretel--cheio')); c.append(carretelSvg()); voltas.append(c) } // a volta usada deixa o carretel vazio
   w.append(voltas, el('span', 'carretel-n', `${usadas}/${tot}`))
   return w
 }
@@ -173,15 +159,16 @@ async function cerimonia(id) {
 export function renderMural() {
   const lista = $('#murLista'); lista.replaceChildren()
   const m = Col.mural()
-  $('#murResumo').textContent = m.length ? `${m.length} bonecos aposentados · ${Col.retalhos()} Retalhos Honrados.` : 'Ainda ninguém se aposentou. Quando os Pontos de Costura de um boneco chegarem ao limite, ele vem para cá.'
-  for (const x of m) {
+  $('#murResumo').textContent = m.length ? `${m.length} bonecos aposentados · ${Col.retalhos()} Retalhos Honrados.` : ''
+  if (!m.length) lista.append(el('p', 'hub-vazio', 'Ainda ninguém se aposentou. Quando os Pontos de Costura de um boneco chegarem ao limite, ele ganha um quadro aqui, com tudo o que lutou.'))
+  for (const x of m) { // cada aposentado num quadro de moldura de madeira
     const b = Col.obter(x.id)
     const c = el('div', 'ficha mural-cartao'); c.dataset.id = x.id
     if (b) c.append(bonecoCanvas(b, 78, 'vivo'))
     const info = el('div', 'f-info')
-    info.append(el('div', 'f-nome', x.nome), el('div', 'f-partes', `Geração ${x.geracao}`))
+    info.append(el('div', 'f-nome', x.nome), el('div', 'f-partes', `Geração ${x.geracao} · voltas de costura dadas: ${x.voltasUsadas}`))
     info.append(el('div', 'f-stats', `Lutas ${x.lutas} · Vitórias ${x.vitorias} · Maior golpe ${x.maiorGolpe}`))
-    info.append(el('div', 'f-partes', `Voltas de costura dadas: ${x.voltasUsadas}`), el('div', 'mural-ret', `+${x.retalhos} Retalhos Honrados`))
+    info.append(el('div', 'mural-ret', `+${x.retalhos} Retalhos Honrados`))
     c.append(info); lista.append(c)
   }
 }

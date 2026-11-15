@@ -2,11 +2,11 @@
 // No protótipo local o motor roda aqui no navegador (módulo ES de /shared). Quando houver servidor, SÓ ESTE ARQUIVO
 // troca: as mesmas funções passam a chamar a rede. A tela (app.js, arena.js) nunca importa /shared direto
 // e nunca calcula regra nem número: pergunta aqui e mostra o que voltar.
-import { aplicar, aplicarNoLugar, bateForte, clonar, comandosValidos, criarLuta, montarBoneco, reproduzir, resultado, textoDaCarta, textoDoBordado, visaoDoTime } from '/shared/batalha.js'
-import * as C from '/shared/costura.js'
-import { criarRng } from '/shared/rng.js'
-import { planejarTurno } from '/shared/robos.js'
-import { BONECOS_PRONTOS, BONUS_DE_TIPO, BORDADOS, CARTAS, NOMES_DOS_TIPOS, PARTES, RARIDADES, REGRAS, TIPOS } from '/shared/config.js'
+import { aplicar, aplicarNoLugar, bateForte, clonar, comandosValidos, criarLuta, montarBoneco, reproduzir, resultado, textoDaCarta, textoDoBordado, visaoDoTime } from '../../shared/batalha.js'
+import * as C from '../../shared/costura.js'
+import { criarRng } from '../../shared/rng.js'
+import { planejarTurno } from '../../shared/robos.js'
+import { BONECOS_PRONTOS, BONUS_DE_TIPO, BORDADOS, CARTAS, NOMES_DOS_TIPOS, PARTES, RARIDADES, REGRAS, TIPOS } from '../../shared/config.js'
 
 export { BONUS_DE_TIPO, BORDADOS, CARTAS, NOMES_DOS_TIPOS, PARTES, RARIDADES, REGRAS, TIPOS }
 export const ROBOS = ['ganancioso', 'planejador']

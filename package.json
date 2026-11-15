@@ -14,6 +14,7 @@
     "e2e:pecas": "node tools/trava-robos.mjs rodar \"node tests/tela/pecas.e2e.mjs\"",
     "e2e:pagina": "node tools/trava-robos.mjs rodar \"node tests/tela/pagina.e2e.mjs\"",
     "e2e:servidor": "node tools/trava-robos.mjs rodar \"node tests/tela/servidor.e2e.mjs\"",
+    "e2e:piloto": "node tools/trava-robos.mjs rodar \"timeout 700 node tests/tela/piloto.e2e.mjs\"",
     "e2e": "node tools/trava-robos.mjs rodar \"node tests/tela/prototipo.e2e.mjs\" && node tools/trava-robos.mjs rodar \"node tests/tela/tela2.e2e.mjs\" && node tools/trava-robos.mjs rodar \"node tests/tela/som.e2e.mjs\""
   },
   "engines": {

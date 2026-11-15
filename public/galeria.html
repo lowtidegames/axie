@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Frayz — galeria dos bonecos</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0;background:#1b1226;color:#f2e6c9;font:14px system-ui,sans-serif;padding:12px}
+h2{margin:14px 0 6px;font-size:15px}.l{display:flex;flex-wrap:wrap;gap:8px}.b{text-align:center;font-size:11px}canvas{display:block}</style></head>
+<body><h2>Bonecos prontos (vivo · último fio · caído)</h2><div class="l" id="prontos"></div>
+<h2>Combinações de partes</h2><div class="l" id="partes"></div>
+<script type="module">
+import { idsProntos, ficha, PARTES } from './js/ponte.js'
+import { spriteDoBoneco, iconeDoTipo } from './js/bonecos.js'
+import { TIPOS } from './js/ponte.js'
+const q = new URLSearchParams(location.search), esc = Number(q.get('esc') || 1.1)
+function item(el, partes, est, nome) { const d = document.createElement('div'); d.className = 'b'; const o = spriteDoBoneco(partes, est, esc), s = document.createElement('canvas'); s.width = o.width; s.height = o.height; s.getContext('2d').drawImage(o, 0, 0); s.style.width = s.width / esc + 'px'; d.append(s, nome); el.append(d) }
+const A = document.getElementById('prontos')
+for (const id of idsProntos()) { const f = ficha(id); item(A, f.partes ? Object.fromEntries(Object.entries(f.partes).map(([k, v]) => [k, v.id + '@' + v.raridade])) : {}, 'vivo', f.nome) }
+const f0 = ficha(idsProntos()[0]); const p0 = Object.fromEntries(Object.entries(f0.partes).map(([k, v]) => [k, v.id + '@' + v.raridade]))
+item(A, ficha('desfiado').partes && Object.fromEntries(Object.entries(ficha('desfiado').partes).map(([k, v]) => [k, v.id + '@' + v.raridade])), 'fio', 'fio')
+item(A, p0, 'caido', 'caído')
+const B = document.getElementById('partes')
+const slots = { cabeca: [], bracos: [], pernas: [], tronco: [], bordado: [] }
+for (const [id, p] of Object.entries(PARTES)) slots[p.slot].push(id)
+const base = { ...p0 }
+for (const s of ['cabeca', 'bracos', 'pernas', 'tronco', 'bordado']) for (const id of slots[s]) item(B, { ...base, [s]: id + '@comum' }, 'vivo', id)
+const T = document.createElement('div'); T.className = 'l'; for (const t of TIPOS) { const c = iconeDoTipo(t, 60); T.append(c) } B.after(T)
+window.__pronto = true
+</script></body></html>

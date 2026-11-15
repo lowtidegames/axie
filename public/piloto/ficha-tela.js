@@ -87,7 +87,7 @@ export function criarFicha({ conta, tocar, faiscas, ganchos }) {
     cx.fillText(linha, cxm + 4, 412)
     // placar
     caixa(40, 432, W - 80, 62, 12, '#EADFC8')
-    cx.font = '30px "Lilita One", sans-serif'; cx.fillText(`${h.v} W – ${h.d} L`, cxm - 96, 455)
+    cx.fillStyle = PLUM; cx.font = '30px "Lilita One", sans-serif'; cx.fillText(`${h.v} W – ${h.d} L`, cxm - 96, 455)
     cx.fillText(`${h.forte}`, cxm + 110, 455)
     cx.font = '800 12px "Nunito", sans-serif'; cx.fillStyle = '#5A4470'
     cx.fillText(`${h.lutas} fights`, cxm - 96, 480); cx.fillText('Strong hits landed', cxm + 110, 480)

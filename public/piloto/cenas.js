@@ -16,6 +16,7 @@ const ruido = (x, y) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5
 
 // ------------------------------------------------------------------ ARENA
 export const CHAO = 64 // faixa de chão embaixo (padrão)
+const ARENA_PNG = { chao: 46, grama: 30 } // no arena.png do manifesto: altura do gramado e a faixa lisa do pé (em px da arte)
 /** Onde fica cada lugar (0 Front, 1 Middle, 2 Back) de cada lado: { x, y } dos pés, em pixels da arena.
  *  `cunha` (telas estreitas): Front no meio, Middle atrás em cima, Back atrás embaixo — os 3 cabem grandes em 180 px. */
 export function lugaresDaArena(LW, LH, { chao = CHAO, cunha = false } = {}) {
@@ -99,10 +100,20 @@ export function desenharArena(cx, LW, LH, { sol = 0, laranja = 0, chao: CH = CHA
   cx.fillRect(sx - 5, sy - 6, 4, 2)
   const png = pngDe('arena')
   if (png) {
-    // arte de verdade: cobre a largura mantendo o pé no chão (múltiplo inteiro)
+    // arte de verdade (céu opaco): cobre a largura com o pé no chão. Se a tela pede mais chão do que a arte tem (formação em
+    // cunha do celular), a arte sobe e a grama do pé dela se repete embaixo. O Sundown entra por cima: sol e tinta laranja.
     const k = Math.max(1, Math.floor(LW / png.width)) || 1
-    const w = png.width * k, h = png.height * k
-    cx.drawImage(png, Math.round((LW - w) / 2), LH - h, w, h)
+    const w = png.width * k, h = png.height * k, x0 = Math.round((LW - w) / 2)
+    const sobe = Math.max(0, CH - ARENA_PNG.chao * k)
+    cx.drawImage(png, x0, LH - h - sobe, w, h)
+    const faixa = ARENA_PNG.grama
+    for (let y = LH - sobe; y < LH; y += faixa * k) cx.drawImage(png, 0, png.height - faixa, png.width, faixa, x0, y, w, faixa * k)
+    if (sol > 0.02) {
+      const py = Math.round(30 + sol * (chao - 30 - 30))
+      cx.fillStyle = misturar('#FFF3A8', '#FFB347', laranja)
+      for (let y = -r; y <= r; y++) { const ww = Math.round(Math.sqrt(r * r - y * y)); cx.fillRect(sx - ww, py + y, 2 * ww + 1, 1) }
+    }
+    if (laranja > 0) { cx.fillStyle = `rgba(240, 120, 50, ${(0.3 * laranja).toFixed(3)})`; cx.fillRect(0, 0, LW, LH) }
     return
   }
   const chave = LW + 'x' + LH + 'x' + CH + cunha

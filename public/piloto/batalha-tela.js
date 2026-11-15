@@ -35,7 +35,7 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
       const altDisp = window.innerHeight - 172
       k = Math.max(2, Math.min(4, Math.floor((larg - 16) / 300), Math.floor(altDisp / 165)))
       LW = Math.min(340, Math.floor((larg - 16) / k)); LH = Math.max(165, Math.min(190, Math.floor(altDisp / k)))
-      B.cunha = false; B.chao = 78
+      B.cunha = false; B.chao = 62
     }
     B.k = k; B.LW = LW; B.LH = LH
     cv.width = LW; cv.height = LH
@@ -358,7 +358,7 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
         if (t === 'A' && ev.valor > B.stats.maior.valor) B.stats.maior = { valor: ev.valor, carta: ev.carta }
       }
       for (const v of Object.values(B.vis)) { v.pose = 'idle'; v.avanco = 0 }
-      esconderFaixa()
+      esconderFaixa(); $('#bChip', raiz).hidden = true
       B.i = luta.passos.length - 1
       mostrar(luta.passos[luta.passos.length - 1].estado)
       B.pular = false

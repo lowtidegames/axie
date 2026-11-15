@@ -200,13 +200,13 @@ function desenharMapaTela() {
   marcas.innerHTML = ''
   LUGARES.forEach((l, i) => {
     const [x, y] = geo.lugares[i]
-    const b = document.createElement('button')
-    b.type = 'button'
-    b.className = 'm-marca' + (l.aberto ? ' aberta' : '') + (x > MAPA.w * 0.72 ? ' m-marca--dir' : x < MAPA.w * 0.2 ? ' m-marca--esq' : '')
+    // no mapa só os lugares abertos são botão (os outros têm o botão na lista ao lado)
+    const b = document.createElement(l.aberto ? 'button' : 'div')
+    if (l.aberto) b.type = 'button'
+    b.className = 'm-marca' + (l.aberto ? ' aberta' : '') + (x > MAPA.w * 0.72 ? ' m-marca--dir' : x < MAPA.w * 0.14 ? ' m-marca--esq' : '')
     b.style.left = x * k + desloc + 'px'; b.style.top = (y - 10) * k + 'px'
     b.innerHTML = `<span>${l.n}</span><em>${nomeDoLugar(l.n)}${l.aberto ? `<i>${l.guarda.map((g) => icone(tipoDe(defDoPronto(g)))).join('')}</i>` : ''}</em>`
-    b.setAttribute('aria-label', nomeDoLugar(l.n) + (l.aberto ? ': open the patrol orders' : ' (coming soon)'))
-    b.addEventListener('click', () => irPara(i))
+    if (l.aberto) { b.setAttribute('aria-label', nomeDoLugar(l.n) + ': open the patrol orders'); b.addEventListener('click', () => irPara(i)) }
     marcas.appendChild(b)
   })
   const ol = $('#mLista')
@@ -484,7 +484,7 @@ function baterCarimbo(i, comFesta) {
   b.disabled = false
   b.setAttribute('aria-label', `Fight ${i + 1}: ${r.venceu ? 'win' : 'loss'}. Strong hits given ${r.forteDados}, taken ${r.forteLevados}. Open the replay.`)
   $('.r-meio', b).innerHTML = `<b class="r-selo">${r.venceu ? 'WIN' : 'LOSS'}</b>`
-  $('.r-pe', b).innerHTML = `<span>Strong ${r.forteDados} · ${r.forteLevados}</span><em>Replay &#9656;</em>`
+  $('.r-pe', b).innerHTML = `<span><i>Strong given</i> ${r.forteDados} · <i>taken</i> ${r.forteLevados}</span><em>Replay &#9656;</em>`
   // barra da sequência: vitórias seguidas até aqui (cai a zero na derrota)
   let seq = 0
   for (let k = 0; k <= i; k++) seq = P.lutas[k].resumo.venceu ? seq + 1 : 0
@@ -562,6 +562,7 @@ async function mostrarTiras(comFesta) {
   const [nova, antes] = conta.tiras
   if (!nova) return
   $('#rTiras').hidden = false
+  $('#relato').classList.add('fim')
   $('#rTiras').classList.toggle('so-uma', !antes)
   const elN = $('#rNova'), elA = $('#rAntes')
   elN.innerHTML = htmlDaTira(nova, 'This patrol', antes ?? null)
@@ -603,6 +604,7 @@ function abrirRelato() {
   const jaFeito = R.fase === 'fim' || R.fase === 'carimbando'
   mostrar('relato')
   if (!jaFeito) {
+    $('#relato').classList.remove('fim')
     $('#rTiras').hidden = true; $('#rFesta').hidden = true; $('#rBts').hidden = true; $('#rAmostra').hidden = true
     desenharCarimbos()
     carimbar()

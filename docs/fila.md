@@ -30,4 +30,4 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | 22 | Sobras: celular deitado (a etiqueta do rival cobre as fitas de vida do rival); abreviação das cartas cobertas no celular; modo servidor (soma dos Retalhos no Mural, fase 5 vencida, prazo do turno contado depois da animação do rival, desistir fora da vez); S5-1 (intenção mostra a mão escondida e a próxima compra do rival) e S5-2; folhas de arte/peças/sons atrás da CSP do servidor; atualizar docs/mapa-do-codigo.md | — | public/, server/, shared/robos.js | 21 | FILA |
 
 ## Já subiu
-(nada publicado ainda)
+- 15/11 09:35 BRT — página de teste (GitHub Pages), commit 79b278b: jogo em modo local. Conferência pelo diretor: construção verde no GitHub; o site em si não abre deste ambiente (rede só libera ElevenLabs e PixelLab), o dono confere abrindo o link.

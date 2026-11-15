@@ -18,7 +18,7 @@ const DUR = { carta: 140, dano: 420, errou: 520, escudo: 520, cura: 420, caiu: 6
 const POSE = { preparo: [120, 60], golpe: [420, 120], golpeado: [420, 80], escudo: [620, 200], vitoria: [720, 99999] }
 const GOLPE_FORTE = 100 // PROVISÓRIO (só visual): a partir daqui o golpe soa e pesa como "golpe forte"
 // Tremida da cena (só visual, tarefa 21): golpe forte 3 px, crítico 6 px (o teto do guia §9), 200 ms (pedido da tarefa 21)
-const TREMIDA = { forte: 3, critico: 6, ms: 200 }
+const TREMIDA = { forte: 3, critico: 6, ms: 120 }
 const limita = (v, a, b) => Math.max(a, Math.min(b, v))
 
 export class Arena {

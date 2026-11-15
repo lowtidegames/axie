@@ -4,6 +4,8 @@ import { bateForte } from '../../shared/batalha.js'
 import { CARTAS, REGRAS } from '../../shared/config.js'
 import * as Arte from './arte.js'
 import { desenharArena, lugaresDaArena } from './cenas.js'
+import { golpeResistido } from './patrulha.js'
+import { PCT_CANSADO } from './regras-piloto.js'
 import { ELEMENTOS, SOL, TERMOS, nomeDaHabilidade } from './tema.js'
 
 const $ = (s, r = document) => r.querySelector(s)
@@ -73,7 +75,7 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
       el.innerHTML = `<div class="b-nome">${B.nomes[id]}</div>
         <div class="b-prontas">${cartas.map((c) => `<img class="b-pronta" data-carta="${c}" alt="${nomeDaHabilidade(c)}" title="${nomeDaHabilidade(c)}" src="${Arte.url(Arte.iconeHabilidade(c))}">`).join('')}</div>
         <div class="b-vida"><div class="b-vida__barra"><i></i></div><span class="b-vida__num"></span></div>
-        <div class="b-status"><span class="b-guard" hidden></span><span class="b-exp" hidden title="Exposed">Exposed</span><span class="b-veil" hidden title="Veil">Veil</span></div>
+        <div class="b-status">${cansadoNoInicio(id) ? `<span class="b-tired" title="Started at ${PCT_CANSADO}% HP">Tired</span>` : ''}<span class="b-guard" hidden></span><span class="b-exp" hidden title="Exposed">Exposed</span><span class="b-veil" hidden title="Veil">Veil</span></div>
         <div class="b-selo" hidden>LAST STAND</div>`
       hud.appendChild(el)
     }
@@ -83,6 +85,11 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
       o.innerHTML = `<span class="b-glow__rot">Glow</span>` + Array.from({ length: REGRAS.linhaMaxima }, () => '<i></i>').join('')
       hud.appendChild(o)
     }
+  }
+  /** Começou a luta cansado? (o motor pôs a vida inicial abaixo da máxima: regra de cansaço do piloto) */
+  function cansadoNoInicio(id) {
+    const b = B.luta?.inicial?.bonecos?.[id]
+    return !!b && b.time === 'A' && b.vida < b.vidaMax
   }
   function cartasDe(id) {
     const vistas = []
@@ -114,7 +121,7 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
     const lista = $('#bLista', raiz)
     lista.innerHTML = ['A', 'B'].map((t) => `<div class="b-lista__time"><h3>${t === 'A' ? 'Your patrol' : 'The guard'}</h3>` + e.times[t].lugares.map((id, i) => {
       const b = e.bonecos[id]
-      const st = [b.escudo > 0 ? `<span class="b-guard">${b.escudo}</span>` : '', b.fioSoltoAte >= e.turno && b.estado === 'vivo' ? '<span class="b-exp">Exposed</span>' : '', b.veu ? '<span class="b-veil">Veil</span>' : '', b.estado === 'fio' ? '<span class="b-exp">Last Stand</span>' : ''].join('')
+      const st = [cansadoNoInicio(id) ? '<span class="b-tired">Tired</span>' : '', b.escudo > 0 ? `<span class="b-guard">${b.escudo}</span>` : '', b.fioSoltoAte >= e.turno && b.estado === 'vivo' ? '<span class="b-exp">Exposed</span>' : '', b.veu ? '<span class="b-veil">Veil</span>' : '', b.estado === 'fio' ? '<span class="b-exp">Last Stand</span>' : ''].join('')
       return `<div class="b-lista__m${b.estado === 'caido' ? ' caido' : ''}"><img src="${Arte.url(Arte.iconeElemento(b.tipo))}" alt=""><b>${B.nomes[id]}</b><small>${['Front', 'Middle', 'Back'][i]}</small><span>${b.estado === 'caido' ? 'Out' : b.vida + '/' + b.vidaMax}</span>${st}</div>`
     }).join('') + '</div>').join('')
     for (const t of ['A', 'B']) {
@@ -249,11 +256,13 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
         if (ev.t === 'dano') {
           const alvo = B.estado.bonecos[ev.alvo]
           const forte = !ev.refletido && ev.carta && bateForte(CARTAS[ev.carta].tipo, alvo.tipo)
+          const resistido = golpeResistido(ev, alvo.tipo, B.luta.regras)
           let h = `<b>${ev.valor}</b>`
+          if (resistido) h = '<small class="resistido">Resisted</small>' + h
           if (ev.escudo) h += `<small>${ev.escudo} blocked</small>`
           if (ev.critico) h = `<em>Critical!</em>` + h
           if (forte) h = `<em class="forte">${icone(CARTAS[ev.carta].tipo)} Strong! ${icone(alvo.tipo)}</em>` + h
-          noAlvo(ev.alvo, h, 'b-pop--dano' + (ev.critico ? ' b-pop--crit' : '') + (forte ? ' b-pop--forte' : '') + (ev.refletido ? ' b-pop--ref' : ''), atraso)
+          noAlvo(ev.alvo, h, 'b-pop--dano' + (ev.critico ? ' b-pop--crit' : '') + (forte ? ' b-pop--forte' : '') + (resistido ? ' b-pop--resiste' : '') + (ev.refletido ? ' b-pop--ref' : ''), atraso)
           if (ev.valor > 0) { flash(ev.alvo); B.vis[ev.alvo].recuo = 5 }
           if (ev.critico) critico = true
           if (!ev.refletido) bateu = ev.critico ? 'critico' : forte && bateu !== 'critico' ? 'forte' : bateu ?? 'golpe'

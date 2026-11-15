@@ -24,6 +24,7 @@
     <button type="button" class="bt-menos" id="btMenos" aria-pressed="false" title="Reduced motion: no shake, no flash">Reduced motion</button>
   </div>
 </header>
+<p class="aviso-regras" id="avisoRegras" role="note"></p>
 
 <main>
   <!-- ======================================================= ROAD (casa do piloto) -->
@@ -40,7 +41,10 @@
         <p class="sub">Two places are open. Each one has its own guard: send the trio that fits.</p>
         <ol id="mLista"></ol>
         <div class="m-ultima" id="mUltima" hidden></div>
-        <button type="button" class="bt-discreto" id="btReset">Reset pilot</button>
+        <div class="m-dia">
+          <button type="button" class="bt bt--sec bt--peq" id="btNovoDia" title="Pilot only: nobody is tired and the Rations come back">New day</button>
+          <button type="button" class="bt-discreto" id="btReset">Reset pilot</button>
+        </div>
       </div>
     </div>
     <div class="aviso-flutua" id="mAviso" hidden></div>
@@ -66,6 +70,7 @@
         </div>
       </div>
       <p class="f-borda"><b id="fBorda"></b> <span id="fBordaAviso"></span></p>
+      <p class="f-cansaco" id="fCansaco"></p>
       <div class="f-rodape">
         <div class="f-conta">
           <h3>Your monsters <small>tap one, then tap a spot (or drag it)</small></h3>

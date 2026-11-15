@@ -1,9 +1,10 @@
 // Piloto — a "roupa" do tema de monstros elementais: ids do config → nome, texto e cor em inglês.
 // Desenho: docs/ideias/piloto-monstros.md §2–§5. NENHUM número escrito aqui: todo número sai de shared/config.js
 // (os textos usam os mesmos campos {i.campo} do config, preenchidos com o valor do config, como o textoDaCarta do motor).
-import { BONUS_DE_TIPO, BORDADOS, CARTAS, PARTES, RARIDADES, REGRAS, TIPOS } from '../../shared/config.js'
+import { BORDADOS, CARTAS, PARTES, RARIDADES, REGRAS, TIPOS } from '../../shared/config.js'
 import { PARAMS_COSTURA } from '../../shared/costura.js'
-import { SEGURANCA } from './tatica.js'
+import { SEGURANCA } from '../../shared/tatica.js'
+import { PCT_FORTE, PCT_RESISTE } from './regras-piloto.js'
 
 // ------------------------------------------------------------------ elementos (a roda do motor não muda)
 export const ELEMENTOS = {
@@ -17,7 +18,8 @@ export const ELEMENTOS = {
 export const RODA = TIPOS.slice() // cada um bate forte no seguinte
 export const bateEm = (tipo) => TIPOS[(TIPOS.indexOf(tipo) + 1) % TIPOS.length]
 export const apanhaDe = (tipo) => TIPOS[(TIPOS.indexOf(tipo) + TIPOS.length - 1) % TIPOS.length]
-export const BONUS_FORTE_PCT = Math.round(BONUS_DE_TIPO * 100)
+// o piloto luta com as regras provisórias (regras-piloto.js), não com o BONUS_DE_TIPO do jogo de sempre
+export const BONUS_FORTE_PCT = PCT_FORTE
 
 // raridade: nunca a cor de um elemento (moldura e gema)
 export const RARIDADE = {
@@ -146,6 +148,7 @@ export const TERMOS = {
   sundown: `Sundown: from turn ${REGRAS.tesouraInicio}, everyone loses ${Math.round(REGRAS.tesouraCorte * 100)}% of max HP each turn.`,
   nightfall: `Nightfall: after turn ${REGRAS.turnoFinal}, the team with the higher total HP % wins.`,
   strong: `Strong!: +${BONUS_FORTE_PCT}% damage when the skill's element beats the target's.`,
+  resisted: `Resisted: −${PCT_RESISTE}% damage when the target's body beats the skill's element.`,
   crit: `Critical: +${Math.round(REGRAS.critico * 100)}% damage. Crit % is the chance.`,
   decidido: 'The result is decided when the fight starts.',
 }
@@ -182,7 +185,8 @@ export const feitoDoTitulo = (t) => TITULOS[t.id]?.feito(t.n, t.q) ?? ''
 
 // Textos honestos da folha de ordens (sem promessa de ganho)
 export const AVISOS = {
-  borda: 'Type edge only, not a win chance.',
+  borda: `Type edge only, not a win chance. Pilot rules: Strong hits +${PCT_FORTE}%, resisted hits −${PCT_RESISTE}%.`,
+  regras: 'Pilot rules — battle numbers here are being tested.',
   decidido: 'The result of each fight is decided when it starts.',
   ovo: 'Decided when you confirm.',
   amostra: (n) => `${n} fights is a small sample. Strong hits are the steadier sign.`,

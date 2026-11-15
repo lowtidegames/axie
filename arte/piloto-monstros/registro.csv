@@ -55,3 +55,7 @@ hora_BRT,item,tentativa,ferramenta,custo_geracoes,arquivo,nota
 15/11 10:44,elemento-tule,2,/create-image-pixen,1.0,bruto/elemento-tule-2.png,
 15/11 10:44,lugar-5,3,/create-image-pixflux,1.0,bruto/lugar-5-3.png,
 15/11 10:45,elemento-tule,3,/create-image-pixen,1.0,bruto/elemento-tule-3.png,
+15/11 10:51,arena-nova,1,/create-image-pixflux,1.0,bruto/arena-nova-1.png,pennants lisas sem simbolos
+15/11 10:51,embolado-idle-novo,1,/create-image-pixflux,1.0,bruto/embolado-idle-novo-1.png,"prompt monstro de pedra, nao humano"
+15/11 10:52,embolado-idle-novo,2,/create-image-pixflux,2.0,bruto/embolado-idle-novo-2.png,"prompt monstro de pedra, nao humano"
+15/11 10:52,embolado-idle-novo,3,/create-image-pixflux,1.0,bruto/embolado-idle-novo-3.png,"prompt monstro de pedra, nao humano"

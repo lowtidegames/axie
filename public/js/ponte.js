@@ -216,3 +216,20 @@ export function lerReplay(texto) {
 
 /** Refaz a luta inteira de uma vez (conferência do replay). */
 export const conferirReplay = ({ semente, timeA, timeB, comandos: cmds }) => reproduzir({ semente, timeA, timeB, comandos: cmds })
+
+// ---------------------------------------------------------------- energia da Aventura (modo local; tarefa 18)
+// Mesmo formato do servidor (server/jogo.mjs): { atual, maximo, recarregaEm (ISO) }; recarrega na virada do dia em UTC.
+// energia({ abrirLuta: true }) tenta gastar o custo de abrir uma luta da Aventura e diz se gastou (ok). O gasto do dia
+// fica no armazenamento do navegador. Os números vêm de shared/config.js (ECONOMIA_DO_BETA); a tela só mostra.
+import { ECONOMIA_DO_BETA } from '/shared/config.js'
+export function energia({ abrirLuta = false } = {}) {
+  const DIA = 86400000, hoje = Math.floor(Date.now() / DIA), chave = 'frayz_energia', maximo = ECONOMIA_DO_BETA.energiaPorDia
+  let gasta = 0
+  try { const g = JSON.parse(localStorage.getItem(chave) || 'null'); if (g && g.dia === hoje) gasta = Math.max(0, Number(g.gasta) || 0) } catch { /* sem armazenamento */ }
+  let ok = false
+  if (abrirLuta && gasta + ECONOMIA_DO_BETA.energiaPorLutaDaAventura <= maximo) {
+    gasta += ECONOMIA_DO_BETA.energiaPorLutaDaAventura; ok = true
+    try { localStorage.setItem(chave, JSON.stringify({ dia: hoje, gasta })) } catch { /* sem armazenamento */ }
+  }
+  return { atual: Math.max(0, maximo - gasta), maximo, recarregaEm: new Date((hoje + 1) * DIA).toISOString(), ok }
+}

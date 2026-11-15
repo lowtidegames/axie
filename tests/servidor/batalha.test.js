@@ -107,9 +107,9 @@ describe('config (dados do jogo)', () => {
     }
     assert.equal(textoDaCarta('mordida_de_ziper'), `${CARTAS.mordida_de_ziper.efeitos[0].valor} de dano; +50% se o alvo tem Fio Solto.`)
   })
-  test('≥ 8 bordados; partes válidas; raridade com teto de +10%', () => {
+  test('≥ 8 bordados; partes válidas; raridade com teto de +4%', () => {
     assert.ok(Object.keys(BORDADOS).length >= 8)
-    for (const r of Object.values(RARIDADES)) assert.ok(r.fator >= 1 && r.fator <= 1.10)
+    for (const r of Object.values(RARIDADES)) assert.ok(r.fator >= 1 && r.fator <= 1.04 + 1e-12)
     for (const [id, p] of Object.entries(PARTES)) {
       if (p.carta) assert.ok(CARTAS[p.carta], `${id} → carta ${p.carta}`)
       if (p.bordado) assert.ok(BORDADOS[p.bordado], `${id} → bordado ${p.bordado}`)
@@ -128,11 +128,11 @@ describe('config (dados do jogo)', () => {
     assert.equal(rars.size, 2)
     assert.equal(cartas.size, 24)
   })
-  test('Lendária dá no máximo +10% de vida sobre a Comum', () => {
+  test('Lendária dá no máximo +4% de vida sobre a Comum', () => {
     const p = { tronco: 'tr_la_embolada', cabeca: 'cab_gorro', bracos: 'br_abraco', pernas: 'pe_novelo', bordado: 'bo_espinho' }
     const com = montarBoneco({ partes: p })
     const len = montarBoneco({ partes: Object.fromEntries(Object.entries(p).map(([k, v]) => [k, `${v}@lendaria`])) })
-    assert.ok(len.vidaMax > com.vidaMax && len.vidaMax <= Math.ceil(com.vidaMax * 1.10))
+    assert.ok(len.vidaMax > com.vidaMax && len.vidaMax <= Math.ceil(com.vidaMax * 1.04))
     assert.equal(com.nome, 'Gorro-Abraço-Novelo')
   })
   test('boneco com parte errada ou desconhecida é recusado', () => {
@@ -588,5 +588,23 @@ describe('A11 — o número da carta não diz qual carta é', () => {
       return Object.keys(x.cartas).filter((c) => c[0] === 'B').map((c) => x.cartas[c].carta).join()
     }
     assert.notEqual(mesmaOrdem('p1'), mesmaOrdem('p2'), 'a carta de cada número muda de luta para luta')
+  })
+})
+
+// ------------------------------------------------------------------ tarefa 15: teto do Lendário +4%
+// Regra (decisions.md 15/11 03:18): raridade dá opções, não força. Teto da Lendária +4% sobre a Comum;
+// Incomum e Rara são 30% e 60% do teto. Lendária × Comum (mesmo time) não passa de 58%.
+describe('tarefa 15 — teto do Lendário +4%', () => {
+  test('fatores: Comum 1, Incomum +1,2%, Rara +2,4%, Lendária +4%', () => {
+    assert.equal(RARIDADES.comum.fator, 1)
+    assert.ok(Math.abs(RARIDADES.lendaria.fator - 1.04) < 1e-12, `lendária ${RARIDADES.lendaria.fator}`)
+    const teto = RARIDADES.lendaria.fator - 1
+    assert.ok(Math.abs((RARIDADES.incomum.fator - 1) / teto - 0.3) < 1e-9, 'Incomum = 30% do teto')
+    assert.ok(Math.abs((RARIDADES.rara.fator - 1) / teto - 0.6) < 1e-9, 'Rara = 60% do teto')
+  })
+  test('Lendária × Comum (2000 lutas, semente fixa) fica em até 58%', async () => {
+    const { duelarRaridades } = await import('../../tools/simular-costura.mjs')
+    const d = duelarRaridades({ lutas: 2000, semente: 'frayz', rarX: 'lendaria', rarY: 'comum' })
+    assert.ok(d.pct <= 58, `Lendária vence ${d.pct.toFixed(1)}%`)
   })
 })

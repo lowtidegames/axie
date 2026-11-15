@@ -43,14 +43,15 @@ export const REGRAS = {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 3. Raridade das partes: dá mais OPÇÕES, não números muito maiores. Teto: +10% de valor sobre a Comum.
+// 3. Raridade das partes: dá mais OPÇÕES, não números muito maiores. Teto: +4% de valor sobre a Comum
+//    (era +10%; decisão 15/11 03:18). Incomum e Rara ficam em 30% e 60% do teto.
 //    O fator multiplica Vida, Rapidez e Firmeza que a parte dá. Cartas são iguais em qualquer raridade.
 // ---------------------------------------------------------------------------------------------
 export const RARIDADES = {
   comum: { nome: 'Comum', fator: 1.00 },
-  incomum: { nome: 'Incomum', fator: 1.03 },
-  rara: { nome: 'Rara', fator: 1.06 },
-  lendaria: { nome: 'Lendária', fator: 1.10 },
+  incomum: { nome: 'Incomum', fator: 1.012 },
+  rara: { nome: 'Rara', fator: 1.024 },
+  lendaria: { nome: 'Lendária', fator: 1.04 },
 }
 
 // ---------------------------------------------------------------------------------------------

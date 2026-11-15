@@ -1,0 +1,605 @@
+{
+ "total": 936,
+ "itens": [
+  {
+   "nome": "botao",
+   "tomada": 1,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "botao",
+   "tomada": 2,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "botao",
+   "tomada": 3,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "botao",
+   "tomada": 4,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "escolherCarta",
+   "tomada": 1,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "escolherCarta",
+   "tomada": 2,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "escolherCarta",
+   "tomada": 3,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "escolherCarta",
+   "tomada": 4,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "semLinha",
+   "tomada": 1,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "semLinha",
+   "tomada": 3,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "semLinha",
+   "tomada": 2,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "semLinha",
+   "tomada": 4,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "cartaJogada",
+   "tomada": 2,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "cartaJogada",
+   "tomada": 1,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "cartaJogada",
+   "tomada": 3,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "cartaJogada",
+   "tomada": 4,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "golpe",
+   "tomada": 1,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "golpe",
+   "tomada": 2,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "golpe",
+   "tomada": 3,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "golpe",
+   "tomada": 4,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "golpeForte",
+   "tomada": 1,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "golpeForte",
+   "tomada": 3,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "golpeForte",
+   "tomada": 2,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "golpeForte",
+   "tomada": 4,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "critico",
+   "tomada": 1,
+   "seg": 1,
+   "custo": 11
+  },
+  {
+   "nome": "critico",
+   "tomada": 2,
+   "seg": 1,
+   "custo": 11
+  },
+  {
+   "nome": "critico",
+   "tomada": 3,
+   "seg": 1,
+   "custo": 11
+  },
+  {
+   "nome": "critico",
+   "tomada": 4,
+   "seg": 1,
+   "custo": 11
+  },
+  {
+   "nome": "escudo",
+   "tomada": 2,
+   "seg": 1,
+   "custo": 11
+  },
+  {
+   "nome": "escudo",
+   "tomada": 1,
+   "seg": 1,
+   "custo": 11
+  },
+  {
+   "nome": "escudo",
+   "tomada": 3,
+   "seg": 1,
+   "custo": 11
+  },
+  {
+   "nome": "escudo",
+   "tomada": 4,
+   "seg": 1,
+   "custo": 11
+  },
+  {
+   "nome": "golpeNoEscudo",
+   "tomada": 1,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "golpeNoEscudo",
+   "tomada": 3,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "golpeNoEscudo",
+   "tomada": 2,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "erroDoVeu",
+   "tomada": 1,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "erroDoVeu",
+   "tomada": 2,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "golpeNoEscudo",
+   "tomada": 4,
+   "seg": 0.6,
+   "custo": 7
+  },
+  {
+   "nome": "erroDoVeu",
+   "tomada": 3,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "erroDoVeu",
+   "tomada": 4,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "fioSolto",
+   "tomada": 1,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "fioSolto",
+   "tomada": 3,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "fioSolto",
+   "tomada": 2,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "fioSolto",
+   "tomada": 4,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "trocarLugares",
+   "tomada": 1,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "trocarLugares",
+   "tomada": 2,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "trocarLugares",
+   "tomada": 3,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "trocarLugares",
+   "tomada": 4,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "comprarCarta",
+   "tomada": 2,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "comprarCarta",
+   "tomada": 1,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "comprarCarta",
+   "tomada": 3,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "comprarCarta",
+   "tomada": 4,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "fiapo",
+   "tomada": 2,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "fiapo",
+   "tomada": 1,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "fiapo",
+   "tomada": 3,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "fiapo",
+   "tomada": 4,
+   "seg": 0.5,
+   "custo": 6
+  },
+  {
+   "nome": "ultimoFio",
+   "tomada": 1,
+   "seg": 1.2,
+   "custo": 13
+  },
+  {
+   "nome": "ultimoFio",
+   "tomada": 2,
+   "seg": 1.2,
+   "custo": 13
+  },
+  {
+   "nome": "ultimoFio",
+   "tomada": 4,
+   "seg": 1.2,
+   "custo": 13
+  },
+  {
+   "nome": "queda",
+   "tomada": 1,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "ultimoFio",
+   "tomada": 3,
+   "seg": 1.2,
+   "custo": 13
+  },
+  {
+   "nome": "queda",
+   "tomada": 4,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "queda",
+   "tomada": 2,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "queda",
+   "tomada": 3,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "tesouraDesce",
+   "tomada": 1,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "tesouraDesce",
+   "tomada": 3,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "tesouraDesce",
+   "tomada": 2,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "tesouraDesce",
+   "tomada": 4,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "tesoura",
+   "tomada": 1,
+   "seg": 1.2,
+   "custo": 13
+  },
+  {
+   "nome": "tesoura",
+   "tomada": 2,
+   "seg": 1.2,
+   "custo": 13
+  },
+  {
+   "nome": "tesoura",
+   "tomada": 3,
+   "seg": 1.2,
+   "custo": 13
+  },
+  {
+   "nome": "tesoura",
+   "tomada": 4,
+   "seg": 1.2,
+   "custo": 13
+  },
+  {
+   "nome": "remendo",
+   "tomada": 1,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "remendo",
+   "tomada": 2,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "remendo",
+   "tomada": 3,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "remendo",
+   "tomada": 4,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "semLinha",
+   "tomada": 5,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "semLinha",
+   "tomada": 6,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "semLinha",
+   "tomada": 7,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "semLinha",
+   "tomada": 8,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "golpe",
+   "tomada": 5,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "golpe",
+   "tomada": 6,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "golpe",
+   "tomada": 7,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "golpe",
+   "tomada": 8,
+   "seg": 0.8,
+   "custo": 9
+  },
+  {
+   "nome": "escudo",
+   "tomada": 5,
+   "seg": 1.5,
+   "custo": 17
+  },
+  {
+   "nome": "escudo",
+   "tomada": 6,
+   "seg": 1.5,
+   "custo": 17
+  },
+  {
+   "nome": "escudo",
+   "tomada": 7,
+   "seg": 1.5,
+   "custo": 17
+  },
+  {
+   "nome": "escudo",
+   "tomada": 8,
+   "seg": 1.5,
+   "custo": 17
+  },
+  {
+   "nome": "tesoura",
+   "tomada": 5,
+   "seg": 1.8,
+   "custo": 20
+  },
+  {
+   "nome": "tesoura",
+   "tomada": 7,
+   "seg": 1.8,
+   "custo": 20
+  },
+  {
+   "nome": "tesoura",
+   "tomada": 6,
+   "seg": 1.8,
+   "custo": 20
+  },
+  {
+   "nome": "tesoura",
+   "tomada": 8,
+   "seg": 1.8,
+   "custo": 20
+  },
+  {
+   "nome": "escolherCarta",
+   "tomada": 5,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "escolherCarta",
+   "tomada": 6,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "escolherCarta",
+   "tomada": 7,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "escolherCarta",
+   "tomada": 8,
+   "seg": 0.7,
+   "custo": 8
+  },
+  {
+   "nome": "fioSolto",
+   "tomada": 5,
+   "seg": 1,
+   "custo": 11
+  },
+  {
+   "nome": "fioSolto",
+   "tomada": 7,
+   "seg": 1,
+   "custo": 11
+  },
+  {
+   "nome": "fioSolto",
+   "tomada": 6,
+   "seg": 1,
+   "custo": 11
+  },
+  {
+   "nome": "fioSolto",
+   "tomada": 8,
+   "seg": 1,
+   "custo": 11
+  }
+ ]
+}

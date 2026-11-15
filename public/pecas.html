@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Frayz — folha de conferência das peças</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1B1226">
+<link rel="stylesheet" href="css/pecas.css">
+<style>
+  /* Só a moldura da folha de conferência (as peças estão em css/pecas.css). */
+  html, body { margin: 0; min-height: 100%; background: var(--noite); color: var(--linho); font: 600 14px/1.35 var(--letra-texto); }
+  body.so-montagem { height: 100dvh; overflow: hidden; }
+  body.so-montagem #folha { height: 100dvh; }
+  #folha { max-width: 1320px; margin: 0 auto; padding: var(--e4) 0 var(--e6); }
+  body.so-montagem #folha { max-width: none; padding: 0; }
+  .fo-topo, .fo-secao > h2, .fo-secao > p { padding-left: var(--e3); padding-right: var(--e3); }
+  .fo-quadros { padding: 0 var(--e3); }
+  /* no celular o quadro tem os 360 px do aparelho de referência, de ponta a ponta */
+  @media (max-width: 400px) { .fo-quadros { padding: 0; } }
+  .fo-topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e3) var(--e5); margin-bottom: var(--e4); }
+  .fo-topo h1 { margin: 0; font: 400 24px/1.1 var(--letra-titulo); }
+  .fo-topo p { margin: 4px 0 0; color: var(--linho-apagado); }
+  .fo-acoes { display: flex; flex-wrap: wrap; gap: var(--e3); align-items: center; }
+  .fo-secao { margin: 0 0 var(--e6); }
+  .fo-secao > h2 { margin: 0 0 4px; font: 400 21px/1.1 var(--letra-titulo); color: var(--ouro-de-vela); }
+  .fo-secao > p { margin: 0 0 var(--e3); color: var(--linho-apagado); max-width: 76ch; }
+  .fo-quadros { display: flex; flex-wrap: wrap; gap: var(--e4); align-items: flex-start; }
+  .fo-quadro { position: relative; min-width: 0; padding: var(--e5) var(--e3) var(--e4); border-radius: var(--canto-cartao); background-color: #21152F; background-image: var(--trama); box-shadow: inset 0 0 0 1.5px var(--borda); }
+  .fo-quadro[data-formato="pc"] { flex: 1 1 640px; }
+  .fo-quadro[data-formato="celular"] { flex: 0 0 auto; width: min(360px, 100%); padding-left: 0; padding-right: 0; }
+  .fo-quadro[data-formato="celular"] > .fo-fila, .fo-quadro[data-formato="celular"] > .fo-nota { padding-left: var(--e3); padding-right: var(--e3); }
+  .fo-quadro > .fo-rotulo { position: absolute; left: var(--e3); top: 6px; font: 800 13px/1 var(--letra-texto); letter-spacing: 0.1em; text-transform: uppercase; color: var(--linho-apagado); }
+  .fo-fila { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--e5) var(--e4); }
+  .fo-fila + .fo-fila { margin-top: var(--e5); }
+  .fo-fila--meio { align-items: center; }
+  .fo-item { display: flex; flex-direction: column; align-items: center; gap: var(--e3); }
+  .fo-item > small { font: 800 13px/1.15 var(--letra-texto); color: var(--linho-apagado); text-align: center; max-width: 150px; }
+  .fo-quadro[data-formato="celular"] .fo-item > small { max-width: 104px; }
+  .fo-quadro[data-formato="celular"] .fo-fila { gap: var(--e4) var(--e2); justify-content: space-around; }
+  .fo-nota { margin: var(--e3) 0 0; color: var(--linho-apagado); font-size: 13px; }
+  .fo-palco { position: relative; width: 100%; height: 150px; border-radius: var(--canto-painel); overflow: hidden; background-color: #1A1029; background-image: var(--trama); }
+  .fo-palco--alto { height: 260px; }
+  .fo-mao { position: relative; padding-top: 56px; overflow: hidden; }
+  .fo-janela { display: block; border: 0; border-radius: var(--canto-painel); box-shadow: 0 0 0 2px var(--borda); background: var(--noite); transform-origin: 0 0; }
+  .fo-janela-caixa { position: relative; overflow: hidden; }
+  .fo-botoes { display: flex; flex-wrap: wrap; gap: var(--e2); margin-top: var(--e3); padding: 0 var(--e3); }
+  .fo-botoes .fz-botao { min-height: 44px; padding: 4px 12px; font-size: 15px; }
+  .fo-quadro[data-formato="pc"] .fo-botoes { padding: 0; }
+</style>
+</head>
+<body>
+<main id="folha"></main>
+<script type="module" src="js/pecas/folha.js"></script>
+</body>
+</html>

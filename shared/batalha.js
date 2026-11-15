@@ -20,7 +20,7 @@
 import { BONUS_DE_TIPO, BONECOS_PRONTOS, BORDADOS, CARTAS, PARTES, RARIDADES, REGRAS, TIPOS } from './config.js'
 import { embaralhar, estadoDaSemente, inteiroEm, passo } from './rng.js'
 
-export const VERSAO_DO_MOTOR = 1
+export const VERSAO_DO_MOTOR = 2 // 2: sorteio SHA-256, mesa, teto de comandos e números de carta sorteados (a mesma semente não refaz lutas da versão 1)
 const SLOTS = ['tronco', 'cabeca', 'bracos', 'pernas', 'bordado']
 const outro = (t) => (t === 'A' ? 'B' : 'A')
 

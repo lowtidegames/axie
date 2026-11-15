@@ -99,6 +99,30 @@ async function rodarFormato(fmt) {
     confere(r.cortados.length === 0, `${onde}: nenhum texto do HUD cortado` + (r.cortados.length ? ' → ' + r.cortados.slice(0, 4).join('; ') : ''))
   }
 
+  // TAREFA 18: no leque do celular a carta de cima mostra o nome inteiro; as cobertas, um nome abreviado limpo que não passa para baixo da vizinha
+  const conferirNomes = async (onde) => {
+    const r = await page.evaluate(() => {
+      const cartas = [...document.querySelectorAll('#mao .fz-carta')].sort((a, b) => Number(a.dataset.indice) - Number(b.dataset.indice))
+      const out = { n: cartas.length, inteiro: null, ruins: [] }
+      cartas.forEach((c, i) => {
+        const nome = c.querySelector('.fz-carta__nome'), rn = nome.getBoundingClientRect(), rc = c.getBoundingClientRect()
+        const prox = cartas[i + 1], escolhida = (c.dataset.estado ?? '').includes('selecionada')
+        if (!prox || escolhida) { // a carta de cima (ou a escolhida): o nome inteiro, dentro da carta
+          if (!prox) out.inteiro = nome.textContent
+          if (nome.dataset.curto != null || nome.scrollWidth > nome.clientWidth + 1 || rn.left < rc.left - 1 || rn.right > rc.right + 1) out.ruins.push(`${nome.textContent} (de cima) cortado`)
+        } else if (!(c.classList.contains('fz-carta--coberta') && nome.dataset.curto != null)) out.ruins.push(`${nome.textContent} sem nome abreviado`)
+        else {
+          const curto = nome.dataset.curto, cheio = nome.textContent
+          const limpo = curto === '' || curto === cheio || cheio.startsWith(curto.replace(/\.$/, '')) && (curto.endsWith('.') || cheio.startsWith(curto + ' '))
+          const limite = prox.getBoundingClientRect().left + 3
+          if (!limpo || (curto && rn.right > limite)) out.ruins.push(`${cheio} → "${curto}" (${Math.round(rn.right)} > ${Math.round(limite)})`)
+        }
+      })
+      return out
+    })
+    confere(r.n > 0 && r.ruins.length === 0, `${onde}: carta de cima com o nome inteiro ("${r.inteiro}") e as cobertas com nome abreviado limpo (${r.n} cartas)` + (r.ruins.length ? ' → ' + r.ruins.join('; ') : ''))
+  }
+
   await abrir(SEMENTES[0])
   await page.evaluate(() => { try { localStorage.removeItem('menos_animacao') } catch { /* ok */ } })
 
@@ -178,6 +202,7 @@ async function rodarFormato(fmt) {
         const cartas = await page.evaluate(() => [...document.querySelectorAll('#mao .fz-carta')].map((e) => { const r = e.getBoundingClientRect(); return r.height > 20 && r.top >= 0 && r.bottom <= window.innerHeight }))
         confere(cartas.length > 0 && cartas.every(Boolean), 'cartas da mão inteiras na vertical')
         await conferirEncaixe('luta')
+        if (fmt.toque) await conferirNomes('celular')
       }
     }
     await page.waitForSelector('#fim:not([hidden])', { timeout: 20000 })

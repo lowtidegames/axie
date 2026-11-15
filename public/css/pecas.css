@@ -174,7 +174,10 @@ div.fz-carta { cursor: default; }
 .fz-carta[data-variante="mini"] .fz-carta__fita { margin: 0 calc(-5 * var(--u)) calc(2 * var(--u)); height: auto; min-height: 32px; padding: 2px calc(7 * var(--u)) 3px; }
 .fz-carta[data-variante="mini"] .fz-carta__fita::before, .fz-carta[data-variante="mini"] .fz-carta__fita::after { display: none; }
 .fz-carta[data-variante="mini"] .fz-carta__fita { justify-content: flex-start; }
-.fz-carta[data-variante="mini"] .fz-carta__nome { max-width: 66%; font-size: max(13px, calc(13.5 * var(--u))); line-height: 1.02; white-space: normal; text-align: left; }
+.fz-carta[data-variante="mini"] .fz-carta__nome { max-width: 100%; font-size: max(13px, calc(13.5 * var(--u))); line-height: 1.02; white-space: normal; text-align: left; }
+/* carta coberta pela vizinha (leque do celular): nome abreviado limpo, do tamanho da faixa à vista (mao.js mede) */
+.fz-carta--coberta .fz-carta__nome { font-size: 0 !important; white-space: nowrap; padding-left: var(--fz-nome-recuo, 0px); }
+.fz-carta--coberta .fz-carta__nome::before { content: attr(data-curto); font: 400 max(13px, calc(13.5 * var(--u))) / 1.02 var(--letra-titulo); }
 .fz-carta[data-variante="mini"] :is(.fz-carta__texto, .fz-carta__rodape) { display: none; }
 .fz-carta[data-variante="mini"] .fz-carta__carretel { left: calc(-4 * var(--u)); top: calc(-5 * var(--u)); width: calc(29 * var(--u)); height: calc(34.8 * var(--u)); }
 .fz-carta[data-variante="mini"] .fz-carta__custo { top: calc(8.2 * var(--u)); height: calc(18.4 * var(--u)); font-size: max(14px, calc(17.5 * var(--u))); }

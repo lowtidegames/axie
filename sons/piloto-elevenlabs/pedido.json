@@ -1,0 +1,18 @@
+[
+ {"nome":"golpe","seg":0.5,"tomadas":1,"inf":0.6,"texto":"Muffled punch into a soft stuffed toy, pillow thump with slight cloth rustle, dry close-mic foley, no reverb","de":2},
+ {"nome":"critico","seg":1.0,"tomadas":2,"inf":0.6,"texto":"Thick fabric ripping violently, then a soft pop of stuffing bursting out, cloth tear foley, dry, close-mic, no reverb"},
+ {"nome":"cartaJogada","seg":0.5,"tomadas":2,"inf":0.6,"texto":"Quick swish of sewing thread pulled through fabric ending with a tiny needle tick, sewing foley, dry, no reverb"},
+ {"nome":"escudo","seg":0.5,"tomadas":2,"inf":0.7,"texto":"Small brass thimble tapped once with a needle, bright short metallic tink, dry, close-mic, no reverb"},
+ {"nome":"golpeNoEscudo","seg":0.5,"tomadas":1,"inf":0.6,"texto":"Needle clinking off a small metal thimble followed by a dull soft cloth thud, short foley, dry"},
+ {"nome":"tesouraCorta","seg":0.8,"tomadas":2,"inf":0.7,"texto":"Huge heavy tailor shears snapping shut once, sharp metallic snip with a short metal ring, dramatic, dry close-mic foley"},
+ {"nome":"tesouraDesce","seg":0.6,"tomadas":1,"inf":0.6,"texto":"Old heavy metal scissors creaking as they slowly open, rusty hinge squeak, short, dry foley"},
+ {"nome":"queda","seg":0.7,"tomadas":2,"inf":0.6,"texto":"Limp rag doll flopping down onto a wooden table, soft cloth thump followed by one tiny button clack, dry foley"},
+ {"nome":"ultimoFio","seg":1.2,"tomadas":2,"inf":0.5,"texto":"A taut thread stretching and creaking under tension, eerie string strain, then one deep muffled heartbeat thump, dry"},
+ {"nome":"casuloParte","seg":0.5,"tomadas":2,"inf":0.7,"texto":"Single sewing stitch popping open, tiny thread snap, crisp and small, dry close-mic foley"},
+ {"nome":"ziper","seg":0.5,"tomadas":1,"inf":0.7,"texto":"Short metal zipper pulled fast once, dry close-mic foley, no reverb"},
+ {"nome":"botao","seg":0.5,"tomadas":1,"inf":0.7,"texto":"Single small wooden button click, tiny dry tap, close-mic"},
+ {"nome":"cura","seg":1.0,"tomadas":1,"inf":0.5,"texto":"Three gentle ascending notes on an antique slightly detuned music box with a faint thread swish, short"},
+ {"nome":"vitoria","seg":3.0,"tomadas":1,"inf":0.5,"texto":"Short triumphant jingle played on an antique slightly detuned music box, waltz feel, ends on a bright major chord, no other instruments"},
+ {"nome":"derrota","seg":3.0,"tomadas":1,"inf":0.5,"texto":"Antique music box melody slowing down as it runs out of wind, pitch drooping, sad and eerie, then stops, no other instruments"},
+ {"nome":"ambiente","seg":10,"tomadas":1,"inf":0.4,"laco":true,"texto":"Quiet attic sewing workshop at night: faint candle crackle, soft wind outside a window, slow old clock ticking, very subtle room tone"}
+]

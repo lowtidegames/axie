@@ -1,0 +1,166 @@
+{
+ "total": 336,
+ "registro": [
+  {
+   "nome": "golpe",
+   "tomada": 2,
+   "seg": 0.5,
+   "custo": 6,
+   "bytes": 8820
+  },
+  {
+   "nome": "critico",
+   "tomada": 1,
+   "seg": 1,
+   "custo": 11,
+   "bytes": 17179
+  },
+  {
+   "nome": "critico",
+   "tomada": 2,
+   "seg": 1,
+   "custo": 11,
+   "bytes": 17179
+  },
+  {
+   "nome": "cartaJogada",
+   "tomada": 1,
+   "seg": 0.5,
+   "custo": 6,
+   "bytes": 8820
+  },
+  {
+   "nome": "cartaJogada",
+   "tomada": 2,
+   "seg": 0.5,
+   "custo": 6,
+   "bytes": 8820
+  },
+  {
+   "nome": "escudo",
+   "tomada": 1,
+   "seg": 0.5,
+   "custo": 6,
+   "bytes": 8820
+  },
+  {
+   "nome": "escudo",
+   "tomada": 2,
+   "seg": 0.5,
+   "custo": 6,
+   "bytes": 8820
+  },
+  {
+   "nome": "golpeNoEscudo",
+   "tomada": 1,
+   "seg": 0.5,
+   "custo": 6,
+   "bytes": 8820
+  },
+  {
+   "nome": "tesouraCorta",
+   "tomada": 1,
+   "seg": 0.8,
+   "custo": 9,
+   "bytes": 13835
+  },
+  {
+   "nome": "tesouraCorta",
+   "tomada": 2,
+   "seg": 0.8,
+   "custo": 9,
+   "bytes": 13835
+  },
+  {
+   "nome": "tesouraDesce",
+   "tomada": 1,
+   "seg": 0.6,
+   "custo": 7,
+   "bytes": 10492
+  },
+  {
+   "nome": "queda",
+   "tomada": 1,
+   "seg": 0.7,
+   "custo": 8,
+   "bytes": 12163
+  },
+  {
+   "nome": "queda",
+   "tomada": 2,
+   "seg": 0.7,
+   "custo": 8,
+   "bytes": 12163
+  },
+  {
+   "nome": "ultimoFio",
+   "tomada": 1,
+   "seg": 1.2,
+   "custo": 13,
+   "bytes": 20105
+  },
+  {
+   "nome": "ultimoFio",
+   "tomada": 2,
+   "seg": 1.2,
+   "custo": 13,
+   "bytes": 20105
+  },
+  {
+   "nome": "casuloParte",
+   "tomada": 1,
+   "seg": 0.5,
+   "custo": 6,
+   "bytes": 8820
+  },
+  {
+   "nome": "casuloParte",
+   "tomada": 2,
+   "seg": 0.5,
+   "custo": 6,
+   "bytes": 8820
+  },
+  {
+   "nome": "ziper",
+   "tomada": 1,
+   "seg": 0.5,
+   "custo": 6,
+   "bytes": 8820
+  },
+  {
+   "nome": "botao",
+   "tomada": 1,
+   "seg": 0.5,
+   "custo": 6,
+   "bytes": 8820
+  },
+  {
+   "nome": "cura",
+   "tomada": 1,
+   "seg": 1,
+   "custo": 11,
+   "bytes": 17179
+  },
+  {
+   "nome": "vitoria",
+   "tomada": 1,
+   "seg": 3,
+   "custo": 33,
+   "bytes": 48944
+  },
+  {
+   "nome": "derrota",
+   "tomada": 1,
+   "seg": 3,
+   "custo": 33,
+   "bytes": 48944
+  },
+  {
+   "nome": "ambiente",
+   "tomada": 1,
+   "seg": 10,
+   "custo": 110,
+   "bytes": 160957
+  }
+ ]
+}

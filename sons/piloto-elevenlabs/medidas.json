@@ -1,0 +1,194 @@
+[
+ {
+  "nome": "ambiente-1.mp3",
+  "seg": 10,
+  "picoDb": -47.8,
+  "rmsDb": -62.8,
+  "comecaMs": 0,
+  "utilMs": 0
+ },
+ {
+  "nome": "botao-1.mp3",
+  "seg": 0.48,
+  "picoDb": -12.4,
+  "rmsDb": -38.7,
+  "comecaMs": 0,
+  "utilMs": 32
+ },
+ {
+  "nome": "cartaJogada-1.mp3",
+  "seg": 0.48,
+  "picoDb": -4.3,
+  "rmsDb": -21.2,
+  "comecaMs": 39,
+  "utilMs": 158
+ },
+ {
+  "nome": "cartaJogada-2.mp3",
+  "seg": 0.48,
+  "picoDb": -7,
+  "rmsDb": -22.7,
+  "comecaMs": 0,
+  "utilMs": 122
+ },
+ {
+  "nome": "casuloParte-1.mp3",
+  "seg": 0.48,
+  "picoDb": -36,
+  "rmsDb": -53.1,
+  "comecaMs": 2,
+  "utilMs": 32
+ },
+ {
+  "nome": "casuloParte-2.mp3",
+  "seg": 0.48,
+  "picoDb": -5.7,
+  "rmsDb": -36.7,
+  "comecaMs": 17,
+  "utilMs": 237
+ },
+ {
+  "nome": "critico-1.mp3",
+  "seg": 1,
+  "picoDb": -0.1,
+  "rmsDb": -17.8,
+  "comecaMs": 5,
+  "utilMs": 820
+ },
+ {
+  "nome": "critico-2.mp3",
+  "seg": 1,
+  "picoDb": -3.4,
+  "rmsDb": -22.2,
+  "comecaMs": 0,
+  "utilMs": 702
+ },
+ {
+  "nome": "cura-1.mp3",
+  "seg": 1,
+  "picoDb": -18.7,
+  "rmsDb": -38.5,
+  "comecaMs": 0,
+  "utilMs": 606
+ },
+ {
+  "nome": "derrota-1.mp3",
+  "seg": 3,
+  "picoDb": -0.6,
+  "rmsDb": -15,
+  "comecaMs": 0,
+  "utilMs": 2795
+ },
+ {
+  "nome": "escudo-1.mp3",
+  "seg": 0.48,
+  "picoDb": -46.1,
+  "rmsDb": -64.4,
+  "comecaMs": 0,
+  "utilMs": 0
+ },
+ {
+  "nome": "escudo-2.mp3",
+  "seg": 0.48,
+  "picoDb": -30.7,
+  "rmsDb": -49.1,
+  "comecaMs": 0,
+  "utilMs": 55
+ },
+ {
+  "nome": "golpe-1.mp3",
+  "seg": 0.48,
+  "picoDb": -20.1,
+  "rmsDb": -34.5,
+  "comecaMs": 0,
+  "utilMs": 196
+ },
+ {
+  "nome": "golpe-2.mp3",
+  "seg": 0.48,
+  "picoDb": -8.7,
+  "rmsDb": -28,
+  "comecaMs": 0,
+  "utilMs": 160
+ },
+ {
+  "nome": "golpeNoEscudo-1.mp3",
+  "seg": 0.48,
+  "picoDb": -8.6,
+  "rmsDb": -34.7,
+  "comecaMs": 51,
+  "utilMs": 232
+ },
+ {
+  "nome": "queda-1.mp3",
+  "seg": 0.68,
+  "picoDb": -0.9,
+  "rmsDb": -15.5,
+  "comecaMs": 0,
+  "utilMs": 324
+ },
+ {
+  "nome": "queda-2.mp3",
+  "seg": 0.68,
+  "picoDb": -0.4,
+  "rmsDb": -15.5,
+  "comecaMs": 0,
+  "utilMs": 386
+ },
+ {
+  "nome": "tesouraCorta-1.mp3",
+  "seg": 0.8,
+  "picoDb": -35.9,
+  "rmsDb": -51.1,
+  "comecaMs": 0,
+  "utilMs": 59
+ },
+ {
+  "nome": "tesouraCorta-2.mp3",
+  "seg": 0.8,
+  "picoDb": -10.1,
+  "rmsDb": -35.5,
+  "comecaMs": 0,
+  "utilMs": 92
+ },
+ {
+  "nome": "tesouraDesce-1.mp3",
+  "seg": 0.6,
+  "picoDb": -5.2,
+  "rmsDb": -26.7,
+  "comecaMs": 29,
+  "utilMs": 459
+ },
+ {
+  "nome": "ultimoFio-1.mp3",
+  "seg": 1.2,
+  "picoDb": -0.4,
+  "rmsDb": -14.5,
+  "comecaMs": 0,
+  "utilMs": 1113
+ },
+ {
+  "nome": "ultimoFio-2.mp3",
+  "seg": 1.2,
+  "picoDb": 0,
+  "rmsDb": -21.5,
+  "comecaMs": 5,
+  "utilMs": 1040
+ },
+ {
+  "nome": "vitoria-1.mp3",
+  "seg": 3,
+  "picoDb": -1.2,
+  "rmsDb": -19,
+  "comecaMs": 0,
+  "utilMs": 2381
+ },
+ {
+  "nome": "ziper-1.mp3",
+  "seg": 0.48,
+  "picoDb": -10.2,
+  "rmsDb": -28.5,
+  "comecaMs": 0,
+  "utilMs": 204
+ }
+]

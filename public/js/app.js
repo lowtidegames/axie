@@ -540,7 +540,7 @@ async function assistir() {
     await esperar(200)
   }
   if (S.parar) { S.replay = false; sairParaInicio(); return }
-  S.replay = false
+  S.replay = false; document.body.classList.remove('replay')
   if (S.estado.fim) await fimDaLuta()
 }
 
@@ -602,6 +602,8 @@ function ganchoDeTeste() {
   const q = (n) => n
   window.__frayz = {
     avisos: [], S, arena, q, P,
+    /** só para o teste: manda um comando como se fosse da tela (usado para passar o turno dos dois lados) */
+    passarOsDois: async () => { while (!S.estado.fim) { await executar({ tipo: 'passar', time: S.estado.vez }, S.estado.vez === P.EU ? 'voce' : 'rival'); if (S.estado.fim) break; S.vezAnterior = S.estado.vez } await fimDaLuta() },
     estado: () => S.estado,
     livre: () => minhaVez(),
     acabou: () => !!S.estado?.fim,

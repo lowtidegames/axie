@@ -157,7 +157,7 @@ export class Arena {
   tocar(ev) {
     const v = this.vista, D = this.D
     const pos = (id) => { const d = D[id]; return d ? { x: d.x, y: d.y } : null }
-    const alt = (id) => { const p = pos(id); return p ? { x: p.x, y: p.y - 110 * this.geo.esc } : { x: this.W / 2, y: this.H / 2 } }
+    const alt = (id) => { const p = pos(id); return p ? { x: p.x, y: p.y - 92 * this.geo.esc } : { x: this.W / 2, y: this.H / 2 } }
     const numero = (id, texto, cor, tam = 22, dy = 0) => { const p = alt(id); dy += this.empilha(p.x) * -20; this.fx.push({ k: 'num', x: p.x, y: p.y + dy, texto, cor, tam, t0: performance.now(), dur: this.menos ? 900 : 1100 }) }
     switch (ev.t) {
       case 'dano': {
@@ -259,8 +259,10 @@ export class Arena {
       if (prontos.length) { this.agenda = this.agenda.filter((a) => a.em > t); prontos.sort((a, b) => a.em - b.em).forEach((a) => a.fn()) }
     }
     if (!this.vista) return
+    const nf = this.fx.length + this.part.length
     this.fx = this.fx.filter((f) => t - f.t0 < f.dur)
     this.part = this.part.filter((p) => t - p.t0 < p.dur)
+    if (nf !== this.fx.length + this.part.length) this.sujo = true
     const anima = !this.menos || this.fx.length || this.agenda.length
     if (!this.sujo && !anima) return
     this.sujo = this.menos ? !!(this.fx.length || this.agenda.length) : true
@@ -447,10 +449,11 @@ export class Arena {
       const u = (t - f.t0) / f.dur
       c.save()
       if (f.k === 'num' || f.k === 'texto') {
-        const sobe = this.menos ? 0 : (f.k === 'num' ? 46 : 18) * (1 - Math.pow(1 - u, 2))
+        const sobe = this.menos ? 0 : (f.k === 'num' ? 30 : 14) * (1 - Math.pow(1 - u, 2))
         c.globalAlpha = u < 0.65 ? 1 : 1 - (u - 0.65) / 0.35
         const pop = this.menos ? 1 : f.estoura || f.k === 'num' ? 1 + Math.max(0, 0.45 - u * 2.2) : 1
-        c.translate(f.x, f.y - sobe); c.scale(pop, pop)
+        c.font = `800 ${f.tam}px ${FONTE}`; const mw = c.measureText(f.texto).width / 2 + 6
+        c.translate(limita(f.x, mw, this.W - mw), f.y - sobe); c.scale(pop, pop)
         this.texto(c, f.texto, 0, 0, f.tam, f.cor)
       } else if (f.k === 'estrela') {
         const r = (f.grande ? 52 : 34) * (0.5 + u * 0.7), a = 1 - u

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The King's Road · pilot</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="piloto.css">
+</head>
+<body>
+<header class="topo">
+  <div class="marca"><b>The King's Road</b><small>pilot · placeholder art</small></div>
+  <nav class="abas" aria-label="Screens">
+    <button type="button" class="aba" data-cena="mapa" id="abaMapa">Map</button>
+    <button type="button" class="aba" data-cena="time" id="abaTime">Team</button>
+    <button type="button" class="aba" data-cena="ovo" id="abaOvo">Egg</button>
+  </nav>
+  <button type="button" class="bt-menos" id="btMenos" aria-pressed="false" title="Reduced motion: no shake, no flash">Reduced motion</button>
+</header>
+
+<main>
+  <!-- ======================================================= MAP -->
+  <section class="cena" id="mapa" hidden>
+    <div class="m-caixa">
+      <div class="m-mapa" id="mMapa"><canvas id="mCanvas" class="px"></canvas><div id="mMarcas"></div></div>
+      <div class="m-lista painel">
+        <h2>The King's Road</h2>
+        <p class="sub">Five village tournaments on the way to the castle.</p>
+        <ol id="mLista"></ol>
+      </div>
+    </div>
+    <div class="aviso-flutua" id="mAviso" hidden></div>
+  </section>
+
+  <!-- ======================================================= TEAM -->
+  <section class="cena" id="time" hidden>
+    <div class="t-grade">
+      <div class="t-esq">
+        <div class="painel t-rival">
+          <h2>Rival trio <small id="tLugar">Hearthfield tournament</small></h2>
+          <div class="t-rivais" id="tRivais"></div>
+        </div>
+        <div class="painel t-roda">
+          <h3>Element wheel</h3>
+          <div class="t-roda__caixa"><div class="roda" id="tRoda"></div><ul class="roda-frases" id="tFrases"></ul></div>
+        </div>
+      </div>
+      <div class="t-dir">
+        <div class="painel">
+          <h2>Your trio</h2>
+          <p class="sub">Drag or tap two monsters to swap Front, Middle and Back. Skills are tried in order: 1st, 2nd, 3rd. Turn one Off to never use it.</p>
+          <div class="t-slots" id="tSlots"></div>
+          <div class="t-banco" id="tBanco" hidden><h3>Bench</h3><div id="tBancoLista"></div></div>
+        </div>
+        <div class="painel t-tatica">
+          <h3>Team tactic</h3>
+          <div class="t-taticas" id="tTaticas" role="radiogroup" aria-label="Team tactic"></div>
+        </div>
+      </div>
+    </div>
+    <div class="t-lutar">
+      <button type="button" class="bt bt--grande" id="btLutar">Fight</button>
+      <p class="decidido">The result is decided when the fight starts.</p>
+    </div>
+  </section>
+
+  <!-- ======================================================= BATTLE -->
+  <section class="cena" id="luta" hidden>
+    <div class="b-barra">
+      <div class="b-info"><b id="bTurno">Turn 1/12</b><span id="bVez"></span><span id="bSol" class="b-sol"></span></div>
+      <div class="b-ctrl">
+        <div class="b-vels" role="group" aria-label="Speed">
+          <button type="button" class="bt bt--peq" data-vel="1">1×</button><button type="button" class="bt bt--peq" data-vel="2">2×</button><button type="button" class="bt bt--peq" data-vel="4">4×</button>
+        </div>
+        <button type="button" class="bt bt--peq" id="bPausa">Pause</button>
+        <button type="button" class="bt bt--peq" id="bPular">Skip</button>
+      </div>
+    </div>
+    <div class="b-moldura">
+      <div class="b-palco" id="bPalco">
+        <canvas id="bCanvas" class="px"></canvas>
+        <div class="b-hud" id="bHud"></div>
+        <div class="b-faixa" id="bFaixa" hidden></div>
+        <div class="b-chip" id="bChip" hidden></div>
+        <div class="b-noite" id="bNoite" hidden></div>
+        <div class="b-pausado">Paused</div>
+      </div>
+    </div>
+    <p class="decidido">The result is decided when the fight starts. <span id="bSemente"></span></p>
+    <div class="b-lista" id="bLista"></div>
+    <div class="b-fim" id="bFim" hidden>
+      <div class="painel b-fim__caixa">
+        <h2 id="bFimTit">Victory!</h2>
+        <p id="bFimMot"></p>
+        <div class="b-nums">
+          <div><b id="bN1">0</b><small>Turns</small></div>
+          <div><b id="bN2">0</b><small>Damage dealt</small></div>
+          <div><b id="bN3">0</b><small id="bN3r">Biggest hit</small></div>
+        </div>
+        <div class="b-fim__bts">
+          <button type="button" class="bt" id="bRevanche">Rematch</button>
+          <button type="button" class="bt bt--sec" id="bTrocar">Change team</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================= EGG -->
+  <section class="cena" id="ovo" hidden>
+    <div id="oEscolha">
+      <div class="painel">
+        <h2>The Nest</h2>
+        <p class="sub">Pick two parents. Every part of the egg comes from one of them. You see the odds before the egg is laid.</p>
+        <div class="o-pais" id="oPais"></div>
+      </div>
+      <div class="painel o-chances-caixa">
+        <h3>Odds for each part</h3>
+        <div id="oChances"></div>
+        <p class="o-aviso" id="oAviso"></p>
+        <button type="button" class="bt bt--grande" id="oBreed" disabled>Lay the egg</button>
+      </div>
+    </div>
+    <div id="oCena" hidden>
+      <div class="o-palco">
+        <div class="o-paiscel" id="oPaisCel"></div>
+        <canvas id="oCanvas" class="px" aria-label="The egg. Tap to crack it."></canvas>
+        <div class="o-lado painel">
+          <div class="o-nomeparcial"><small>Name so far</small><b id="oNomeParcial">?-?-?</b></div>
+          <ol class="o-cartas" id="oCartas"></ol>
+          <div class="o-bts">
+            <button type="button" class="bt" id="oProximo">Tap the egg</button>
+            <button type="button" class="bt bt--sec" id="oAuto" aria-pressed="false">Auto</button>
+          </div>
+          <div class="o-final" id="oFinal" hidden>
+            <h2 id="oNome"></h2>
+            <p id="oInfo"></p>
+            <input id="oNomeCampo" class="o-campo" maxlength="20" hidden aria-label="Name">
+            <div class="o-bts">
+              <button type="button" class="bt" id="oNomear">Name it</button>
+              <button type="button" class="bt bt--sec" id="oEspiar">Peek hidden traits</button>
+              <button type="button" class="bt" id="oTime">To the team</button>
+              <button type="button" class="bt bt--sec" id="oDeNovo">Another egg</button>
+            </div>
+            <div class="o-segredos" id="oSegredos" hidden></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -409,6 +409,16 @@ describe('determinismo e replay', () => {
       e = r1.estado
     }
   })
+  test('visão do time não entrega a semente da luta (quem tem a semente prevê todo sorteio)', () => {
+    const [timeA, timeB] = timesSorteados(5)
+    const e = criarLuta({ semente: 'segredo-da-luta-123', timeA, timeB })
+    for (const lado of ['A', 'B']) {
+      const v = visaoDoTime(e, lado)
+      assert.equal(v.semente, undefined)
+      assert.ok(!JSON.stringify(v).includes('segredo-da-luta-123'), 'a semente não pode aparecer em lugar nenhum da visão')
+    }
+    assert.equal(e.semente, 'segredo-da-luta-123', 'o estado do servidor continua com a semente')
+  })
   test('visão do time esconde a mão do rival, a ordem do baralho e o sorteio', () => {
     const [timeA, timeB] = timesSorteados(4)
     let e = criarLuta({ semente: 'visao', timeA, timeB })

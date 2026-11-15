@@ -586,6 +586,7 @@ export function resultado(e) {
 export function visaoDoTime(e, t) {
   const v = clonar(e)
   delete v.rng
+  delete v.semente // quem tem a semente refaz todo o sorteio: só sai no replay, depois da luta
   delete v.simulado
   for (const k of ['A', 'B']) {
     const time = v.times[k]

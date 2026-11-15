@@ -41,10 +41,14 @@ Comando do SQLite com `RETURNING` lido com `.get()` fica aberto e trava o descar
 | Nº | Gravidade | Estado |
 |---|---|---|
 | A6 rolar de novo | — | FECHADO: 1 de energia por abertura (máx 20/dia), gasto na transação; 60 ao mesmo tempo → 1; 2 processos → 20/20 |
-| S3-1 | baixa (média se 2+ servidores) | EM CONSERTO (tarefa 17): relógio que volta na virada zera a energia (`jogo.mjs:116`, `:214`); 2 processos com 1 s de diferença → 100 aberturas. Usar `>=` e `MAX` |
-| S3-2 | baixa | EM CONSERTO (tarefa 17): `::FFFF:a.b.c.d` em TRUST_PROXY_IPS não bate e o boot não avisa (`api.mjs:106`) |
+| S3-1 | baixa (média se 2+ servidores) | FECHADO em d394c74: relógio que volta na virada zera a energia (`jogo.mjs:116`, `:214`); 2 processos com 1 s de diferença → 100 aberturas. Usar `>=` e `MAX` |
+| S3-2 | baixa | FECHADO em d394c74: `::FFFF:a.b.c.d` em TRUST_PROXY_IPS não bate e o boot não avisa (`api.mjs:106`) |
 | Migração v4 | — | FECHADO: v3→v4 e v1→v4 com banco usado, cópia antes, apelidos únicos |
 | LUTA_ILEGIVEL | — | FECHADO: 0 em 400 lutas ao acaso; 500 genérico + 1 linha de log; obs.: `/replay` também dá 500 |
 | Histórico do boneco | — | FECHADO: teto de 100 |
 
 Risco que fica para a economia: a luta livre não tem custo; quando Retalhos ou prêmio virarem saldo, a luta livre não pode dar nenhum dos dois.
+
+## Rodada 4 (tarefa 17, commit d394c74, 15/11 04:18 BRT): **GO** — juntado no main em 0bcb4ff
+S3-1 e S3-2 fechados (relógio que volta não dá energia; `::FFFF` e a forma em hexa são aceitos como proxy); `npm test` 170/0.
+Fica 1 baixo (entra na tarefa da ponte): `energia_dia` corrompido acima de ~1e8 no banco dá 500 no estado (`jogo.mjs:221`); limitar o dia mostrado a hoje+1, com o teste "energia_dia absurdo no banco não derruba o estado".

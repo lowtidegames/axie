@@ -83,8 +83,9 @@ body.replay #baixo::after { content: "Replay"; position: absolute; right: var(--
 #fim .fz-fim__extra { margin: 0; color: var(--ouro-de-vela); font: 800 14px/1.2 var(--letra-texto); text-align: center; }
 #fim .fz-fim__extra:empty { display: none; }
 #fim[data-formato="celular"] { padding: var(--e2); }
-#fim[data-formato="celular"] .fz-fim__folha { padding: var(--e5) var(--e3) var(--e3); gap: 6px; justify-content: flex-start; }
-#fim[data-formato="celular"] .fz-fim__titulo { font-size: 46px; margin-top: 4px; flex: none; }
+#fim[data-formato="celular"] .fz-fim__folha { padding: var(--e5) var(--e3) var(--e3); gap: 6px; justify-content: center; }
+#fim[data-formato="celular"] .fz-fim__titulo { font-size: 46px; margin: 4px 0 6px; flex: none; }
+#fim[data-formato="celular"].fz-fim--derrota .fz-fim__titulo { margin-bottom: 30px; } /* os fios que desfiam do título não caem na cabeça do boneco */
 #fim[data-formato="celular"] .fz-fim__palco { flex: none; }
 #fim[data-formato="celular"] .fz-fim__palco .fz-boneco { margin-top: 6px; }
 #fim[data-formato="celular"] .fz-fim__luz { width: 170px; height: 170px; margin-left: -85px; bottom: 18px; }

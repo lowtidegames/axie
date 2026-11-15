@@ -4,6 +4,7 @@
 // Rode pela trava de um robô por vez:  node tools/trava-robos.mjs rodar "node tests/tela/fotos-encaixe.e2e.mjs"
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { iniciar } from '../../server/dev.mjs'
@@ -25,6 +26,8 @@ const CEL = { viewport: { width: 360, height: 740 }, deviceScaleFactor: 1, isMob
 async function foto(page, nome) {
   const arq = path.join(PASTA, nome + '.png')
   await page.screenshot({ path: arq })
+  // foto pequena: 256 cores (PNG8) quando passa de 400 KB — precisa do ImageMagick ("convert"); sem ele a foto fica como saiu
+  if (fs.statSync(arq).size > 400 * 1024) { try { execFileSync('convert', [arq, '-dither', 'None', '-colors', '256', 'PNG8:' + arq]) } catch { /* sem ImageMagick */ } }
   const kb = fs.statSync(arq).size / 1024
   confere(kb < 400, `foto ${nome}.png (${kb.toFixed(0)} KB)`)
 }
@@ -56,6 +59,8 @@ try {
   // ---- time (PC): a escolha do time com os 3 escolhidos
   let { ctx, page, erros } = await abrir(PC)
   await comecar(page)
+  await page.locator('input[name=robo][value=ganancioso]').check() // rival mais fraco: a foto da vitória sai mais cedo
+  await page.evaluate(() => { document.querySelector('#inicio .ini-corpo').scrollTop = 0 })
   await page.waitForTimeout(400)
   await foto(page, 'time-pc')
   // ---- luta (PC): turno 4, uma carta escolhida com alvos acesos
@@ -67,10 +72,10 @@ try {
   await page.waitForTimeout(700)
   await foto(page, 'luta-pc')
   // ---- vitória (PC): joga até o fim; se perder, revanche até vencer (no máximo 4)
-  for (let k = 0; k < 4; k++) {
+  for (let k = 0; k < 6; k++) {
     await jogarAte(page, null)
     await page.waitForSelector('#fim:not([hidden])', { timeout: 60000 })
-    if (await page.evaluate(() => window.__frayz.estado().fim.vencedor === 'A')) break
+    if (k === 5 || await page.evaluate(() => window.__frayz.estado().fim.vencedor === 'A')) break
     await page.locator('#btnRevanche').click(); await page.waitForSelector('#luta:not([hidden])')
   }
   await page.waitForTimeout(1300)
@@ -109,7 +114,9 @@ try {
   await page.waitForSelector('#casulo:not([hidden])')
   await page.locator('#casPartes .cas-parte[data-k="0"]').click()
   await page.waitForTimeout(500)
-  await page.locator('#btnCasAbrir').click(); await page.waitForTimeout(900)
+  await page.locator('#btnCasTudo').click()
+  await page.waitForSelector('#casFilho:not([hidden])', { timeout: 20000 })
+  await page.waitForTimeout(1200)
   await foto(page, 'costura-pc')
   confere(erros.length === 0, 'costura: nenhum erro no console' + (erros.length ? ' → ' + erros.slice(0, 3).join(' | ') : ''))
   await ctx.close()

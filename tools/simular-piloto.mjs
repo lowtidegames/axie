@@ -1,4 +1,4 @@
-// Piloto — medição do escolhedor da luta automática (public/piloto/tatica.js). Só LÊ o motor; não muda nada.
+// Piloto — medição do escolhedor da luta automática (shared/tatica.js). Só LÊ o motor; não muda nada.
 //   node tools/simular-piloto.mjs [--lutas N] [--semente S]
 // Mede (docs/ideias/piloto-monstros.md §6):
 //   1. escolhedor (ordem de fábrica, Rush) × robô planejador, com o MESMO trio dos dois lados (alvo ≥ 45%);
@@ -11,7 +11,7 @@ import { criarLuta } from '../shared/batalha.js'
 import { BONECOS_PRONTOS } from '../shared/config.js'
 import { criarRng } from '../shared/rng.js'
 import { jogarTurno } from '../shared/robos.js'
-import { TATICAS, cartasDoMonstro, jogarTurnoEscolhedor, ordemPadrao, ordemRuim } from '../public/piloto/tatica.js'
+import { TATICAS, cartasDoMonstro, jogarTurnoEscolhedor, ordemPadrao, ordemRuim } from '../shared/tatica.js'
 
 const args = process.argv.slice(2)
 const lerArg = (n, p) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : p }

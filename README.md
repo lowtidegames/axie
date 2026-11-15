@@ -1,4 +1,4 @@
-# NOME_DO_JOGO
+# Frayz
 
 Jogo ORIGINAL de navegador, no gênero de criaturas colecionáveis feitas de partes: batalha 3 contra 3 com cartas, cruzamento, mercado entre jogadores e economia de token com modelo econômico sustentável. Nome, criaturas, arte e cartas são próprios; nada é copiado de jogo existente.
 

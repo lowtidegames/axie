@@ -12,7 +12,6 @@ _Atualizado: 14/11/2026 22:58 BRT_
 - Analisar a pasta de referência que o dono vai enviar e propor o modelo do jogo (skill `checklist`, com `contraponto`, `guardiao`, `conselheiro-de-diversao` e `economista`).
 
 ## Decisões pendentes (do dono)
-- Nome, visual e voz do jogo (hoje o marcador é `NOME_DO_JOGO`).
 - Rede e token (a decidir pelo dono).
 - Hospedagem, domínio e ambiente de teste.
 

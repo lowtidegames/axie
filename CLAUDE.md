@@ -1,4 +1,4 @@
-# NOME_DO_JOGO — regras do projeto
+# Frayz — regras do projeto
 
 Jogo ORIGINAL de navegador, no gênero de criaturas colecionáveis feitas de partes: batalha 3 contra 3 com cartas, cruzamento, mercado entre jogadores e economia de token com modelo econômico sustentável. Node 22 sem dependências, SQLite embutido, tela em canvas. Servidor decide, tela só mostra.
 Onde está o quê: passagem entre conversas em `PASSAGEM.md` (comece por ela) · decisões do dono em `docs/decisions.md` (a mais nova em cima; vale mais que qualquer outro texto, inclusive este) · equipe em `.claude/EQUIPE.md` · jeito de trabalhar na skill `diretor` (fila em `docs/fila.md`) · situação em `STATUS.md`.

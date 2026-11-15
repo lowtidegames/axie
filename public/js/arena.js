@@ -172,7 +172,8 @@ export class Arena {
       t += d
     }
     const total = t + 120
-    this.agendar(total, () => this.sync(novaVista))
+    // visão PARCIAL (modo servidor: um passo do meio do turno do robô): a arena segue pelos eventos e só se acerta no último
+    if (!novaVista.parcial) this.agendar(total, () => this.sync(novaVista))
     return total * this.vel
   }
 

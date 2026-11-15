@@ -179,12 +179,14 @@ export function criarCarta(dados, opcoes = {}) {
 /** O filtro que desfia a borda do fiapo (um SVG escondido, posto uma vez na página). */
 function garantirFiltro() {
   if (document.getElementById('fz-desfiado') || !document.body) return
-  const s = svg('svg', { width: 0, height: 0, 'aria-hidden': 'true', focusable: 'false', style: 'position:absolute;width:0;height:0;overflow:hidden' }, [
+  // o estilo vai pelo CSSOM (atributo style é barrado pela política de segurança do servidor: style-src 'self')
+  const s = svg('svg', { width: 0, height: 0, 'aria-hidden': 'true', focusable: 'false' }, [
     svg('filter', { id: 'fz-desfiado', x: '-12%', y: '-10%', width: '124%', height: '120%' }, [
       svg('feTurbulence', { type: 'fractalNoise', baseFrequency: '0.11 0.42', numOctaves: 2, seed: 7, result: 'ruido' }),
       svg('feDisplacementMap', { in: 'SourceGraphic', in2: 'ruido', scale: 6, xChannelSelector: 'R', yChannelSelector: 'G' }),
     ]),
   ])
+  Object.assign(s.style, { position: 'absolute', width: '0', height: '0', overflow: 'hidden' })
   document.body.append(s)
 }
 

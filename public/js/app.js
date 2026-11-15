@@ -1,4 +1,4 @@
-// Frayz — tela do protótipo jogável local. Só mostra o que o motor devolve (via ponte.js). Nenhuma regra aqui.
+// Frayz — tela do jogo. Só mostra o que o motor ou o servidor devolvem (via ponte.js, que escolhe o modo). Nenhuma regra aqui.
 // A luta usa as peças do ateliê (js/pecas/*: mão em leque, carretéis, bastidor, fio do tempo, etiquetas, botões-retalho)
 // e a arena (js/arena.js: cenário, bonecos de pano e efeitos). Som em cada acontecimento (som.js) e música por momento (musica.js).
 import * as P from './ponte.js'
@@ -29,7 +29,7 @@ import { BONUS, FRASE_DO_FIAPO, ICONES, PARES, TEXTO_DA_RODA, bonecoEm, dadosDaC
 
 const url = new URLSearchParams(location.search)
 const TESTE = url.get('teste') === '1'
-const MOTIVO_FIM = { derrubou: 'Os três caíram.', tesoura: 'A Tesoura decidiu: vence quem sobrou com mais vida.', desempate: 'Empate de vida: o sorteio decidiu.' }
+const MOTIVO_FIM = { derrubou: 'Os três caíram.', tesoura: 'A Tesoura decidiu: vence quem sobrou com mais vida.', desempate: 'Empate de vida: o sorteio decidiu.', desistiu: 'Você desistiu da luta.', abandono: 'A luta ficou parada tempo demais.' }
 const NOME_ROBO = { ganancioso: 'Ganancioso', planejador: 'Planejador' }
 
 const S = {
@@ -176,7 +176,7 @@ function montarPecasDaLuta() {
   H.tesoura = el('span', null, '')
   $('#tTesoura').append(ICONES.tesoura(), H.tesoura)
   H.fio = criarFioDoTempo({ total: P.TEMPO_DO_TURNO_S, alerta: 5 })
-  H.fio.aoAcabar(() => { Som.parar('tempoAcabando'); aviso('Tempo! No protótipo o relógio só avisa.', 'alerta') })
+  H.fio.aoAcabar(relogioAcabou)
   $('#tRelogio').append(H.fio.el)
   // rival: Linha, mão e baralho
   H.linhaRival = criarCarreteis({ maximo: P.REGRAS.linhaMaxima, rotulo: 'Linha do rival', compacto: true })
@@ -229,21 +229,43 @@ function aplicarFormato() {
 const roboEscolhido = () => document.querySelector('input[name=robo]:checked')?.value ?? 'planejador'
 /** opc: { modo: 'livre'|'aventura', fase, idsA (ids da coleção), timeA/timeB (definições, na revanche), semente, robo } */
 async function iniciarLuta(opc = {}) {
+  if (S.abrindo) return
   const modo = opc.modo ?? 'livre', fase = opc.fase ? FASES[opc.fase - 1] : null
   const idsA = opc.idsA ?? S.escolha.slice()
   let timeA = opc.timeA
   if (!timeA) { try { timeA = Col.defsDoTime(idsA) } catch (e) { avisoHub(e.message); return } }
   const rivalFixo = TESTE && url.get('rival') ? url.get('rival').split(',') : null
   const timeB = opc.timeB ?? (fase ? fase.time.slice() : rivalFixo ?? sortearRival(idsA))
-  if (modo === 'aventura') { // abrir uma luta da Aventura gasta energia (a ponte decide); sem energia a luta não abre e a tela diz quando volta
-    const en = P.energia({ abrirLuta: true })
-    if (!en.ok) { if (!$('#luta').hidden) sairParaInicio(); else irParaAba('aventura'); avisoHub(`Sem energia agora: ela volta inteira às ${horaDaRecarga(en)}. A Luta livre não gasta energia.`); return }
-  }
   const semente = opc.semente ?? url.get('semente') ?? P.novaSemente()
+  const robo = opc.robo ?? (fase ? fase.robo : roboEscolhido())
+  // abrir uma luta da Aventura gasta energia (a ponte decide: no aparelho ou no servidor); sem energia a luta não abre e a tela diz quando volta
+  S.abrindo = true
+  let r
+  try { r = await P.abrirLuta({ modo, fase: fase?.n ?? opc.fase ?? null, ids: idsA, timeA, timeB, semente, robo }) } finally { S.abrindo = false }
+  if (!r.ok) {
+    if (r.codigo === 'LUTA_ABERTA') { avisoHub('Você tinha uma luta aberta: voltando a ela.', false); await retomar(); return }
+    if (!$('#luta').hidden) sairParaInicio(); else irParaAba(modo === 'aventura' ? 'aventura' : S.aba)
+    if (r.codigo === 'SEM_ENERGIA') avisoHub(`Sem energia agora: ela volta inteira às ${horaDaRecarga(r.energia ?? P.energia())}. A Luta livre não gasta energia.`)
+    else avisoHub(r.motivo)
+    return
+  }
   S.timeA = timeA; S.timeB = timeB; S.semente = semente; S.replay = false; S.parar = false
   S.modo = modo; S.fase = fase?.n ?? opc.fase ?? null; S.idsA = idsA; S.abaDeOrigem = modo === 'aventura' ? 'aventura' : 'inicio'
-  S.robo = opc.robo ?? (fase ? fase.robo : roboEscolhido())
-  await abrirLuta(P.novaLuta({ semente, timeA, timeB }))
+  S.robo = r.robo ?? robo
+  await abrirLuta(r.estado)
+  await seguirTurnos()
+}
+
+/** Volta à luta que ficou aberta no servidor (página recarregada, rede que caiu, ou abriu outra por cima). */
+async function retomar() {
+  const r = await P.retomarLuta()
+  if (!r.ok) { avisoHub(r.motivo); return }
+  if (!r.aberta) return
+  S.timeA = null; S.timeB = null; S.semente = null; S.replay = false; S.parar = false
+  S.modo = r.modo; S.fase = r.fase ?? null; S.idsA = r.ids ?? null; S.abaDeOrigem = r.modo === 'aventura' ? 'aventura' : 'inicio'
+  S.robo = r.robo
+  await abrirLuta(r.estado)
+  aviso('A luta continua de onde parou.')
   await seguirTurnos()
 }
 
@@ -257,6 +279,7 @@ async function abrirLuta(estado) {
   S.vezAnterior = null
   mostrar('luta')
   $('#btnParar').hidden = !S.replay
+  $('#btnDesistir').hidden = S.replay || !P.lutaDoServidor(estado)
   document.body.classList.toggle('replay', S.replay)
   H.nomeRival.textContent = 'Rival'
   H.nomeRival.title = S.replay ? 'Rival' : `Rival: ${NOME_ROBO[S.robo] ?? ''}`
@@ -306,10 +329,15 @@ async function turnoDoRobo() {
 }
 
 // ------------------------------------------------------------------ executar um comando (jogador, robô ou replay)
-async function executar(cmd, quem) {
-  const r = P.enviar(S.estado, cmd)
-  if (!r.ok) { if (quem === 'voce') aviso(r.motivo, 'recusa'); return false }
-  S.travado = true; pararRelogio(); limparSelecao(false)
+async function executar(cmd, quem, pronto = null) {
+  const travadoAntes = S.travado, estadoPedido = S.estado
+  S.travado = true // a resposta pode demorar (servidor): nada de segundo toque enquanto isso
+  const r = pronto ?? await P.enviar(S.estado, cmd)
+  if (S.estado !== estadoPedido) return false // a luta mudou enquanto esperava (saiu, desistiu ou o relógio passou a vez)
+  if (!r.ok) { S.travado = travadoAntes; if (quem === 'voce') aviso(r.motivo, 'recusa'); return false }
+  if (r.cmd) cmd = r.cmd // o comando como o motor gravou (no servidor: o passo que veio)
+  if (r.aviso) aviso(r.aviso, 'alerta')
+  pararRelogio(); limparSelecao(false)
   const estadoAntes = S.estado
   const evCarta = r.eventos.find((e) => e.t === 'carta')
   if (evCarta) { Som.cartaJogada(quem === 'rival' ? 'B' : 'A'); contarCombo(quem, estadoAntes); await cartaJogada(evCarta, quem, estadoAntes, cmd) }
@@ -406,7 +434,7 @@ function iniciarTroca() {
   if (!minhaVez()) return
   if (S.modoTroca) return limparSelecao()
   const t = P.trocasPossiveis(S.estado)
-  if (!t.length) { const r = P.enviar(S.estado, { tipo: 'trocar', time: P.EU, a: S.estado.times.A.lugares[0], b: S.estado.times.A.lugares[1] }); aviso(r.ok ? 'Sem troca possível.' : r.motivo, 'recusa'); return }
+  if (!t.length) { const r = P.recusaDe(S.estado, { tipo: 'trocar', time: P.EU, a: S.estado.times.A.lugares[0], b: S.estado.times.A.lugares[1] }); aviso(r ? r.motivo : 'Sem troca possível.', 'recusa'); return }
   S.sel = null; S.modoTroca = { a: null }
   const ids = new Set(); t.forEach((c) => { ids.add(c.a); ids.add(c.b) })
   arena.marcar({ alvos: [...ids] }); atualizarBotao(H.trocar, { aceso: true }); renderMao(); atualizarBastidor()
@@ -508,7 +536,7 @@ function renderMao(v = P.visao(S.estado)) {
       return { id: cid, dados, estado: { jogavel: true, semLinha: false, marca: vant ? BONUS : null } }
     }
     const motivo = vez ? P.motivoDaRecusa(S.estado, cid) : 'Espere a sua vez.'
-    const semLinha = vez && P.enviar(S.estado, { tipo: 'jogar', time: P.EU, carta: cid, alvo: null }).codigo === 'LINHA_INSUFICIENTE'
+    const semLinha = vez && P.recusaDe(S.estado, { tipo: 'jogar', time: P.EU, carta: cid, alvo: null })?.codigo === 'LINHA_INSUFICIENTE'
     return { id: cid, dados, estado: { jogavel: false, semLinha, marca: null }, motivo }
   })
   H.mao.definir(cartas)
@@ -574,7 +602,8 @@ function atualizarIntencao(v) {
   const box = $('#intencao')
   if (S.modo !== 'aventura' || S.replay || !minhaVez()) { box.hidden = true; arena.setIntencao(null); S.intencao = null; return }
   let r = cacheIntencao.get(S.estado)
-  if (r === undefined) { r = P.intencaoDoRival(S.estado, S.robo); cacheIntencao.set(S.estado, r) }
+  if (r === undefined) { r = P.intencaoDoRival(S.estado, S.robo); if (r !== undefined) cacheIntencao.set(S.estado, r) }
+  if (r === undefined) { box.hidden = true; arena.setIntencao(null); S.intencao = null; return } // sem essa informação (luta antiga do servidor)
   const frases = frasesDaIntencao(r, v)
   S.intencao = frases
   const porDono = {}
@@ -631,8 +660,26 @@ async function cartaJogada(ev, quem, estado, cmd) {
 // ------------------------------------------------------------------ relógio do turno: o fio que queima (no protótipo só avisa)
 function iniciarRelogio() {
   pararRelogio()
-  H.fio.iniciar(P.TEMPO_DO_TURNO_S)
-  S.tAlerta = setTimeout(() => { if (minhaVez()) Som.tocar('tempoAcabando') }, (P.TEMPO_DO_TURNO_S - 5) * 1000)
+  const seg = P.segundosDoTurno(S.estado) // no servidor: o que falta pelo prazo dele
+  H.fio.iniciar(seg)
+  S.tAlerta = setTimeout(() => { if (minhaVez()) Som.tocar('tempoAcabando') }, Math.max(0, seg - 5) * 1000)
+}
+/** O fio do tempo queimou. Local: só avisa. Servidor: a vez passa sozinha lá; a tela busca o que aconteceu e mostra. */
+async function relogioAcabou() {
+  Som.parar('tempoAcabando')
+  if (!P.lutaDoServidor(S.estado)) { aviso('Tempo! No protótipo o relógio só avisa.', 'alerta'); return }
+  if (!minhaVez()) return
+  aviso('Tempo! A vez passa sozinha.', 'alerta')
+  const estado = S.estado
+  S.travado = true; renderTudo()
+  for (let i = 0; i < 6; i++) {
+    await new Promise((ok) => setTimeout(ok, 1000))
+    if (S.estado !== estado || S.parar) return
+    const r = await P.conferirRelogio(estado)
+    if (S.estado !== estado || S.parar) return
+    if (r) { if (await executar(r.cmd ?? { tipo: 'passar', time: P.EU }, 'voce', r)) await seguirTurnos(); return }
+  }
+  S.travado = false; renderTudo() // o servidor ainda não passou a vez: segue jogando
 }
 function pararRelogio() { H.fio?.parar(); clearTimeout(S.tAlerta); Som.parar('tempoAcabando') }
 
@@ -671,14 +718,14 @@ function fecharTudo() { fecharFicha(); $('#fim').hidden = true; $('#menu').hidde
 async function fimDaLuta() {
   pararRelogio(); S.travado = true; renderTudo()
   const r = P.fim(S.estado)
-  S.ultima = { semente: S.semente, timeA: S.timeA, timeB: S.timeB, robo: S.robo, comandos: S.estado.comandos.map((c) => ({ ...c })) }
   const ganhei = r.vencedor === P.EU
+  const doServidor = S.replay ? null : await P.replayDaLuta(S.estado) // no servidor a semente só sai agora, depois do fim
+  S.ultima = doServidor ?? { semente: S.semente, timeA: S.timeA, timeB: S.timeB, robo: S.robo, comandos: S.estado.comandos.map((c) => ({ ...c })) }
   let extra = ''
-  if (S.modo === 'aventura' && !S.registrado) { // cada luta da Aventura gasta 1 Ponto de Costura nos 3 bonecos usados (o motor soma)
+  if (!S.registrado && !S.replay) { // Aventura: cada luta gasta 1 Ponto de Costura nos 3 bonecos usados (o motor ou o servidor soma)
     S.registrado = true
-    Col.registrarLutas(S.idsA, { venceu: ganhei, maiorGolpes: [0, 1, 2].map((i) => S.golpes[`A${i}`] ?? 0) })
-    if (ganhei) { Col.venceuFase(S.fase); extra = S.fase >= FASES.length ? 'Aventura completa! O Baú da Costureira está aberto.' : `Fase ${S.fase + 1} liberada.` }
-    else extra = 'Perdeu: a fase continua liberada para tentar de novo.'
+    await Col.depoisDaLuta({ modo: S.modo, ids: S.idsA ?? [], venceu: ganhei, fase: S.fase, maiorGolpes: [0, 1, 2].map((i) => S.golpes[`A${i}`] ?? 0) })
+    if (S.modo === 'aventura') extra = ganhei ? (S.fase >= FASES.length ? 'Aventura completa! O Baú da Costureira está aberto.' : `Fase ${S.fase + 1} liberada.`) : 'Perdeu: a fase continua liberada para tentar de novo.'
   } else if (S.modo === 'aventura') extra = ganhei ? 'Fase vencida.' : 'A fase continua liberada.'
   arena.comemorar(r.vencedor)
   await esperar(700)
@@ -686,7 +733,7 @@ async function fimDaLuta() {
   if (ganhei) Som.vitoria(); else { Som.tocar('queda'); setTimeout(() => Som.derrota(), 260) }
   montarFim(r, ganhei, extra)
   const fimEl = $('#fim'); fimEl.classList.remove('fz-fim--entrou'); void fimEl.offsetWidth; fimEl.classList.add('fz-fim--entrou') // a folha cai com um baque (só sem "Menos animação")
-  S.textoReplay = P.exportarReplay(S.ultima)
+  try { S.textoReplay = P.exportarReplay(S.ultima) } catch { S.textoReplay = '' }
   $('#copiaMsg').textContent = ''
   $('#fim').hidden = false; H.fimBotoes.revanche.hidden || H.fimBotoes.proxima.hidden ? H.fimBotoes.revanche.focus() : H.fimBotoes.proxima.focus()
   if (!menos() && ganhei) for (let i = 0; i < 3; i++) arena.soltar(arena.W * (0.25 + 0.25 * i), arena.H * 0.4, 12)
@@ -765,6 +812,18 @@ async function assistir() {
   if (S.estado.fim) await fimDaLuta()
 }
 
+/** Desistir (luta do servidor): o rival vence e a folha do fim aparece. */
+async function desistirDaLuta() {
+  $('#menu').hidden = true
+  if (!minhaVez()) { aviso('Espere a sua vez para desistir.', 'recusa'); return }
+  S.travado = true; pararRelogio()
+  const r = await P.desistir(S.estado)
+  if (!r || !r.ok) { S.travado = false; aviso(r?.motivo ?? 'Não deu para desistir agora.', 'recusa'); renderTudo(); return }
+  S.estado = r.estado
+  arena.sync(P.visao(S.estado))
+  await fimDaLuta()
+}
+
 function sairParaInicio() {
   S.parar = true; S.replay = false; S.travado = true
   fecharTudo(); arena.marcar({}); arena.setIntencao(null); mostrar(S.abaDeOrigem); document.body.classList.remove('replay')
@@ -776,8 +835,10 @@ function aplicarMudo() {
   for (const id of ['#btnMudo', '#btnMudo2']) { const b = $(id); b.setAttribute('aria-pressed', String(m)); b.innerHTML = m ? '&#9835; Mudo' : '&#9835; Som'; b.setAttribute('aria-label', m ? 'Som desligado' : 'Som ligado') }
 }
 
-function ligar() {
-  if (TESTE && url.get('recomecar') === '1') Col.recomecar(); else Col.carregar()
+async function ligar() {
+  await P.iniciar() // escolhe o modo: servidor do Frayz respondendo, ou local (arquivo parado, ?modo=local)
+  document.body.dataset.modo = P.modo()
+  if (P.modo() === 'local') { if (TESTE && url.get('recomecar') === '1') Col.recomecar(); else await Col.carregar() }
   montarPecasDaLuta()
   const logo = criarLogotipo({ altura: formatoDoHub() === 'pc' ? 46 : 38 }); $('#logo').replaceChildren(logo.el) // logotipo de retalhos (o fio do z para com "Menos animação")
   arena = new Arena($('#arena'), $('#arenaCamada'))
@@ -799,6 +860,7 @@ function ligar() {
   H.trocar.addEventListener('click', () => { Som.tocar('botao'); iniciarTroca() })
   $('#btnMenu').addEventListener('click', () => { const m = $('#menu'); m.hidden = !m.hidden; Som.tocar('botao') })
   $('#btnSair').addEventListener('click', sairParaInicio)
+  $('#btnDesistir').addEventListener('click', desistirDaLuta)
   $('#btnParar').addEventListener('click', () => { S.parar = true; sairParaInicio() })
   const B = H.fimBotoes
   B.revanche.addEventListener('click', () => { Som.tocar('botao'); $('#fim').hidden = true; iniciarLuta({ timeA: S.timeA, timeB: S.timeB, semente: P.novaSemente(), modo: S.modo, fase: S.fase, idsA: S.idsA ?? undefined, robo: S.robo }) })
@@ -832,11 +894,72 @@ function ligar() {
     else if (!$('#hub').hidden && $('#hub').dataset.formato !== formatoDoHub()) irParaAba(S.aba) // PC ⇄ celular: a prateleira e a ficha mudam de tamanho
   })
   montarInicio()
+  ligarConta()
   let aba = url.get('aba')
   if (!ABAS.includes(aba)) { try { aba = TESTE ? 'inicio' : localStorage.getItem('frayz_aba') } catch { aba = null } }
   S.aba = ABAS.includes(aba) ? aba : 'aventura'
-  mostrar(S.aba)
   if (TESTE) ganchoDeTeste()
+  await entrarNoJogo()
+}
+
+// ------------------------------------------------------------------ conta (modo servidor): entrada com apelido, sair, sessão vencida
+function mostrarEntrada(msg = '', { tentar = false } = {}) {
+  S.parar = true; fecharTudo()
+  $('#hub').hidden = true; $('#luta').hidden = true; $('#entrada').hidden = false
+  document.body.dataset.tela = 'entrada'
+  $('#entMsg').textContent = msg
+  for (const s of ['#entApelido', '#entRotulo', '#btnEntrar', '#entForm .hub-dica']) $(s).hidden = tentar
+  $('#entForm .hub-titulo').textContent = tentar ? 'O ateliê não abriu agora' : 'Entrar no ateliê'
+  $('#btnTentar').hidden = !tentar
+  atualizarBotao($('#btnEntrar'), { desligado: false })
+  requestAnimationFrame(() => (tentar ? $('#btnTentar') : $('#entApelido')).focus())
+}
+
+/** Carrega a coleção (servidor: estado + páginas) e abre o hub; luta aberta no servidor volta para a tela. */
+async function entrarNoJogo() {
+  if (P.modo() === 'servidor') {
+    if (!P.conta.temSessao()) { mostrarEntrada(); return }
+    try { await Col.carregar() } catch (e) {
+      if (!P.conta.temSessao()) mostrarEntrada(e.motivo ?? '') // sessão vencida: o apelido de novo
+      else mostrarEntrada(e.motivo ?? 'Não deu para falar com o servidor.', { tentar: true })
+      return
+    }
+  }
+  $('#entrada').hidden = true
+  const ap = P.conta.apelido()
+  $('#colConta').hidden = !ap
+  if (ap) $('#colApelido').textContent = ap
+  S.escolha = S.escolha.filter((id) => Col.obter(id))
+  mostrar(S.aba)
+  if (P.modo() === 'servidor' && P.servidor.lutaAberta()) await retomar()
+}
+
+function ligarConta() {
+  const entrar = criarBotao({ rotulo: 'Entrar', variante: 'principal' }); entrar.id = 'btnEntrar'; entrar.type = 'submit'; $('#btnEntrar').replaceWith(entrar)
+  const tentar = criarBotao({ rotulo: 'Tentar de novo', variante: 'principal' }); tentar.id = 'btnTentar'; tentar.type = 'button'; tentar.hidden = true; $('#btnTentar').replaceWith(tentar)
+  const logo = criarLogotipo({ altura: 56 }); $('#entLogo').replaceChildren(logo.el)
+  $('#entForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault()
+    const b = $('#btnEntrar'), apelido = $('#entApelido').value.trim()
+    if (b.disabled) return
+    if (apelido.length < 3) { $('#entMsg').textContent = 'O apelido precisa de pelo menos 3 letras.'; return }
+    atualizarBotao(b, { desligado: true }); $('#entMsg').textContent = 'Entrando…'
+    const r = await P.conta.entrar(apelido)
+    atualizarBotao(b, { desligado: false })
+    if (!r.ok) { $('#entMsg').textContent = r.motivo; $('#entApelido').focus(); return }
+    $('#entMsg').textContent = ''
+    Som.tocar('botao')
+    await entrarNoJogo()
+  })
+  $('#btnTentar').addEventListener('click', () => { $('#entMsg').textContent = 'Tentando…'; entrarNoJogo() })
+  $('#btnSairConta').addEventListener('click', async () => {
+    Som.tocar('botao')
+    await P.conta.sair()
+    Col.esquecer(); S.escolha = []
+    mostrarEntrada('Você saiu. Até a próxima!')
+  })
+  P.conta.aoPerderSessao((e) => { Col.esquecer(); S.escolha = []; mostrarEntrada(e.motivo) })
+  P.aoAviso((txt, tipo) => { if (!$('#luta').hidden) aviso(txt, tipo === 'alerta' ? 'alerta' : 'aviso'); else avisoHub(txt, tipo === 'alerta') })
 }
 
 // Gancho só para o teste automático (?teste=1): lê o estado e escolhe a próxima jogada; os cliques são de verdade.
@@ -846,7 +969,7 @@ function ganchoDeTeste() {
   let n = 0
   Col.definirFonteDeSemente(() => `${url.get('semente') ?? 'costura'}-${++n}`)
   window.__frayz = {
-    avisos: [], S, arena, q, P, Col, Som, Musica, irParaAba, intencao: () => S.intencao,
+    avisos: [], S, arena, q, P, Col, Som, Musica, irParaAba, intencao: () => S.intencao, modo: () => P.modo(),
     /** só para o teste: manda um comando como se fosse da tela (usado para passar o turno dos dois lados) */
     passarOsDois: async () => { while (!S.estado.fim) { await executar({ tipo: 'passar', time: S.estado.vez }, S.estado.vez === P.EU ? 'voce' : 'rival'); if (S.estado.fim) break; S.vezAnterior = S.estado.vez } await fimDaLuta() },
     estado: () => S.estado,

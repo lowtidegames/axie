@@ -324,3 +324,24 @@
 [data-menos="1"] #hub *, [data-menos="1"] #casulo *, [data-menos="1"] #bonecoModal * { animation: none !important; transition: none !important; }
 [data-menos="1"] #casulo .cas-caixa--sobe { display: none; }
 @media (prefers-reduced-motion: reduce) { #casulo .cas-caixa--sobe { display: none; } }
+
+/* ============================================================ 12. entrada (modo servidor): o apelido da conta, numa folha de pano */
+#entrada { color: var(--linho); font: 600 14px/1.3 var(--letra-texto); background-color: var(--noite);
+  background-image: radial-gradient(80% 60% at 8% 0%, rgba(255, 200, 87, 0.10), transparent 62%), radial-gradient(70% 60% at 100% 0%, rgba(110, 193, 255, 0.07), transparent 60%); }
+.ent-corpo { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--e4);
+  padding: max(var(--e5), env(safe-area-inset-top)) var(--e4) max(var(--e5), env(safe-area-inset-bottom)); }
+.ent-logo { margin: 0; font-size: 0; line-height: 0; }
+.ent-logo .fz-logo { display: block; }
+.ent-folha { position: relative; width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: var(--e3); margin: 0; padding: var(--e5) var(--e4) var(--e4);
+  border-radius: var(--canto-cartao); background-color: var(--pano-escuro); background-image: var(--trama); box-shadow: 0 0 0 2px var(--noite-funda), 0 6px 0 2px var(--noite-funda); }
+.ent-folha::after { content: ""; position: absolute; inset: 6px; border: 1.5px dashed rgba(242, 230, 201, 0.30); border-radius: 10px; pointer-events: none; }
+.ent-folha .hub-titulo { margin: 0; font: 400 24px/1.1 var(--letra-titulo); color: var(--linho); }
+.ent-folha .hub-dica { margin: 0; color: var(--linho-apagado); font-size: 14px; }
+.ent-rotulo { font: 800 14px/1 var(--letra-texto); }
+#entApelido { position: relative; z-index: 1; width: 100%; min-height: 48px; padding: 10px 12px; border: 0; border-radius: var(--canto-painel); background: var(--linho); color: var(--noite-funda);
+  font: 800 17px/1.2 var(--letra-texto); box-shadow: inset 0 0 0 2px var(--noite-funda); user-select: text; -webkit-user-select: text; }
+#entApelido:focus-visible { outline: 3px solid var(--ouro-de-vela, #FFC857); outline-offset: 2px; }
+.ent-folha .fz-botao, .ent-folha .btn { position: relative; z-index: 1; width: 100%; min-height: var(--toque); }
+#entMsg { position: relative; z-index: 1; min-height: 1.3em; margin: 0; color: #FF8A8E; font: 800 14px/1.3 var(--letra-texto); }
+.col-conta { display: flex; align-items: center; gap: var(--e2); flex-wrap: wrap; }
+.col-conta .btn { min-height: var(--toque); }

@@ -106,9 +106,12 @@ function renderPrevia() {
 }
 
 // ---------------------------------------------------------------- confirmar e abrir o casulo
-function costurarAgora() {
-  const r = Col.costurar(S.a, S.b)
-  if (!r.ok) { $('#cosMsg').textContent = r.motivo; return }
+async function costurarAgora() {
+  const btn = $('#btnCosturar')
+  if (btn.disabled) return
+  btn.disabled = true // o pedido ao servidor pode demorar: um toque só
+  const r = await Col.costurar(S.a, S.b)
+  if (!r.ok) { btn.disabled = false; $('#cosMsg').textContent = r.motivo; return }
   S.a = S.b = null; S.ativo = 'a'
   abrirCasuloDe(r.filho.id)
   renderCostura()
@@ -167,9 +170,10 @@ async function abrirProxima() {
 }
 
 async function terminar() {
-  const b = Col.terminarCasulo(cas.id), f = P.fichaDoBoneco(b)
+  const b = await Col.terminarCasulo(cas.id), f = P.fichaDoBoneco(b)
+  if (b.erro) $('#casSub').textContent = b.erro
   $('#btnCasAbrir').hidden = true; $('#btnCasTudo').hidden = true; $('#btnCasFim').hidden = false
-  $('#casSub').textContent = 'O filho nasceu!'
+  if (!b.erro) $('#casSub').textContent = 'O filho nasceu!'
   const fb = $('#casFilho'); fb.replaceChildren(); fb.hidden = false
   const cv = bonecoCanvas(b, formatoDe(null) === 'pc' ? 132 : 92); cv.classList.add('cas-boneco'); fb.append(cv)
   const t = el('div', 'cas-info'); t.append(el('h3', null, f.nome))

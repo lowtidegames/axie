@@ -9,7 +9,7 @@
 // API: planejarTurno(estado, nome) → [comandos] (até o fim do turno, ou até uma compra — aí planeje de novo)
 //      proximoComando(estado, nome) → comando
 //      jogarTurno(estado, nome) → estado (mesmo objeto, mudado no lugar) — usado pelo simulador e testes
-import { aplicarNoLugar, clonar, comandosValidos } from './batalha.js'
+import { aplicar, aplicarNoLugar, clonar, comandosValidos } from './batalha.js'
 import { CARTAS, REGRAS } from './config.js'
 
 export const ROBOS = ['ganancioso', 'planejador']
@@ -153,4 +153,32 @@ export function jogarTurno(e, nome) {
   }
   if (!e.fim && e.vez === t) { aplicarNoLugar(e, { tipo: 'passar', time: t }); mandados.push({ tipo: 'passar', time: t }) }
   return mandados
+}
+
+/** Intenção do robô (o time que não é EU) para o PRÓXIMO turno dele, como se EU passasse agora (só lê o estado; crítico pela média).
+ *  A tela da Aventura mostra; o servidor manda junto com a visão (o mesmo cálculo nos dois modos).
+ *  Devolve [{ carta, dono, alvo, dano, tipo }] com os primeiros comandos do plano (até a primeira compra). */
+export function intencaoDoRobo(estado, robo, EU = 'A') {
+  const RIVAL = outro(EU)
+  if (!estado || estado.fim || estado.vez !== EU) return null
+  const r = aplicar(estado, { tipo: 'passar', time: EU })
+  if (!r.ok || r.estado.fim) return null
+  const plano = planejarTurno(r.estado, robo)
+  const sim = clonar(r.estado, { simular: true }), out = []
+  for (const c of plano) {
+    if (c.tipo === 'jogar') {
+      const inst = sim.cartas[c.carta], def = CARTAS[inst.carta]
+      const antes = Object.fromEntries(Object.entries(sim.bonecos).map(([k, b]) => [k, b.vida + b.escudo]))
+      const ok = aplicarNoLugar(sim, c)
+      if (!ok.ok) break
+      let dano = 0
+      if (CARTAS[inst.carta].efeitos.some((x) => x.tipo === 'dano')) for (const [k, b] of Object.entries(sim.bonecos)) if (b.time === EU) dano += Math.max(0, antes[k] - (b.vida + b.escudo))
+      const alvo = c.alvo ? sim.bonecos[c.alvo] : null
+      out.push({ tipo: 'jogar', carta: def.nome, cartaId: inst.carta, dono: sim.bonecos[inst.dono].nome, donoId: inst.dono, alvoId: c.alvo ?? null, alvo: alvo?.nome ?? null, dano, tipoCarta: def.tipo })
+    } else if (c.tipo === 'trocar') { out.push({ tipo: 'trocar' }); aplicarNoLugar(sim, c) }
+    else if (c.tipo === 'passar') out.push({ tipo: 'passar' })
+    else if (c.tipo === 'fiapo') { out.push({ tipo: 'fiapo' }); aplicarNoLugar(sim, c) }
+    if (sim.fim || sim.vez !== RIVAL) break
+  }
+  return out
 }

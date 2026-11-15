@@ -3,7 +3,7 @@
 // Nada de moeda, prêmio, pote ou saque aqui.
 import { createHash, randomBytes, randomInt } from 'node:crypto'
 import { comandosValidos, criarLuta, resultado as resultadoDaLuta, aplicarNoLugar, visaoDoTime, reproduzir, VERSAO_DO_MOTOR } from '../shared/batalha.js'
-import { jogarTurno, ROBOS } from '../shared/robos.js'
+import { intencaoDoRobo, jogarTurno, ROBOS } from '../shared/robos.js'
 import {
   PARAMS_COSTURA, PARTES_DO_BONECO, abrirCasulo, aposentar, chancesDaCostura, costurar, custoDaCostura, gerarBonecoInicial,
   nivelDeRemendo, paraLuta, podeAposentar, podeCosturar, registrarLuta,
@@ -17,7 +17,7 @@ export const EU = 'A'
 export const RIVAL = 'B'
 
 // ASSUMPTION (PROVISÓRIO; não há chave em shared/config.js ainda): fases da Aventura = nível do robô rival.
-// O time rival é sorteado pelo servidor entre os bonecos prontos. Intenção visível ainda não existe.
+// O time rival é sorteado pelo servidor entre os bonecos prontos. A intenção do rival vai com a visão (tarefa 20).
 export const FASES_DA_AVENTURA = [
   { robo: 'ganancioso' },
   { robo: 'ganancioso' },
@@ -377,6 +377,8 @@ export function criarJogo(db, {
       visao: v,
       eventos: v.eventos.slice(desde),
       validos: !e.fim && e.vez === EU ? comandosValidos(e) : [],
+      // Aventura: o rival mostra o que vai fazer no próximo turno (o mesmo cálculo da tela local; tarefa 20)
+      ...(linha.modo === 'aventura' && !e.fim && e.vez === EU ? { intencao: intencaoDoRobo(e, linha.robo, EU) } : {}),
       resultado: e.fim ? resultadoDaLuta(e) : null,
       prazo: e.fim ? null : linha.prazo,
       agora: quando,

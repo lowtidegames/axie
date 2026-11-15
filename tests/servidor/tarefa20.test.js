@@ -126,3 +126,28 @@ describe('tarefa 20 — baixo da rodada 4: energia_dia corrompido', () => {
     }
   })
 })
+
+describe('tarefa 20 — intenção do rival na Aventura (a mesma conta da tela local)', () => {
+  test('luta da Aventura traz a intenção na vez do jogador; luta livre não traz; igual a intencaoDoRobo no estado', async () => {
+    const { intencaoDoRobo } = await import('../../shared/robos.js')
+    const c = await novaConta()
+    const ids = (await api('GET', '/api/estado', { token: c.token })).json.bonecos.map((b) => b.id)
+    let viu = 0
+    for (let i = 0; i < 6; i++) { // quem começa é sorteado: algumas lutas para pegar a vez do jogador
+      const av = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'aventura', fase: 1, time: ids.slice(0, 3) } })
+      assert.equal(av.status, 201)
+      if (av.json.visao.vez === 'A' && !av.json.visao.fim) {
+        viu++
+        assert.ok(Array.isArray(av.json.intencao), 'Aventura na vez do jogador: intenção é uma lista')
+        // a conta é a do motor no estado completo da luta (o servidor tem a mão do rival)
+        const linha = s.db.prepare('SELECT estado, robo FROM lutas WHERE id = ?').get(av.json.id)
+        assert.deepEqual(av.json.intencao, intencaoDoRobo(JSON.parse(linha.estado), linha.robo, 'A'))
+      }
+      await api('POST', `/api/luta/${av.json.id}/desistir`, { token: c.token })
+    }
+    assert.ok(viu > 0, 'nenhuma luta começou na vez do jogador')
+    const livre = await api('POST', '/api/luta', { token: c.token, corpo: { modo: 'livre', time: ids.slice(0, 3) } })
+    assert.equal(livre.status, 201)
+    assert.equal(livre.json.intencao, undefined, 'luta livre não mostra a intenção')
+  })
+})

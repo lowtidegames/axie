@@ -1,8 +1,10 @@
 // Frayz — rotas HTTP do servidor (node:http, sem dependências). O servidor decide tudo; a tela só manda comandos.
 // Todo corpo é conferido campo a campo: campo desconhecido, tipo errado ou id fora do formato = recusa (400).
 // Erros nunca levam pilha; logs nunca levam token nem cabeçalho.
+import { isIP } from 'node:net'
 import { ErroDoJogo } from './jogo.mjs'
 import { lerArquivo } from './estatico.mjs'
+import { apelidoPermitido, limparApelido } from './apelido.mjs'
 
 // ---------------------------------------------------------------------------------------------
 // Parâmetros do servidor — TODOS PROVISÓRIOS (não são números de economia; segurança e ritmo do protótipo).
@@ -11,12 +13,23 @@ export const PARAMS_SERVIDOR = {
   corpoMaxBytes: 8 * 1024, // corpo JSON maior que isto: 413
   descarteMaxBytes: 1024 * 1024, // depois de recusar, lê e joga fora no máximo isto; passou, corta a conexão
   contasPorIp: { max: 5, janelaMs: 60 * 60 * 1000 }, // criação de conta por IP (IPv6: por /64)
+  contasPorBloco48: { max: 20, janelaMs: 60 * 60 * 1000 }, // criação de conta por bloco IPv6 /48 (65.536 /64 dentro)
   pedidosPorConta: { max: 240, janelaMs: 60 * 1000 }, // pedidos com sessão, por conta
-  pedidosPorIp: { max: 600, janelaMs: 60 * 1000 }, // todos os pedidos de API, por IP
+  pedidosPorIp: { max: 600, janelaMs: 60 * 1000 }, // todos os pedidos de API, por IP (IPv6: por /64)
+  pedidosPorBloco48: { max: 2400, janelaMs: 60 * 1000 }, // todos os pedidos de API, por bloco IPv6 /48
+  limpezaDosLimites: { intervaloMs: 60 * 1000, lote: 2000 }, // limpeza por idade dos limites guardados: de tempo em tempo, em lote
   tempoDoTurnoMs: 20 * 1000, // relógio do turno (o mesmo da tela: 20 s)
   folgaDoRelogioMs: 1500, // tolerância de rede antes de passar a vez
   apelido: { min: 3, max: 20 },
+  maxBonecosPorConta: 60, // bonecos VIVOS por conta (aposentado não conta); costura além disso: 409 COLECAO_CHEIA (A3)
+  paginaDeBonecos: 50, // bonecos por página em /api/estado e /api/bonecos (máximo do ?limite=)
+  validadeDaSessaoH: 720, // sessão vence depois de tanto tempo SEM uso (cada uso renova)
+  renovarSessaoMs: 60 * 1000, // renova a sessão no banco no máximo uma vez por minuto (menos escrita)
+  abandonoMin: 30, // luta aberta sem pedido do dono por mais que isto: derrota por abandono no próximo pedido da conta
+  lutasEncerradasPorConta: 200, // lutas encerradas guardadas por conta (replay); as mais antigas além disso saem do banco (S2-2)
 }
+// Ponto de encaixe da economia (NÃO fazer sem o "sim" do dono): custo da costura, energia para abrir luta,
+// custo de desistir (A6) e prêmio entram em shared/config.js, não aqui.
 
 export const CABECALHOS_DE_SEGURANCA = {
   'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
@@ -29,13 +42,21 @@ export const CABECALHOS_DE_SEGURANCA = {
 }
 
 // ---------------------------------------------------------------------------------------------
-// limite de pedidos (janela fixa, em memória)
+// limite de pedidos (janela fixa)
 // ---------------------------------------------------------------------------------------------
+/**
+ * Limite em MEMÓRIA (só quando não há banco, ex.: testes do tratador). Chaves velhas saem por idade, numa varredura
+ * que roda no máximo uma vez por décimo de janela — nunca a cada pedido (A9).
+ */
 export function criarLimite({ max, janelaMs }, agora) {
   const mapa = new Map()
+  let ultimaVarredura = -Infinity
   return function contar(chave) {
     const t = agora()
-    if (mapa.size > 50_000) for (const [k, v] of mapa) if (t - v.inicio >= janelaMs) mapa.delete(k)
+    if (mapa.size > 50_000 && t - ultimaVarredura >= janelaMs / 10) {
+      ultimaVarredura = t
+      for (const [k, v] of mapa) if (t - v.inicio >= janelaMs) mapa.delete(k)
+    }
     let v = mapa.get(chave)
     if (!v || t - v.inicio >= janelaMs) { v = { inicio: t, n: 0 }; mapa.set(chave, v) }
     v.n++
@@ -43,16 +64,96 @@ export function criarLimite({ max, janelaMs }, agora) {
   }
 }
 
-/** IP do pedido. IPv4 inteiro; IPv6 pelo /64 (os 4 primeiros grupos). Não confia em X-Forwarded-For. */
-export function chaveDoIp(endereco) {
-  let ip = String(endereco ?? '')
-  if (ip.startsWith('::ffff:') && ip.includes('.')) ip = ip.slice(7)
-  if (!ip.includes(':')) return ip
+/**
+ * Limites guardados no BANCO (tabela `limites`): sobrevivem a reinício (A5). Cada pedido = 1 UPSERT pela chave
+ * primária. Limpeza por idade, no máximo uma vez por `intervaloMs` (A9): cada TIPO de chave (o que vem antes do
+ * primeiro ":") sai com a SUA janela (`janelas`: { tipo: janelaMs }); chave de tipo desconhecido, com `idadeMaxMs`
+ * (padrão: a maior janela). Apaga em lotes de `lote`, em laço até não sobrar chave vencida (S2-3).
+ * Devolve contar(chave, { max, janelaMs }) → true se ainda cabe.
+ */
+export function criarLimitesNoBanco(db, agora, { intervaloMs, lote, janelas = {}, idadeMaxMs = Math.max(0, ...Object.values(janelas)) || Infinity }) {
+  // RETURNING lido com .all(): o comando termina de verdade. Com .get() ele fica aberto, a transação de leitura
+  // não fecha e o arquivo -wal nunca é descarregado (~8 KB de disco por pedido; achado S2-1).
+  const somar = db.prepare(`INSERT INTO limites (chave, inicio, n) VALUES (?, ?, 1)
+    ON CONFLICT (chave) DO UPDATE SET
+      n = CASE WHEN excluded.inicio - inicio >= ? THEN 1 ELSE n + 1 END,
+      inicio = CASE WHEN excluded.inicio - inicio >= ? THEN excluded.inicio ELSE inicio END
+    RETURNING n`)
+  const limparTipo = db.prepare('DELETE FROM limites WHERE rowid IN (SELECT rowid FROM limites WHERE inicio < ? AND chave >= ? AND chave < ? LIMIT ?)')
+  const limparTudo = db.prepare('DELETE FROM limites WHERE rowid IN (SELECT rowid FROM limites WHERE inicio < ? LIMIT ?)')
+  const emLaco = (fazer) => { while (Number(fazer().changes) >= lote) { /* lote cheio: pode haver mais */ } }
+  let ultimaLimpeza = -Infinity
+  return function contar(chave, { max, janelaMs }) {
+    const t = agora()
+    if (t - ultimaLimpeza >= intervaloMs) {
+      ultimaLimpeza = t
+      for (const [tipo, ms] of Object.entries(janelas)) emLaco(() => limparTipo.run(t - ms, `${tipo}:`, `${tipo};`, lote))
+      if (Number.isFinite(idadeMaxMs)) emLaco(() => limparTudo.run(t - idadeMaxMs, lote))
+    }
+    return somar.all(chave, t, janelaMs, janelaMs)[0].n <= max
+  }
+}
+
+function gruposIPv6(ip) {
   const [esq, dir = ''] = ip.split('::')
   const a = esq ? esq.split(':') : [], b = ip.includes('::') && dir ? dir.split(':') : []
   const grupos = ip.includes('::') ? [...a, ...Array(Math.max(0, 8 - a.length - b.length)).fill('0'), ...b] : a
-  return grupos.slice(0, 4).map((g) => g.toLowerCase().replace(/^0+(?=.)/, '')).join(':') + '::/64'
+  return grupos.map((g) => g.toLowerCase().replace(/^0+(?=.)/, ''))
 }
+const semMapeado = (endereco) => {
+  const ip = String(endereco ?? '')
+  return ip.startsWith('::ffff:') && ip.includes('.') ? ip.slice(7) : ip
+}
+
+/** IP do pedido. IPv4 inteiro; IPv6 pelo /64 (os 4 primeiros grupos). */
+export function chaveDoIp(endereco) {
+  const ip = semMapeado(endereco)
+  if (!ip.includes(':')) return ip
+  return gruposIPv6(ip).slice(0, 4).join(':') + '::/64'
+}
+
+/** Bloco /48 do IPv6 (os 3 primeiros grupos); IPv4 → null (não tem bloco). */
+export function chaveDoBloco48(endereco) {
+  const ip = semMapeado(endereco)
+  if (!ip.includes(':')) return null
+  return gruposIPv6(ip).slice(0, 3).join(':') + '::/48'
+}
+
+/**
+ * Proxies confiáveis, lidos no arranque (S2-4): TRUST_PROXY=1 E a lista TRUST_PROXY_IPS (IPs separados por vírgula).
+ * TRUST_PROXY=1 sem a lista: não confia em ninguém (o cabeçalho é ignorado) e avisa no log. Devolve um Set (vazio = nenhum).
+ */
+export function proxiesDoAmbiente(env = process.env, log = console.log) {
+  if (env.TRUST_PROXY !== '1') return new Set()
+  const lista = String(env.TRUST_PROXY_IPS ?? '').split(',').map((x) => semMapeado(x.trim())).filter(Boolean)
+  const validos = lista.filter((ip) => isIP(ip))
+  if (validos.length !== lista.length) log('AVISO: TRUST_PROXY_IPS tem item que não é IP; ignorado.')
+  if (!validos.length) log('AVISO: TRUST_PROXY=1 sem TRUST_PROXY_IPS: X-Forwarded-For será ignorado (vale o IP da conexão).')
+  return new Set(validos)
+}
+
+/**
+ * Endereço do cliente. X-Forwarded-For só é lido quando a CONEXÃO vem de um proxy da lista (`proxies`, um Set de IPs);
+ * de qualquer outra, é IGNORADO (qualquer um escreve nele). Vindo do proxy: o endereço mais à direita do cabeçalho
+ * que seja IP válido e não seja de um proxy da lista (o proxy acrescenta o endereço real no fim; o que vem antes o
+ * cliente inventa).
+ */
+export function ipDoCliente(req, proxies) {
+  const doSocket = semMapeado(req.socket?.remoteAddress)
+  if (!proxies || !proxies.has(doSocket)) return doSocket
+  const xff = req.headers['x-forwarded-for']
+  if (!xff) return doSocket
+  const lista = (Array.isArray(xff) ? xff.join(',') : String(xff)).split(',').map((x) => semMapeado(x.trim()))
+  for (let i = lista.length - 1; i >= 0; i--) {
+    const ip = lista[i]
+    if (isIP(ip) && !proxies.has(ip)) return ip
+  }
+  return doSocket
+}
+
+/** Chaves de emergência: lidas das variáveis de ambiente a CADA pedido (sem reiniciar). */
+export const emManutencao = () => process.env.MANUTENCAO === '1'
+export const soLeitura = () => process.env.SAVE_SO_LEITURA === '1'
 
 // ---------------------------------------------------------------------------------------------
 // conferência de entrada
@@ -66,7 +167,7 @@ const RE = {
   carta: /^[AB]c\d{1,2}$/,
   lugar: /^[AB][0-2]$/,
   pedido: /^[A-Za-z0-9_-]{8,64}$/,
-  apelido: /^[\p{L}\p{N} _.-]+$/u,
+  cursor: /^[A-Za-z0-9_-]{1,40}$/,
 }
 
 /** Confere que `corpo` só tem os campos permitidos. */
@@ -86,9 +187,9 @@ function inteiro(v, min, max, nome) {
 function lerCorpoConta(c) {
   soCampos(c, ['apelido'])
   if (typeof c.apelido !== 'string') throw recusa('CAMPO_INVALIDO', 'Campo inválido: apelido.')
-  const apelido = c.apelido.normalize('NFC').trim()
+  const apelido = limparApelido(c.apelido)
   const { min, max } = PARAMS_SERVIDOR.apelido
-  if (apelido.length < min || apelido.length > max || !RE.apelido.test(apelido)) throw recusa('APELIDO_INVALIDO', `Apelido de ${min} a ${max} letras, números, espaço, ponto, traço ou _.`)
+  if (apelido.length < min || apelido.length > max || !apelidoPermitido(apelido)) throw recusa('APELIDO_INVALIDO', `Apelido de ${min} a ${max} letras (alfabeto latino, com acento), números, espaço, ponto, traço ou _.`)
   return { apelido }
 }
 
@@ -144,6 +245,18 @@ function lerCorpoCostura(c) {
 function lerCorpoVazio(c) {
   if (c === undefined) return
   soCampos(c, [])
+}
+
+/** ?cursor=&limite= da lista de bonecos. Cursor vazio = começo. */
+function lerPaginaDeBonecos(url) {
+  const { cursor = '', limite } = lerConsulta(url, ['cursor', 'limite'])
+  if (cursor !== '' && !RE.cursor.test(cursor)) throw recusa('CURSOR_INVALIDO', 'Cursor inválido.')
+  let n = PARAMS_SERVIDOR.paginaDeBonecos
+  if (limite !== undefined) {
+    if (!/^[0-9]{1,3}$/.test(limite)) throw recusa('CAMPO_INVALIDO', 'Campo inválido: limite.')
+    n = inteiro(Number(limite), 1, PARAMS_SERVIDOR.paginaDeBonecos, 'limite')
+  }
+  return { cursor, limite: n }
 }
 
 function lerConsulta(url, permitidos) {
@@ -207,28 +320,48 @@ const TOKEN = /^Bearer ([A-Za-z0-9_-]{43})$/
 
 /**
  * Cria o tratador HTTP. jogo: criarJogo(...). agora: relógio (injetável nos testes). log: função de log (sem token).
+ * banco: o banco (limites guardados nele; sem banco ou com SAVE_SO_LEITURA ligado, limites em memória).
+ * proxies: IPs dos proxies confiáveis (lista ou Set); padrão = TRUST_PROXY=1 + TRUST_PROXY_IPS no arranque.
  */
-export function criarTratador({ jogo, agora = Date.now, log = console.log, limites = {} }) {
+export function criarTratador({ jogo, agora = Date.now, log = console.log, limites = {}, banco = null, proxies }) {
   const P = { ...PARAMS_SERVIDOR, ...limites }
-  const porIpConta = criarLimite(P.contasPorIp, agora)
-  const porConta = criarLimite(P.pedidosPorConta, agora)
-  const porIp = criarLimite(P.pedidosPorIp, agora)
+  const confiaveis = proxies === undefined ? proxiesDoAmbiente(process.env, log) : new Set([...proxies].map(semMapeado))
+  const tipos = { nova: P.contasPorIp, nova48: P.contasPorBloco48, conta: P.pedidosPorConta, ip: P.pedidosPorIp, ip48: P.pedidosPorBloco48 }
+  const mem = Object.fromEntries(Object.entries(tipos).map(([k, cfg]) => [k, criarLimite(cfg, agora)]))
+  const naMemoria = (chave, cfg, tipo) => mem[tipo](chave)
+  let contar = naMemoria
+  if (banco) {
+    const janelas = Object.fromEntries(Object.entries(tipos).map(([k, cfg]) => [k, cfg.janelaMs]))
+    const noBanco = criarLimitesNoBanco(banco, agora, { ...P.limpezaDosLimites, janelas })
+    // SAVE_SO_LEITURA ligado: nem o limite grava no banco (S2-6); conta em memória enquanto durar
+    contar = (chave, cfg, tipo) => (soLeitura() ? naMemoria(chave, cfg, tipo) : noBanco(chave, cfg))
+  }
+  const cabe = (tipo, chave) => chave === null || contar(`${tipo}:${chave}`, tipos[tipo], tipo)
+  /** Bloco /48 primeiro: recusado no /48, nem chega a criar a chave do /64 (S2-3). */
+  const cabeNosDois = (tipo, tipo48, ip) => cabe(tipo48, chaveDoBloco48(ip)) && cabe(tipo, chaveDoIp(ip))
 
   function autenticar(req) {
     const m = TOKEN.exec(String(req.headers.authorization ?? ''))
     const conta = m ? jogo.contaPorToken(m[1]) : null
     if (!conta) throw recusa('SEM_SESSAO', 'Entre de novo (sessão inválida).', 401)
-    if (!porConta(conta.id)) throw recusa('MUITOS_PEDIDOS', 'Muitos pedidos. Espere um pouco.', 429)
+    if (!cabe('conta', String(conta.id))) throw recusa('MUITOS_PEDIDOS', 'Muitos pedidos. Espere um pouco.', 429)
+    jogo.aoPedido?.(conta.id) // luta parada (abandono) ou de motor antigo: encerra agora
     return conta
   }
 
   const rotas = [
-    ['POST', /^\/api\/conta$/, false, async (req) => {
+    ['POST', /^\/api\/conta$/, false, async (req, conta, m, url, ip) => {
       const { apelido } = lerCorpoConta(await lerCorpo(req))
-      if (!porIpConta(chaveDoIp(req.socket.remoteAddress))) throw recusa('MUITAS_CONTAS', 'Muitas contas criadas daqui. Espere um pouco.', 429)
+      if (!cabeNosDois('nova', 'nova48', ip)) throw recusa('MUITAS_CONTAS', 'Muitas contas criadas daqui. Espere um pouco.', 429)
       return [201, jogo.criarConta(apelido)]
     }],
+    ['POST', /^\/api\/sair$/, true, async (req) => {
+      lerCorpoVazio(await lerCorpo(req))
+      jogo.sair(TOKEN.exec(String(req.headers.authorization)).at(1))
+      return [200, { ok: true }]
+    }],
     ['GET', /^\/api\/estado$/, true, (req, conta) => [200, jogo.estado(conta.id)]],
+    ['GET', /^\/api\/bonecos$/, true, (req, conta, m, url) => [200, jogo.bonecos(conta.id, lerPaginaDeBonecos(url))]],
     ['GET', /^\/api\/boneco\/([^/]+)$/, true, (req, conta, m) => [200, jogo.boneco(conta.id, texto(m[1], RE.boneco, 'id'))]],
     ['POST', /^\/api\/boneco\/([^/]+)\/aposentar$/, true, async (req, conta, m) => {
       lerCorpoVazio(await lerCorpo(req))
@@ -259,9 +392,13 @@ export function criarTratador({ jogo, agora = Date.now, log = console.log, limit
     const inicio = agora()
     let status = 500
     try {
-      const url = new URL(req.url, 'http://local')
+      let url
+      try { url = new URL(req.url, 'http://local') } catch { throw recusa('URL_INVALIDA', 'Endereço inválido.') }
       if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-        if (!porIp(chaveDoIp(req.socket.remoteAddress))) throw recusa('MUITOS_PEDIDOS', 'Muitos pedidos. Espere um pouco.', 429)
+        if (emManutencao()) throw recusa('MANUTENCAO', 'O jogo está em manutenção. Volte daqui a pouco.', 503)
+        if (req.method === 'POST' && soLeitura()) throw recusa('SO_LEITURA', 'O jogo está só para leitura agora. Nada foi mudado; tente mais tarde.', 503)
+        const ip = ipDoCliente(req, confiaveis)
+        if (!cabeNosDois('ip', 'ip48', ip)) throw recusa('MUITOS_PEDIDOS', 'Muitos pedidos. Espere um pouco.', 429)
         const doCaminho = rotas.filter(([, re]) => re.test(url.pathname))
         if (!doCaminho.length) throw recusa('NAO_ENCONTRADO', 'Rota não encontrada.', 404)
         const rota = doCaminho.find(([metodo]) => metodo === req.method)
@@ -269,7 +406,7 @@ export function criarTratador({ jogo, agora = Date.now, log = console.log, limit
         const [, re, precisaSessao, fazer] = rota
         if (req.method === 'GET' && Number(req.headers['content-length'] ?? 0) > 0) throw recusa('CORPO_INVALIDO', 'GET não leva corpo.')
         const conta = precisaSessao ? autenticar(req) : null
-        const [st, corpo] = await fazer(req, conta, re.exec(url.pathname), url)
+        const [st, corpo] = await fazer(req, conta, re.exec(url.pathname), url, ip)
         status = st
         enviar(res, st, corpo)
         return

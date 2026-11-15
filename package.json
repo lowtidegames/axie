@@ -9,6 +9,7 @@
     "simular": "node tools/simular-batalha.mjs",
     "simular:economia": "node tools/simular-economia.mjs",
     "dev": "node server/dev.mjs",
+    "servidor": "node server/index.mjs",
     "e2e": "node tools/trava-robos.mjs rodar \"node tests/tela/prototipo.e2e.mjs\""
   },
   "engines": {

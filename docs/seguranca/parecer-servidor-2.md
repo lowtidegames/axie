@@ -3,7 +3,7 @@
 Revisor: agente `seguranca` (só leu e atacou). Alvo: `frayz-servidor2` (b943003). `npm test` 139/139; junto com o main 141/141; nenhum teste apagado ou enfraquecido.
 
 ## Veredito
-**NÃO-GO até consertar o S2-1 (1 linha + teste); depois, GO** para juntar como protótipo SEM dinheiro.
+Primeira passada (b943003): NÃO-GO por causa do S2-1. Rechecagem (a89ef12): **GO**, juntado no main em f94fe50.
 
 ## Rodada 1
 | Nº | Estado |
@@ -18,15 +18,20 @@ Revisor: agente `seguranca` (só leu e atacou). Alvo: `frayz-servidor2` (b943003
 | Chaves de emergência, sessão com validade, `/api/sair` | FECHADO (S2-6 baixo) |
 | A6 rolar de novo | espera a economia (energia) |
 
-## Achados novos
-| Nº | Gravidade | O ataque | Conserto | Estado |
-|---|---|---|---|---|
-| S2-1 | alta | `api.mjs:82` `somar.get()` com RETURNING deixa o comando aberto e o WAL nunca é descarregado: ~8 KB de disco por pedido, até 404/429, de 1 IP sem conta (12 mil pedidos = 94 MB; continua com jogador real) | `somar.all(...)[0]` (+ `journal_size_limit`); teste: 3.000 pedidos não passam de 8 MB de WAL | em conserto (ramo frayz-servidor2b) |
-| S2-2 | média | luta encerrada guarda o estado inteiro: ~50 MB/h por conta abrindo e desistindo | guardar só o replay; teto de lutas por conta | em conserto |
-| S2-3 | baixa | cada /64 novo cria linha em `limites` mesmo com 429; limpeza só 2.000/min e só após 1 h | apagar por janela do tipo, em laço; /48 antes do /64 | em conserto |
-| S2-4 | baixa | `TRUST_PROXY=1` confia no X-Forwarded-For de qualquer conexão; porta exposta = IP à vontade | lista de IPs do proxy | em conserto |
-| S2-5 | baixa | `Ina`/`İna`/`ına`, `ɑna`, `ǀana`/`lana` convivem | comparar por esqueleto (NFKD + parecidas) | em conserto |
-| S2-6 | baixa | com SAVE_SO_LEITURA o GET ainda grava em `limites` | limites só em memória no modo só-leitura | em conserto |
+## Rechecagem (15/11 03:58 BRT, commit a89ef12): **GO** para juntar como protótipo SEM dinheiro
+`npm test` 153/0; só 3 testes mudaram, todos por regra que mudou (lista de IPs do proxy; limpeza até acabar). Nenhum apagado.
+
+| Nº | Gravidade | Estado (rechecagem a89ef12) |
+|---|---|---|
+| S2-1 | alta | FECHADO: `.all()[0]` + `journal_size_limit`; WAL 3,9 MB com 12 mil pedidos e com jogador real |
+| S2-2 | média | FECHADO: 0,6 KB por luta, teto de 200 por conta; replay refeito sem diferença em 400 lutas; 0,35 ms por leitura. Fica de fora (declarado): `eventos_bonecos` ~0,26 KB por luta sem teto |
+| S2-3 | baixa | FECHADO: limpeza por tipo em laço; /48 antes do /64 (100 mil linhas: 189 ms) |
+| S2-4 | baixa | FECHADO: `TRUST_PROXY_IPS`; IPv4 mapeado e lista malformada tratados (sobra o aviso do IPv6 escrito de outro jeito, baixo) |
+| S2-5 | baixa | FECHADO: só A–Z, acentos e I/l/1, O/0 juntos; migração v3 sem colisão; sobra "rn/m" e pontuação (baixo, só aparência) |
+| S2-6 | baixa | FECHADO: 0 escritas no banco no só-leitura; limite continua em memória |
+| URL ilegível | baixa | FECHADO: 400 `URL_INVALIDA` |
+
+Riscos baixos que ficam (tarefa 16): `apelido.mjs:15` "rn"/"m" e pontuação nas pontas; `api.mjs:127` IPv6 da lista de proxy escrito de outro jeito é ignorado sem aviso (falha para o lado seguro); `jogo.mjs:302` replay com `ok:false` devolve luta pela metade sem log; teste luta a luta "o que o jogador viu = luta refeita" deve entrar em `tests/servidor`.
 
 ## Lição
 Comando do SQLite com `RETURNING` lido com `.get()` fica aberto e trava o descarregamento do WAL. Sempre use `.all()` ou `.run()`, e todo teste de banco em arquivo mede o tamanho do `-wal`.

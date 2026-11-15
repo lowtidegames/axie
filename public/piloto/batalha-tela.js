@@ -3,7 +3,7 @@
 import { bateForte } from '../../shared/batalha.js'
 import { CARTAS, REGRAS } from '../../shared/config.js'
 import * as Arte from './arte.js'
-import { CHAO, desenharArena, lugaresDaArena } from './cenas.js'
+import { desenharArena, lugaresDaArena } from './cenas.js'
 import { ELEMENTOS, SOL, TERMOS, nomeDaHabilidade } from './tema.js'
 
 const $ = (s, r = document) => r.querySelector(s)
@@ -15,20 +15,28 @@ class Pulou extends Error {}
 export function criarBatalha({ raiz, ganchos, opcoes }) {
   const B = {
     luta: null, nomes: {}, defs: {}, estado: null, i: -1, vel: VELS.includes(+ler('piloto_vel', '1')) ? +ler('piloto_vel', '1') : 1,
-    pausado: false, pular: false, acabou: false, rodando: false, k: 1, LW: 384, LH: 216,
+    pausado: false, pular: false, acabou: false, rodando: false, k: 1, LW: 384, LH: 216, chao: 64, cunha: false, lentoAte: 0, resumo: null,
     vis: {}, sol: 0, laranja: 0, solAlvo: 0, laranjaAlvo: 0, tremida: 0, ultimoFlash: -1e9, flashes: [], stats: null,
   }
   const cv = $('#bCanvas', raiz), hud = $('#bHud', raiz), palco = $('#bPalco', raiz)
   const cx = cv.getContext('2d')
 
   // ---------------------------------------------------------------- medidas (múltiplo inteiro)
+  // A câmera fica PERTO: a arena lógica é pequena (até 340×190) e o múltiplo inteiro é o maior que cabe, para a luta
+  // encher a tela (PC 1280×720: ×3, monstros de 192 px; celular 360: ×2 em cunha, monstros de 128 px).
   function medir() {
     const larg = raiz.clientWidth || window.innerWidth
     const celular = larg < 700
-    const altDisp = window.innerHeight - (celular ? 280 : 150)
-    let k = celular ? 1 : Math.max(1, Math.min(3, Math.floor((larg - 16) / 384), Math.floor(altDisp / 216)))
-    const LW = Math.min(440, Math.floor((celular ? larg : larg - 16) / k))
-    const LH = celular ? 236 : Math.max(216, Math.min(260, Math.floor((window.innerHeight - 130) / k)))
+    let k, LW, LH
+    if (celular) {
+      k = 2; LW = Math.floor(larg / k); LH = Math.max(176, Math.min(196, Math.floor((window.innerHeight - 330) / k)))
+      B.cunha = true; B.chao = LH - 84
+    } else {
+      const altDisp = window.innerHeight - 172
+      k = Math.max(2, Math.min(4, Math.floor((larg - 16) / 300), Math.floor(altDisp / 165)))
+      LW = Math.min(340, Math.floor((larg - 16) / k)); LH = Math.max(165, Math.min(190, Math.floor(altDisp / k)))
+      B.cunha = false; B.chao = 62
+    }
     B.k = k; B.LW = LW; B.LH = LH
     cv.width = LW; cv.height = LH
     palco.style.width = LW * k + 'px'; palco.style.height = LH * k + 'px'
@@ -37,17 +45,18 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
     raiz.classList.toggle('b-celular', celular)
     if (B.estado) { posicionarTodos(true); atualizarHud() }
   }
+  const som = (n) => opcoes.som?.(n)
 
   // ---------------------------------------------------------------- visual de cada monstro
   function alvoDe(id) {
     const b = B.estado.bonecos[id]
-    const lug = lugaresDaArena(B.LW, B.LH)[b.time]
+    const lug = lugaresDaArena(B.LW, B.LH, { chao: B.chao, cunha: B.cunha })[b.time]
     const i = B.estado.times[b.time].lugares.indexOf(id)
     return lug[i]
   }
   function posicionarTodos(ja) {
     for (const id of Object.keys(B.estado.bonecos)) {
-      const a = alvoDe(id), v = (B.vis[id] ??= { x: a.x, y: a.y, pose: 'idle', avanco: 0, flash: 0, alfa: 1, tomba: 0 })
+      const a = alvoDe(id), v = (B.vis[id] ??= { x: a.x, y: a.y, pose: 'idle', avanco: 0, recuo: 0, flash: 0, alfa: 1, tomba: 0 })
       v.tx = a.x; v.ty = a.y
       if (ja) { v.x = a.x; v.y = a.y }
     }
@@ -103,7 +112,7 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
       for (const im of el.querySelectorAll('.b-pronta')) im.classList.toggle('acesa', mao.has(im.dataset.carta) && b.estado !== 'caido')
     }
     const lista = $('#bLista', raiz)
-    lista.innerHTML = ['A', 'B'].map((t) => `<div class="b-lista__time"><h3>${t === 'A' ? 'Your team' : 'Rival'}</h3>` + e.times[t].lugares.map((id, i) => {
+    lista.innerHTML = ['A', 'B'].map((t) => `<div class="b-lista__time"><h3>${t === 'A' ? 'Your patrol' : 'The guard'}</h3>` + e.times[t].lugares.map((id, i) => {
       const b = e.bonecos[id]
       const st = [b.escudo > 0 ? `<span class="b-guard">${b.escudo}</span>` : '', b.fioSoltoAte >= e.turno && b.estado === 'vivo' ? '<span class="b-exp">Exposed</span>' : '', b.veu ? '<span class="b-veil">Veil</span>' : '', b.estado === 'fio' ? '<span class="b-exp">Last Stand</span>' : ''].join('')
       return `<div class="b-lista__m${b.estado === 'caido' ? ' caido' : ''}"><img src="${Arte.url(Arte.iconeElemento(b.tipo))}" alt=""><b>${B.nomes[id]}</b><small>${['Front', 'Middle', 'Back'][i]}</small><span>${b.estado === 'caido' ? 'Out' : b.vida + '/' + b.vidaMax}</span>${st}</div>`
@@ -114,8 +123,9 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
     }
     const turno = Math.max(1, e.turno)
     $('#bTurno', raiz).textContent = `Turn ${turno}/${REGRAS.turnoFinal}`
-    $('#bVez', raiz).textContent = e.vez === 'A' ? 'Your team acts' : 'Rival acts'
+    $('#bVez', raiz).textContent = e.vez === 'A' ? 'Your patrol acts' : 'The guard acts'
     $('#bSol', raiz).textContent = turno >= SOL.encosta ? 'Sundown! Everyone tires.' : turno >= SOL.desceDe ? `Sundown in ${SOL.encosta - turno}` : 'Sun is high'
+    raiz.classList.toggle('b-sundown', turno >= SOL.encosta)
     alvoSol(turno)
     ganchos?.mudou?.()
   }
@@ -136,7 +146,7 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
     const pass = (a, b, r) => a + (b - a) * Math.min(1, r)
     B.sol = menos ? B.solAlvo : pass(B.sol, B.solAlvo, dt / 500)
     B.laranja = menos ? B.laranjaAlvo : pass(B.laranja, B.laranjaAlvo, dt / 500)
-    desenharArena(cx, B.LW, B.LH, { sol: B.sol, laranja: B.laranja })
+    desenharArena(cx, B.LW, B.LH, { sol: B.sol, laranja: B.laranja, chao: B.chao, cunha: B.cunha })
     const ids = Object.keys(B.estado.bonecos).sort((a, b) => B.vis[a].ty - B.vis[b].ty)
     for (const id of ids) {
       const b = B.estado.bonecos[id], v = B.vis[id]
@@ -145,7 +155,8 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
       const voa = /flutua/.test(B.tipos[id]) && !menos ? Math.round(Math.sin(t / 400 + v.x) * 1.5) - 3 : 0
       const resp = !menos && b.estado !== 'caido' ? (Math.sin(t / 520 + v.x / 9) > 0.6 ? 1 : 0) : 0
       const dir = b.time === 'A' ? 1 : -1
-      const x = Math.round(v.x + dir * v.avanco), y = Math.round(v.y)
+      if (v.recuo > 0) v.recuo = Math.max(0, v.recuo - dt / 30)
+      const x = Math.round(v.x + dir * (v.avanco - (menos ? 0 : v.recuo))), y = Math.round(v.y)
       // sombra
       cx.fillStyle = 'rgba(43,30,58,0.28)'
       cx.fillRect(x - 14, y - 2, 28, 3); cx.fillRect(x - 10, y - 3, 20, 5)
@@ -182,7 +193,7 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
       let resta = ms
       const f = (dt) => {
         if (B.pular) { quadros.delete(f); falha(new Pulou()); return }
-        if (!B.pausado) resta -= dt * B.vel
+        if (!B.pausado) resta -= dt * B.vel * (performance.now() < B.lentoAte ? 0.25 : 1)
         if (resta <= 0) { quadros.delete(f); ok() }
       }
       quadros.add(f)
@@ -195,8 +206,8 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
     const el = document.createElement('div')
     el.className = 'b-pop ' + cls
     el.innerHTML = html
-    el.style.left = Math.round(v.tx * B.k) + 'px'
-    el.style.top = Math.round((v.ty - 34) * B.k) + 'px'
+    el.style.left = Math.round(Math.max(26, Math.min(B.LW - 26, v.tx)) * B.k) + 'px'
+    el.style.top = Math.round((v.ty - 38) * B.k) + 'px'
     el.style.animationDuration = Math.round(900 / B.vel) + 'ms'
     el.style.animationDelay = Math.round(atraso / B.vel) + 'ms'
     hud.appendChild(el)
@@ -231,9 +242,9 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
       faixa(carta, de)
       await espera(350)
       const v = B.vis[de]
-      v.pose = 'attack'; v.avanco = 6
+      v.pose = 'attack'; v.avanco = 10
       await espera(180)
-      let atraso = 0, critico = false, ultimoFio = false
+      let atraso = 0, critico = false, ultimoFio = null, bateu = null
       for (const ev of evs) {
         if (ev.t === 'dano') {
           const alvo = B.estado.bonecos[ev.alvo]
@@ -242,39 +253,65 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
           if (ev.escudo) h += `<small>${ev.escudo} blocked</small>`
           if (ev.critico) h = `<em>Critical!</em>` + h
           if (forte) h = `<em class="forte">${icone(CARTAS[ev.carta].tipo)} Strong! ${icone(alvo.tipo)}</em>` + h
-          noAlvo(ev.alvo, h, 'b-pop--dano' + (ev.critico ? ' b-pop--crit' : '') + (ev.refletido ? ' b-pop--ref' : ''), atraso)
-          if (ev.valor > 0) flash(ev.alvo)
+          noAlvo(ev.alvo, h, 'b-pop--dano' + (ev.critico ? ' b-pop--crit' : '') + (forte ? ' b-pop--forte' : '') + (ev.refletido ? ' b-pop--ref' : ''), atraso)
+          if (ev.valor > 0) { flash(ev.alvo); B.vis[ev.alvo].recuo = 5 }
           if (ev.critico) critico = true
+          if (!ev.refletido) bateu = ev.critico ? 'critico' : forte && bateu !== 'critico' ? 'forte' : bateu ?? 'golpe'
           B.stats.dano[B.estado.bonecos[ev.de]?.time ?? 'x'] = (B.stats.dano[B.estado.bonecos[ev.de]?.time ?? 'x'] ?? 0) + ev.valor
           if (ev.de && B.estado.bonecos[ev.de].time === 'A' && ev.valor > B.stats.maior.valor) B.stats.maior = { valor: ev.valor, carta: ev.carta }
           atraso += 120
-        } else if (ev.t === 'errou') { noAlvo(ev.alvo, '<b>MISS!</b>', 'b-pop--miss', atraso); atraso += 120 }
-        else if (ev.t === 'cura') noAlvo(ev.alvo, `<b>+${ev.valor}</b>`, 'b-pop--cura', atraso)
-        else if (ev.t === 'escudo') noAlvo(ev.alvo, `<b>+${ev.valor}</b><small>Guard</small>`, 'b-pop--guard', atraso)
+        } else if (ev.t === 'errou') { noAlvo(ev.alvo, '<b>MISS!</b>', 'b-pop--miss', atraso); atraso += 120; som('miss') }
+        else if (ev.t === 'cura') { noAlvo(ev.alvo, `<b>+${ev.valor}</b>`, 'b-pop--cura', atraso); som('cura') }
+        else if (ev.t === 'escudo') { noAlvo(ev.alvo, `<b>+${ev.valor}</b><small>Guard</small>`, 'b-pop--guard', atraso); som('guard') }
+        else if (ev.t === 'caiu') som('queda')
         else if (ev.t === 'veu') noAlvo(ev.alvo, '<b>Veil</b>', 'b-pop--veil', atraso)
         else if (ev.t === 'fioSolto') noAlvo(ev.alvo, '<b>Exposed</b>', 'b-pop--exp', atraso + 200)
         else if (ev.t === 'quebraEscudo') noAlvo(ev.alvo, '<b>Guard broken</b>', 'b-pop--exp', atraso)
         else if (ev.t === 'autoDano') noAlvo(ev.alvo, `<b>-${ev.valor}</b>`, 'b-pop--dano', atraso)
-        else if (ev.t === 'ultimoFio') ultimoFio = true
+        else if (ev.t === 'ultimoFio') ultimoFio = ev.alvo
         else if (ev.t === 'linha' && ev.time !== c.time) noAlvo(B.estado.times[ev.time].lugares[0], '<b>-Glow</b>', 'b-pop--exp', atraso)
       }
-      if (critico) { await espera(150); B.tremida = 120 }
+      if (bateu) som(bateu)
+      if (critico) { await espera(150); B.tremida = 120 } // crítico: pausa curta e tremida (tremida fora com Reduced motion)
       mostrar(p.estado)
-      if (ultimoFio) { B.lento = true; await espera(400 * B.vel); B.lento = false } // câmera lenta de 0,4 s (não acelera)
+      if (ultimoFio) await ultimoFioPico(ultimoFio)
       await espera(560)
       v.pose = 'idle'; v.avanco = 0
       esconderFaixa()
       await espera(160)
     } else if (c.tipo === 'passar') {
       const turno = evs.find((x) => x.t === 'turno')
-      for (const ev of evs) if (ev.t === 'tesoura') noAlvo(ev.alvo, `<b>-${ev.valor}</b><small>Sundown</small>`, 'b-pop--sol')
+      for (const ev of evs) { if (ev.t === 'tesoura') noAlvo(ev.alvo, `<b>-${ev.valor}</b><small>Sundown</small>`, 'b-pop--sol'); else if (ev.t === 'caiu') som('queda') }
+      const eraDia = B.estado.turno < SOL.encosta
       mostrar(p.estado)
-      if (turno) { const ch = $('#bChip', raiz); ch.textContent = `Turn ${p.estado.turno} · ${turno.time === 'A' ? 'Your team' : 'Rival'}`; ch.hidden = false; ch.classList.remove('anim'); void ch.offsetWidth; ch.classList.add('anim') }
+      if (eraDia && p.estado.turno >= SOL.encosta) { som('sundown'); selo('SUNDOWN', 'b-selao--sol') }
+      if (turno) { const ch = $('#bChip', raiz); ch.textContent = `Turn ${p.estado.turno} · ${turno.time === 'A' ? 'Your patrol' : 'The guard'}`; ch.hidden = false; ch.classList.remove('anim'); void ch.offsetWidth; ch.classList.add('anim') }
       await espera(evs.some((x) => x.t === 'tesoura') ? 800 : 500)
     } else {
       mostrar(p.estado)
       await espera(120)
     }
+  }
+
+  /** Selo grande no meio do palco (Last Stand, Sundown). Some sozinho. */
+  function selo(texto, cls) {
+    const el = document.createElement('div')
+    el.className = 'b-selao ' + cls
+    el.textContent = texto
+    palco.appendChild(el)
+    setTimeout(() => el.remove(), 1300)
+  }
+  /** Last Stand: câmera lenta de 0,4 s (o relógio da luta anda a 1/4). Com Reduced motion vira uma pausa de 0,4 s, sem efeito. */
+  async function ultimoFioPico(id) {
+    som('laststand')
+    selo('LAST STAND', 'b-selao--fio')
+    noAlvo(id, '<b>Still standing!</b>', 'b-pop--fio')
+    const real = () => new Promise((ok) => setTimeout(ok, 400))
+    if (opcoes.menosAnimacao()) { await real(); return }
+    B.lentoAte = performance.now() + 400
+    palco.classList.add('lento')
+    await real()
+    palco.classList.remove('lento')
   }
 
   function mostrar(estado) {
@@ -284,8 +321,11 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
   }
 
   // ---------------------------------------------------------------- começar / fim
-  async function comecar({ luta, nomes, defs, tipos }) {
-    B.luta = luta; B.nomes = nomes; B.defs = defs; B.tipos = tipos
+  async function comecar({ luta, resumo, nomes, defs, tipos, vel = null }) {
+    B.luta = luta; B.resumo = resumo ?? null; B.nomes = nomes; B.defs = defs; B.tipos = tipos
+    if (VELS.includes(vel)) B.vel = vel
+    raiz.classList.remove('pausado', 'b-sundown'); palco.classList.remove('lento'); B.lentoAte = 0
+    for (const el of palco.querySelectorAll('.b-selao')) el.remove()
     B.i = -1; B.pular = false; B.pausado = false; B.acabou = false; B.vis = {}; B.sol = 0; B.laranja = 0
     B.stats = { dano: {}, maior: { valor: 0, carta: null } }
     B.estado = null
@@ -318,7 +358,7 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
         if (t === 'A' && ev.valor > B.stats.maior.valor) B.stats.maior = { valor: ev.valor, carta: ev.carta }
       }
       for (const v of Object.values(B.vis)) { v.pose = 'idle'; v.avanco = 0 }
-      esconderFaixa()
+      esconderFaixa(); $('#bChip', raiz).hidden = true
       B.i = luta.passos.length - 1
       mostrar(luta.passos[luta.passos.length - 1].estado)
       B.pular = false
@@ -336,24 +376,26 @@ export function criarBatalha({ raiz, ganchos, opcoes }) {
       n.hidden = false
       const pA = Math.round((r.pct.A / 3) * 100), pB = Math.round((r.pct.B / 3) * 100)
       n.innerHTML = `<h3>Nightfall</h3><p>${TERMOS.nightfall.replace(/^Nightfall: a/, 'A')}</p>
-        <div class="b-noite__barras"><div><span>Your team</span><div class="b-noite__b"><i style="--p:${pA}%"></i></div><b>${pA}%</b></div>
-        <div><span>Rival</span><div class="b-noite__b b"><i style="--p:${pB}%"></i></div><b>${pB}%</b></div></div>`
+        <div class="b-noite__barras"><div><span>Your patrol</span><div class="b-noite__b"><i style="--p:${pA}%"></i></div><b>${pA}%</b></div>
+        <div><span>The guard</span><div class="b-noite__b b"><i style="--p:${pB}%"></i></div><b>${pB}%</b></div></div>`
       try { await espera(1600) } catch {}
       n.hidden = true
     }
     B.acabou = true; B.rodando = false
     const venceu = r.vencedor === 'A'
-    const motivo = noite ? 'Nightfall: higher team HP % wins.' : r.motivo === 'desempate' ? 'Both teams fell together: a coin decided it.' : r.motivo === 'tesoura' ? (venceu ? 'The Sundown wore the rivals out.' : 'The Sundown wore your team out.') : venceu ? 'Every rival is out.' : 'Your whole team is out.'
+    const motivo = noite ? 'Nightfall: higher team HP % wins.' : r.motivo === 'desempate' ? 'Both teams fell together: a coin decided it.' : r.motivo === 'tesoura' ? (venceu ? 'The Sundown wore the guard out.' : 'The Sundown wore your patrol out.') : venceu ? 'The whole guard is out.' : 'Your whole patrol is out.'
     const f = $('#bFim', raiz)
     f.className = 'b-fim ' + (venceu ? 'vitoria' : 'derrota')
     $('#bFimTit', raiz).textContent = venceu ? 'Victory!' : 'Defeat'
     $('#bFimMot', raiz).textContent = motivo
     $('#bN1', raiz).textContent = r.turno
-    $('#bN2', raiz).textContent = B.stats.dano.A ?? 0
+    $('#bN2', raiz).textContent = B.resumo ? B.resumo.forteDados : B.stats.dano.A ?? 0
+    $('#bN2r', raiz).textContent = B.resumo ? 'Strong hits' : 'Damage dealt'
     $('#bN3', raiz).textContent = B.stats.maior.valor
     $('#bN3r', raiz).textContent = B.stats.maior.carta ? `Biggest hit · ${nomeDaHabilidade(B.stats.maior.carta)}` : 'Biggest hit'
     f.hidden = false
     atualizarBotoes()
+    som(venceu ? 'vitoria' : 'derrota')
     ganchos?.fim?.(r)
   }
 

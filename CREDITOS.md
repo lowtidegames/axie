@@ -13,3 +13,5 @@ Tudo no Frayz é próprio (arte, nomes, cartas, sons), menos o que está nesta l
 - Os arquivos não foram alterados. As fontes são servidas junto com o jogo, sem ligação a servidor de fora.
 - A OFL pede que o aviso de direito autoral e o texto da licença acompanhem os arquivos: estão na mesma pasta das fontes.
 - No aviso da Lilita One, o endereço de e-mail do autor (que vem entre parênteses no original) foi omitido, porque a guarda de privacidade do repositório não deixa subir endereço de e-mail. O resto do texto está igual ao do pacote.
+
+- Arte em pixel art do piloto (monstros, cenários, ovo, lugares e ícones): imagens geradas no PixelLab pela conta do estúdio, tratadas pelo estúdio; arquivos em `public/piloto/arte/`.

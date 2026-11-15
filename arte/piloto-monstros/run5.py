@@ -1,0 +1,4 @@
+from mon import *
+gerar('/edit-image-pixen', dict(image=b64('bruto/desfiado-idle-2-espelhado.png'), description="same seahorse creature, keep the S-curve body and curled tail, tilting forward in an attack, mouth open, both blue fins pointed forward like lances", no_background=True), 'desfiado-attack', 2, 'desfiado-attack-2.png', 'edit-image-pixen sobre desfiado espelhado; 1a virou dragao')
+gerar('/edit-image-pixen', dict(image=b64('bruto/ovo-inteiro-2.png'), description="same egg, zigzag cracks across the shell, faint light shining through the cracks", no_background=True), 'ovo-rachado', 1, 'ovo-rachado-1.png', 'ref ovo-inteiro-2')
+gerar('/edit-image-pixen', dict(image=b64('bruto/ovo-inteiro-2.png'), description="same egg, broken open, two jagged shell halves and small shell fragments, empty inside", no_background=True), 'ovo-aberto', 1, 'ovo-aberto-1.png', 'ref ovo-inteiro-2')

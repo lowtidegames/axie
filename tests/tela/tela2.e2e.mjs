@@ -243,7 +243,7 @@ async function rodarFormato(fmt) {
   confere((await page.locator('#avMapa .av-estacao:disabled').count()) === 3 && (await page.locator('#avMapa .av-estacao.vencida').count()) === 1, 'mapa mostra a fase 1 vencida e a 2 liberada')
   await clique('#btnMudo')
   confere((await page.locator('#btnMudo').getAttribute('aria-pressed')) === 'true' && await page.evaluate(() => window.__frayz.Som.estaMudo()), 'botão de mudo liga o mudo')
-  confere(await page.evaluate(() => localStorage.getItem('frayz_mudo') === '1'), 'mudo fica guardado')
+  confere(await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('frayz_som') || 'null')?.mudo === true } catch { return false } }), 'mudo fica guardado')
   await clique('#btnMudo')
   confere(!(await page.evaluate(() => window.__frayz.Som.estaMudo())), 'botão de mudo desliga o mudo')
   // aventura: "Menos animação" não tira o som

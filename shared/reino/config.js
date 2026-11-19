@@ -137,7 +137,7 @@ export const INVASORES = {
 }
 
 export const HORDA = {
-  pontosBase: 4,
+  pontosBase: 1, // rodada r: 1 + 3·r pontos (rodada 1 = 2 Munchers)
   pontosPorRodada: 3,
   escalaPorRodada: 14, // vida e dano × (1 + 0,14·(r−1))
   partes: [60, 40], // 2 tipos sorteados levam 60% e 40% dos pontos; a sobra vira Munchers

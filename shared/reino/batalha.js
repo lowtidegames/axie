@@ -343,8 +343,10 @@ export function simularBatalha({ terrenos, reliquias = [], horda, eventos = true
       }
       // corpo a corpo: sai atrás de inimigo perto do seu terreno e volta
       const busca = c.busca || B.saida
-      // também vai atrás de atirador que já o alcança (senão o atirador fica parado fora do alcance para sempre)
-      const alvo = maisPerto(vis, s.x, (u) => Math.abs(u.x - s.casa) <= busca || (u.alcance > B.corpo && Math.abs(u.x - s.x) <= u.alcance))
+      // também vai atrás de atirador que já o alcança (senão o atirador fica parado fora do alcance para sempre);
+      // quem explode (Squib) não gasta a bomba em invasor que já vai cair neste passo
+      const alvo = maisPerto(vis, s.x, (u) => (Math.abs(u.x - s.casa) <= busca || (u.alcance > B.corpo && Math.abs(u.x - s.x) <= u.alcance)) &&
+        !(c.explode && u.pend >= u.hp))
       const passo = B.velSoldado / 10
       if (alvo) {
         const dx = alvo.x - s.x

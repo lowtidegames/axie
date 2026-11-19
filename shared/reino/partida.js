@@ -1,4 +1,4 @@
-// Keepmile — a máquina da partida: pura e determinística (sem Math.random e sem relógio).
+// Keepmile — a máquina da partida: pura e determinística (sem sorteio de fora e sem relógio).
 // A semente decide só cartas, hordas e espólios; a batalha não tem dado. O servidor refaz a partida com reproduzir().
 //
 // API:
@@ -48,7 +48,7 @@ function sortearCarta(e, pool, fora = []) {
   return null
 }
 
-function chefeDaRodada(r) {
+export function chefeDaRodada(r) {
   if (r % HORDA.chefeACada !== 0) return null
   return CHEFES[(r / HORDA.chefeACada - 1) % CHEFES.length]
 }
@@ -99,7 +99,8 @@ function novaOferta(e) {
   const oferta = []
   let levelUp = false
   if (e.rodada === 1) {
-    const tropas = e.liberadas.filter((id) => CARTAS[id].tipo === 'tropa')
+    // rodada 1: três Tropas diferentes que lutam (Soup Carrier sozinho não vence ninguém)
+    const tropas = e.liberadas.filter((id) => CARTAS[id].tipo === 'tropa' && CARTAS[id].dano > 0)
     while (oferta.length < 3) { const c = sortearCarta(e, tropas, oferta); if (!c) break; oferta.push(c) }
   } else {
     const sobe = [...new Set(e.terrenos.filter((t) => t && t.nivel < P.nivelMax).map((t) => t.carta))]
@@ -122,14 +123,14 @@ function abrirRodada(e) {
 
 // ---------------------------------------------------------------- criar
 function validarLiberadas(lista) {
-  if (lista === undefined) return ALBUM.inicial.slice()
+  if (lista === undefined) lista = ALBUM.inicial
   if (!Array.isArray(lista) || lista.length > Object.keys(CARTAS).length) throw new Error('Lista de cartas liberadas inválida')
   const vistos = new Set()
   for (const id of lista) {
     if (typeof id !== 'string' || !Object.hasOwn(CARTAS, id) || vistos.has(id)) throw new Error(`Carta liberada inválida: ${String(id)}`)
     vistos.add(id)
   }
-  if (lista.filter((id) => CARTAS[id].tipo === 'tropa').length < 3) throw new Error('São precisas pelo menos 3 Tropas liberadas')
+  if (lista.filter((id) => CARTAS[id].tipo === 'tropa' && CARTAS[id].dano > 0).length < 3) throw new Error('São precisas pelo menos 3 Tropas que lutam')
   // ordem fixa (a do config), para a mesma lista em outra ordem dar a mesma partida
   return Object.keys(CARTAS).filter((id) => vistos.has(id))
 }

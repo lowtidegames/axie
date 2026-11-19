@@ -58,3 +58,9 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 |---|---|---|---|---|---|
 | R1 | O jogo em 1 página | diretor | docs/reino/jogo.md | — | PRONTO (versão 2, com os ajustes dos conselheiros; espera o dono: tema e ordem de fazer o piloto) |
 | R2 | Conselheiros na página: guardião, diversão, economista | guardiao (Sonnet), conselheiro-de-diversao (Fable), economista | só leitura | R1 | PRONTO (guardião 74 sem veto; diversão 68, ~85 com os ajustes; economista 60: falta medir receita no beta e parecer de advogado) |
+| R3 | BÍBLIA DO JOGO: cartas (30; 10 no piloto), tropas, construções, magias, invasores, chefes, regra exata da batalha, espólios, ouro, álbum, números provisórios, tudo curto e pronto para o motor | designer-de-jogo (Fable) | docs/reino/biblia.md | R1 | RODANDO (18:30) |
+| R4 | DIREÇÃO DE ARTE: estilo pixel art, paleta, tamanhos, câmera e luz, interface, lista de peças e como produzir cada uma (gerador dentro do teto + código), com provas | general-purpose (Fable) | docs/reino/arte.md, arte/reino/ | R1 | RODANDO (18:30) |
+| R5 | DIREÇÃO DE SOM: efeitos, música por momento, mixagem, lista do que gerar (ElevenLabs dentro do teto) e do que fabricar por código | general-purpose (Fable) | docs/reino/som.md | R1 | RODANDO (18:30) |
+| R6 | MOTOR do jogo de reino (determinístico, servidor decide, refaz a partida pela semente) + simulador de equilíbrio | general-purpose (Opus) | shared/reino/, tools/, tests/servidor/ | R3 | FILA |
+| R7 | TELA do jogo de reino | general-purpose (Fable) | public/reino/, tests/tela/ | R4, R6 | FILA |
+

@@ -1,5 +1,88 @@
 {
   "versao": 1,
-  "nota": "Amostras gravadas do Reino. Vazio = tudo fabricado por código. Formato: \"evento\": [{ \"arquivo\": \"nome-1.mp3\" }]",
-  "efeitos": {}
+  "nota": "Amostras do Reino (ElevenLabs, 19/11/2026), medidas e nao ouvidas. Sem amostra = som por codigo. Formato: \"evento\": [{ \"arquivo\": \"nome-1.mp3\" }]",
+  "efeitos": {
+    "choque": [
+      {
+        "arquivo": "choque-1.mp3"
+      },
+      {
+        "arquivo": "choque-2.mp3"
+      },
+      {
+        "arquivo": "choque-3.mp3"
+      }
+    ],
+    "marcha": [
+      {
+        "arquivo": "marcha-1.mp3"
+      },
+      {
+        "arquivo": "marcha-2.mp3"
+      }
+    ],
+    "casteloRacha": [
+      {
+        "arquivo": "casteloRacha-1.mp3"
+      },
+      {
+        "arquivo": "casteloRacha-2.mp3"
+      },
+      {
+        "arquivo": "casteloRacha-3.mp3"
+      }
+    ],
+    "muralha": [
+      {
+        "arquivo": "muralha-1.mp3"
+      },
+      {
+        "arquivo": "muralha-2.mp3"
+      },
+      {
+        "arquivo": "muralha-3.mp3"
+      }
+    ],
+    "chefeEntra": [
+      {
+        "arquivo": "chefeEntra-1.mp3"
+      },
+      {
+        "arquivo": "chefeEntra-2.mp3"
+      },
+      {
+        "arquivo": "chefeEntra-3.mp3"
+      }
+    ],
+    "flecha": [
+      {
+        "arquivo": "flecha-1.mp3"
+      },
+      {
+        "arquivo": "flecha-2.mp3"
+      }
+    ],
+    "espolio": [
+      {
+        "arquivo": "espolio-1.mp3"
+      },
+      {
+        "arquivo": "espolio-2.mp3"
+      },
+      {
+        "arquivo": "espolio-3.mp3"
+      }
+    ],
+    "recorde": [
+      {
+        "arquivo": "recorde-1.mp3"
+      },
+      {
+        "arquivo": "recorde-2.mp3"
+      },
+      {
+        "arquivo": "recorde-3.mp3"
+      }
+    ]
+  }
 }

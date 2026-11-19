@@ -345,6 +345,41 @@ cabecalho('Amostra gravada (manifesto de teste) no lugar do código')
   await p.close()
 }
 
+// ================================================================== 10b. amostras reais do manifesto (arquivo por arquivo)
+cabecalho('Amostras reais do manifesto: carrega, pico, duração, começo sem atraso, tamanho')
+{
+  const dirSons = path.join(PASTA, 'sons'), man = JSON.parse(fs.readFileSync(path.join(dirSons, 'manifesto.json'), 'utf8'))
+  const alvos = { choque: -11, marcha: -13, casteloRacha: -7, muralha: -11, chefeEntra: -7, flecha: -14, espolio: -11, recorde: -8 }
+  const arqs = []; for (const [nome, lista] of Object.entries(man.efeitos || {})) for (const it of lista) arqs.push({ nome, arquivo: it.arquivo })
+  if (arqs.length === 0) console.log('  (manifesto vazio: nada a conferir)')
+  else {
+    const p = await ctxPc.newPage(); vigiar(p); await p.goto(FOLHA)
+    const medidas = await p.evaluate(async (lista) => {
+      const ac = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 44100, 44100), out = []
+      for (const it of lista) {
+        try {
+          const r = await fetch('./sons/' + it.arquivo); if (!r.ok) { out.push({ ...it, erro: 'http ' + r.status }); continue }
+          const b = await ac.decodeAudioData(await r.arrayBuffer()), d = b.getChannelData(0); let pico = 0
+          for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > pico) pico = Math.abs(d[i])
+          const lim = pico * 0.0316; let ini = -1; for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > lim) { ini = i; break }
+          out.push({ ...it, canais: b.numberOfChannels, dur: b.duration * 1000, pico, iniMs: ini / b.sampleRate * 1000 })
+        } catch (e) { out.push({ ...it, erro: String(e) }) }
+      }
+      return out
+    }, arqs)
+    for (const m of medidas) {
+      const tam = fs.statSync(path.join(dirSons, m.arquivo)).size, db = m.pico > 0 ? 20 * Math.log10(m.pico) : -99
+      confere(!m.erro && m.canais === 1 && m.dur >= 150 && m.dur <= 1600 && db <= -3 && Math.abs(db - alvos[m.nome]) <= 2.5 && m.iniMs <= 20 && tam <= 300 * 1024,
+        `${m.arquivo}: carrega, mono, ${n1(m.dur)} ms, pico ${n1(db)} dBFS (alvo ${alvos[m.nome]}), começa em ${n1(m.iniMs)} ms, ${Math.round(tam / 1024)} KB${m.erro ? ' ERRO ' + m.erro : ''}`)
+    }
+    const total = fs.readdirSync(dirSons).reduce((s, f) => s + fs.statSync(path.join(dirSons, f)).size, 0)
+    confere(total < 3 * 1024 * 1024, `pasta public/reino/sons/ com ${Math.round(total / 1024)} KB (limite 3 MB)`)
+    const porEv = {}; for (const m of medidas) porEv[m.nome] = (porEv[m.nome] || 0) + 1
+    confere(Object.values(porEv).every((k) => k >= 1 && k <= 3), 'cada evento do manifesto tem de 1 a 3 variações: ' + JSON.stringify(porEv))
+    await p.close()
+  }
+}
+
 // ================================================================== 11. em subpasta
 cabecalho('Em subpasta (caminhos relativos)')
 {

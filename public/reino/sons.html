@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kingdom — sound sheet</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --fundo: #1d1a26; --papel: #2a2536; --borda: #4a4160; --texto: #f3ead7; --fraco: #b9aecb; --ouro: #f2c14e; --verde: #7bd389; --rubi: #e4576b; --azul: #6fb7e8 }
+  * { box-sizing: border-box }
+  body { margin: 0; padding: 16px; background: var(--fundo); color: var(--texto); font: 15px/1.4 system-ui, sans-serif }
+  h1 { margin: 0 0 4px; font-size: 22px } h2 { margin: 22px 0 8px; font-size: 16px; color: var(--ouro) }
+  p { margin: 4px 0; color: var(--fraco) } main { max-width: 980px; margin: 0 auto }
+  .barra { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 10px 12px; margin: 10px 0; background: var(--papel); border: 1px solid var(--borda); border-radius: 12px }
+  .barra label { display: flex; align-items: center; gap: 6px; color: var(--fraco) }
+  input[type=range] { width: 110px; accent-color: var(--ouro) }
+  button { font: inherit; color: var(--texto); background: #383149; border: 1px solid var(--borda); border-radius: 10px; padding: 10px 12px; min-height: 44px; cursor: pointer; text-align: left }
+  button:hover { border-color: var(--ouro) } button:active, button.tocou { background: #4b4163 }
+  button.grande { background: var(--ouro); color: #2a2110; border-color: var(--ouro); font-weight: 700 }
+  button.ativo { border-color: var(--verde); box-shadow: inset 0 0 0 1px var(--verde) }
+  button small { display: block; color: var(--fraco); font-size: 12px } button.grande small { color: #5a4a1c }
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px }
+  #medidor { width: 130px; height: 14px; background: #14121b; border: 1px solid var(--borda); border-radius: 7px; overflow: hidden }
+  #medidor i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--verde), var(--ouro) 70%, var(--rubi)) }
+  #fase { min-height: 22px; color: var(--azul); font-weight: 600 }
+  .p1 { border-left: 4px solid var(--rubi) } .p2 { border-left: 4px solid var(--ouro) } .p3 { border-left: 4px solid var(--azul) } .p4 { border-left: 4px solid var(--borda) }
+</style>
+</head>
+<body>
+<main>
+  <h1>Kingdom — sound sheet</h1>
+  <p>Every sound here is made by code in your browser. Tap anything to listen. Left edge colour = priority (red never drops, grey drops first).</p>
+
+  <div class="barra">
+    <button id="mudo" aria-pressed="false">Sound on</button>
+    <label>Effects <input id="vol-efeitos" type="range" min="0" max="1" step="0.05"></label>
+    <label>Music <input id="vol-musica" type="range" min="0" max="1" step="0.05"></label>
+    <label><input id="menos" type="checkbox"> Less animation</label>
+    <div id="medidor" title="output level"><i></i></div>
+    <span id="vozes">0 voices</span>
+  </div>
+
+  <h2>One full round</h2>
+  <button id="simular" class="grande">Simulate a round<small>cards → pick → place → invader → 12 s battle → victory → loot</small></button>
+  <p id="fase">&nbsp;</p>
+
+  <h2>Music — the Kingdom theme in layers</h2>
+  <p>The change always lands on the next bar line. The round number makes it a little faster and adds layers (at 6, 8 and 11).</p>
+  <div class="grade" id="momentos"></div>
+  <div class="barra" style="position: static">
+    <label>Round <input id="rodada" type="range" min="1" max="15" step="1" value="1"> <b id="rodada-n">1</b></label>
+    <button id="parar">Stop music</button>
+    <span id="musica-estado">music stopped</span>
+  </div>
+
+  <div id="efeitos"></div>
+</main>
+<script type="module">
+import { Som, Musica } from './som-reino.js'
+
+const $ = (id) => document.getElementById(id)
+const ROTULOS = {
+  toque: 'Button tap', cartaAparece: 'Card appears', cartaEscolhe: 'Pick a card', cartaPoe: 'Place on land', sortear: 'Re-roll cards', ouro: 'Gold', negado: 'Not enough gold', faltaUm: '1 more to level up', consertar: 'Repair a life',
+  nivelPequeno: 'Level up (small)', nivelGrande: 'Level up (big)', marcha: 'Troops march', choque: 'Troops clash', espada: 'Sword hit', flecha: 'Arrow', magiaFogo: 'Magic: fire', magiaGelo: 'Magic: ice', magiaRaio: 'Magic: lightning', magiaCura: 'Magic: heal',
+  critico: 'Critical hit', soldadoCai: 'Soldier falls', muralha: 'Wall hit', casteloRacha: 'Castle cracks', vidaPerdida: 'Life lost', invasorChega: 'Invader arrives', chefeAnuncia: 'Boss announced', chefeEntra: 'Boss enters', chefeCai: 'Boss falls',
+  vitoria: 'Victory', espolio: 'Loot appears', espolioEscolhe: 'Pick loot', derrota: 'Defeat', fimDePartida: 'End of match', recorde: 'New record', rankingSobe: 'Ranking climbs', cartaNova: 'New card unlocked', conquista: 'Achievement',
+}
+const GRUPOS = { 'interface': 'Interface', 'nível': 'Level up', 'batalha': 'Battle', 'invasor': 'Invader', 'chefe': 'Boss', 'resultado': 'End of battle', 'fim': 'End of match', 'álbum': 'Album and achievements' }
+const MOMENTOS = { construir: 'Build (calm)', batalha: 'Battle (drums come in)', chefe: 'Boss (tense, minor)', porUmFio: 'Last life (muffled, heartbeat)', vitoria: 'Victory (short party)', derrota: 'Defeat (minor, no drums)', fim: 'End and record (party)', menu: 'Menu and album (lute only)' }
+
+// nada toca antes do primeiro toque: o motor só liga aqui
+for (const tipo of ['pointerdown', 'touchend', 'click', 'keydown']) window.addEventListener(tipo, () => Som.destravar(), { capture: true })
+
+// ---- efeitos: um botão por acontecimento, agrupados
+const tabela = Som.tabela(), caixa = $('efeitos')
+for (const [camada, titulo] of Object.entries(GRUPOS)) {
+  const lista = tabela.filter((e) => e.camada === camada); if (!lista.length) continue
+  const h = document.createElement('h2'); h.textContent = titulo; caixa.append(h)
+  const g = document.createElement('div'); g.className = 'grade'; caixa.append(g)
+  for (const e of lista) {
+    const b = document.createElement('button'); b.className = 'p' + e.pri; b.dataset.som = e.nome
+    b.innerHTML = `${ROTULOS[e.nome] || e.nome}<small>${e.ms} ms · ${e.vars} take${e.vars > 1 ? 's' : ''}</small>`
+    b.addEventListener('click', () => { Som.destravar(); Som.tocar(e.nome); b.classList.add('tocou'); setTimeout(() => b.classList.remove('tocou'), 120) })
+    g.append(b)
+  }
+}
+// ---- música
+for (const { nome } of Musica.momentos()) {
+  const b = document.createElement('button'); b.dataset.momento = nome; b.textContent = MOMENTOS[nome] || nome
+  b.addEventListener('click', () => { Som.destravar(); Musica.momento(nome) })
+  $('momentos').append(b)
+}
+$('parar').addEventListener('click', () => Musica.parar())
+$('rodada').addEventListener('input', (ev) => { Musica.rodada(ev.target.value); $('rodada-n').textContent = ev.target.value })
+
+// ---- controles (guardados no aparelho pelo motor)
+function pintar() {
+  $('mudo').textContent = Som.mudo() ? 'Sound off' : 'Sound on'; $('mudo').setAttribute('aria-pressed', String(Som.mudo()))
+  $('vol-efeitos').value = Som.volume('efeitos'); $('vol-musica').value = Som.volume('musica'); $('menos').checked = Som.menosAnimacao()
+}
+$('mudo').addEventListener('click', () => { Som.alternarMudo(); pintar() })
+$('vol-efeitos').addEventListener('input', (ev) => Som.volume('efeitos', ev.target.value))
+$('vol-musica').addEventListener('input', (ev) => Som.volume('musica', ev.target.value))
+$('menos').addEventListener('change', (ev) => Som.menosAnimacao(ev.target.checked))
+pintar()
+
+let picoVisto = 0
+setInterval(() => {
+  const p = Som.picoAoVivo(), em = Musica.estado(), es = Som.estado()
+  picoVisto = Math.max(p, picoVisto * 0.85); window.__picoMax = Math.max(window.__picoMax || 0, p)
+  $('medidor').firstElementChild.style.width = Math.min(100, picoVisto / 0.71 * 100) + '%'
+  $('vozes').textContent = es.vozes + ' voice' + (es.vozes === 1 ? '' : 's')
+  $('musica-estado').textContent = em.tocando && em.momento ? `playing: ${em.momento} · ${Math.round(em.bpm)} bpm · bar ${em.compasso}${em.pendente && em.pendente !== em.momento ? ' → ' + em.pendente + ' at the bar line' : ''}` : 'music stopped'
+  for (const b of $('momentos').children) b.classList.toggle('ativo', em.tocando && b.dataset.momento === em.momento)
+}, 60)
+
+// ---- uma rodada inteira: cartas → escolher → pôr → invasor chega → batalha de 12 s → vitória → espólio
+const RODADA = [
+  [0, 'Cards are dealt', () => { Musica.momento('construir'); Som.tocar('cartaAparece', { pan: -0.5 }) }],
+  [150, null, () => Som.tocar('cartaAparece')], [300, null, () => Som.tocar('cartaAparece', { pan: 0.5 })],
+  [1700, 'You pick a card', () => Som.tocar('cartaEscolhe')],
+  [2500, 'You place it on a land', () => Som.tocar('cartaPoe')],
+  [3800, 'The invader arrives', () => { Som.tocar('invasorChega'); Musica.momento('batalha') }],
+  [5000, 'Your troops march out', () => Som.tocar('marcha')],
+  [6000, 'Battle (12 s)', () => { Som.tocar('choque'); Som.fundoBatalha(0.6) }],
+  [7200, null, () => Som.tocar('flecha', { pan: -0.4 })], [7500, null, () => Som.tocar('flecha', { pan: -0.2 })],
+  [9000, null, () => Som.fundoBatalha(1)], [9600, null, () => Som.tocar('magiaFogo', { pan: 0.3 })],
+  [11200, null, () => Som.tocar('muralha', { pan: -0.5 })], [12400, null, () => Som.tocar('flecha', { pan: -0.3 })],
+  [13400, null, () => Som.tocar('critico', { pan: 0.4 })], [15000, null, () => Som.fundoBatalha(0.5)], [16800, null, () => Som.fundoBatalha(0.25)],
+  [18000, 'Victory!', () => { Som.fundoBatalha(0); Som.tocar('vitoria'); Musica.momento('vitoria') }],
+  [20200, 'Loot: pick 1 of 3', () => Som.tocar('espolio')],
+  [21200, null, () => Som.tocar('espolioEscolhe')],
+  [21650, 'Gold', () => Som.tocar('ouro')], [21800, null, () => Som.tocar('ouro', { tom: 2 })], [21950, null, () => Som.tocar('ouro', { tom: 4 })],
+  [23500, 'Next round: back to building', () => Musica.momento('construir')],
+  [24500, '', () => { window.__sim.fim = true }],
+]
+window.__sim = { rodando: false, fim: false, fases: [] }
+let relogios = []
+$('simular').addEventListener('click', () => {
+  Som.destravar(); relogios.forEach(clearTimeout); Som.fundoBatalha(0)
+  window.__sim = { rodando: true, fim: false, fases: [] }
+  relogios = RODADA.map(([ms, fase, fazer]) => setTimeout(() => {
+    if (fase !== null) { $('fase').textContent = fase || ' '; if (fase) window.__sim.fases.push(fase) }
+    fazer(); if (window.__sim.fim) window.__sim.rodando = false
+  }, ms))
+})
+window.__reino = { Som, Musica }
+</script>
+</body>
+</html>

@@ -90,6 +90,48 @@ EDIT.update({
  'tampa-passo': ('tampa', "same ogre, same colors and size, facing left, walking to the left, mid-stride with one foot forward and one foot back, pot lid shield in front"),
 })
 
+# ---- R11 (arte completa): as 7 tropas, 4 invasores e 3 chefes que faltavam, sempre por edicao de uma peca ja aceita
+SEM = ", no spear, no shield, no helmet, no symbols"
+IMP = "same imp, same violet skin, same lime-green eyes, same outline, facing left, "
+OGRO = "same pixel art style, same dark violet skin, same glowing lime-green eyes, same outline, facing left, "
+EDIT.update({
+ 'sirdent': ('lanceiro', MESMO + "but now one big stout knight: closed steel bucket helmet with a very tiny red feather plume, very round barrel-shaped dented steel armor like a ball, holding a huge broad sword upright in front, no shield, no spear, no symbols"),
+ 'vovo': ('lanceiro', MESMO + "but now a tiny old granny: grey hair bun, round glasses, green knitted shawl, long dark green dress to the feet, holding a gigantic wooden crossbow bigger than her, pointing to the right" + SEM),
+ 'falcoeira': ('lanceiro', MESMO + "but now a falconer girl: short green cape, green cap with one feather, one arm with a leather glove raised up high and a brown falcon perched on the glove" + SEM),
+ 'sopeiro': ('lanceiro', MESMO + "but now a soup carrier: orange tunic, white head scarf, a long wooden yoke pole across the shoulders with two wooden buckets of soup hanging, one on each side" + SEM),
+ 'torteiro': ('lanceiro', MESMO + "but now a baker: orange tunic, flat white baker cap, white apron, one arm pulled far back holding a round cream pie with a cherry on the open hand, ready to throw" + SEM),
+ 'ganso': ('lanceiro', "same pixel art style, same outline, same size, facing right, but replace the soldier with a plump white clockwork toy goose: long neck, orange beak, orange feet, a big brass wind-up key sticking out of its back, a bright pink scarf, brass rivets, no human, no weapon"),
+ 'faisqueiro': ('lanceiro', MESMO + "but now an old tinkerer wizard: tall crooked bright pink hat bent at the tip, wild spiky white beard standing on end, bright pink robe, holding a long wooden staff that ends in a two-pronged metal fork with a yellow spark" + SEM),
+ 'bloater': ('invasor-b', IMP + "but now hugely bloated and round like a balloon: enormous swollen round belly, puffed cheeks, tiny arms and tiny legs, no club"),
+ 'toupeira': ('invasor-b', IMP + "but now a digger: leather miner cap with a small lit candle on top, big pale digging claws, a wooden shovel on the shoulder, no club"),
+ 'tambor': ('invasor-b', IMP + "but now a drummer: a big round wooden war drum strapped on his belly, two drumsticks raised high, no club"),
+ 'curandeiro': ('invasor-b', IMP + "but now a quack doctor: tall crooked black top hat, long ragged coat, holding up a round glass bottle of bubbling lime-green potion, no club"),
+ 'nip': ('chefe-1', OGRO + "but now a tall lanky thin ogre tailor boss with long arms and a small head: red pincushion hat with pins, measuring tape around the neck, striped vest, holding gigantic open iron scissors taller than him, no crown, no cape, no mace"),
+ 'tuck': ('nip-1', "same tall lanky ogre tailor, same colors and size, facing left, but holding a gigantic steel sewing needle like a spear with a red thread through its eye instead of the scissors, a thimble worn as a hat instead of the pincushion"),
+ 'moleworth': ('chefe-1', OGRO + "but now a giant fat mole lady boss: dark violet fur, long pink snout, tiny glasses, enormous pale digging claws, a huge fancy wide lady hat with a big feather and flowers, pearl necklace, no crown, no cape, no mace"),
+ 'gobble-golpe': ('chefe-1', "same giant ogre king, same colors and size, facing left, swinging the enormous iron mace down hard to the left, leaning forward, mouth wide open, crown still on the head, cape flying"),
+ 'nip-golpe': ('nip-1', "same tall lanky ogre tailor, same colors and size, facing left, lunging forward to the left, snapping the gigantic scissors shut far in front of him, mouth wide open"),
+ 'moleworth-golpe': ('moleworth-1', "same giant mole lady, same colors and size, facing left, slashing down hard to the left with one enormous claw stretched forward, leaning forward, mouth wide open, hat still on"),
+ 'sirdent-golpe': ('sirdent-1', "same knight, same colors and size, swinging the huge sword down forward to the right at full stretch, leaning forward, front leg bent"),
+ 'torteiro-golpe': ('torteiro-1', "same baker, same colors and size, arm stretched far forward to the right after throwing, leaning forward, front leg bent, hand empty, no pie"),
+ 'falcoeira-golpe': ('falcoeira-1', "same falconer, same colors and size, arm pointing forward to the right, the brown falcon flying off forward with wings spread wide"),
+})
+CASA2 = "same pixel art style, same front view angle, same size and same outline, same small grass base, but now "
+EDIT.update({
+ 'fletcher': ('cookhouse-1', CASA2 + "a fletcher's hut: green shingle roof instead of orange, no chimney, a bundle of long arrows leaning by the door, a wooden rack with bows in front instead of the cauldron, feathers hanging at the window, no flowers"),
+ 'market': ('cookhouse-1', CASA2 + "an open market stall: orange and cream striped cloth awning instead of the roof, wooden counter with baskets of apples, bread and a wheel of cheese, a small pile of gold coins, no chimney, no cauldron, no door"),
+ 'feasthall': ('cookhouse-1', CASA2 + "a wide grand feast hall: taller and wider, big orange shingle roof with two brick chimneys, large double wooden doors wide open with warm light inside, a long table with a roast in front instead of the cauldron"),
+ 'tinker': ('cookhouse-1', CASA2 + "a crooked tinker's workshop shed: bright pink shingle roof instead of orange, bent metal stovepipe chimney, brass gears and cogwheels on the wall, a workbench with tools and springs in front instead of the cauldron, no flowers"),
+ 'fuse': ('cookhouse-1', CASA2 + "a fireworks depot: bright pink shingle roof instead of orange, no chimney, stacked wooden powder barrels and rockets in front instead of the cauldron, coils of fuse rope hanging on the wall, a small warning lantern, no flowers"),
+})
+EDIT.update({
+ 'bunkhouse': ('cookhouse-1', CASA2 + "a soldiers' bunkhouse barracks: blue shingle roof instead of orange, no chimney, a wooden rack with spears and round shields in front instead of the cauldron, a straw training dummy, a small window with a bunk bed inside, no flowers, no symbols"),
+ 'sirdent-golpe2': ('sirdent-1', "same knight with exactly the same big helmet, same head size, same round body size and same colors, only the arms change: the huge sword swung down and pointing forward to the right at full stretch, leaning slightly forward"),
+})
+EDIT.update({
+ 'tampa-golpe2': ('tampa', "same ogre with exactly the same iron cooking pot helmet on the head, same head size, same body size, same colors and the same round pot lid shield held in front, only the mallet arm changes: the wooden mallet swung far forward and down to the left at full stretch, leaning slightly forward, mouth open"),
+})
+
 if __name__ == '__main__':
     peca, tent = sys.argv[1], int(sys.argv[2]); nota = sys.argv[3] if len(sys.argv) > 3 else ''
     if peca in EDIT:

@@ -43,12 +43,28 @@ def _vivo(a, sat=1.12, con=1.08):
     return hsv_mapa(a, fn)
 
 
+CORTE = {   # R11: predios editados da cookhouse -> (linha onde acaba, linha de onde tirar o verde, [recortes y0,y1,x0,x1])
+ 'bunkhouse-1': (43, 38, []), 'fletcher-1': (43, 38, []), 'market-1': (43, 39, []), 'feasthall-1': (42, 38, []),
+ 'tinker-1': (43, 38, []), 'fuse-1': (43, 38, []),
+}
+
+
 def base(nome):
     a = abrir(nome)
     if nome.startswith('cookhouse'):
         a[41:] = 0; a = _verde(a, 37); a[36:, :11] = 0; a[39:, 40:] = 0
     elif nome.startswith('smithy'):
         a[41:] = 0; a = _verde(a, 38); a[41, :] = 0
+    elif nome in CORTE:
+        y_fim, y_verde, extra = CORTE[nome]
+        a[y_fim:] = 0; a = _verde(a, y_verde)
+        for (y0, y1, x0, x1) in extra: a[y0:y1, x0:x1] = 0
+        import colorsys
+        for y in range(y_fim - 5, y_fim):                     # caminho bege e florzinhas rosa que vem assados no pe
+            for x in range(a.shape[1]):
+                if a[y, x, 3]:
+                    h, sa, v = colorsys.rgb_to_hsv(*(a[y, x, :3] / 255.0)); h *= 360
+                    if (28 <= h <= 52 and v > 0.8 and 0.25 < sa < 0.62 and y >= y_fim - 2) or ((h >= 325 or h <= 5) and sa > 0.3 and v > 0.7 and nome.startswith('feast')): a[y, x] = 0
     else:
         a[42:] = 0; a = _verde(a, 39); a[1:8, 30:] = 0        # tira a bandeira gerada: a do codigo balanca
     a = tirar_ilhas(a, 8)
@@ -131,16 +147,111 @@ def alicerce(im, x0, x1, y, alt):
     for x in range(x0 + 1, x1, 4): d.point((x, y - alt + 1), PEDRA[1] + (255,))
 
 
-PREDIOS = [
+M.update({'F': FAMILIA['Fizzwick'][1], 'j': FAMILIA['Fizzwick'][0], 'u': (120, 110, 140), 'U': (176, 170, 196), 'b': (214, 160, 60), 'B': (255, 226, 130), 't': (232, 64, 76)})
+ENGRENAGEM = bitmap([".b.b.b.", "bbBbbbb", ".bB.bb.", "bb...bb", ".bb.bb.", "bbbbbbb", ".b.b.b."], M)
+FOGUETE = bitmap(["..t..", ".tRt.", ".jFF.", ".jFF.", ".jFF.", ".eee.", "njFFn", "n.o.n", "..o.."], M)
+MOEDAS = bitmap(["...gG...", "..gGgh..", ".gGgghh.", "gGgggghh", "hhhhhhhh"], M)
+BELICHE = bitmap(["n......n", "nEEeeeen", "nnnnnnnn", "n......n", "nEEeeeen", "nnnnnnnn", "o......o"], M)
+CERCA = bitmap(["m..m..m..m", "mmmmmmmmmm", "n..n..n..n", "nnnnnnnnno", "n..n..n..o", "o..o..o..o"], M)
+PREDIOS = [   # os 3 do piloto primeiro (a folha 'reino' nao muda de lugar); os 7 novos vao para a folha 'reino2'
  dict(id='B01', nome='Smithy', familia='Pikewall', bruto='smithy-b-1', chamine=(26, 0), fogo=(8, 16, 22, 30), efeito='brasa'),
  dict(id='B04', nome='Watchtower', familia='Thornbow', bruto='watchtower-b-1', mastro=(14, 0), efeito='bandeirola'),
  dict(id='B06', nome='Cookhouse', familia='Potluck', bruto='cookhouse-1', chamine=(27, 0), fogo=(22, 22, 31, 30), efeito='fumaca'),
+ dict(id='B02', nome='Bunkhouse', familia='Pikewall', bruto='bunkhouse-1', efeito='bandeirola', nova=True, n3=[(ESPADAS, 'e', 0), (CAIXOTE, 'd', 1)], n5=[(ARMADURA, 'e', 9), (BELICHE, 'd', 10), (ALVO, 'e', 17)]),
+ dict(id='B03', nome='Stone Wall', familia='Pikewall', codigo='muralha', efeito='bandeirola', nova=True),
+ dict(id='B05', nome="Fletcher's Hut", familia='Thornbow', bruto='fletcher-1', efeito='bandeirola', nova=True, n3=[(ALJAVA, 'e', 0), (ALVO, 'd', 1)], n5=[(ALVO, 'd', 10), (ALJAVA, 'e', 8), (CAIXOTE, 'e', 15)], pisca=[(22, 18), (25, 19)]),
+ dict(id='B07', nome='Market Stall', familia='Potluck', bruto='market-1', efeito='brilho', nova=True, n3=[(SACO, 'e', 0), (CAIXOTE, 'd', 1)], n5=[(MOEDAS, 'd', 10), (BARRIL, 'e', 8), (SACO, 'e', 16)], pisca=[(2, 28), (5, 27), (22, 17)], mastro=(4, 0)),
+ dict(id='B08', nome='Feast Hall', familia='Potluck', bruto='feasthall-1', chamine=(5, 0), chamine2=(37, 0), fogo=(15, 19, 28, 31), efeito='fumaca', nova=True, n3=[(MESA, 'e', 0), (BARRIL, 'd', 1)], n5=[(BARRIL, 'e', 10), (MESA, 'd', 9), (SACO, 'd', 19)]),
+ dict(id='B09', nome="Tinker's Shed", familia='Fizzwick', bruto='tinker-1', chamine=(28, 1), efeito='fumaca', nova=True, n3=[(ENGRENAGEM, 'e', 0), (CAIXOTE, 'd', 1)], n5=[(ENGRENAGEM, 'd', 10), (BARRIL, 'e', 9), (ENGRENAGEM, 'e', 17)], pisca=[(22, 26), (27, 24), (11, 15)]),
+ dict(id='B10', nome='Fuse Depot', familia='Fizzwick', bruto='fuse-1', efeito='brilho', nova=True, n3=[(FOGUETE, 'e', 0), (BARRIL, 'd', 1)], n5=[(FOGUETE, 'd', 10), (FOGUETE, 'e', 7), (BARRIL, 'e', 14)], pisca=[(1, 20), (2, 19), (24, 18)]),
 ]
+
+
+def _cor_telhado(spr):
+    """3 tons do telhado: as cores vivas mais comuns na metade de cima da casa."""
+    import colorsys
+    from collections import Counter
+    c = Counter()
+    for y in range(0, spr.shape[0] // 2):
+        for x in range(spr.shape[1]):
+            if spr[y, x, 3]:
+                h, sa, v = colorsys.rgb_to_hsv(*(spr[y, x, :3] / 255.0))
+                if sa > 0.45 and v > 0.3: c[tuple(int(k) for k in spr[y, x, :3])] += 1
+    cs = sorted([k for k, _ in c.most_common(6)], key=lambda k: -sum(k)) or [MADEIRA[0], MADEIRA[1], MADEIRA[2]]
+    return [cs[0], cs[len(cs) // 2], cs[-1]]
+
+
+def anexo(T, quadro, lado=-1):
+    """Puxadinho do nivel 5 (por codigo): parede de enxaimel, telhado de uma agua na cor do telhado da casa, janela acesa."""
+    im = tela(16, 24); d = ImageDraw.Draw(im); P = [(240, 226, 196), (214, 192, 156), (170, 140, 112)]
+    d.rectangle((2, 9, 13, 23), fill=P[1] + (255,)); d.rectangle((2, 9, 4, 23), fill=P[0] + (255,)); d.rectangle((12, 9, 13, 23), fill=P[2] + (255,))
+    for x in (2, 13): d.line((x, 9, x, 23), fill=MADEIRA[1] + (255,))
+    d.line((2, 16, 13, 16), fill=MADEIRA[1] + (255,)); d.line((2, 23, 13, 23), fill=MADEIRA[2] + (255,)); d.line((3, 22, 7, 17), fill=MADEIRA[1] + (255,))
+    for i in range(8):                                        # telhado de uma agua, mais alto do lado da casa
+        y = 8 - i // 2 if lado < 0 else 5 + i // 2
+        x0 = i * 2
+        d.rectangle((x0, y, x0 + 1, y + 3), fill=T[1] + (255,)); d.rectangle((x0, y, x0 + 1, y), fill=T[0] + (255,)); d.rectangle((x0, y + 3, x0 + 1, y + 3), fill=T[2] + (255,))
+        if i % 3 == 1: d.point((x0, y + 2), T[2] + (255,))
+    jc = FOGO[1] if quadro % 2 == 0 else FOGO[0]
+    d.rectangle((8, 11, 11, 14), fill=MADEIRA[2] + (255,)); d.rectangle((9, 12, 10, 13), fill=jc + (255,))
+    return contornar(im, AMEIXA)
+
+
+def muralha(nivel, quadro):
+    """Stone Wall (B03), 100% por codigo: pano de muralha com ameias; n3 ganha torre; n5 fica mais alta, com 2 torres, tocha e escudos lisos."""
+    alt = {1: 20, 3: 25, 5: 31}[nivel]; larg = {1: 40, 3: 46, 5: 54}[nivel]
+    im = tela(larg + 8, alt + 26); d = ImageDraw.Draw(im); base_y = im.height - 1; x0 = 4; x1 = x0 + larg - 1; y0 = base_y - alt
+    def pano(xa, xb, ya, yb, ameia=True):
+        d.rectangle((xa, ya, xb, yb), fill=PEDRA[1] + (255,)); d.rectangle((xa, ya, xa + 1, yb), fill=PEDRA[0] + (255,)); d.rectangle((xb - 1, ya, xb, yb), fill=PEDRA[2] + (255,))
+        for j, yy in enumerate(range(ya + 3, yb, 4)):          # fiadas de pedra desencontradas
+            d.line((xa + 2, yy, xb - 2, yy), fill=PEDRA[2] + (255,))
+            for xx in range(xa + (3 if j % 2 else 6), xb - 1, 7): d.line((xx, yy - 3, xx, yy - 1), fill=PEDRA[2] + (255,))
+            for xx in range(xa + (5 if j % 2 else 2), xb - 2, 9): d.point((xx, yy - 2), PEDRA[0] + (255,))
+        d.rectangle((xa, yb - 1, xb, yb), fill=PEDRA[3] + (255,)); d.rectangle((xa, ya, xb, ya), fill=PEDRA[0] + (255,))
+        if ameia:
+            for xx in range(xa, xb - 1, 6):
+                d.rectangle((xx, ya - 4, xx + 3, ya), fill=PEDRA[1] + (255,)); d.rectangle((xx, ya - 4, xx + 3, ya - 4), fill=PEDRA[0] + (255,)); d.rectangle((xx + 3, ya - 3, xx + 3, ya), fill=PEDRA[2] + (255,))
+    pano(x0, x1, y0, base_y)
+    for xx in range(x0 + 3, x1 - 3, 11):                      # musgo no pe
+        d.point([(xx, base_y - 2), (xx + 1, base_y - 2), (xx + 1, base_y - 3)], GRAMA[2] + (255,)); d.point((xx, base_y - 3), GRAMA[1] + (255,))
+    cx = (x0 + x1) // 2                                       # portinhola de madeira
+    d.rectangle((cx - 4, base_y - 11, cx + 4, base_y - 1), fill=MADEIRA[2] + (255,)); d.rectangle((cx - 3, base_y - 10, cx + 3, base_y - 1), fill=MADEIRA[1] + (255,))
+    d.rectangle((cx - 3, base_y - 10, cx - 2, base_y - 1), fill=MADEIRA[0] + (255,)); d.line((cx, base_y - 10, cx, base_y - 1), fill=MADEIRA[2] + (255,)); d.point((cx + 2, base_y - 5), OURO + (255,))
+    d.rectangle((cx - 4, base_y - 12, cx + 4, base_y - 12), fill=PEDRA[3] + (255,)); d.point([(cx - 5, base_y - 11), (cx + 5, base_y - 11)], PEDRA[3] + (255,))
+    torres = {1: [], 3: [x0 - 2], 5: [x0 - 3, x1 - 10]}[nivel]
+    for tx in torres:
+        ty = y0 - (9 if nivel == 3 else 12)
+        pano(tx, tx + 13, ty, base_y)
+        d.rectangle((tx + 5, ty + 7, tx + 7, ty + 12), fill=AMEIXA + (255,)); d.rectangle((tx + 6, ty + 8, tx + 6, ty + 11), fill=(FOGO[1] if quadro % 2 else FOGO[2]) + (255,))   # seteira acesa
+    F = FAMILIA['Pikewall']
+    if nivel >= 3:                                            # escudos lisos (sem simbolo) pendurados
+        for xx in ([cx - 13, cx + 10] if nivel == 3 else [cx - 15, cx - 9, cx + 7, cx + 13]):
+            d.rectangle((xx, y0 + 5, xx + 4, y0 + 9), fill=F[1] + (255,)); d.rectangle((xx, y0 + 5, xx + 4, y0 + 5), fill=F[0] + (255,)); d.point([(xx + 1, y0 + 10), (xx + 2, y0 + 10), (xx + 3, y0 + 10), (xx + 2, y0 + 11)], F[2] + (255,))
+    if nivel == 5:                                            # tochas e friso de ouro
+        d.line((x0 + 14, y0 + 1, x1 - 14, y0 + 1), fill=OURO + (255,))
+        for xx in (cx - 7, cx + 7):
+            d.rectangle((xx, base_y - 16, xx, base_y - 12), fill=MADEIRA[2] + (255,))
+            pts = [(0, -17, 1), (0, -18, 0), ((-1, 1, 0, 1)[quadro], -19, 2)]
+            for (dx, dy, c) in pts: d.point((xx + dx, base_y + dy), FOGO[c] + (255,))
+    topo_torre = (y0 - (9 if nivel == 3 else 12) - 4) if torres else y0 - 4
+    return contornar(im, AMEIXA), torres, topo_torre
 
 
 def predio(p, nivel, quadro):
     """Um quadro (0..3) do predio no nivel 1, 3 ou 5."""
-    spr, _ = base(p['bruto']); F = FAMILIA[p['familia']]; rnd = random.Random(nivel * 7 + 1)
+    F = FAMILIA[p['familia']]; rnd = random.Random(nivel * 7 + 1)
+    if p.get('codigo') == 'muralha':
+        mu, torres, ytopo = muralha(nivel, quadro); im = tela(*CEL); x0 = AX - mu.width // 2; oy = CHAO - mu.height + 1; im.alpha_composite(mu, (x0, oy)); d = ImageDraw.Draw(im)
+        mx = x0 + 1 + (torres[0] + 7 if torres else mu.width // 2 - 1); my = oy + ytopo
+        topo = my - (6 if nivel == 1 else (8 if nivel == 3 else 10))
+        d.rectangle((mx, topo, mx, my), fill=MADEIRA[2] + (255,)); d.rectangle((mx - 1, topo, mx - 1, my), fill=AMEIXA + (255,))
+        im.alpha_composite(bandeirola(F, quadro, 8 if nivel < 5 else 11, 5 if nivel < 5 else 7), (mx, topo - 1))
+        if nivel == 5:
+            im.alpha_composite(contornar(ANCORA_OURO, mix(AMEIXA, (120, 80, 30), 0.3)), (mx - 2, topo - 4))
+            mx2 = x0 + 1 + torres[1] + 7; d.rectangle((mx2, topo + 2, mx2, my), fill=MADEIRA[2] + (255,)); d.rectangle((mx2 - 1, topo + 2, mx2 - 1, my), fill=AMEIXA + (255,))
+            im.alpha_composite(bandeirola(F, (quadro + 2) % 4, 8, 5), (mx2, topo + 1))
+        return de_img(im)
+    spr, _ = base(p['bruto'])
     if p['id'] == 'B04' and nivel > 1:                       # torre cresce de verdade: mais um lance de pernas
         k = 4 if nivel == 3 else 8
         spr = np.concatenate([spr[:19], spr[15:15 + k], spr[19:]])
@@ -150,7 +261,12 @@ def predio(p, nivel, quadro):
     im = tela(*CEL)
     x0 = AX - w // 2; y0 = CHAO - alt - h
     if alt: alicerce(im, x0 - 1 - alt // 2, x0 + w + alt // 2, CHAO, alt + 1)
-    casa = para_img(contorno_cor(spr)); im.alpha_composite(casa, (x0 - 1, y0 - 1))
+    if nivel == 5 and p['id'] != 'B04':                       # nivel 5 e MAIOR: puxadinho com telhado da cor da casa, atras
+        T = _cor_telhado(spr); an = anexo(T, quadro, -1); im.alpha_composite(an, (x0 - 12, CHAO - alt - an.height + 2))
+    casa = para_img(contorno(spr)); im.alpha_composite(casa, (x0 - 1, y0 - 1))                    # traco firme: 1 px ameixa, como os bonecos
+    if nivel == 5 and p['id'] != 'B04':                       # cumeeira de ouro
+        ys, xs = np.nonzero(spr[..., 3]); ytop = ys.min(); xt = xs[ys == ytop]
+        ImageDraw.Draw(im).line((x0 + xt.min(), y0 + ytop, x0 + xt.max(), y0 + ytop), fill=OURO + (255,)); ImageDraw.Draw(im).point((x0 + xt.min(), y0 + ytop), (255, 246, 190, 255))
     if alt and nivel == 5:                                   # degrau da frente
         d = ImageDraw.Draw(im); d.rectangle((AX - 8, CHAO - 2, AX + 2, CHAO - 1), fill=PEDRA[1] + (255,)); d.rectangle((AX - 8, CHAO - 2, AX + 2, CHAO - 2), fill=PEDRA[0] + (255,))
     d = ImageDraw.Draw(im)
@@ -166,6 +282,13 @@ def predio(p, nivel, quadro):
         if nivel >= 5: _poe(im, BARRIL, x0 - 17, CHAO); _poe(im, BARRIL, x0 + w + 7, CHAO); _poe(im, SACO, x0 + w + 6, CHAO - 8)
         if nivel >= 5:                                       # varal de linguicas no beiral
             for i, x in enumerate(range(x0 + 4, x0 + 18, 3)): d.rectangle((x, y0 + 21, x + 1, y0 + 23 + (i % 2)), fill=(190, 70, 60, 255)); d.point((x, y0 + 21), (240, 130, 110, 255))
+    lado_e = x0 - (13 if nivel == 5 else 0)
+    for (nv_min, chave) in ((3, 'n3'), (5, 'n5')):
+        if nivel >= nv_min:
+            for (bm, lado, dist) in p.get(chave, []):
+                if lado == 'e': _poe(im, bm, max(1, lado_e - bm.width - 1 - dist), CHAO)
+                else: _poe(im, bm, min(CEL[0] - bm.width - 2, x0 + w + dist), CHAO)
+    if nivel == 5 and p.get('nova'): _poe(im, CERCA, min(CEL[0] - 12, x0 + w + 20), CHAO)
     # bandeirola da familia: nivel 3 no telhado, nivel 5 maior e com ponteira de ouro (a torre tem sempre)
     if nivel >= 3 or p['id'] == 'B04':
         mx, my = (x0 + p['mastro'][0], y0 + p['mastro'][1]) if 'mastro' in p else (x0 + w // 2 - 6, y0 + 4)
@@ -174,9 +297,13 @@ def predio(p, nivel, quadro):
         b = bandeirola(F, quadro, 8 if nivel < 5 else 11, 5 if nivel < 5 else 7); im.alpha_composite(b, (mx, topo - 1))
         if nivel == 5: im.alpha_composite(contornar(ANCORA_OURO, mix(AMEIXA, (120, 80, 30), 0.3)), (mx - 2, topo - 4))
     # efeito vivo
-    if 'chamine' in p:
-        cx, cy = x0 + p['chamine'][0], y0 + p['chamine'][1]
-        desenha_fumaca(im, fumaca_pts(rnd, cx, cy - 1, quadro, n=3 if nivel == 1 else (4 if nivel == 3 else 5), sobe=13 + nivel, vento=4))
+    for ch in ('chamine', 'chamine2'):
+        if ch in p:
+            cx, cy = x0 + p[ch][0], y0 + p[ch][1]
+            desenha_fumaca(im, fumaca_pts(rnd, cx, cy - 1, (quadro + (2 if ch == 'chamine2' else 0)) % 4, n=3 if nivel == 1 else (4 if nivel == 3 else 5), sobe=13 + nivel, vento=4))
+    for i, (bx, by) in enumerate(p.get('pisca', [])):          # brilho que pisca (moeda, engrenagem, lampiao, pena)
+        if (quadro + i) % 4 == 0: d.point((x0 + bx, y0 + by), (255, 255, 255, 255)); d.point([(x0 + bx - 1, y0 + by), (x0 + bx + 1, y0 + by), (x0 + bx, y0 + by - 1), (x0 + bx, y0 + by + 1)], (255, 240, 170, 255))
+        elif (quadro + i) % 4 == 1: d.point((x0 + bx, y0 + by), (255, 240, 170, 255))
     if p['efeito'] == 'brasa':                               # brasas saindo da forja
         fx, fy = x0 + 15, y0 + 20
         for i in range(2 + nivel // 2 * 2):
@@ -197,7 +324,7 @@ def montar_predios():
             i = len(Q); Q += [predio(p, nv, q) for q in range(4)]
             an['n%d' % nv] = dict(quadros=list(range(i, i + 4)), ms=[160] * 4, loop=True)
         out.append(dict(id=p['id'], nome=p['nome'], tipo='construcao', familia=p['familia'], cor=hexa(FAMILIA[p['familia']][1]), cel=CEL, ancora=(AX, CHAO),
-                        variantes=[Q], anims=an, niveis={'1': 'n1', '2': 'n1', '3': 'n3', '4': 'n3', '5': 'n5'}))
+                        variantes=[Q], anims=an, niveis={'1': 'n1', '2': 'n1', '3': 'n3', '4': 'n3', '5': 'n5'}, nova=bool(p.get('nova'))))
     return out
 
 

@@ -24,3 +24,27 @@ hora_BRT,item,tentativa,ferramenta,custo_geracoes,saldo_depois,arquivo,nota
 19/11 18:46,lanceiro-apanhou,1,/edit-image-pixen,1.0,981.5098459895798,bruto/lanceiro-apanhou-1.png,
 19/11 18:47,ferraria,1,/create-image-pixflux,1.0,980.5098459895798,bruto/ferraria-1.png,
 19/11 18:47,tenda,1,/create-image-pixflux,1.0,979.5098459895798,bruto/tenda-1.png,
+19/11 19:04,porteiro,1,/edit-image-pixen,1.0,978.5098459895798,bruto/porteiro-1.png,R9 piloto
+19/11 19:05,cozinheiro,1,/edit-image-pixen,1.0,977.5098459895798,bruto/cozinheiro-1.png,R9 piloto
+19/11 19:05,fogueteiro,1,/edit-image-pixen,1.0,976.5098459895798,bruto/fogueteiro-1.png,R9 piloto
+19/11 19:06,cozinheiro-golpe,1,/edit-image-pixen,1.0,975.5098459895798,bruto/cozinheiro-golpe-1.png,R9 piloto
+19/11 19:07,pernalta,1,/edit-image-pixen,1.0,974.5098459895798,bruto/pernalta-1.png,R9 piloto
+19/11 19:07,atirador,1,/edit-image-pixen,1.0,973.5098459895798,bruto/atirador-1.png,R9 piloto
+19/11 19:08,tampa,1,/edit-image-pixen,1.0,972.5098459895798,bruto/tampa-1.png,R9 piloto
+19/11 19:08,gutbucket,1,/edit-image-pixen,1.0,971.5098459895798,bruto/gutbucket-1.png,R9 piloto
+19/11 19:09,atirador-tiro,1,/edit-image-pixen,1.0,970.5098459895798,bruto/atirador-tiro-1.png,R9 piloto
+19/11 19:10,tampa-golpe,1,/edit-image-pixen,1.0,969.5098459895798,bruto/tampa-golpe-1.png,R9 piloto
+19/11 19:10,gutbucket-golpe,1,/edit-image-pixen,1.0,968.5098459895798,bruto/gutbucket-golpe-1.png,R9 piloto
+19/11 19:11,gutbucket-passo,1,/edit-image-pixen,1.0,967.5098459895798,bruto/gutbucket-passo-1.png,R9 piloto
+19/11 19:11,smithy,1,/create-image-pixflux,1.0,966.5098459895798,bruto/smithy-1.png,R9 piloto
+19/11 19:11,watchtower,1,/create-image-pixflux,1.0,965.5098459895798,bruto/watchtower-1.png,R9 piloto
+19/11 19:11,cookhouse,1,/create-image-pixflux,1.0,964.5098459895798,bruto/cookhouse-1.png,R9 piloto
+19/11 19:12,smithy-b,1,/edit-image-pixen,1.0,963.5098459895798,bruto/smithy-b-1.png,R9 piloto
+19/11 19:13,watchtower-b,1,/edit-image-pixen,1.0,962.5098459895798,bruto/watchtower-b-1.png,R9 piloto
+19/11 19:14,arqueiro-passo,1,/edit-image-pixen,1.0,961.5098459895798,bruto/arqueiro-passo-1.png,R9 piloto
+19/11 19:14,cozinheiro-passo,1,/edit-image-pixen,1.0,960.5098459895798,bruto/cozinheiro-passo-1.png,R9 piloto
+19/11 19:15,fogueteiro-passo,1,/edit-image-pixen,1.0,959.5098459895798,bruto/fogueteiro-passo-1.png,R9 piloto
+19/11 19:15,invasor-passo,1,/edit-image-pixen,1.0,958.5098459895798,bruto/invasor-passo-1.png,R9 piloto
+19/11 19:16,atirador-passo,1,/edit-image-pixen,1.0,957.5098459895798,bruto/atirador-passo-1.png,R9 piloto
+19/11 19:16,tampa-passo,1,/edit-image-pixen,1.0,956.5098459895798,bruto/tampa-passo-1.png,R9 piloto
+19/11 19:31,lanceiro-passo2,1,/edit-image-pixen,1.0,955.5098459895798,bruto/lanceiro-passo2-1.png,R9: passo no tamanho do boneco-base (o de 18:43 veio menor)

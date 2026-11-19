@@ -50,6 +50,46 @@ EDIT = {
  'invasor-b': ('lanceiro', "same chibi proportions and outline, but now a mischievous imp raider facing left: dark violet skin, glowing lime-green eyes, two small curved horns, pointed ears, ragged black loincloth, jagged bone club, toothy grin, no helmet, no shield, no spear"),
 }
 
+# ---- PILOTO (R9): elenco inteiro por edicao do MESMO boneco-base
+MESMO = "same chibi character with the same proportions, same face and same dark outline, facing right, "
+EDIT.update({
+ 'porteiro': ('lanceiro', MESMO + "but now a doorman soldier: he carries a huge tall wooden plank door with iron hinges and a round iron knob in front of him as a shield, the door is taller than him and hides most of his small body, round steel helmet, blue tunic, no spear, no round shield"),
+ 'cozinheiro': ('lanceiro', MESMO + "but now a cook: tall white puffy chef hat instead of the helmet, orange tunic with a white apron, holding a black iron frying pan raised high above his head, no spear, no shield"),
+ 'fogueteiro': ('lanceiro', MESMO + "but now a runner with bright purple hood and purple tunic, pale skin, a wooden barrel strapped on his back with a lit sparkling fuse on top, running to the right leaning forward, no spear, no shield, no helmet"),
+ 'cozinheiro-golpe': ('cozinheiro', "same cook, same colors and size, swinging the frying pan down hard forward to the right at full stretch, leaning forward, front leg bent"),
+ 'porteiro-golpe': ('porteiro', "same doorman, same colors and size, shoving the big wooden door forward to the right, leaning forward, front leg bent"),
+ 'fogueteiro-passo': ('fogueteiro', "same runner, same colors and size, running to the right, the other leg forward, legs wide apart, barrel on the back"),
+ 'pernalta': ('invasor-b', "same imp, same colors, facing left, but now walking on two tall thin wooden stilts strapped under his feet, legs long, arms out for balance, no club"),
+ 'atirador': ('invasor-b', "same imp, same colors and size, facing left, but now holding a leather sling with a brown potato in it, a small sack of potatoes on his back, no club"),
+ 'atirador-tiro': ('atirador', "same imp, same colors and size, facing left, arm stretched forward throwing a brown potato to the left with the sling, leaning forward, mouth open"),
+ 'tampa': ('invasor-bruto-1', "same ogre, same colors and size, facing left, but now holding a big round iron cooking pot lid with a knob as a shield in front of him, an iron cooking pot worn as a helmet, wooden mallet in the other hand, no symbols"),
+ 'tampa-golpe': ('tampa', "same ogre, same colors and size, facing left, swinging the wooden mallet down hard to the left, leaning forward, mouth wide open, pot lid shield pulled back"),
+ 'gutbucket': ('chefe-1', "same giant fat ogre, same colors and size, facing left, but even wider round belly, a dented steel bucket worn on his head as a helmet instead of the crown, a white napkin bib tied around his neck instead of the cape, holding an enormous wooden spoon instead of the mace"),
+ 'gutbucket-golpe': ('gutbucket', "same giant fat ogre, same colors and size, facing left, swinging the enormous wooden spoon down hard to the left, leaning forward, mouth wide open"),
+ 'gutbucket-passo': ('gutbucket', "same giant fat ogre, same colors and size, facing left, walking to the left, mid-stride with one foot forward and one foot back, belly bouncing"),
+})
+FRENTE = ("pixel art game building sprite, flat front elevation view like a side-scroller platform game, straight-on, no perspective, no top-down, "
+          "roof seen from the front as a simple triangle or trapezoid, flat ground line at the bottom, no grass base, no ground tile, "
+          "bright saturated storybook colors, single dark outline, 3-tone cel shading, light from top-left, transparent background, no text, no symbols")
+P.update({
+ 'smithy': ('pixflux', 48, 48, True, FRENTE + ", small medieval blacksmith forge hut, big stone chimney on the left, open front with glowing orange forge fire, iron anvil in front, timber frame walls, blue shingle roof"),
+ 'watchtower': ('pixflux', 48, 48, True, FRENTE + ", tall narrow wooden watchtower on four log legs, ladder, roofed lookout platform at the top with green shingle roof, plain solid green pennant, straw archery target at the base"),
+ 'cookhouse': ('pixflux', 48, 48, True, FRENTE + ", small cozy medieval cookhouse kitchen hut, orange shingle roof, fat brick chimney, big black cauldron of soup over a fire in front, hanging sausages, round window with warm light"),
+})
+
+# predios do piloto como FAMILIA: edicao da cookhouse (mesmo angulo de frente e mesmo traco)
+CASA = "same pixel art style, same front view angle, same size and same outline, same small grass base, but now "
+EDIT.update({
+ 'smithy-b': ('cookhouse-1', CASA + "a blacksmith forge: blue shingle roof instead of orange, big grey stone chimney, wide open front arch with a glowing orange forge fire inside, an iron anvil in front instead of the cauldron, no flowers"),
+ 'watchtower-b': ('cookhouse-1', CASA + "a tall narrow wooden watchtower: a lookout cabin with a green shingle roof on top of four tall log legs with cross beams and a ladder, a plain solid green pennant on a pole, a round straw archery target at the base instead of the cauldron, no chimney, no flowers"),
+ 'lanceiro-passo2': ('lanceiro', "same soldier with exactly the same big head, same helmet size, same body size, same colors and same shield, only the legs change: walking to the right, mid-stride with legs wide apart, one foot forward and one foot back, spear held upright"),
+ 'arqueiro-passo': ('arqueiro-b', "same archer, same colors and size, walking to the right, mid-stride with legs wide apart, one foot forward and one foot back, bow held low"),
+ 'cozinheiro-passo': ('cozinheiro', "same cook, same colors and size, walking to the right, mid-stride with legs wide apart, one foot forward and one foot back, frying pan still raised"),
+ 'invasor-passo': ('invasor-b', "same imp, same colors and size, facing left, walking to the left, mid-stride with legs wide apart, one foot forward and one foot back, club on the shoulder"),
+ 'atirador-passo': ('atirador', "same imp, same colors and size, facing left, walking to the left, mid-stride with legs wide apart, one foot forward and one foot back, sack on the back"),
+ 'tampa-passo': ('tampa', "same ogre, same colors and size, facing left, walking to the left, mid-stride with one foot forward and one foot back, pot lid shield in front"),
+})
+
 if __name__ == '__main__':
     peca, tent = sys.argv[1], int(sys.argv[2]); nota = sys.argv[3] if len(sys.argv) > 3 else ''
     if peca in EDIT:

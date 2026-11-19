@@ -1,6 +1,11 @@
 # PASSAGEM — Frayz
 
-## ⚑ 15/11/2026 16:18 BRT — ESTADO ATUAL (vale acima de tudo abaixo)
+## ⚑ 19/11/2026 17:21 BRT — ESTADO ATUAL (vale acima de tudo abaixo)
+- **O DONO ABANDONOU O PROJETO EM CURSO** (monstros, ovo, cruzamento, piloto simples e o jogo de bonecos) e quer um projeto NOVO com mecânicas diferentes, sem relação com o gênero de criaturas de partes. Tudo abaixo é histórico. Nada foi apagado; nada está rodando.
+- **Falta saber:** o que é o projeto novo (o diretor perguntou; ver a conversa) e se ele vive neste repositório ou em outro (decisão do dono).
+- **Continua valendo:** regra da casa "simples e divertido" (15/11 15:38); jogo primeiro, dinheiro por último; dossiê do mercado em `docs/mercado/`; chaves do PixelLab e do ElevenLabs nas variáveis do ambiente; PixelLab: 70 de 150 gerações gastas no tema anterior.
+
+## 15/11/2026 16:18 BRT — ESTADO ATUAL (vale acima de tudo abaixo)
 - **O JOGO AGORA É O DE `docs/ideias/jogo-simples.md`** (1 página, 9 regras; decisão do dono 16:17): a receita do gênero, simples e bem feita. Dossiê do mercado em `docs/mercado/` (a receita em 1 página: `docs/mercado/dossie.md`). Caminho: piloto → beta sem dinheiro → temporada fechada com pote pequeno → token.
 - **REGRA DA CASA (15:38): simples e divertido.** Regra do jogo em 1 ou 2 linhas; mecânica só se o gênero já provou; documentos e relatos curtos; nada de invenção rebuscada.
 - **Rodando:** tarefa 42 (piloto simples, Fable, ramo `piloto42`). As seções abaixo sobre patrulhas com ordens, Renome, guardas mais fortes e tarefas 36/37 estão SUPERADAS.

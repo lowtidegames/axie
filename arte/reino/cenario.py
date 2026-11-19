@@ -7,6 +7,7 @@ sys.dont_write_bytecode = True
 import numpy as np
 from comum import *
 from cena import Cena, CLIMAS, PAD
+import chao
 
 HORAS = ('manha', 'tarde', 'noite')
 NOME_HORA = {'manha': 'morning', 'tarde': 'afternoon', 'noite': 'boss-night'}
@@ -82,39 +83,57 @@ def _pedra(c, x, y):
 
 # ---------------------------------------------------------------- PC: estrada reta
 PC = dict(largura=640, ref=(480, 270), deslocamento_x=-80,           # os planos tem 640; a referencia de 480 fica no meio
-          ceu_y=-60, longe_base=100, meio_base=114, chao_y=104, frente_y=238,
+          ceu_y=-60, longe_base=100, meio_base=114, chao_y=104, frente_y=238, beira_y=184,
           predio_base=134, estrada=(138, 186), portao=(14, 139), castelo=(452, 140),
           terrenos=[dict(n=i + 1, x=98 + i * 58, largura=58, predio_base=134, estrada=(138, 186), sentido=1) for i in range(6)])
 
 
+def _cola(im, spr, x, base):
+    im.alpha_composite(spr, (int(x), int(base - spr.height + 1)))
+
+
 def chao_pc(hora):
-    W, H = 640, 216; c = Cena(W, H, hora, semente=21); g = PC
-    c.grama(0, 0, W - 1, 33, sombra_topo=3)
-    c.estrada(0, 34, W - 1, 82)
-    c.grama(0, 83, W - 1, H - 1, sombra_topo=2)
+    """R11: chao DESENHADO (chao.py). Mesma geometria da R9: grama 0-33, estrada 34-82, grama 83-215."""
+    W, H = 640, 216; g = PC; rnd = random.Random(21); im = tela(W, H); d = ImageDraw.Draw(im)
+    chao.grama(im, 0, 0, W - 1, 33, rnd, sombra_topo=3)
+    chao.grama(im, 0, 83, W - 1, H - 1, rnd, sombra_topo=2)
+    chao.estrada(im, 0, 34, W - 1, 82, rnd)
+    for x in range(0, W):                                    # barranco: a grama de baixo faz sombra de 1 px na estrada
+        if (x // 2) % 3: d.point((x, 83), GRAMA[3] + (255,))
     for i in range(7):                                       # marcos de pedra entre os terrenos, na borda de tras da estrada
-        x = 80 + g['terrenos'][0]['x'] - 29 + i * 58; _pedra(c, x, 33)
-    rnd = random.Random(9)
-    for _ in range(40):                                      # tufos e flores na grama da frente
-        x, y = rnd.randrange(4, W - 4), rnd.randrange(92, H - 4)
-        c.ret(x, y - 2, x, y, GRAMA[2]); c.pt(x - 1, y - 1, GRAMA[0]); c.pt(x + 1, y - 2, GRAMA[0])
-    return _gradar(c.mundo.crop((PAD, PAD, PAD + W, PAD + H)), hora)
+        x = 80 + g['terrenos'][0]['x'] - 29 + i * 58; _cola(im, chao.marco(), x - 3, 34)
+    for (x, s_, a) in ((22, 3, 30), (606, 5, 34), (592, 9, 22)):   # arvores pequenas no gramado de tras, fora dos terrenos
+        _cola(im, chao.arvore(a, s_), x, 30)
+    for (x, y, w, s_) in ((60, 31, 16, 2), (618, 32, 14, 4), (4, 32, 12, 6)): _cola(im, chao.moita(w, s_, flores=s_ == 2), x, y)
+    return _gradar(im, hora)
+
+
+def beira(W, hora, semente=5):
+    """R11, plano novo 'verge' (anda 115%): a beira da estrada do lado de ca - cerca, pedras, flores, marco, placa."""
+    im = tela(W, 44); rnd = random.Random(semente); x = 6
+    pecas = [lambda: chao.cerca(4), lambda: chao.pedra(12), lambda: chao.canteiro(20, rnd.randrange(99)), lambda: chao.moita(20, rnd.randrange(99), flores=True),
+             lambda: chao.cerca(3, quebrada=True), lambda: chao.pedra(8), lambda: chao.canteiro(14, rnd.randrange(99)), lambda: chao.placa(), lambda: chao.pedra(16)]
+    i = 0
+    while x < W - 40:
+        s_ = pecas[i % len(pecas)](); _cola(im, s_, x, 30 + rnd.randrange(0, 10)); x += s_.width + rnd.randrange(22, 60); i += 1
+    return _gradar(im, hora)
 
 
 def frente(W, hora, semente=3):
-    """Moitas escuras do primeiro plano (andam 130%)."""
-    im = tela(W, 40); d = ImageDraw.Draw(im); rnd = random.Random(semente)
-    V = [GRAMA[2], GRAMA[3], (28, 62, 52)]
-    x = -6
+    """Primeiro plano (anda 130%): copas de arvores e moitas escuras que sobem da borda de baixo, com pedra e flores."""
+    im = tela(W, 40); rnd = random.Random(semente); x = -10; i = 0
     while x < W + 10:
-        if rnd.random() < 0.62:
-            r = rnd.randrange(7, 13); _moita(d, x, 34 + rnd.randrange(0, 5), r, V); _moita(d, x + r, 38, r - 3, V)
-        x += rnd.randrange(14, 38)
+        k = i % 5
+        if k in (0, 3): s_ = chao.arvore(rnd.randrange(46, 60), rnd.randrange(99), escura=0.42, tronco=False); im.alpha_composite(s_, (x, 40 - rnd.randrange(22, 30)))
+        elif k == 1: s_ = chao.moita(rnd.randrange(22, 34), rnd.randrange(99), escura=0.35, flores=True); im.alpha_composite(s_, (x, 40 - s_.height + 3))
+        elif k == 2: s_ = chao.pedra(rnd.randrange(14, 22), escura=0.3); im.alpha_composite(s_, (x, 40 - s_.height + 2))
+        else: s_ = chao.canteiro(rnd.randrange(16, 26), rnd.randrange(99)); im.alpha_composite(s_, (x, 40 - s_.height))
+        x += s_.width + rnd.randrange(-4, 30); i += 1
     return _gradar(im, hora)
 
 
 # ---------------------------------------------------------------- celular: o morro do castelo em 3 patamares
-CEL = dict(largura=180, ref=(180, 370), deslocamento_x=0, ceu_y=0, longe_base=96, meio_base=112, chao_y=70, mesa_y=282,
+CEL = dict(largura=180, ref=(180, 370), deslocamento_x=0, ceu_y=0, longe_base=96, meio_base=112, chao_y=70, mesa_y=282, frente_y=262,
            portao=(10, 270), castelo=(142, 114),
            terrenos=[dict(n=1, x=62, largura=62, predio_base=248, estrada=(251, 269), sentido=1), dict(n=2, x=124, largura=62, predio_base=248, estrada=(251, 269), sentido=1),
                      dict(n=3, x=118, largura=62, predio_base=180, estrada=(183, 201), sentido=-1), dict(n=4, x=56, largura=62, predio_base=180, estrada=(183, 201), sentido=-1),
@@ -123,24 +142,48 @@ CEL = dict(largura=180, ref=(180, 370), deslocamento_x=0, ceu_y=0, longe_base=96
 
 
 def chao_celular(hora):
-    W, H = 180, 300; oy = CEL['chao_y']; c = Cena(W, H, hora, semente=33)
+    """R11: o MORRO com volume. 3 patamares; cada um com gramado (luz na crista, sombra ao pe do muro de cima), estrada
+    desenhada, muro de arrimo em fiadas e escada de tabuas; encosta arredondada nas bordas; arvores e pedras nos cantos."""
+    W, H = 180, 300; oy = CEL['chao_y']; rnd = random.Random(33); im = tela(W, H); d = ImageDraw.Draw(im)
     Y = lambda y: y - oy
-    # morro: tres degraus de grama, cada um com estrada e muro de arrimo
-    c.grama(0, Y(84), W - 1, Y(114), sombra_topo=0)                      # alto do morro (o castelo fica aqui)
+    chao.grama(im, 0, Y(84), W - 1, Y(114), rnd, sombra_topo=0, luz_topo=False)                 # alto do morro (o castelo fica aqui)
     for (ye0, ye1) in ((115, 133), (183, 201), (251, 269)):
-        if ye0 > 115: c.grama(0, Y(ye0 - 42), W - 1, Y(ye0 - 1), sombra_topo=4)   # faixa de grama onde ficam os predios
-        c.estrada(0, Y(ye0), W - 1, Y(ye1))
-        c.muro(0, Y(ye1 + 1), W - 1, Y(ye1 + 8))
-    c.grama(0, Y(278), W - 1, H - 1, sombra_topo=3)
-    # contorno do morro no alto: borda arredondada contra o ceu
-    for x in range(W):
-        h = int(3 + 2 * math.sin(x / 17.0) + 1.5 * math.sin(x / 5.0))
-        c.ret(x, Y(84) - h, x, Y(84), GRAMA[1]); c.pt(x, Y(84) - h, GRAMA[0]); c.pt(x, Y(84) - h - 1, GRAMA[3])
+        if ye0 > 115:
+            chao.grama(im, 0, Y(ye0 - 42), W - 1, Y(ye0 - 1), rnd, sombra_topo=5)                 # patamar: sombra do muro de cima
+            for x in range(W):                                                                      # sombra projetada em degraus pontilhados
+                if (x + 1) % 2: d.point((x, Y(ye0 - 42) + 6), GRAMA[2] + (255,))
+                if x % 4 == 0: d.point((x, Y(ye0 - 42) + 8), GRAMA[2] + (255,))
+        chao.estrada(im, 0, Y(ye0), W - 1, Y(ye1), rnd, sulcos=True)
+        chao.muro(im, 0, Y(ye1 + 1), W - 1, Y(ye1 + 8), rnd)
+        for x in range(W):                                                                          # crista do patamar: filete de luz na beira do muro
+            if x % 5: d.point((x, Y(ye1)), mix(TERRA[0], (255, 255, 255), 0.25) + (255,))
+    chao.grama(im, 0, Y(278), W - 1, H - 1, rnd, sombra_topo=4)
+    for x in range(W):                                                                              # crista do morro contra o ceu: ondulada, com luz e capim
+        h = int(round(4 + 2.5 * math.sin(x / 17.0) + 1.5 * math.sin(x / 5.0 + 1)))
+        d.rectangle((x, Y(84) - h, x, Y(84)), fill=GRAMA[1] + (255,)); d.point((x, Y(84) - h), GRAMA[0] + (255,)); d.point((x, Y(84) - h - 1), mix(AMEIXA, GRAMA[3], 0.5) + (255,))
+        if x % 7 == 3: d.point((x, Y(84) - h - 2), GRAMA[2] + (255,)); d.point((x + 1, Y(84) - h - 3), GRAMA[1] + (255,))
     for e in CEL['escadas']:
-        c.escada(e['x'][0], Y(e['y'][0]), e['x'][1], Y(e['y'][1]))
-    for t in CEL['terrenos']:                                              # marcos de pedra nos limites de cada terreno
-        for x in (t['x'] - t['largura'] // 2, t['x'] + t['largura'] // 2 - 3): _pedra(c, x, Y(t['estrada'][0] - 1))
-    return _gradar(c.mundo.crop((PAD, PAD, PAD + W, PAD + H)), hora)
+        chao.escada(im, e['x'][0], Y(e['y'][0]), e['x'][1], Y(e['y'][1]))
+    for t in CEL['terrenos']:                                                                       # marcos de pedra nos limites de cada terreno
+        for x in (t['x'] - t['largura'] // 2, t['x'] + t['largura'] // 2 - 3): _cola(im, chao.marco(), x - 2, Y(t['estrada'][0]))
+    # volume da encosta: bordas laterais escurecidas em pontilhado (o morro vira para tras)
+    px = im.load()
+    for y in range(H):
+        for (x, k) in ((0, 0.75), (1, 0.5), (2, 0.25), (W - 1, 0.75), (W - 2, 0.5), (W - 3, 0.25), (W - 4, 0.2)):
+            if px[x, y][3] and BAYER[y % 4, x % 4] < k: px[x, y] = mix(px[x, y][:3], AMEIXA, 0.42) + (255,)
+    # arvores, moitas e pedras nos cantos dos patamares (fora dos terrenos e da estrada)
+    _cola(im, chao.arvore(26, 7), 150, Y(112)); _cola(im, chao.moita(14, 3, flores=True), 2, Y(113)); _cola(im, chao.pedra(9), 24, Y(113))
+    _cola(im, chao.arvore(30, 4), -6, Y(246)); _cola(im, chao.moita(12, 5), 26, Y(180)); _cola(im, chao.pedra(8), 148, Y(181)); _cola(im, chao.moita(13, 8, flores=True), 163, Y(248))
+    return _gradar(im, hora)
+
+
+def frente_celular(hora):
+    """R11, plano novo 'front' do celular (anda 115%): moitas, pedras, cerca e flores ao pe do morro, antes da mesa de cartas."""
+    im = tela(180, 26)
+    for (s_, x, y) in ((chao.moita(24, 11, escura=0.25, flores=True), -6, 25), (chao.pedra(12, escura=0.15), 20, 25), (chao.canteiro(18, 4), 34, 25), (chao.cerca(3), 58, 25),
+                       (chao.canteiro(14, 9), 90, 25), (chao.pedra(9, escura=0.15), 108, 25), (chao.cerca(2, quebrada=True), 122, 25), (chao.moita(26, 12, escura=0.25, flores=True), 152, 25)):
+        _cola(im, s_, x, y)
+    return _gradar(im, hora)
 
 
 def montar():
@@ -150,9 +193,10 @@ def montar():
         longe = plano('plano-longe', h, 640); meio = plano('plano-meio', h, 640)
         out['pc'][h] = [('sky', ceu(640, 180, h, sol={'manha': (0.32, 0.56), 'tarde': (0.27, 0.74), 'noite': (0.74, 0.55)}[h]), -80, PC['ceu_y'], 0.0), ('far', longe, -80, PC['longe_base'] - longe.height, 0.1), ('mid', meio, -80, PC['meio_base'] - meio.height, 0.3),
                         ('ground', chao_pc(h), -80, PC['chao_y'], 1.0), ('front', frente(640, h), -80, PC['frente_y'], 1.3)]
+        out['pc'][h].append(('verge', beira(640, h), -80, PC['beira_y'], 1.15))      # R11: plano novo, no fim da lista
         l2 = longe.crop((60, 0, 240, longe.height)); m2 = meio.crop((100, 0, 280, meio.height))
         out['celular'][h] = [('sky', ceu(180, 120, h, 8, sol={'manha': (0.2, 0.5), 'tarde': (0.16, 0.66), 'noite': (0.3, 0.42)}[h]), 0, 0, 0.0), ('far', l2, 0, CEL['longe_base'] - l2.height, 0.1), ('mid', m2, 0, CEL['meio_base'] - m2.height, 0.3),
-                             ('ground', chao_celular(h), 0, CEL['chao_y'], 1.0)]
+                             ('ground', chao_celular(h), 0, CEL['chao_y'], 1.0), ('front', frente_celular(h), 0, CEL['frente_y'], 1.15)]
     nuvens = {h: [nuvem(h, n) for n in range(3)] for h in HORAS}
     return out, nuvens
 

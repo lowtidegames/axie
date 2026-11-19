@@ -1,0 +1,3 @@
+data_brt,servico,chamada,o_que,segundos,creditos,resultado
+19/11/2026 18:20,ElevenLabs,POST /v1/sound-generation (corpo vazio),conferir se a chave é aceita sem gerar som,0,0,422 (chave aceita; com chave falsa o mesmo pedido dá 401)
+TOTAL,,,,0,0,nenhum som gerado: gasto de crédito espera o "sim" do dono (lista e custo em docs/reino/som.md parte 5)

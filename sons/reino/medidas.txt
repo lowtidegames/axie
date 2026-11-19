@@ -1,0 +1,163 @@
+Reino — medidas do som (tests/tela/reino-som.e2e.mjs). Fabricado fora do tempo real a 48 kHz, pela cadeia inteira, volumes no padrão.
+
+== Antes do primeiro toque
+  ok: nada toca e nenhum contexto de áudio existe antes do primeiro toque (tocar devolve false; a música só fica pedida)
+  ok: a folha tem 37 botões de efeito e 8 momentos de música (mínimo 20 e 4)
+
+== Efeitos: cada variação fabricada pela cadeia inteira e medida
+efeito            var  pico dBFS  alvo  duração ms  tabela  começo ms
+toque             1      -18.9   -18         53      60       6.2
+toque             2      -19.0   -18         61      60       6.2
+toque             3      -19.0   -18         58      60       6.2
+cartaAparece      1      -14.9   -14        174     200       7.2
+cartaAparece      2      -15.0   -14        222     200       7.6
+cartaAparece      3      -14.9   -14        223     200       7.0
+cartaEscolhe      1      -13.0   -12        217     220       6.1
+cartaEscolhe      2      -13.0   -12        218     220       6.1
+cartaEscolhe      3      -13.0   -12        221     220       6.1
+cartaPoe          1      -12.0   -11        316     320       6.2
+cartaPoe          2      -11.8   -11        305     320       6.2
+cartaPoe          3      -11.9   -11        331     320       6.3
+sortear           1      -14.0   -13        462     460       6.6
+sortear           2      -14.0   -13        552     460       6.4
+sortear           3      -13.9   -13        376     460       6.3
+ouro              1      -13.9   -13        218     190       6.3
+ouro              2      -13.9   -13        179     190       6.3
+ouro              3      -13.8   -13        171     190       6.3
+negado            1      -15.7   -15        199     200       6.4
+negado            2      -16.0   -15        197     200       6.4
+negado            3      -15.9   -15        199     200       6.4
+faltaUm           1      -15.0   -14        297     300       6.1
+consertar         1      -13.2   -12        544     550       6.3
+consertar         2      -13.0   -12        544     550       6.2
+consertar         3      -13.0   -12        549     550       6.2
+nivelPequeno      1      -11.6   -11        414     430       6.1
+nivelPequeno      2      -11.5   -11        464     430       6.2
+nivelPequeno      3      -11.8   -11        399     430       6.1
+nivelGrande       1       -8.8    -8       1085    1080       6.3
+marcha            1      -13.9   -13        808     770       6.1
+marcha            2      -13.9   -13        812     770       6.2
+marcha            3      -14.0   -13        731     770       6.2
+choque            1      -12.0   -11        509     540       6.3
+choque            2      -12.0   -11        565     540       6.1
+choque            3      -11.9   -11        533     540       6.2
+espada            1      -16.9   -16         51      60       6.2
+espada            2      -17.0   -16         64      60       6.3
+espada            3      -17.0   -16         50      60       6.3
+flecha            1      -14.9   -14        213     220       7.7
+flecha            2      -14.8   -14        234     220       6.8
+flecha            3      -14.8   -14        215     220       7.9
+magiaFogo         1      -11.0   -10        399     380       6.3
+magiaFogo         2      -11.3   -10        361     380       6.2
+magiaFogo         3      -11.0   -10        364     380       6.3
+magiaGelo         1      -11.2   -11        412     410       6.3
+magiaGelo         2      -11.6   -11        423     410       6.3
+magiaGelo         3      -11.4   -11        388     410       6.3
+magiaRaio         1      -11.0   -10        198     200       6.1
+magiaRaio         2      -11.0   -10        211     200       6.0
+magiaRaio         3      -11.0   -10        206     200       6.2
+magiaCura         1      -12.8   -12        613     560       6.2
+magiaCura         2      -12.7   -12        511     560       6.1
+magiaCura         3      -12.8   -12        531     560       6.2
+critico           1       -9.0    -8        335     340       6.1
+critico           2       -8.9    -8        344     340       6.1
+critico           3       -9.0    -8        331     340       6.2
+soldadoCai        1      -17.0   -16        230     230       6.2
+soldadoCai        2      -17.0   -16        228     230       6.2
+soldadoCai        3      -16.9   -16        232     230       6.2
+muralha           1      -11.9   -11        313     310       6.3
+muralha           2      -12.0   -11        303     310       6.3
+muralha           3      -12.0   -11        314     310       6.2
+casteloRacha      1       -8.3    -7        778     790       6.2
+casteloRacha      2       -8.2    -7        798     790       6.2
+casteloRacha      3       -8.3    -7        789     790       6.1
+vidaPerdida       1       -9.9    -9        746     750       6.2
+invasorChega      1      -10.8   -10        981     980       6.5
+chefeAnuncia      1       -9.0    -8       1303    1300       6.4
+chefeEntra        1       -8.2    -7        887     890       6.5
+chefeCai          1       -8.3    -7       1395    1400       7.2
+vitoria           1       -7.8    -7       1644    1640       6.4
+espolio           1      -12.0   -11        496     500       7.0
+espolio           2      -12.2   -11        513     500       7.0
+espolio           3      -12.1   -11        497     500       7.0
+espolioEscolhe    1      -12.0   -11        283     260       6.2
+espolioEscolhe    2      -11.9   -11        239     260       6.1
+espolioEscolhe    3      -12.0   -11        252     260       6.2
+derrota           1       -9.8    -9       1634    1630       6.3
+fimDePartida      1       -8.1    -7       2314    2310       6.2
+recorde           1       -9.0    -8       1247    1250       6.2
+rankingSobe       1      -15.0   -14        155     140       6.1
+rankingSobe       2      -15.0   -14        146     140       6.1
+rankingSobe       3      -14.9   -14        132     140       6.1
+cartaNova         1      -10.2    -9        987     990       8.0
+conquista         1      -10.0    -9        965     960       6.3
+  ok: 37 efeitos na tabela (mínimo 20), 85 variações medidas
+  ok: cada variação: pico no alvo (±2,5 dB) e abaixo de −3 dBFS, duração ±25% da tabela, começa em até 15 ms, sem estouro, variações diferentes
+  ok: a cadeia não muda o volume de um som baixo (entrou −30,0 dBFS, saiu -30.3)
+  ok: 12 sons grandes + música ao mesmo tempo: pico -3.5 dBFS (teto −3), sem estouro
+
+== Música: os momentos, o motivo e as camadas
+momento      pico dBFS  médio dBFS  batidas/s  bpm
+construir       -16.7      -29.0       0.4  100
+batalha         -11.3      -27.9       1.4  100
+chefe           -10.3      -26.5       1.5  100
+porUmFio        -15.1      -29.4       1.6  100
+vitoria         -12.8      -26.1       0.8  100
+derrota         -18.1      -28.7       0.6  86
+fim             -11.5      -26.2       0.9  106
+menu            -12.6      -31.4       2.3  88
+  ok: 8 momentos de música tocam, sem estouro
+  ok: música abaixo dos efeitos: picos de -18.1 a -10.3 dBFS (teto −9), médio de -31.4 a -26.1 dBFS (faixa −40 a −22)
+  ok: o MOTIVO está nas notas certas em "construir": 67 74 71 72 69 67 64 69 (sol ré si dó lá | sol mi lá)
+  ok: o mesmo motivo toca na batalha (charamela)
+  ok: no menu o alaúde (corda dedilhada) toca o motivo afinado
+  ok: chefe em menor: no lugar do si toca si bemol (-29.9 dB contra -70.2 dB)
+  ok: batalha tem mais batida e peso que construir (1.4 contra 0.4 batidas/s; -27.9 contra -29.0 dBFS)
+  ok: a música cresce com as rodadas: 100 → 121 batidas por minuto; rodada 12 mais cheia que a 1 (-25.3 contra -27.9 dBFS)
+
+== Ao vivo: cada botão da folha toca o seu som
+  ok: os 37 botões tocam (cada um contou 1 vez)
+  ok: áudio ligado depois do toque; atraso do toque ao som: 14 ms (limite 50)
+  ok: som saiu de verdade e o pico ao vivo ficou em -5.5 dBFS (teto −3)
+  ok: nenhuma voz fica viva depois que os sons acabam
+
+== Teto de vozes
+  ok: 160 pedidos de som de soldado em 1,6 s viram no máximo 6 vozes de tropa (ficaram 5)
+  ok: 13 sons longos juntos: 12 vozes vivas, a mais fraca e antiga saiu (2 troca)
+  ok: com o teto cheio de sons importantes, um som fraco (espada) não entra e um mais forte (magia) entra no lugar do menos importante
+
+== Mudo, volumes guardados e "Menos animação"
+  ok: mudo: a saída vai a zero (pico 0.0000), o botão mostra e a escolha fica guardada
+  ok: depois de recarregar: mudo e os dois volumes voltam como estavam, e nada liga sozinho
+  ok: "Menos animação": o som continua; só o estouro grande toca 6 dB mais baixo
+
+== Música ao vivo: troca de momento na virada do compasso
+  ok: "construir" começa a tocar depois do toque (100 batidas por minuto)
+  ok: pedida a batalha, a música NÃO troca na hora: fica pedida
+  ok: a troca caiu na linha do compasso (1130.3 ms depois do pedido; compasso de 2400.0 ms)
+  ok: os 4 momentos pedidos (construir, batalha, chefe, vitória) tocam ao vivo; pico da música -14.2 dBFS
+  ok: parar a música: silêncio (pico 0.0006)
+
+== "Simulate a round": a rodada inteira
+  ok: a rodada tocou na ordem: cartas → escolher → pôr → invasor → marcha → choque → vitória → espólio → ouro (83 sons)
+  ok: 3 cartas aparecem e 3 moedas caem
+  ok: a batalha dura 12.0 s e tem 69 sons (dezenas lutando sem virar barulho)
+  ok: no pior momento: 6 vozes (teto 12), 6 de tropa (teto 6)
+  ok: a música acompanhou: construir → batalha → vitoria → construir
+  ok: pico da rodada inteira ao vivo: -7.5 dBFS (teto −3)
+
+== Celular (390 × 844)
+  ok: toca com o dedo, sem rolagem de lado, botões com 44 px ou mais de altura
+
+== Amostra gravada (manifesto de teste) no lugar do código
+  ok: a amostra boa toca no lugar do código; arquivo estragado e nome desconhecido caem para o código, sem erro
+  ok: amostra entra no mesmo alvo de pico (-10.1 dBFS com os dois sons)
+
+== Em subpasta (caminhos relativos)
+  ok: a folha abre, toca efeito e música servida de /jogos/um/dois/
+
+== Geral
+  ok: zero erro de console ou de página
+  ok: zero 404 e zero pedido falhado
+
+RESULTADO: tudo dentro da régua de docs/reino/som.md.

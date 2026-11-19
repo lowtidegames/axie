@@ -1,0 +1,5 @@
+{
+  "versao": 1,
+  "nota": "Amostras gravadas do Reino. Vazio = tudo fabricado por código. Formato: \"evento\": [{ \"arquivo\": \"nome-1.mp3\" }]",
+  "efeitos": {}
+}

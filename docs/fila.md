@@ -56,5 +56,5 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 
 | Nº | Tarefa | Agente (modelo) | Arquivos que mexe | Depende de | Estado |
 |---|---|---|---|---|---|
-| R1 | O jogo em 1 página | diretor | docs/reino/jogo.md | — | PRONTO (rascunho; espera os conselheiros e o dono) |
-| R2 | Conselheiros na página: guardião, diversão, economista | guardiao (Sonnet), conselheiro-de-diversao (Fable), economista | só leitura | R1 | RODANDO (17:38) |
+| R1 | O jogo em 1 página | diretor | docs/reino/jogo.md | — | PRONTO (versão 2, com os ajustes dos conselheiros; espera o dono: tema e ordem de fazer o piloto) |
+| R2 | Conselheiros na página: guardião, diversão, economista | guardiao (Sonnet), conselheiro-de-diversao (Fable), economista | só leitura | R1 | PRONTO (guardião 74 sem veto; diversão 68, ~85 com os ajustes; economista 60: falta medir receita no beta e parecer de advogado) |

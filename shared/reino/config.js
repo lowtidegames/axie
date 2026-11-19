@@ -42,8 +42,8 @@ export const RARIDADES = [
   { id: 'L', nome: 'Legendary', chance: 1, pinos: 5 },
 ]
 
-// Vida e dano por nível (N1..N5), em %. Sir Dent tem a sua (cresce o dobro: +40/+80/+140/+200).
-export const MULT_NIVEL = [100, 118, 136, 160, 190]
+// Vida e dano por nível (N1..N5), em %. Sir Dent tem a sua (cresce perto do dobro: +35/+70/+120/+170).
+export const MULT_NIVEL = [100, 120, 138, 152, 165]
 
 // ---------------------------------------------------------------- famílias
 export const FAMILIAS = {
@@ -61,38 +61,38 @@ export const CARTAS = {
   // Tropas (12)
   T01: { nome: 'Pikeman', tipo: 'tropa', familia: 'pikewall', raridade: 'C', piloto: true, qtd: [3, 3, 4, 4, 5], vida: 30, dano: 6, cad: 10, alcance: 30, texto: 'Sturdy pikemen. They hold the road.' },
   T02: { nome: 'Doorman', tipo: 'tropa', familia: 'pikewall', raridade: 'U', piloto: true, qtd: [2, 2, 3, 3, 4], vida: 60, dano: 3, cad: 12, alcance: 30, reducaoTiro: 30, texto: 'Carries a real door. Takes 30% less damage from ranged.' },
-  T03: { nome: 'Sir Dent', tipo: 'tropa', familia: 'pikewall', raridade: 'R', qtd: [1, 1, 1, 1, 1], vida: 110, dano: 18, cad: 12, alcance: 30, multNivel: [100, 140, 180, 240, 300], semExtras: true /* Bunkhouse não dá 2º cavaleiro */, texto: 'One big knight. Grows twice as much per level.' },
+  T03: { nome: 'Sir Dent', tipo: 'tropa', familia: 'pikewall', raridade: 'R', qtd: [1, 1, 1, 1, 1], vida: 100, dano: 18, cad: 12, alcance: 30, multNivel: [100, 135, 170, 220, 270], semExtras: true /* Bunkhouse não dá 2º cavaleiro */, texto: 'One big knight. Grows twice as much per level.' },
   T04: { nome: 'Hedge Archer', tipo: 'tropa', familia: 'thornbow', raridade: 'C', piloto: true, qtd: [2, 3, 3, 4, 4], vida: 16, dano: 8, cad: 12, alcance: 250, texto: 'Shoots from behind the line.' },
   T05: { nome: 'Granny Bolt', tipo: 'tropa', familia: 'thornbow', raridade: 'R', qtd: [1, 1, 2, 2, 3], vida: 20, dano: 40, cad: 25, alcance: 350, alvo: 'maisVida', texto: 'Slow, huge shot at the toughest invader in range.' },
-  T06: { nome: 'Falconer', tipo: 'tropa', familia: 'thornbow', raridade: 'U', qtd: [1, 1, 2, 2, 2], vida: 18, dano: 9, cad: 10, alcance: 400, alvo: 'maisLonge', texto: 'Her falcon strikes the farthest invader in range.' },
+  T06: { nome: 'Falconer', tipo: 'tropa', familia: 'thornbow', raridade: 'U', qtd: [1, 1, 2, 2, 2], vida: 18, dano: 12, cad: 10, alcance: 400, alvo: 'maisLonge', texto: 'Her falcon strikes the farthest invader in range.' },
   T07: { nome: 'Frypan Cook', tipo: 'tropa', familia: 'potluck', raridade: 'C', piloto: true, qtd: [3, 4, 4, 5, 6], vida: 26, dano: 5, cad: 8, alcance: 30, texto: 'Many cooks, fast pans.' },
-  T08: { nome: 'Soup Carrier', tipo: 'tropa', familia: 'potluck', raridade: 'U', qtd: [1, 1, 2, 2, 2], vida: 24, dano: 0, cura: 14, cad: 15, alcance: 150, alvo: 'aliadoFerido', texto: 'Heals the most hurt soldier nearby. Does not fight.' },
-  T09: { nome: 'Pie Thrower', tipo: 'tropa', familia: 'potluck', raridade: 'R', qtd: [2, 2, 3, 3, 4], vida: 16, dano: 6, cad: 15, alcance: 200, lento: { pct: 30, tiques: 20 }, texto: 'Pies slow the target by 30% for 2 s.' },
-  T10: { nome: 'Squib Runner', tipo: 'tropa', familia: 'fizzwick', raridade: 'C', piloto: true, qtd: [2, 3, 3, 4, 5], vida: 10, dano: 24, cad: 10, alcance: 30, busca: 250, explode: { raio: 50 }, texto: 'Runs at invaders and goes boom.' },
+  T08: { nome: 'Soup Carrier', tipo: 'tropa', familia: 'potluck', raridade: 'U', qtd: [1, 1, 2, 2, 2], vida: 24, dano: 0, cura: 22, cad: 15, alcance: 150, alvo: 'aliadoFerido', texto: 'Heals the most hurt soldier nearby. Does not fight.' },
+  T09: { nome: 'Pie Thrower', tipo: 'tropa', familia: 'potluck', raridade: 'R', qtd: [2, 2, 3, 3, 4], vida: 16, dano: 11, cad: 15, alcance: 200, lento: { pct: 40, tiques: 20 }, texto: 'Pies slow the target by 40% for 2 s.' },
+  T10: { nome: 'Squib Runner', tipo: 'tropa', familia: 'fizzwick', raridade: 'U', piloto: true, qtd: [2, 3, 3, 4, 5], vida: 10, dano: 24, cad: 10, alcance: 30, busca: 250, explode: { raio: 50 }, texto: 'Runs at invaders and goes boom.' },
   T11: { nome: 'Clockwork Geese', tipo: 'tropa', familia: 'fizzwick', raridade: 'U', qtd: [4, 5, 6, 8, 10], vida: 10, dano: 3, cad: 6, alcance: 30, texto: 'A noisy flock of wind-up geese.' },
   T12: { nome: 'Sparkwright', tipo: 'tropa', familia: 'fizzwick', raridade: 'E', qtd: [1, 1, 1, 2, 2], vida: 18, dano: 8, cad: 16, alcance: 250, saltos: 2, saltoAlcance: 100, texto: 'Bolt jumps to 2 more invaders.' },
 
   // Construções (10)
-  B01: { nome: 'Smithy', tipo: 'construcao', familia: 'pikewall', raridade: 'C', piloto: true, efeito: 'dano', valores: [20, 30, 40, 50, 60], texto: 'Neighbors deal more damage.' },
-  B02: { nome: 'Bunkhouse', tipo: 'construcao', familia: 'pikewall', raridade: 'C', efeito: 'soldados', valores: [1, 1, 1, 2, 2], texto: 'Neighbor troops get extra soldiers.' },
-  B03: { nome: 'Stone Wall', tipo: 'construcao', familia: 'pikewall', raridade: 'U', efeito: 'reducao', valores: [15, 20, 25, 30, 35], texto: 'Neighbors take less damage.' },
-  B04: { nome: 'Watchtower', tipo: 'construcao', familia: 'thornbow', raridade: 'C', piloto: true, efeito: 'torre', valores: [50, 75, 100, 125, 150], valores2: [10, 15, 20, 25, 30], texto: 'Neighbor shooters see farther and hit harder.' },
-  B05: { nome: "Fletcher's Hut", tipo: 'construcao', familia: 'thornbow', raridade: 'U', efeito: 'rapidez', valores: [15, 20, 25, 30, 35], texto: 'Neighbors attack faster.' },
+  B01: { nome: 'Smithy', tipo: 'construcao', familia: 'pikewall', raridade: 'C', piloto: true, efeito: 'dano', valores: [30, 40, 50, 60, 70], texto: 'Neighbors deal more damage.' },
+  B02: { nome: 'Bunkhouse', tipo: 'construcao', familia: 'pikewall', raridade: 'C', efeito: 'soldados', valores: [1, 1, 1, 2, 2], efeito2: 'vida', valores2: [10, 20, 30, 30, 40], texto: 'Neighbor troops get extra soldiers and health.' },
+  B03: { nome: 'Stone Wall', tipo: 'construcao', familia: 'pikewall', raridade: 'U', efeito: 'reducao', valores: [25, 30, 35, 40, 45], texto: 'Neighbors take less damage.' },
+  B04: { nome: 'Watchtower', tipo: 'construcao', familia: 'thornbow', raridade: 'C', piloto: true, efeito: 'torre', valores: [50, 75, 100, 125, 150], valores2: [50, 60, 70, 85, 100], texto: 'Neighbor shooters see farther and hit harder.' },
+  B05: { nome: "Fletcher's Hut", tipo: 'construcao', familia: 'thornbow', raridade: 'U', efeito: 'rapidez', valores: [50, 60, 70, 80, 90], texto: 'Neighbors attack faster.' },
   B06: { nome: 'Cookhouse', tipo: 'construcao', familia: 'potluck', raridade: 'C', piloto: true, efeito: 'curaSeg', valores: [3, 5, 7, 9, 12], texto: 'Neighbors heal every second.' },
-  B07: { nome: 'Market Stall', tipo: 'construcao', familia: 'potluck', raridade: 'U', efeito: 'ouro', valores: [1, 1, 2, 2, 3], texto: 'Each neighbor troop pays gold when you win.' },
-  B08: { nome: 'Feast Hall', tipo: 'construcao', familia: 'potluck', raridade: 'R', efeito: 'vida', valores: [25, 35, 45, 55, 65], texto: 'Neighbors have more health.' },
+  B07: { nome: 'Market Stall', tipo: 'construcao', familia: 'potluck', raridade: 'U', efeito: 'ouro', valores: [3, 4, 5, 6, 8], texto: 'Each neighbor troop pays gold when you win.' },
+  B08: { nome: 'Feast Hall', tipo: 'construcao', familia: 'potluck', raridade: 'R', efeito: 'vida', valores: [40, 55, 70, 85, 100], texto: 'Neighbors have more health.' },
   B09: { nome: "Tinker's Shed", tipo: 'construcao', familia: 'fizzwick', raridade: 'R', efeito: 'bis', valores: [50, 60, 70, 85, 100], texto: 'Neighbor Magic triggers a second time.' },
   B10: { nome: 'Fuse Depot', tipo: 'construcao', familia: 'fizzwick', raridade: 'E', efeito: 'pavio', valores: [6, 8, 10, 13, 16], raio: 50, texto: 'Neighbor soldiers burst when they fall.' },
 
   // Magias (8)
   M01: { nome: 'Boom Barrel', tipo: 'magia', familia: 'fizzwick', raridade: 'C', piloto: true, efeito: 'barril', valores: [30, 45, 60, 80, 100], raio: 100, texto: 'First invader to step here sets it off.' },
   M02: { nome: 'Tar Puddle', tipo: 'magia', familia: 'fizzwick', raridade: 'U', efeito: 'piche', valores: [40, 45, 50, 55, 60], texto: 'Invaders here walk slower.' },
-  M03: { nome: 'Angry Bees', tipo: 'magia', familia: 'thornbow', raridade: 'U', efeito: 'abelhas', valores: [4, 6, 8, 10, 13], texto: 'Invaders here get stung every second.' },
-  M04: { nome: 'Rally Horn', tipo: 'magia', familia: 'pikewall', raridade: 'U', efeito: 'corneta', valores: [30, 40, 50, 60, 75], tiques: 50, texto: 'When invaders reach here, all soldiers attack faster for 5 s.' },
-  M05: { nome: 'Second Helping', tipo: 'magia', familia: 'potluck', raridade: 'R', efeito: 'repeteco', valores: [30, 40, 50, 60, 75], texto: 'When invaders reach here, all soldiers heal.' },
+  M03: { nome: 'Angry Bees', tipo: 'magia', familia: 'thornbow', raridade: 'U', efeito: 'abelhas', valores: [8, 11, 14, 17, 21], texto: 'Invaders here get stung every second.' },
+  M04: { nome: 'Rally Horn', tipo: 'magia', familia: 'pikewall', raridade: 'U', efeito: 'corneta', valores: [50, 60, 70, 85, 100], tiques: 50, texto: 'When invaders reach here, all soldiers attack faster for 5 s.' },
+  M05: { nome: 'Second Helping', tipo: 'magia', familia: 'potluck', raridade: 'U', efeito: 'repeteco', valores: [80, 85, 90, 95, 100], texto: 'When invaders reach here, all soldiers heal.' },
   M06: { nome: 'Bramble Snare', tipo: 'magia', familia: 'thornbow', raridade: 'C', piloto: true, efeito: 'laco', valores: [3, 4, 5, 6, 8], tiques: 25, texto: 'The first invaders to step here are stuck for 2.5 s.' },
   M07: { nome: 'Seconds!', tipo: 'magia', familia: 'potluck', raridade: 'E', efeito: 'levanta', valores: [2, 3, 4, 5, 6], texto: 'The first soldiers to fall get back up with half health.' },
-  M08: { nome: 'Grand Finale', tipo: 'magia', familia: 'fizzwick', raridade: 'L', efeito: 'finale', valores: [10, 15, 20, 25, 30], texto: 'When invaders reach here, every invader loses part of its health.' },
+  M08: { nome: 'Grand Finale', tipo: 'magia', familia: 'fizzwick', raridade: 'L', efeito: 'finale', valores: [12, 18, 24, 30, 36], texto: 'When invaders reach here, every invader loses part of its health.' },
 }
 
 // ---------------------------------------------------------------- álbum
@@ -149,9 +149,9 @@ export const HORDA = {
 // Chefes (rodadas 5, 10, 15, 20; depois repetem a cada 5 com o dobro de vida e dano).
 export const CHEFES = [
   { id: 'gutbucket', nome: 'Gutbucket the Wide', rodada: 5, vida: 380, dano: 14, cad: 15, vel: 60, alcance: 30, golpeArea: 50, texto: 'Each swing hits every soldier within 0.5.' },
-  { id: 'niptuck', nome: 'Nip & Tuck', rodada: 10, vida: 420, dano: 16, cad: 10, vel: 60, alcance: 30, gemeos: 2, furia: 50, texto: 'When one twin falls, the other gets 50% faster and stronger.' },
+  { id: 'niptuck', nome: 'Nip & Tuck', rodada: 10, vida: 300, dano: 16, cad: 10, vel: 60, alcance: 30, gemeos: 2, furia: 50, texto: 'When one twin falls, the other gets 50% faster and stronger.' },
   { id: 'moleworth', nome: 'Madame Moleworth', rodada: 15, vida: 1100, dano: 25, cad: 12, vel: 60, alcance: 30, cava: { tiques: 15, sai: 300 }, texto: 'Digs under the first three plots and comes up at plot 4.' },
-  { id: 'gobble', nome: 'King Gobble the Uninvited', rodada: 20, vida: 1000, dano: 30, cad: 12, vel: 60, alcance: 30, chama: { quantos: 4, tiques: 50, teto: 12 }, imune: true, texto: 'Calls 4 Munchers every 5 s (12 at most); cannot be slowed or stuck.' },
+  { id: 'gobble', nome: 'King Gobble the Uninvited', rodada: 20, vida: 800, dano: 30, cad: 12, vel: 60, alcance: 30, chama: { quantos: 3, tiques: 50, teto: 9 }, imune: true, texto: 'Calls 3 Munchers every 5 s (9 at most); cannot be slowed or stuck.' },
 ]
 
 // ---------------------------------------------------------------- espólios e relíquias

@@ -22,7 +22,7 @@ export function criarCena(canvas, CONFIG) {
     n: 0, lado: new Uint8Array(MAXU), peca: new Array(MAXU), vari: new Uint8Array(MAXU), x0: new Float32Array(MAXU), v: new Float32Array(MAXU), t0: new Float32Array(MAXU),
     lane: new Float32Array(MAXU), dxe: new Float32Array(MAXU), hp: new Int32Array(MAXU), hpMax: new Int32Array(MAXU), est: new Uint8Array(MAXU), anim: new Uint8Array(MAXU),
     animT: new Float64Array(MAXU), dir: new Int8Array(MAXU), k: new Float32Array(MAXU), barra: new Uint8Array(MAXU), preso: new Float32Array(MAXU), sx: new Float32Array(MAXU), sy: new Float32Array(MAXU), tier: new Uint8Array(MAXU),
-    ordem: new Uint16Array(MAXU), tb: 0,
+    ordem: new Uint16Array(MAXU), tb: 0, nv: new Uint8Array(MAXU), lider: new Uint8Array(MAXU), marcha: false,
     // partículas, efeitos animados, números
     pn: 0, px: new Float32Array(MAXP), py: new Float32Array(MAXP), pvx: new Float32Array(MAXP), pvy: new Float32Array(MAXP), pvida: new Float32Array(MAXP), pcor: new Uint8Array(MAXP), ptam: new Uint8Array(MAXP),
     ef: Array.from({ length: MAXE }, () => ({ p: null, x: 0, y: 0, t0: 0, flip: false, ate: 0, anim: null })),
@@ -39,10 +39,14 @@ export function criarCena(canvas, CONFIG) {
     C.geo = Arte.geometria(C.tipo)
     const [rw, rh] = C.geo.referencia
     // celular: a tela lógica inteira (180×370). PC: câmera perto — basta caber 400×225; o resto a câmera percorre na luta
-    C.e = Math.max(1, Math.floor(C.tipo === 'celular' ? Math.min(vw / rw, vh / rh) : Math.min(vw / 400, vh / 225)))
-    C.VW = Math.ceil(vw / C.e); C.VH = Math.ceil(vh / C.e)
+    const cabe = C.tipo === 'celular' ? Math.min(vw / rw, vh / rh) : Math.min(vw / 400, vh / 225)
+    C.e = Math.max(1, Math.floor(cabe)); C.css = C.e
+    // tela pequena (cabe entre 1× e 2×): desenha em 2× e o navegador encolhe até caber — ler vem antes do pixel exato
+    if (cabe > 1.05 && cabe < 2) { C.e = 2; C.css = cabe }
+    C.VW = Math.ceil(vw / C.css); C.VH = Math.ceil(vh / C.css)
     canvas.width = C.VW * C.e; canvas.height = C.VH * C.e
-    canvas.style.width = C.VW * C.e + 'px'; canvas.style.height = C.VH * C.e + 'px'
+    canvas.style.width = C.VW * C.css + 'px'; canvas.style.height = C.VH * C.css + 'px'
+    canvas.style.imageRendering = C.css === C.e ? '' : 'auto'
     C.ox = Math.floor((C.VW - (C.tipo === 'celular' ? rw : 500)) / 2)
     C.oy = C.oyBase = C.tipo === 'celular' ? C.VH - rh : C.VH - 270; C.camY = 0
     C.camMin = C.tipo === 'celular' ? 0 : Math.min(0, C.ox + C.geo.portao[0] - 30); C.camMax = C.tipo === 'celular' ? 0 : Math.max(0, C.ox + C.geo.castelo[0] + 50 - C.VW)
@@ -69,7 +73,7 @@ export function criarCena(canvas, CONFIG) {
     }
     pts.push([600, fim(T[5]), yc(T[5]), tier(T[5]), T[5].sentido])
     C.pts = pts
-    const t0 = T[0]; C.meiaFaixa = (t0.estrada[1] - t0.estrada[0]) / 2 - 2
+    const t0 = T[0]; C.meiaFaixa = (t0.estrada[1] - t0.estrada[0]) / 2 - (C.tipo === 'celular' ? 0 : 2) // celular: a fileira usa a estrada inteira (a multidão não vira mancha)
   }
   /** Posição do motor (centésimos de terreno) + fileira (−1..1) → ponto da tela de arte (sem câmera). Resultado em P. */
   function pos(xe, lane) {
@@ -88,7 +92,7 @@ export function criarCena(canvas, CONFIG) {
   C.areaDoTerreno = (k) => {
     const t = C.geo.terrenos[k - 1]; let w = t.largura
     for (const o of C.geo.terrenos) if (o !== t && o.base_predio === t.base_predio) w = Math.min(w, Math.abs(o.x - t.x)) // vizinhos do mesmo patamar não se sobrepõem
-    return { x: C.ox + t.x - w / 2 - C.cam.x, y: C.oyBase + t.base_predio - 34, w, h: Math.min(t.estrada[1] - t.base_predio + 36, C.VH - 80 - (C.oyBase + t.base_predio - 34)) }
+    return { x: C.ox + t.x - w / 2 - C.cam.x, y: C.oyBase + t.base_predio - 34, w, h: Math.min(t.estrada[1] - t.base_predio + 36, C.VH - (C.tipo === 'celular' ? 100 : 80) - (C.oyBase + t.base_predio - 34)) }
   }
   C.centroDoTerreno = (k) => { const t = C.geo.terrenos[k - 1]; return { x: C.ox + t.x - C.cam.x, y: C.oy + (t.estrada[0] + t.estrada[1]) / 2, base: C.oy + t.base_predio } }
 
@@ -99,12 +103,12 @@ export function criarCena(canvas, CONFIG) {
     const R = Math.min(n, C.tipo === 'pc' ? 4 : 3), row = j % R, col = Math.floor(j / R), cols = Math.ceil(n / R), passo = Math.min(24, 78 / cols)
     return { lane: R === 1 ? 0 : ((row / (R - 1)) * 2 - 1) * 0.9, dxe: (col - (cols - 1) / 2) * passo + (row % 2 ? passo * 0.35 : -passo * 0.15) }
   }
-  C.nascer = (lado, tipo, x, hp, lane, dxe, grande = 1) => {
+  C.nascer = (lado, tipo, x, hp, lane, dxe, grande = 1, nivel = 0, lider = false) => {
     const i = C.n; if (i >= MAXU) return -1
     const p = Arte.unidade(tipo)
     C.lado[i] = lado; C.peca[i] = p; C.vari[i] = p.variantes ? (i * 7 + 3) % p.variantes.length : 0
     C.x0[i] = x; C.v[i] = 0; C.t0[i] = C.tb; C.lane[i] = lane; C.dxe[i] = dxe; C.hp[i] = hp; C.hpMax[i] = hp; C.est[i] = 1
-    C.anim[i] = 0; C.animT[i] = C.relogio - (i * 137) % 900; C.dir[i] = lado ? 1 : -1; C.k[i] = grande; C.barra[i] = p.barra ? 1 : 0; C.preso[i] = -1
+    C.anim[i] = 0; C.animT[i] = C.relogio - (i * 137) % 900; C.dir[i] = lado ? 1 : -1; C.k[i] = grande; C.barra[i] = p.barra ? 1 : 0; C.preso[i] = -1; C.nv[i] = nivel; C.lider[i] = lider ? 1 : 0
     C.n = i + 1; ordenar = true
     return i
   }
@@ -174,7 +178,8 @@ export function criarCena(canvas, CONFIG) {
   /** Cor mais comum da 1ª linha do céu (sem pegar estrela), para completar o céu acima do plano. */
   function corDoTopo(p) {
     if (p.topo) return p.topo
-    const d = p.img.getContext('2d').getImageData(p.quadro[0], p.quadro[1], p.quadro[2], 1).data, cont = {}
+    const tmp = Arte.Cod.tela(p.quadro[2], 1), tg = tmp.getContext('2d'); tg.drawImage(p.img, p.quadro[0], p.quadro[1], p.quadro[2], 1, 0, 0, p.quadro[2], 1)
+    const d = tg.getImageData(0, 0, p.quadro[2], 1).data, cont = {}
     let melhor = '#000', n = 0
     for (let i = 0; i < d.length; i += 4) { const k = `rgb(${d[i]},${d[i + 1]},${d[i + 2]})`; cont[k] = (cont[k] || 0) + 1; if (cont[k] > n) { n = cont[k]; melhor = k } }
     return (p.topo = melhor)
@@ -253,17 +258,36 @@ export function criarCena(canvas, CONFIG) {
       if (!a.loop && ms >= Arte.duracao(a)) {
         if (an === AN.fall) { C.est[i] = 4; continue }
         an = C.anim[i] = C.v[i] !== 0 ? AN.walk : AN.idle; a = p.anim[ANIMS[an]]; ms = C.relogio - C.animT[i]
-      } else if (an <= AN.walk) { const quer = C.v[i] !== 0 ? AN.walk : AN.idle; if (quer !== an) { an = C.anim[i] = quer; a = p.anim[ANIMS[an]] } }
+      } else if (an <= AN.walk) { const quer = C.v[i] !== 0 || (C.marcha && C.lado[i] === 1 && !C.menos) ? AN.walk : AN.idle; if (quer !== an) { an = C.anim[i] = quer; a = p.anim[ANIMS[an]] } }
       if (C.menos && an === AN.idle) ms = 0
       const qs = p.variantes ? p.variantes[C.vari[i]] : p.quadros
       const flip = (C.dir[i] * C.sentido[i] < 0) !== p.olhaEsquerda
       const X = Math.round(C.sx[i]) - cx, Y = Math.round(C.sy[i]) + ty
-      Arte.desenhar(g, p, qs[Arte.quadroDe(a, ms)], X, Y, flip, tinta, C.k[i])
+      const q = qs[Arte.quadroDe(a, ms)], grandao = p.w > 60
+      // leitura da multidão: contorno claro no aliado e escuro no invasor; quem está na fileira de trás fica um tom abaixo
+      if (!grandao) { const sil = Arte.folhaSil(p.img, C.lado[i] ? '#3C1450' : '#F4F8FF', flip), w = q[2], h = q[3], sx = flip ? sil.width - q[0] - w : q[0], ax = flip ? w - 1 - p.ax : p.ax; g.drawImage(sil, sx, q[1], w, h, X - ax - 1, Y - p.ay, w, h); g.drawImage(sil, sx, q[1], w, h, X - ax + 1, Y - p.ay, w, h); g.drawImage(sil, sx, q[1], w, h, X - ax, Y - p.ay - 1, w, h) }
+      Arte.desenhar(g, p, q, X, Y, flip, tinta || (C.lane[i] < -0.3 && !grandao ? TRAS : null), C.k[i])
+      if (C.nv[i] >= 3 && C.lado[i] === 0 && C.est[i] === 1) marcaDeNivel(i, p, X, Y)
       if (C.barra[i] && C.hp[i] < C.hpMax[i]) { const w = p.w > 100 ? 40 : 24, yb = Y - p.ay - 1 + (p.w > 100 ? 14 : 8); g.fillStyle = '#2B1E3A'; g.fillRect(X - (w >> 1) - 1, yb - 1, w + 2, 5); g.fillStyle = '#CC3C3E'; g.fillRect(X - (w >> 1), yb, Math.max(0, Math.round(w * C.hp[i] / C.hpMax[i])), 3) }
       if (C.preso[i] > C.tb) { g.fillStyle = '#286840'; g.fillRect(X - 6, Y - 4, 12, 2); g.fillStyle = '#469C48'; g.fillRect(X - 4, Y - 7, 2, 4); g.fillRect(X + 2, Y - 8, 2, 5) }
     }
   }
   C.sentido = new Int8Array(MAXU)
+  const TRAS = '#C4BCD6'
+  /** Nível 3+: divisa de ouro sobre a cabeça; nível 5: duas divisas com brilho e o líder do grupo leva o estandarte. Só desenho. */
+  function marcaDeNivel(i, p, X, Y) {
+    const topo = Y - p.ay + Arte.topoDe(p) - 5, max = C.nv[i] >= 5
+    g.fillStyle = '#2B1E3A'; g.fillRect(X - 3, topo - 1, 7, max ? 6 : 4)
+    g.fillStyle = '#FFD248'; g.fillRect(X - 2, topo + 1, 1, 1); g.fillRect(X - 1, topo, 3, 1); g.fillRect(X + 2, topo + 1, 1, 1)
+    if (max) { g.fillRect(X - 2, topo + 3, 1, 1); g.fillRect(X - 1, topo + 2, 3, 1); g.fillRect(X + 2, topo + 3, 1, 1); if (!C.menos && ((C.relogioReal + i * 97) % 900) < 220) { g.fillStyle = '#FFF096'; g.fillRect(X, topo - 3, 1, 3); g.fillRect(X - 1, topo - 2, 3, 1) } }
+    if (C.lider[i]) { // estandarte do grupo
+      const bx = X + (C.dir[i] * C.sentido[i] < 0 ? 7 : -8), by = topo - 9
+      g.fillStyle = '#2B1E3A'; g.fillRect(bx - 1, by - 1, 3, 22); g.fillRect(bx + 1, by - 1, 9, max ? 9 : 7)
+      g.fillStyle = '#C48C54'; g.fillRect(bx, by, 1, 20)
+      g.fillStyle = max ? '#FFD248' : '#CECAD8'; g.fillRect(bx + 1, by, 7, max ? 7 : 5); g.fillStyle = max ? '#FFF096' : '#FFF6E0'; g.fillRect(bx + 1, by, 7, 1)
+      g.fillStyle = '#2B1E3A'; for (let n = 0; n < Math.min(5, C.nv[i]); n++) g.fillRect(bx + 2 + (n % 3) * 2, by + 2 + ((n / 3) | 0) * 2, 1, 1)
+    }
+  }
 
   function atualizarBonecos() {
     for (let i = 0; i < C.n; i++) {
@@ -287,8 +311,9 @@ export function criarCena(canvas, CONFIG) {
     if (C.trem.ate > agora && !C.menos) { const k = C.trem.px; C.trem.x = Math.round(Math.sin(agora / 11) * k); C.trem.y = Math.round(Math.cos(agora / 13) * k * 0.6); C.tremidaMax = Math.max(C.tremidaMax, Math.abs(C.trem.x), Math.abs(C.trem.y)) } else { C.trem.x = 0; C.trem.y = 0 }
     if (C.menos) C.cam.x = 0; else { const d = C.cam.alvo - C.cam.x, passo = 24 * dtReal / 1000; C.cam.x += Math.abs(d) <= passo ? d : Math.sign(d) * passo }
     if (C.cam.zoom !== 1 && agora > C.cam.zoomAte) C.cam.zoom = 1
-    { // na luta do PC o mundo desce um pouco: mais céu, menos grama vazia onde ficava a mão
-      const pc = C.tipo === 'pc', alvoY = pc && C.fimDeJogo ? -36 : pc && C.emLuta && !C.menos ? Math.min(34, Math.max(0, C.VH - 215 - C.oyBase)) : 0, d = alvoY - C.camY, passo = C.menos ? 1e9 : 70 * dtReal / 1000
+    { // no fim de partida do PC o mundo sobe para a placa caber embaixo
+      const pc = C.tipo === 'pc', alvoY = pc && C.fimDeJogo ? -36 : 0, // na luta o mundo não sai do lugar: o painel de resumo ocupa a base
+       d = alvoY - C.camY, passo = C.menos ? 1e9 : 70 * dtReal / 1000
       C.camY += Math.abs(d) <= passo ? d : Math.sign(d) * passo; C.oy = C.oyBase + Math.round(C.camY)
     }
     if (C.mix < 1) C.mix = Math.min(1, C.mix + dtReal / 2000)

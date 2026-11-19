@@ -156,6 +156,22 @@ export function folhaVar(img, tinta, flip) {
   if (!m[k]) { let c = tinta ? Cod.tingir(img, tinta) : img; if (flip) c = Cod.espelhar(c); m[k] = c }
   return m[k]
 }
+/** Folha inteira numa cor só (contorno de leitura na multidão), feita uma vez por cor. */
+export function folhaSil(img, cor, flip) {
+  let m = VARS.get(img); if (!m) VARS.set(img, m = {})
+  const k = 'S' + cor + (flip ? 'F' : '')
+  if (!m[k]) { const c = Cod.silhueta(img, cor); m[k] = flip ? Cod.espelhar(c) : c }
+  return m[k]
+}
+/** Quantos px vazios há acima da cabeça no 1º quadro da peça (para pôr a marca de nível no lugar). */
+export function topoDe(p) {
+  if (p.topo != null) return p.topo
+  const q = (p.variantes?.[0] || p.quadros)[0], c = Cod.tela(q[2], q[3]), g = c.getContext('2d')
+  g.drawImage(p.img, q[0], q[1], q[2], q[3], 0, 0, q[2], q[3])
+  const d = g.getImageData(0, 0, q[2], q[3]).data; let y = 0
+  achar: for (; y < q[3]; y++) for (let x = 0; x < q[2]; x++) if (d[(y * q[2] + x) * 4 + 3] > 40) break achar
+  return (p.topo = y)
+}
 /** Desenha o quadro `q` ([x,y,w,h]) da peça com o pé em (X, Y). `flip` espelha; `tinta` multiplica pela luz; `k` amplia. */
 export function desenhar(g, p, q, X, Y, flip = false, tinta = null, k = 1) {
   const img = folhaVar(p.img, tinta, flip), w = q[2], h = q[3]
@@ -262,7 +278,14 @@ function quebrarNome(nome) {
 function faceBase(id) {
   if (A.cartas.has(id)) return A.cartas.get(id)
   const c = Cod.tela(56, 78), g = c.getContext('2d'), ac = A.atlas?.cartas, img = ac && A.folhas[ac.folha], C = A.config.CARTAS[id]
-  if (img && ac.piloto?.[id]) { const q = ac.piloto[id].quadro; g.drawImage(img, q[0], q[1], 56, 78, 0, 0, 56, 78); marca('carta:' + id, 'atlas') } else {
+  if (img && ac.piloto?.[id]) {
+    const q = ac.piloto[id].quadro; g.drawImage(img, q[0], q[1], 56, 78, 0, 0, 56, 78); marca('carta:' + id, 'atlas')
+    if (ac.piloto[id].nome !== C.nome) { // o nome mostrado é o do config: a faixa do nome é repintada por cima da arte
+      const f = FAMILIA_COR[C.familia], lin = quebrarNome(C.nome)
+      g.fillStyle = f.cor; g.fillRect(4, 5, 48, 11); g.fillStyle = f.claro; g.fillRect(4, 4, 48, 1); g.fillStyle = f.escuro; g.fillRect(4, 16, 48, 1)
+      lin.forEach((s, i) => texto(g, s, 28, lin.length === 1 ? 8 : 5 + i * 6, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' }))
+    }
+  } else {
     const m = img && ac.molduras?.[RAR_NOME[C.raridade]]
     if (m) g.drawImage(img, m[0], m[1], 56, 78, 0, 0, 56, 78); else g.drawImage(Cod.molduraPorCodigo(C.raridade), 0, 0)
     marca('carta:' + id, m ? 'atlas+codigo' : 'codigo')
@@ -288,9 +311,11 @@ export function forcaDaCarta(id, nivel) {
   const C = A.config.CARTAS[id], i = Math.max(0, Math.min(4, nivel - 1))
   if (C.tipo === 'tropa') return 'x' + C.qtd[i]
   const v = C.valores[i]
-  if (C.tipo === 'construcao') return C.efeito === 'curaSeg' ? `+${v}/S` : C.efeito === 'soldados' || C.efeito === 'ouro' ? `+${v}` : C.efeito === 'torre' ? `+${C.valores2[i]}%` : C.efeito === 'pavio' ? String(v) : `${C.efeito === 'reducao' ? '-' : '+'}${v}%`
+  if (C.tipo === 'construcao') return C.efeito === 'curaSeg' ? `+${v}` : C.efeito === 'soldados' || C.efeito === 'ouro' ? `+${v}` : C.efeito === 'torre' ? `+${C.valores2[i]}%` : C.efeito === 'pavio' ? String(v) : `${C.efeito === 'reducao' ? '-' : '+'}${v}%`
   return ['piche', 'corneta', 'repeteco', 'finale'].includes(C.efeito) ? v + '%' : String(v)
 }
+/** Legenda curta do que o número da carta é ("DMG", "HP/SEC"…): texto do config. Tropa não tem (o número é a quantidade). */
+export function legendaDaCarta(id) { const C = A.config.CARTAS[id]; return C.tipo === 'tropa' ? '' : A.config.LEGENDAS?.[C.efeito] || '' }
 /** Desenha a carta `id` no nível dado com o canto em (x, y). `silhueta`: só o vulto (carta ainda não liberada). */
 export function carta(g, id, nivel, x, y, { silhueta = false } = {}) {
   const base = faceBase(id)
@@ -298,7 +323,9 @@ export function carta(g, id, nivel, x, y, { silhueta = false } = {}) {
   g.drawImage(base, x, y)
   const ac = A.atlas?.cartas, pinos = ac?.pinos || [[14, 70], [20, 70], [26, 70], [32, 70], [38, 70]], tf = ac?.texto_forca || [34, 57]
   for (let i = 0; i < 5; i++) icone(g, i < nivel ? 'pin-on' : 'pin-off', x + pinos[i][0], y + pinos[i][1])
-  texto(g, forcaDaCarta(id, nivel), x + tf[0], y + tf[1] + 2, { fonte: 'reino', cor: COR.ameixa, alinhar: 'centro' })
+  const leg = legendaDaCarta(id)
+  texto(g, forcaDaCarta(id, nivel), x + tf[0], y + tf[1] + (leg ? -1 : 2), { fonte: 'reino', cor: COR.ameixa, alinhar: 'centro' })
+  if (leg) texto(g, leg, x + tf[0], y + tf[1] + 7, { fonte: 'mini', cor: '#6E4A3A', alinhar: 'centro' })
 }
 export function costas(g, x, y) {
   const ac = A.atlas?.cartas, img = ac && A.folhas[ac.folha]

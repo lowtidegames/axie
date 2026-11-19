@@ -1,0 +1,26 @@
+hora_BRT,item,tentativa,ferramenta,custo_geracoes,saldo_depois,arquivo,nota
+19/11 18:35,lanceiro,1,/create-image-pixflux,1.0,1003.5098459895798,bruto/lanceiro-1.png,
+19/11 18:35,lanceiro24,1,/create-image-pixen,1.0,1002.5098459895798,bruto/lanceiro24-1.png,teste de tamanho 24 no pixen
+19/11 18:36,arqueiro,1,/create-image-pixflux,1.0,1001.5098459895798,bruto/arqueiro-1.png,
+19/11 18:36,cavaleiro,1,/create-image-pixflux,1.0,1000.5098459895798,bruto/cavaleiro-1.png,
+19/11 18:37,invasor,1,/create-image-pixflux,1.0,999.5098459895798,bruto/invasor-1.png,
+19/11 18:37,chefe,1,/create-image-pixflux,1.0,998.5098459895798,bruto/chefe-1.png,
+19/11 18:38,invasor-bruto,1,/create-image-pixflux,1.0,997.5098459895798,bruto/invasor-bruto-1.png,
+19/11 18:38,castelo,1,/create-image-pixflux,1.0,996.5098459895798,bruto/castelo-1.png,
+19/11 18:38,portao,1,/create-image-pixflux,1.0,995.5098459895798,bruto/portao-1.png,
+19/11 18:39,quartel,1,/create-image-pixflux,1.0,994.5098459895798,bruto/quartel-1.png,
+19/11 18:39,moinho,1,/create-image-pixflux,1.0,993.5098459895798,bruto/moinho-1.png,
+19/11 18:39,torre-mago,1,/create-image-pixflux,1.0,992.5098459895798,bruto/torre-mago-1.png,
+19/11 18:40,plano-longe,1,/create-image-pixflux,1.0,991.5098459895798,bruto/plano-longe-1.png,
+19/11 18:40,plano-meio,1,/create-image-pixflux,1.0,990.5098459895798,bruto/plano-meio-1.png,
+19/11 18:40,lanceiro-golpe,1,/edit-image-pixen,1.0,989.5098459895798,bruto/lanceiro-golpe-1.png,edit-image-pixen sobre lanceiro-1
+19/11 18:41,mago,1,/create-image-pixflux,1.0,988.5098459895798,bruto/mago-1.png,
+19/11 18:41,arqueiro-b,1,/edit-image-pixen,1.0,987.5098459895798,bruto/arqueiro-b-1.png,familia pelo mesmo boneco-base
+19/11 18:42,cavaleiro-b,1,/edit-image-pixen,1.0,986.5098459895798,bruto/cavaleiro-b-1.png,familia pelo mesmo boneco-base
+19/11 18:42,invasor-b,1,/edit-image-pixen,1.0,985.5098459895798,bruto/invasor-b-1.png,invasor pelo mesmo boneco-base
+19/11 18:43,lanceiro-passo,1,/edit-image-pixen,1.0,984.5098459895798,bruto/lanceiro-passo-1.png,
+19/11 18:45,invasor-golpe,1,/edit-image-pixen,1.0,983.5098459895798,bruto/invasor-golpe-1.png,
+19/11 18:46,arqueiro-tiro,1,/edit-image-pixen,1.0,982.5098459895798,bruto/arqueiro-tiro-1.png,
+19/11 18:46,lanceiro-apanhou,1,/edit-image-pixen,1.0,981.5098459895798,bruto/lanceiro-apanhou-1.png,
+19/11 18:47,ferraria,1,/create-image-pixflux,1.0,980.5098459895798,bruto/ferraria-1.png,
+19/11 18:47,tenda,1,/create-image-pixflux,1.0,979.5098459895798,bruto/tenda-1.png,

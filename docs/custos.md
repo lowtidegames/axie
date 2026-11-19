@@ -14,6 +14,7 @@ Quem escreve: só o diretor. Cada gasto entra aqui no mesmo dia, com a autoriza�
 | 19/11/2026 18:36–18:50 | PixelLab (imagens) | jogo de reino, prova de direção de arte: boneco-base + 3 variações + 5 poses por edição, mago, 2 invasores, chefe, castelo, portão, 5 construções, 2 planos de fundo, 3 testes descartados (`arte/reino/`) | 25 gerações (saldo 1004,5 → 979,5) — total nos tetos do dono: 95 de 150 | diretor 19/11 (teto 30) |
 | 19/11/2026 19:00 | ElevenLabs (efeitos sonoros) | Reino: 8 efeitos (choque, marcha, casteloRacha, muralha, chefeEntra, flecha, espolio, recorde), 3 tomadas cada, 22 escolhidas por medição em `public/reino/sons/` (bruto e registro em `sons/reino/`) | 330 créditos (total 1.614 de 5.000; sobram 3.386) | dono 15/11 02:55 "teto de 5.000" + 19/11 18:30 (autonomia); avisado antes |
 | 19/11/2026 19:05–19:31 | PixelLab (imagens) | Reino R9, arte do piloto: 3 tropas por edição do boneco-base, 5 passos + 1 golpe, 3 invasores + 3 poses, chefe Gutbucket em 3 poses, Potlid Brute em 3 poses, 5 prédios (2 descartados: 3/4), 1 passo refeito (`arte/reino/`) | 24 gerações (saldo 979,5 → 955,5) — total nos tetos do dono: 119 de 150 | diretor 19/11 (teto 28) |
+| 19/11/2026 19:57–20:30 | PixelLab (imagens) | Reino R11, arte completa: 7 tropas, 4 invasores e 3 chefes por edição, 7 golpes, 6 prédios por edição da cookhouse, 1 golpe do Brute refeito (`arte/reino/`) | 28 gerações (saldo 955,5 → 927,5) — total nos tetos do dono: 147 de 150 | diretor 19/11 (teto 29) |
 
 **Teto do ElevenLabs: 5.000 créditos. Gasto até agora: 1.284 (piloto 342 + pacote 942). Sobra: 3.716.**
 
@@ -36,3 +37,5 @@ Quem escreve: só o diretor. Cada gasto entra aqui no mesmo dia, com a autoriza�
 - **PixelLab, lições de 19/11:** família inteira de bonecos por `edit-image-pixen` sobre UM boneco-base (traço e lado coerentes); pixflux 32×32 dá soldado melhor que pixen 24×24; prédio vem em 3/4 e às vezes roxo (trocar matiz por código); escudo vem com cruz (pedir "without any symbol"). Entre 15/11 e 19/11 o saldo caiu de 1.032,5 para 1.004,5 sem uso nosso (conta dividida com outro projeto).
 
 - **PixelLab, lição de 19/11 19:31:** prédio pedido do zero vem em 3/4 mesmo com "front view": editar UMA casa já aceita mantém ângulo e traço. Conferir a contagem de pixels de cada pose contra a base (um passo veio 30% menor e o boneco pulsava).
+
+- **PixelLab, lição de 19/11 20:30:** "exactly the same head size, body size… only the arms change" no pedido de pose mantém o tamanho (3 de 3). **TETO DE 150 GERAÇÕES DO DONO: 147 usadas.** Arte nova só por código até ele dar teto novo.

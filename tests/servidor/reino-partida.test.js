@@ -70,6 +70,15 @@ describe('reino: config (dados do jogo)', () => {
       }
     }
   })
+  test('Construção e Magia: todo nível ganha alguma coisa (nenhum par de números igual ao do nível anterior)', () => {
+    for (const [id, c] of Object.entries(CARTAS)) {
+      if (c.tipo === 'tropa') continue
+      for (let n = 1; n < PARTIDA.nivelMax; n++) {
+        const de = [c.valores[n - 1], c.valores2 && c.valores2[n - 1]], para = [c.valores[n], c.valores2 && c.valores2[n]]
+        assert.notDeepEqual(para, de, `${c.nome}: N${n + 1} igual ao N${n}`)
+      }
+    }
+  })
   test('álbum: 12 cartas no começo + 18 na ordem = as 30, sem repetir', () => {
     assert.equal(ALBUM.inicial.length, 12)
     const tudo = [...ALBUM.inicial, ...ALBUM.ordem]

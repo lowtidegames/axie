@@ -100,3 +100,62 @@ Medidas intermediárias com 40–300 partidas por robô; a final com 600.
 - **Números de nível que não mudam nada:** Bunkhouse (N1–N3 = +1; N4–N5 = +2) e Market Stall (N1=N2, N3=N4) têm níveis sem ganho — herdado da bíblia e piorado no Bunkhouse pelo ajuste. LEVEL UP nesses níveis é festa sem efeito; a tela precisa avisar ou o número precisa mudar.
 - Os testes foram escritos junto com o código novo (não havia código antes para "falhar antes"); o determinismo e o reproduzir foram conferidos contra partidas reais dos 3 robôs.
 
+
+## 6. Equilíbrio 2 (R10, 19/11/2026)
+Medido com `node tools/simular-reino.mjs --partidas 600 --planos 200` (semente "keepmile", álbum com as 30; roda em 4 processos, ~3 min). Varreduras com 100/60 e 300/150 partidas; ~25 min de simulação no total.
+
+### 6.1 Medição nova (antes de mexer em número)
+- **7 robôs de plano** (`plano:<id>` em `shared/reino/robos.js`, lista `PLANOS`): o planejador preso a um plano da bíblia (muralha com flechas, bando com Smithy, campeão único, estrada de armadilhas, cozinha, explosão, ouro). Ganha bônus por nível de carta do plano, sorteia de novo quando a oferta não tem carta do plano e só sai do plano para não perder a luta de agora. Alvo novo: ≥ 6 planos com mediana a até 20% do melhor.
+- **LEVEL UP medido certo.** O simulador contava como LEVEL UP pôr a carta do selo em OUTRO terreno (aí ela é carta nova, nível 1). Agora conta só quando a carta sobe de nível no terreno dela; mostra também a % com os 6 terrenos cheios. Com a conta velha o planejador dava 66–68%; com a certa, nos mesmos números, 52% (62% com o reino cheio).
+- Novato (robô aleatório só com o álbum inicial): vitória na 1ª luta das rodadas 1, 2 e 3. Relógio estimado: lutas × (20 s de escolha + duração). Bonecos vivos ao mesmo tempo (pelos eventos, numa amostra de 2000 lutas + a luta mais cheia de cada robô). Cartas mortas: < 5% nos 10% melhores do planejador + de cada robô de plano.
+
+### 6.2 Mudanças — de → para, motivo, efeito medido
+| Número | De → para | Motivo | Efeito medido |
+|---|---|---|---|
+| Squib Runner (raridade) | Common → Uncommon | 62% dos melhores reinos | 62% → 33% |
+| MULT_NIVEL | ×1,18/1,36/1,6/1,9 → ×1,2/1,38/1,52/1,65 | retorno decrescente: N4–N5 valem menos que carta nova | LEVEL UP quase igual (o que mudou o número foi a medição certa) |
+| Nip & Tuck (vida) | 420 → 340 → 300 cada | 31% de vitória do planejador | 31% → 48% (planos 64%) |
+| King Gobble | vida 1000 → 800; chama 4 → 3 a cada 5 s; teto 12 → 9 | parede (13%) | 13% → 33% (planos 36%) |
+| Bunkhouse | +1/1/1/2/2 soldados → o mesmo + vida +10/20/30/30/40% (2º efeito) | níveis N2, N3 e N5 sem ganho | todo nível muda algo; presença 27–52% |
+| Market Stall | ouro 1/1/2/2/3 → 3/4/5/6/8 | níveis mortos e carta morta | níveis vivos; continua morta (ver 6.4) |
+| Smithy | +20…60% → +30/40/50/60/70% | quase morta | 5–7% |
+| Stone Wall | −15…35% → −25/30/35/40/45% | morta | 3–17% (oscila na linha dos 5%) |
+| Watchtower (dano) | +10…30% → +50/60/70/85/100% | morta | 0 → 12% |
+| Fletcher's Hut | +15…35% → +50/60/70/80/90% | morta | 0 → 8–12% |
+| Feast Hall | +25…65% → +40/55/70/85/100% | morta | 0 → 5–10% |
+| Angry Bees | 4…13/s → 8/11/14/17/21/s | morta | 0 → 12–27% |
+| Rally Horn | +30…75% → +50/60/70/85/100% | morta | 0 → 17% |
+| Second Helping | 30…75% → 80/85/90/95/100%; Rare → Uncommon | morta | continua morta (ver 6.4) |
+| Grand Finale | 10…30% → 12/18/24/30/36% | morta (é Legendary, 1%) | 0 → 10–12% |
+| Pie Thrower | dano 6 → 11; lentidão 30% → 40% | morta | 0 → 3–13% |
+| Falconer (dano) | 9 → 12 | quase morta | 18–37% |
+| Soup Carrier (cura) | 14 → 22 | morta | 7–13% |
+| Sir Dent | vida 110 → 100; nível ×1,4/1,8/2,4/3,0 → ×1,35/1,7/2,2/2,7 | com Stone Wall e Feast Hall mais fortes subiu a 70% | 70% → 37% |
+
+**Mudança de regra (1, sem mudar formato):** Construção pode ter um 2º efeito (`efeito2` + `valores2` no config; `montarExercito` soma os dois). Só o Bunkhouse usa. Nenhum nome de função, comando, campo de `visao`/`opcoes` nem código de evento da batalha mudou. Os robôs de plano e as medidas novas são só do simulador.
+
+### 6.3 Tabela final (600 por robô, 200 por robô de plano)
+| Alvo | Antes (R6) | Depois |
+|---|---|---|
+| Ganancioso: mediana 10–14 | 13 | 13 (p10 10, p90 17) |
+| Planejador ≥ 1,5× aleatório | 3,4× | 3,4× (17 ÷ 5) |
+| Batalha 10–20 s | 13,5 s | 13,1 s (p90 22,1) |
+| Lutas aos 30 s < 2% | 0,61% | 0,52% |
+| ≥ 6 planos viáveis (robôs de plano, mediana a até 20% do melhor) | — (3 por dupla de famílias) | 6 de 7: muralha 19, armadilhas 19, bando 18, campeão 18, cozinha 17, ouro 17 (explosão 15, a 79%) |
+| Nenhuma carta > 60% nos 10% melhores | Squib Runner 62% | Bunkhouse 52% (Squib 33%) |
+| Nenhuma escolha > 60% | LEVEL UP 67% (conta velha), Promotion 41–53% | LEVEL UP 51% (61% com reino cheio); planos 54–62%; Promotion 38% (planos 36–51%) |
+| Chefe da rodada 10: 45–65% | 31% | 48% planejador · 64% planos |
+| Chefe da rodada 20: 25–40% | 13% | 33% planejador · 36% planos |
+| Novato vence a 1ª luta: rodada 1 ≥ 85%, rodada 3 ≥ 60% | — | 100% e 74% (rodada 2: 80%) |
+| Bom jogador: 12–18 min de relógio | — | planejador 13,3 min (p90 17,3); planos 12–14 min |
+| Bonecos vivos ao mesmo tempo ≤ ~120 | — | máximo 59 (teto somado 81) |
+| Nenhum nível morto | Bunkhouse e Market Stall | nenhum (agora é teste) |
+| Cartas mortas (< 5%) | 11 na 1ª medição | 4: Stone Wall, Market Stall, Second Helping, Bramble Snare |
+
+### 6.4 O que ficou fora (honesto)
+- **Market Stall e Second Helping seguem mortas.** Market Stall só dá ouro e os robôs dão pouco valor a ouro; Second Helping cura uma vez só, tarde. Próximo passo: Second Helping disparar a cada 5 s na zona (regra) ou trocar por outra magia de Potluck.
+- **Stone Wall e Bramble Snare** oscilam em volta dos 5% entre rodadas de medida (amostra de ~200 reinos): na fronteira, não mortas de vez.
+- **Explosão (Fizzwick puro)** ficou a 79% do melhor plano (15 × 19), logo abaixo da linha; é o plano mais instável (p90 25). Squib Uncommon tirou força dele.
+- **LEVEL UP com reino cheio: 61%** no planejador. Com 6 terrenos e uma carta por rodada, depois do terreno 6 a escolha é subir ou trocar; está no limite, não abaixo.
+- **Nip & Tuck segura o ganancioso (33%)**: ele pensa só na luta de agora; é ele que deixa a mediana dele em 13.
+- Dupla de famílias nos 10% melhores do planejador segue com 4 acima de 8% (o planejador sozinho prefere poucos caminhos); por isso a medida de diversidade passou a ser os robôs de plano.

@@ -3,6 +3,7 @@
 //   aleatorio  → comando válido qualquer
 //   ganancioso → a carta e o terreno que mais ajudam na luta desta rodada
 //   planejador → pensa em família, nível e na horda de 3 rodadas à frente (e no chefe avisado)
+//   plano:<id> → o planejador preso a um plano da bíblia (PLANOS), para medir se o plano é viável bem jogado
 //
 // API: escolher(robo, estado, inteiro) → comando. `inteiro(n)` → [0, n) (sorteio do próprio robô).
 import { CARTAS, CHEFES, HORDA, INVASORES, PARTIDA as P } from './config.js'
@@ -163,10 +164,71 @@ function planejador(e) {
   })
 }
 
+// ---------------------------------------------------------------- robôs de plano
+// Medem se cada plano da bíblia (seção 13) é viável quando bem jogado: jogam como o planejador, mas
+// preferem as cartas do plano (bônus por nível de carta do plano no reino) e sorteiam de novo quando a oferta não tem nenhuma.
+// Só saem do plano para não perder a luta de agora.
+export const PLANOS = {
+  muralha: { nome: 'Wall & arrows', cartas: ['T01', 'T02', 'T04', 'T05', 'T06', 'B03', 'B04', 'B05', 'M06'] },
+  bando: { nome: 'Crowd & Smithy', cartas: ['T01', 'T07', 'T11', 'B01', 'B02', 'M04'] },
+  campeao: { nome: 'Lone champion', cartas: ['T03', 'B08', 'B03', 'T08', 'M05', 'M07', 'B06', 'T04'] },
+  armadilhas: { nome: 'Trap road', cartas: ['M06', 'M02', 'M03', 'M01', 'B09', 'M08', 'T04', 'T09', 'T12', 'T06'] },
+  cozinha: { nome: 'Kitchen', cartas: ['T07', 'T08', 'T09', 'B06', 'B08', 'B07', 'M05', 'M07'] },
+  explosao: { nome: 'Boom', cartas: ['T10', 'T11', 'B10', 'M01', 'B02', 'T12', 'B09', 'M08'] },
+  ouro: { nome: 'Gold', cartas: ['B07', 'T07', 'T01', 'T02', 'B06', 'B01', 'T04'] },
+}
+export const ROBOS_PLANO = Object.keys(PLANOS).map((k) => `plano:${k}`)
+const PESO_PLANO = 60 // por nível de carta do plano no reino
+
+function bonusPlano(terrenos, plano) {
+  let n = 0
+  for (const t of terrenos) if (t && plano.cartas.includes(t.carta)) n += t.nivel
+  return n * PESO_PLANO
+}
+
+function roboDePlano(e, plano) {
+  const v = visao(e)
+  const o = opcoes(e)
+  const alvo = hordaAlvo(v)
+  const valor = (t, rel = v.reliquias) => valorFuturo(t, rel, alvo) + bonusPlano(t, plano)
+  if (o.fase === 'carta') {
+    if (o.consertar.pode && (v.vidas === 1 || v.ouro >= o.consertar.custo + 15)) return { tipo: 'consertar' }
+    if (v.cartaPosta) return { tipo: 'batalhar' }
+    const por = o.comandos.filter((c) => c.tipo === 'por')
+    if (!por.length) return { tipo: 'batalhar' }
+    const temPlano = e.oferta.some((c) => plano.cartas.includes(c))
+    const reserva = v.vidas < v.vidasMax ? 0 : 10
+    if (!temPlano && o.sortear.pode && v.ouro - o.sortear.custo >= reserva && e.sorteios < 3) return { tipo: 'sortear' }
+    const cand = por.map((c) => {
+      const t = comTerreno(v.terrenos, c.carta, c.terreno)
+      return { c, t, agora: luta(t, v.reliquias, v.horda), h: forcaEstatica(t, v.reliquias) + bonusPlano(t, plano) }
+    })
+    const vencem = cand.filter((x) => x.agora >= 1000)
+    if (!vencem.length && o.sortear.pode && v.ouro - o.sortear.custo >= reserva && e.sorteios < 2) return { tipo: 'sortear' }
+    const pool = (vencem.length ? vencem : cand.sort((a, b) => b.agora - a.agora).slice(0, 6)).sort((a, b) => b.h - a.h).slice(0, 6)
+    return melhor(pool, (x) => x.agora * (vencem.length ? 0 : 10) + valor(x.t)).c
+  }
+  const esp = o.comandos.filter((c) => c.tipo === 'espolio')
+  const base = valor(v.terrenos)
+  const ouroVale = plano === PLANOS.ouro ? 20 : 12
+  return melhor(esp, (c) => {
+    const x = v.espolios[c.indice]
+    if (x.tipo === 'carta') return valor(comTerreno(v.terrenos, x.carta, c.terreno))
+    if (x.tipo === 'promocao') return valor(promovido(v.terrenos, c.terreno))
+    if (x.reliquia) {
+      if (x.reliquia === 'crown') return base + 400
+      if (x.reliquia === 'horseshoe' || x.reliquia === 'ledger') return base + 150
+      return valor(v.terrenos, [...v.reliquias, x.reliquia]) + 50
+    }
+    return base + x.ouro * ouroVale
+  })
+}
+
 export function escolher(robo, estado, inteiro) {
   if (robo === 'aleatorio') return aleatorio(estado, inteiro)
   if (robo === 'ganancioso') return ganancioso(estado)
   if (robo === 'planejador') return planejador(estado)
+  if (robo.startsWith('plano:') && Object.hasOwn(PLANOS, robo.slice(6))) return roboDePlano(estado, PLANOS[robo.slice(6)])
   throw new Error(`Robô desconhecido: ${robo}`)
 }
 
@@ -181,7 +243,12 @@ export function jogarPartida({ robo, semente, cartasLiberadas, inteiro }) {
     const r = aplicar(e, c, { eventos: false })
     if (!r.ok) throw new Error(`robô ${robo} mandou comando recusado: ${r.erro} ${JSON.stringify(c)}`)
     const linha = { tipo: c.tipo, rodada: e.rodada }
-    if (c.tipo === 'por') { linha.carta = c.carta; linha.levelUpOferecido = e.levelUp; linha.levelUp = e.levelUp && e.oferta[0] === c.carta }
+    if (c.tipo === 'por') {
+      // LEVEL UP de verdade = a carta subiu de nível no terreno dela (a cópia posta noutro terreno é carta nova)
+      const t = e.terrenos[c.terreno - 1]
+      linha.carta = c.carta; linha.levelUpOferecido = e.levelUp; linha.levelUp = !!(t && t.carta === c.carta)
+      linha.reinoCheio = e.terrenos.every(Boolean)
+    }
     if (c.tipo === 'espolio') linha.espolio = e.espolios[c.indice]
     if (c.tipo === 'batalhar') {
       const b = r.eventos.find((x) => x.tipo === 'batalha')

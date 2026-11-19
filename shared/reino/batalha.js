@@ -43,6 +43,7 @@ export function montarExercito(terrenos, reliquias = []) {
         if (j < 0 || j >= n) continue
         const b = bon[j]
         if (c.efeito === 'torre') { b.alcance += v; b.danoTiro += c.valores2[t.nivel - 1] } else b[c.efeito] += v
+        if (c.efeito2) b[c.efeito2] += c.valores2[t.nivel - 1] // 2º efeito (Bunkhouse: soldados e vida)
       }
     }
   })

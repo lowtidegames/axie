@@ -23,6 +23,7 @@ def variar(a, n, tipo):
     def fn(h, s, v, y, x):
         if _pele(h, s, v): return (tom[2], s * tom[1], v * tom[0])
         if 14 <= h <= 40 and 0.42 <= s and 0.30 <= v <= 0.72 and cabelo[y, x]: return (cab[2], s * cab[1], v * cab[0])
+        if s > 0.34 and v > 0.3 and not (10 <= h <= 48): return (h + (0, -5, 6)[n], s * (1, 1.06, 0.92)[n], v * (1, 0.88, 1.07)[n])   # roupa: 3 tons da mesma cor
         return None
     # cabelo = castanho colado na pele, na metade de cima
     al = a[..., 3] > 0; pele = np.zeros(al.shape, bool)
@@ -41,12 +42,21 @@ def _fam(a, de, ate, alvo, sat=1.0, val=1.0):
     return hsv_mapa(a, lambda h, s, v, y, x: ((alvo, s * sat, v * val) if de <= h <= ate and s > 0.2 and v > 0.2 else None))
 
 
+def clarear_escuro(a, ganho):
+    """Clareia so o que e escuro (pele do invasor); o que ja e claro (tambor, pocao, vela, garra) fica como veio."""
+    o = a.copy(); mx = a[..., :3].max(axis=2); m = (a[..., 3] > 0) & (mx >= 60)
+    f = 1 + (ganho - 1) * np.clip((215 - mx) / 130.0, 0, 1)
+    o[m, :3] = np.clip(a[m, :3] * f[m][:, None] + 6, 0, 255)
+    return o
+
+
 # ---------------------------------------------------------------- do bruto para a celula
 def _limpo(nome, clar=None, sombra=False, pre=None):
     a = abrir(nome)
     if sombra: a = tirar_sombra(a)
     a = tirar_ilhas(a, 4)
-    if clar: a = clarear(a, clar)
+    if clar and clar < 0: a = clarear_escuro(a, -clar)
+    elif clar: a = clarear(a, clar)
     if pre: a = pre(a)
     return a
 
@@ -63,8 +73,73 @@ def _centro_pe(q):
     return int(round((xs.min() + xs.max()) / 2.0))
 
 
+# ---------------------------------------------------------------- andar de verdade (R11): as duas pernas, por codigo
+def _corridas(linha):
+    xs = np.nonzero(linha)[0]; out = []
+    if not len(xs): return out
+    a = xs[0]
+    for i in range(1, len(xs)):
+        if xs[i] - xs[i - 1] > 1: out.append((a, xs[i - 1])); a = xs[i]
+    out.append((a, xs[-1])); return out
+
+
+def achar_pernas(B, gx=None, frac=0.24):
+    """Acha as duas pernas do boneco parado: devolve (y_topo, y_pe, gx, mascara A, mascara B) ou None (saia, barriga)."""
+    b = caixa(B); al = B[..., 3] > 0; H = b[3] - b[1]; maxn = max(2, int(round(H * frac)))
+    if gx is None:                                            # o vao entre as pernas mais perto do meio do corpo
+        meio = np.nonzero(al[b[1] + H // 2:b[3]].any(axis=0))[0]; meio = (meio.min() + meio.max()) / 2.0; cand = []
+        for y in range(b[3] - 1, b[3] - 1 - maxn, -1):
+            r = _corridas(al[y])
+            for (r0, r1) in zip(r, r[1:]): cand.append((abs((r0[1] + r1[0]) / 2.0 - meio), (r0[1] + r1[0]) / 2.0))
+        if not cand: return None
+        gx = min(cand)[1]
+    topo = None; mA = np.zeros(al.shape, bool); mB = np.zeros(al.shape, bool)
+    for y in range(b[3] - 1, b[3] - 1 - maxn, -1):
+        r = _corridas(al[y]); tem = False
+        for (r0, r1) in zip(r, r[1:]):
+            if r0[1] < gx + 2 and r1[0] > gx - 2 and abs((r0[1] + r1[0]) / 2.0 - gx) <= 2.5:
+                mA[y, r0[0]:r0[1] + 1] = True; mB[y, r1[0]:r1[1] + 1] = True; tem = True; topo = y
+        if not tem:                                           # so um pe nesta linha (um pe mais baixo que o outro)
+            for (x0, x1) in r:
+                if x1 - x0 <= 7 and abs((x0 + x1) / 2.0 - gx) <= 6: (mA if (x0 + x1) / 2.0 < gx else mB)[y, x0:x1 + 1] = True
+    if topo is None: return None
+    mA[:topo] = False; mB[:topo] = False
+    return topo, b[3] - 1, gx, mA, mB
+
+
+def _perna(o, B, m, topo, pe, dx, sobe=0, escuro=1.0):
+    n = pe - topo + 1
+    for y in range(topo, pe + 1):
+        d = int(round(dx * (y - topo + 1) / float(n))); yy = y - sobe
+        if yy < topo: continue
+        for x in np.nonzero(m[y])[0]:
+            xx = x + d
+            if 0 <= xx < o.shape[1]:
+                c = B[y, x].copy()
+                if escuro != 1.0 and c[:3].max() > 70: c[:3] = (c[:3] * escuro).astype(np.int32)
+                o[yy, xx] = c
+
+
+def ciclo_andar(B, s, gx=None, d=None):
+    """6 quadros (contato, desce, passa, contato com a OUTRA perna, desce, passa). O tronco e sempre o do boneco parado:
+    a contagem de pixels nao muda (nada de pulsar). Sem pernas a mostra (saia, barriga): gingado de 1 px."""
+    pr = achar_pernas(B, gx)
+    if pr is None:
+        return [inclinar(B, s), amassar(inclinar(B, s), 1, 0.6), B, inclinar(B, -s), amassar(inclinar(B, -s), 1, 0.6), B]
+    topo, pe, gx, mA, mB = pr; n = pe - topo + 1
+    if d is None: d = 1 if n < 2 else (2 if n < 3 else (3 if n < 6 else (4 if n < 10 else 5)))
+    tronco = B.copy(); tronco[mA | mB] = 0
+    def pose(a, b, sa=0, sb=0, desce=False):
+        o = tronco.copy()
+        if desce: o = amassar(o, 1, 0.6)
+        _perna(o, B, mA, topo, pe, a, sa, 0.84); _perna(o, B, mB, topo, pe, b, sb)
+        return o
+    L = 1 if n >= 2 else 0
+    return [pose(-d, d), pose(-d + 1, d - 1, desce=True), pose(1, 0, sa=L), pose(d, -d), pose(d - 1, -d + 1, desce=True), pose(0, 1, sb=L)]
+
+
 # ---------------------------------------------------------------- animacoes comuns
-def animar(B, P, G, A, s, cel, chao, ax, P2=None, golpe_extra=None, lento=1.0, sem_golpe=False):
+def animar(B, P, G, A, s, cel, chao, ax, P2=None, golpe_extra=None, lento=1.0, sem_golpe=False, gx=None, tiro=False, pulo=False):
     """B parado, P passo, G golpe, A apanhou (G e A podem faltar: nascem do B por codigo). s=+1 olha direita, -1 esquerda."""
     Q = []; an = {}
     def q(a):
@@ -74,13 +149,15 @@ def animar(B, P, G, A, s, cel, chao, ax, P2=None, golpe_extra=None, lento=1.0, s
     i0 = q(B); i1 = q(amassar(B, 1, 0.5))
     an['idle'] = dict(quadros=[i0, i1], ms=[ms(520), ms(520)], loop=True)
     # andar: 6 quadros (contato, amassa, passa por cima, contato inclinado, amassa, passa)
-    P2 = P2 if P2 is not None else inclinar(P, s)
-    w = [q(P), q(amassar(P, 1, 0.6)), q(mover(B, 0, -1)), q(P2), q(amassar(P2, 1, 0.6)), q(mover(inclinar(B, s), 0, -1))]
-    an['walk'] = dict(quadros=w, ms=[ms(90)] * 6, loop=True)
+    if P is not None and P2 is not None: w = [q(P), q(amassar(P, 1, 0.6)), q(mover(B, 0, -1)), q(P2), q(amassar(P2, 1, 0.6)), q(mover(inclinar(B, s), 0, -1))]
+    else: w = [q(x) for x in ciclo_andar(B, s, gx)]
+    an['walk'] = dict(quadros=w, ms=[ms(100)] * 6, loop=True)
     # golpe: antecipa (recua e amassa), golpe, segura, volta
     if not sem_golpe:
-        if G is None: G = mover(inclinar(B, 3 * s), 3 * s, 0)
         ant = mover(inclinar(amassar(B, 1, 0.6), -2 * s), -2 * s, 0)
+        if G is None and pulo: G = mover(B, 0, -2); ant = amassar(B, 2, 0.6)                      # curandeiro: pulinho
+        elif G is None and tiro: G = mover(inclinar(B, -2 * s), -1 * s, 0); ant = amassar(B, 1, 0.6)   # atirador: coice do tiro
+        elif G is None: G = mover(inclinar(B, 3 * s), 3 * s, 0)
         g = [q(ant), q(G), q(mover(G, s, 0)), q(mover(inclinar(B, s), s, 0))]
         if golpe_extra: g, tempos = golpe_extra(q, g)
         else: tempos = [ms(120), ms(70), ms(90), ms(110)]
@@ -98,7 +175,7 @@ def animar(B, P, G, A, s, cel, chao, ax, P2=None, golpe_extra=None, lento=1.0, s
 CEL = (48, 40); CHAO = 38; OX = 9
 
 
-def _tropa(B, P, G=None, A=None, pre=None, **k):
+def _tropa(B, P=None, G=None, A=None, pre=None, **k):
     def faz(n):
         f = lambda nome: _na_celula(variar(_limpo(nome, pre=pre), n, 'aliado'), CEL, OX, CHAO) if nome else None
         b = f(B); ax = _centro_pe(b)
@@ -166,7 +243,7 @@ def _pavio(Q, an, quais):
 
 
 def _fogueteiro(n):
-    pre = lambda a: _fam(tirar_fogo(a), 200, 250, 276, 0.9, 0.62)        # manga azul vira roxo escuro (familia Fizzwick)
+    pre = lambda a: _fam(_fam(tirar_fogo(a), 200, 250, 326, 0.95, 0.66), 255, 310, 326, 1.18, 1.0)   # Fizzwick e FUCSIA (decisao de 19/11): capuz e manga
     f = lambda nome: _na_celula(variar(_limpo(nome, pre=pre), n, 'aliado'), CEL, OX, CHAO)
     A_, B_ = f('fogueteiro-1'), f('fogueteiro-passo-1')
     ax = _centro_pe(A_)
@@ -193,23 +270,58 @@ def tirar_fogo(a):
     return tirar_ilhas(o, 4)
 
 
-TROPAS = [
- dict(id='T01', nome='Pikeman', familia='Pikewall', faz=_tropa('lanceiro-1', 'lanceiro-passo2-1', 'lanceiro-golpe-1', 'lanceiro-apanhou-1')),
+_fucsia = lambda a: _fam(a, 296, 350, 326, 1.05, 1.0)
+_folha = lambda a: _fam(a, 80, 170, 124, 1.0, 1.0)
+TROPAS = [   # as 5 do piloto primeiro (mesma ordem da R9: a folha 'tropas' nao muda de lugar); as 7 novas vao para 'tropas2'
+ dict(id='T01', nome='Pikeman', familia='Pikewall', faz=_tropa('lanceiro-1', None, 'lanceiro-golpe-1', 'lanceiro-apanhou-1')),
  dict(id='T02', nome='Doorman', familia='Pikewall', faz=_porteiro),
- dict(id='T04', nome='Hedge Archer', familia='Thornbow', faz=_tropa('arqueiro-b-1', 'arqueiro-passo-1', 'arqueiro-tiro-1'), distancia=True),
- dict(id='T07', nome='Frypan Cook', familia='Potluck', faz=_tropa('cozinheiro-1', 'cozinheiro-passo-1', 'cozinheiro-golpe-1')),
+ dict(id='T04', nome='Hedge Archer', familia='Thornbow', faz=_tropa('arqueiro-b-1', None, 'arqueiro-tiro-1'), distancia=True),
+ dict(id='T07', nome='Frypan Cook', familia='Potluck', faz=_tropa('cozinheiro-1', None, 'cozinheiro-golpe-1')),
  dict(id='T10', nome='Squib Runner', familia='Fizzwick', faz=_fogueteiro),
+ dict(id='T03', nome='Sir Dent', familia='Pikewall', faz=_tropa('sirdent-1', None, 'sirdent-golpe2-1'), nova=True),
+ dict(id='T05', nome='Granny Bolt', familia='Thornbow', faz=_tropa('vovo-1', None, tiro=True), distancia=True, nova=True),
+ dict(id='T06', nome='Falconer', familia='Thornbow', faz=_tropa('falcoeira-1', None, 'falcoeira-golpe-1'), distancia=True, nova=True),
+ dict(id='T08', nome='Soup Carrier', familia='Potluck', faz=_tropa('sopeiro-1', None, pulo=True), distancia=True, nova=True),
+ dict(id='T09', nome='Pie Thrower', familia='Potluck', faz=_tropa('torteiro-1', None, 'torteiro-golpe-1'), distancia=True, nova=True),
+ dict(id='T11', nome='Clockwork Geese', familia='Fizzwick', faz=_tropa('ganso-1', None, pre=_fucsia), nova=True),
+ dict(id='T12', nome='Sparkwright', familia='Fizzwick', faz=_tropa('faisqueiro-1', None, pre=_fucsia, tiro=True), distancia=True, nova=True),
 ]
 
 
 # ---------------------------------------------------------------- invasores
-def _invasor(B, P, G=None, cel=CEL, ox=10, chao=CHAO, clar=1.85, sombra=False, lento=1.0, pre=None):
+def cavar(Q, an, B, cel, chao, ax, lento=1.0):
+    """Toupeiras: afunda na terra (dig) e sai (emerge), com monte de terra. Quadros novos no FIM da lista."""
+    b = caixa(B); h = b[3] - b[1]; i0 = len(Q); w = max(10, (b[2] - b[0]) * 2 // 3)
+    for k in (0.3, 0.6, 0.85, 1.0):
+        o = mover(B, 0, int(round(h * k))); o[chao:] = 0
+        im = tela(cel[0], cel[1]); d = ImageDraw.Draw(im); r = int(w * (0.5 + 0.5 * k)) // 2; alt = 2 + int(4 * k)
+        d.ellipse((ax - r, chao - alt, ax + r, chao + alt), fill=TERRA[2] + (255,)); d.ellipse((ax - r + 1, chao - alt, ax + r - 2, chao + alt - 2), fill=TERRA[1] + (255,))
+        for j in range(-r + 2, r - 1, 4): d.point((ax + j, chao - alt + 1 + (j % 3 == 0)), TERRA[0] + (255,))
+        for j, (vx, vy) in enumerate(((-1.3, 1.0), (1.2, 1.2), (-0.5, 1.6), (0.7, 1.5))):                     # torroes voando
+            if k < 1: d.rectangle((ax + vx * (4 + 9 * k), chao - 3 - vy * 9 * k * (1.3 - k), ax + vx * (4 + 9 * k) + 1, chao - 2 - vy * 9 * k * (1.3 - k)), fill=TERRA[3 if j % 2 else 1] + (255,))
+        m = de_img(contornar(im, mix(AMEIXA, TERRA[3], 0.3)).crop((1, 1, cel[0] + 1, cel[1] + 1))); m[chao:] = 0
+        colar(o, m, 0, 0); Q.append(o)
+    an['dig'] = dict(quadros=list(range(i0, i0 + 4)), ms=[int(110 * lento)] * 4, loop=False)
+    an['emerge'] = dict(quadros=list(range(i0 + 3, i0 - 1, -1)), ms=[int(110 * lento)] * 4, loop=False)
+
+
+def _invasor(B, P, G=None, cel=CEL, ox=10, chao=CHAO, clar=1.85, sombra=False, lento=1.0, pre=None, cava=False, chama=False, **k):
     def faz(n):
         f = lambda nome: _na_celula(variar(_limpo(nome, clar=clar, sombra=sombra, pre=pre), n, 'invasor'), cel, ox, chao) if nome else None
         b = f(B); ax = _centro_pe(b)
-        Q, an = animar(b, f(P), f(G), None, -1, cel, chao, ax, lento=lento)
+        Q, an = animar(b, f(P), f(G), None, -1, cel, chao, ax, lento=lento, **k)
+        if cava: cavar(Q, an, b, cel, chao, ax, lento)
+        if chama:                                               # King Gobble chama Munchers: enche o peito e berra
+            i = len(Q); Q += [amassar(b, 2, 0.5), esticar(mover(b, 0, -1), 1, 0.4)]
+            an['call'] = dict(quadros=[i, i + 1, i + 1, 0], ms=[int(160 * lento), int(140 * lento), int(200 * lento), int(120 * lento)], loop=False, impacto=1)
         return Q, an, ax
     return faz
+
+
+def _gemeos(n):
+    """Nip & Tuck: variante 0 = Nip (tesoura), variante 1 = Tuck (agulha). Mesmos indices de quadro nos dois."""
+    if n == 0: return _invasor('nip-1', None, 'nip-golpe-1', cel=CEL_C, ox=18, chao=CHAO_C, clar=None, lento=1.2)(0)
+    return _invasor('tuck-1', None, None, cel=CEL_C, ox=18, chao=CHAO_C, clar=None, lento=1.2)(0)
 
 
 def _pernalta(n):
@@ -243,11 +355,19 @@ CEL_B = (72, 56); CHAO_B = 54
 CEL_C = (112, 92); CHAO_C = 90
 
 INVASORES = [
- dict(id='muncher', nome='Muncher', faz=_invasor('invasor-b-1', 'invasor-passo-1', 'invasor-golpe-1')),
+ dict(id='muncher', nome='Muncher', faz=_invasor('invasor-b-1', None, 'invasor-golpe-1')),
  dict(id='stilt-runner', nome='Stilt Runner', faz=_pernalta),
- dict(id='spud-slinger', nome='Spud Slinger', faz=_invasor('atirador-1', 'atirador-passo-1', 'atirador-tiro-1'), distancia=True),
- dict(id='potlid-brute', nome='Potlid Brute', faz=_invasor('tampa-1', 'tampa-passo-1', 'tampa-golpe-1', cel=CEL_B, ox=14, chao=CHAO_B, clar=None, sombra=True, lento=1.25), cel=CEL_B, barra_vida=True),
- dict(id='gutbucket', nome='Gutbucket the Wide', faz=_invasor('gutbucket-1', 'gutbucket-passo-1', 'gutbucket-golpe-1', cel=CEL_C, ox=18, chao=CHAO_C, clar=None, lento=1.5), cel=CEL_C, chefe=True, barra_vida=True),
+ dict(id='spud-slinger', nome='Spud Slinger', faz=_invasor('atirador-1', None, 'atirador-tiro-1'), distancia=True),
+ dict(id='potlid-brute', nome='Potlid Brute', faz=_invasor('tampa-1', None, 'tampa-golpe2-1', cel=CEL_B, ox=14, chao=CHAO_B, clar=None, sombra=True, lento=1.25), cel=CEL_B, barra_vida=True),
+ dict(id='gutbucket', nome='Gutbucket the Wide', faz=_invasor('gutbucket-1', None, 'gutbucket-golpe-1', cel=CEL_C, ox=18, chao=CHAO_C, clar=None, lento=1.5), cel=CEL_C, chefe=True, barra_vida=True),
+ # R11: os 4 invasores e os 3 chefes que faltavam (folhas novas 'invasores2' e 'chefes')
+ dict(id='bloater', nome='Bloater', faz=_invasor('bloater-1', None, clar=-1.85), nova=True),
+ dict(id='mole-raider', nome='Mole Raider', faz=_invasor('toupeira-1', None, cava=True, clar=-1.85, ox=7), nova=True),
+ dict(id='drum-bully', nome='Drum Bully', faz=_invasor('tambor-1', None, clar=-1.85, ox=8), nova=True),
+ dict(id='quack', nome='Quack', faz=_invasor('curandeiro-1', None, pulo=True, clar=-1.85, ox=7), distancia=True, nova=True),
+ dict(id='niptuck', nome='Nip & Tuck', faz=_gemeos, cel=CEL_C, chefe=True, barra_vida=True, nova=True, nv=2),
+ dict(id='moleworth', nome='Madame Moleworth', faz=_invasor('moleworth-1', None, 'moleworth-golpe-1', cel=CEL_C, ox=18, chao=CHAO_C, clar=None, lento=1.5, cava=True), cel=CEL_C, chefe=True, barra_vida=True, nova=True),
+ dict(id='gobble', nome='King Gobble the Uninvited', faz=_invasor('chefe-1', None, 'gobble-golpe-1', cel=CEL_C, ox=18, chao=CHAO_C, clar=None, lento=1.5, chama=True), cel=CEL_C, chefe=True, barra_vida=True, nova=True),
 ]
 
 
@@ -257,14 +377,14 @@ def montar():
     for t in TROPAS:
         vs = [t['faz'](n) for n in range(3)]
         out.append(dict(id=t['id'], nome=t['nome'], tipo='tropa', familia=t['familia'], cor=hexa(FAMILIA[t['familia']][1]), olha='direita',
-                        cel=CEL, ancora=(vs[0][2], CHAO), variantes=[v[0] for v in vs], anims=vs[0][1], distancia=bool(t.get('distancia'))))
+                        cel=CEL, ancora=(vs[0][2], CHAO), variantes=[v[0] for v in vs], anims=vs[0][1], distancia=bool(t.get('distancia')), nova=bool(t.get('nova'))))
     for t in INVASORES:
-        nv = 1 if t.get('chefe') else (2 if t.get('barra_vida') else 3)
+        nv = t.get('nv') or (1 if t.get('chefe') else (2 if t.get('barra_vida') else 3))
         vs = [t['faz'](n) for n in range(nv)]
         cel = t.get('cel', CEL)
         out.append(dict(id=t['id'], nome=t['nome'], tipo='chefe' if t.get('chefe') else 'invasor', familia='Hungry Horde', cor=hexa(INVASOR[1]), olha='esquerda',
                         cel=cel, ancora=(vs[0][2], {CEL: CHAO, CEL_B: CHAO_B, CEL_C: CHAO_C}[cel]), variantes=[v[0] for v in vs], anims=vs[0][1],
-                        distancia=bool(t.get('distancia')), barra_vida=bool(t.get('barra_vida'))))
+                        distancia=bool(t.get('distancia')), barra_vida=bool(t.get('barra_vida')), nova=bool(t.get('nova'))))
     return out
 
 

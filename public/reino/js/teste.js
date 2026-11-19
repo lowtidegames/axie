@@ -33,7 +33,7 @@ export async function ligarGanchos(X) {
     reproduzir() { const r = X.reproduzir({ semente: J.semente, cartasLiberadas: J.liberadas, comandos: J.comandos }); return { ok: r.ok, igual: r.ok && JSON.stringify(r.resultado) === JSON.stringify(X.resultado(J.e)), resultado: r.resultado ?? null } },
     resultado: () => X.resultado(J.e),
     som: () => Som.estado(), musica: () => Musica.estado(),
-    cena: () => { let vivos = 0; for (let i = 0; i < C.n; i++) if (C.est[i] === 1) vivos++; return { bonecos: C.n, vivos, tremidaMax: C.tremidaMax, flashes: C.flashes.slice(), picoParticulas: C.picoParticulas, limite: C.limite, menos: C.menos, tipo: C.tipo, e: C.e, VW: C.VW, VH: C.VH, hora: C.hora, camX: C.cam.x, zoom: C.cam.zoom, tb: C.tb, vidas: C.vidas, filtro: C.g.canvas.style.filter } },
+    cena: () => { let vivos = 0; for (let i = 0; i < C.n; i++) if (C.est[i] === 1) vivos++; return { bonecos: C.n, vivos, tremidaMax: C.tremidaMax, flashes: C.flashes.slice(), picoParticulas: C.picoParticulas, limite: C.limite, menos: C.menos, tipo: C.tipo, e: C.e, VW: C.VW, VH: C.VH, hora: C.hora, camX: C.cam.x, camMin: C.camMin, camMax: C.camMax, zoom: C.cam.zoom, tb: C.tb, vidas: C.vidas, filtro: C.g.canvas.style.filter } },
     zerarMedidas() { C.tremidaMax = 0; C.picoParticulas = 0; C.flashes.length = 0; marca = X.nq() },
     /** Tempo de quadro desde zerarMedidas(): mediana do intervalo entre quadros e do custo de desenhar (ms). */
     quadros() { const n = Math.min(600, X.nq() - marca), a = [], b = []; for (let i = 0; i < n; i++) { const k = (X.nq() - 1 - i + 6000) % 600; a.push(X.QUADROS[k]); b.push(X.CUSTO[k]) } return { n, intervalo: mediana(a), custo: mediana(b), pior: Math.max(0, ...b) } },
@@ -42,7 +42,7 @@ export async function ligarGanchos(X) {
       const terrenos = ['T11', 'T07', 'T11', 'T01', 'T04', 'T11'].map((carta) => ({ carta, nivel: 5 }))
       const horda = { rodada: 9, ordem: [...Array(40).fill('muncher'), ...Array(10).fill('stilt'), ...Array(6).fill('spud'), 'brute', 'brute', 'gutbucket'], chefe: 'gutbucket' }
       const b = simularBatalha({ terrenos, reliquias: [], horda, eventos: true })
-      C.terrenos = terrenos; X.M().fase = 'luta'
+      C.terrenos = terrenos; X.M().fase = 'luta'; X.M().rodada = 9; C.mudarHora('afternoon', true)
       X.Bat().iniciar({ eventos: b.eventos, horda, terrenos, exercito: X.montarExercito(terrenos, []) }, () => X.abrirRodada())
       X.UI().mudou()
       return { soldados: X.Bat().aliadosTotal, invasores: X.Bat().inimigosTotal, segundos: b.segundos }

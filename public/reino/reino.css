@@ -17,6 +17,7 @@ body { font: 600 15px/1.35 'Nunito', system-ui, sans-serif; color: var(--creme);
 .km-fundo { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(28, 18, 48, .72); touch-action: auto; }
 .km-fundo[hidden] { display: none; }
 .km-caixa { width: min(100%, 560px); max-height: 100%; overflow: auto; overscroll-behavior: contain; padding: 14px; background: var(--painel); border: 3px solid var(--ameixa); box-shadow: 0 0 0 3px var(--filete), 0 6px 0 3px var(--ameixa); display: flex; flex-direction: column; gap: 10px; -webkit-user-select: text; user-select: text; }
+.km-caixa > * { flex: none; }
 .km-tela-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .km-caixa h2 { margin: 0; font: 800 22px/1.1 'Nunito', system-ui, sans-serif; color: var(--ouro); letter-spacing: .5px; }
 .km-caixa h3 { margin: 6px 0 0; font: 800 15px/1.2 'Nunito', system-ui, sans-serif; color: var(--ouro); }

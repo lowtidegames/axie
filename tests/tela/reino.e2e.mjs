@@ -323,7 +323,7 @@ async function rodar(fmt) {
   let maxFlash = 0; for (const t of q.flashes) maxFlash = Math.max(maxFlash, q.flashes.filter((x) => x >= t && x < t + 1000).length)
   confere(maxFlash <= 3, `no máximo 3 clarões por segundo (${maxFlash}; ${q.flashes.length} no total)`)
   confere(q.picoParticulas <= q.limite && q.limite === (fmt.w < fmt.h ? 40 : 60), `partículas dentro do limite (pico ${q.picoParticulas} de ${q.limite})`)
-  if (!fmt.toque) confere(Math.abs(q.camX) <= 30, `câmera acompanha a frente sem sair do quadro (${q.camX.toFixed(1)} px)`)
+  if (!fmt.toque) confere(q.camX >= q.camMin - 0.5 && q.camX <= q.camMax + 0.5 && q.camX !== 0, `câmera acompanha a frente sem sair do cenário (${q.camX.toFixed(1)} px, entre ${q.camMin} e ${q.camMax})`)
   await ctx.close()
 
   // ---------------------------------------------------------------- 13. Reduced motion (preferência do aparelho e botão)

@@ -134,7 +134,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     while (B.i < ev.length && ev[B.i][0] <= C.tb) { const e = ev[B.i++]; if (e[1] === 'n') tipos[e[2]] = e[4]; evento(e, agora); if (B.fimEm) break }
     if (agora - ultimoFundo > 400 && chocou && !B.fimEm) { ultimoFundo = agora; Som.fundoBatalha(Math.min(1, (B.aliados + Math.min(B.inimigos, nascidosInv)) / 36)) }
     // câmera segue a frente da horda (só no PC; até 24 px/s — a cena limita)
-    if (C.tipo === 'pc') { let fr = -1e9; for (let i = 0; i < C.n; i++) if (C.lado[i] === 1 && C.est[i] === 1 && C.sx[i] > fr) fr = C.sx[i]; C.cam.alvo = fr > -1e8 ? Math.max(-30, Math.min(30, (fr - C.ox - 240) * 0.25)) : 0 }
+    if (C.tipo === 'pc') { let fr = -1e9; for (let i = 0; i < C.n; i++) if (C.lado[i] === 1 && C.est[i] === 1 && C.sx[i] > fr) fr = C.sx[i]; C.cam.alvo = fr > -1e8 ? Math.max(C.camMin, Math.min(C.camMax, fr - C.VW * 0.45)) : 0 }
     return dtReal * Math.min(fator, 2)
   }
   /** Leva a luta ao fim na hora, sem festa (gancho de teste e "pular"). */

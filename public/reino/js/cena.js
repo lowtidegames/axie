@@ -38,12 +38,14 @@ export function criarCena(canvas, CONFIG) {
     C.tipo = vh > vw ? 'celular' : 'pc'
     C.geo = Arte.geometria(C.tipo)
     const [rw, rh] = C.geo.referencia
-    C.e = Math.max(1, Math.floor(Math.min(vw / rw, vh / rh)))
+    // celular: a tela lógica inteira (180×370). PC: câmera perto — basta caber 400×225; o resto a câmera percorre na luta
+    C.e = Math.max(1, Math.floor(C.tipo === 'celular' ? Math.min(vw / rw, vh / rh) : Math.min(vw / 400, vh / 225)))
     C.VW = Math.ceil(vw / C.e); C.VH = Math.ceil(vh / C.e)
     canvas.width = C.VW * C.e; canvas.height = C.VH * C.e
     canvas.style.width = C.VW * C.e + 'px'; canvas.style.height = C.VH * C.e + 'px'
-    C.ox = Math.floor((C.VW - rw) / 2)
-    C.oy = C.tipo === 'celular' ? C.VH - rh : Math.max(0, C.VH - 296)
+    C.ox = Math.floor((C.VW - (C.tipo === 'celular' ? rw : 500)) / 2)
+    C.oy = C.oyBase = C.tipo === 'celular' ? C.VH - rh : C.VH - 270; C.camY = 0
+    C.camMin = C.tipo === 'celular' ? 0 : Math.min(0, C.ox + C.geo.portao[0] - 30); C.camMax = C.tipo === 'celular' ? 0 : Math.max(0, C.ox + C.geo.castelo[0] + 50 - C.VW)
     C.limite = (C.tipo === 'celular' ? 40 : 60) >> (C.menos ? 1 : 0)
     caminho(); vinheta = null
   }
@@ -86,7 +88,7 @@ export function criarCena(canvas, CONFIG) {
   C.areaDoTerreno = (k) => {
     const t = C.geo.terrenos[k - 1]; let w = t.largura
     for (const o of C.geo.terrenos) if (o !== t && o.base_predio === t.base_predio) w = Math.min(w, Math.abs(o.x - t.x)) // vizinhos do mesmo patamar não se sobrepõem
-    return { x: C.ox + t.x - w / 2 - C.cam.x, y: C.oy + t.base_predio - 34, w, h: t.estrada[1] - t.base_predio + 36 }
+    return { x: C.ox + t.x - w / 2 - C.cam.x, y: C.oyBase + t.base_predio - 34, w, h: Math.min(t.estrada[1] - t.base_predio + 36, C.VH - 80 - (C.oyBase + t.base_predio - 34)) }
   }
   C.centroDoTerreno = (k) => { const t = C.geo.terrenos[k - 1]; return { x: C.ox + t.x - C.cam.x, y: C.oy + (t.estrada[0] + t.estrada[1]) / 2, base: C.oy + t.base_predio } }
 
@@ -166,8 +168,16 @@ export function criarCena(canvas, CONFIG) {
       if (x > 0) g.drawImage(p.img, qx, qy, 1, qh, 0, y, x, qh)
       if (x + qw < C.VW) g.drawImage(p.img, qx + qw - 1, qy, 1, qh, x + qw, y, C.VW - x - qw, qh)
     }
-    if (p.nome === 'sky' && y > 0) g.drawImage(p.img, qx, qy, qw, 1, 0, 0, C.VW, y)
+    if (p.nome === 'sky' && y > 0) { g.fillStyle = corDoTopo(p); g.fillRect(0, 0, C.VW, y) }
     if (p.nome === 'ground' && y + qh < C.VH) for (let yy = y + qh; yy < C.VH; yy += 40) for (let xx = ((x % qw) + qw) % qw - qw; xx < C.VW; xx += qw) g.drawImage(p.img, qx, qy + qh - 40, qw, 40, xx, yy, qw, 40)
+  }
+  /** Cor mais comum da 1ª linha do céu (sem pegar estrela), para completar o céu acima do plano. */
+  function corDoTopo(p) {
+    if (p.topo) return p.topo
+    const d = p.img.getContext('2d').getImageData(p.quadro[0], p.quadro[1], p.quadro[2], 1).data, cont = {}
+    let melhor = '#000', n = 0
+    for (let i = 0; i < d.length; i += 4) { const k = `rgb(${d[i]},${d[i + 1]},${d[i + 2]})`; cont[k] = (cont[k] || 0) + 1; if (cont[k] > n) { n = cont[k]; melhor = k } }
+    return (p.topo = melhor)
   }
   function nuvens(cen, alfa) {
     if (!cen.nuvens.length) return
@@ -277,6 +287,10 @@ export function criarCena(canvas, CONFIG) {
     if (C.trem.ate > agora && !C.menos) { const k = C.trem.px; C.trem.x = Math.round(Math.sin(agora / 11) * k); C.trem.y = Math.round(Math.cos(agora / 13) * k * 0.6); C.tremidaMax = Math.max(C.tremidaMax, Math.abs(C.trem.x), Math.abs(C.trem.y)) } else { C.trem.x = 0; C.trem.y = 0 }
     if (C.menos) C.cam.x = 0; else { const d = C.cam.alvo - C.cam.x, passo = 24 * dtReal / 1000; C.cam.x += Math.abs(d) <= passo ? d : Math.sign(d) * passo }
     if (C.cam.zoom !== 1 && agora > C.cam.zoomAte) C.cam.zoom = 1
+    { // na luta do PC o mundo desce um pouco: mais céu, menos grama vazia onde ficava a mão
+      const pc = C.tipo === 'pc', alvoY = pc && C.fimDeJogo ? -36 : pc && C.emLuta && !C.menos ? Math.min(34, Math.max(0, C.VH - 215 - C.oyBase)) : 0, d = alvoY - C.camY, passo = C.menos ? 1e9 : 70 * dtReal / 1000
+      C.camY += Math.abs(d) <= passo ? d : Math.sign(d) * passo; C.oy = C.oyBase + Math.round(C.camY)
+    }
     if (C.mix < 1) C.mix = Math.min(1, C.mix + dtReal / 2000)
     atualizarBonecos()
     const cen = Arte.cenario(C.tipo, C.hora), de = C.mix < 1 ? Arte.cenario(C.tipo, C.horaDe) : null

@@ -79,7 +79,7 @@ function montarReino(comHorda = true) {
     M.hordaN = expandirHorda(v.horda).length; M.hordaChefe = v.horda.chefe
     const tipos = [...new Set(v.horda.ordem)], cabem = C.tipo === 'celular' ? 4 : 8, fila = [...tipos]
     for (const t of v.horda.ordem) { if (fila.length >= Math.min(cabem, v.horda.ordem.length)) break; if (t !== v.horda.chefe) fila.push(t) }
-    fila.slice(0, cabem).forEach((t, i, a) => { const chefe = t === v.horda.chefe; C.nascer(1, t, chefe ? -40 : -12 - (i * 46) / Math.max(1, a.length) - (i % 2) * 5, 1, chefe ? 0.3 : ((i * 5) % 7) / 3.5 - 0.9, 0) })
+    fila.slice(0, cabem).forEach((t, i, a) => { const chefe = t === v.horda.chefe; C.nascer(1, t, chefe ? -30 : -6 - (i * (C.VW < 500 && C.tipo === 'pc' ? 22 : 46)) / Math.max(1, a.length) - (i % 2) * 4, 1, chefe ? 0.3 : ((i * 5) % 7) / 3.5 - 0.9, 0) })
   }
 }
 function nivelNaMao(carta) { let n = 0; for (const t of J.v.terrenos) if (t && t.carta === carta && t.nivel < CONFIG.PARTIDA.nivelMax) n = Math.max(n, t.nivel); return n }
@@ -115,6 +115,7 @@ function novaPartida() {
   J.semente = Q.get('semente') || sementeNova(); J.liberadas = Guarda.liberadas(CONFIG.ALBUM)
   J.e = criarPartida({ semente: J.semente, cartasLiberadas: J.liberadas }); J.comandos = []; J.lutas = []; J.semSorteio = true; J.anunciado = ''; J.avisado = ''; J.ultimaLuta = null
   M.fim = null; M.aviso = null; M.brinde = null; M.selo = null
+  C.fimDeJogo = false
   ler(); M.ouro = J.v.ouro
   abrirRodada()
 }
@@ -238,7 +239,7 @@ function fimDaPartida() {
   const r = resultado(J.e), reg = Guarda.partida({ pontos: r.pontos, vencidas: r.vencidas, rodada: r.rodada, semente: J.semente })
   M.fase = 'fim'; M.fim = { t0: agoraMs() + 900, mostra: 0, vencidas: r.vencidas, pontos: r.pontos, ouro: r.ouroGanho, recorde: reg.recorde, novoRecorde: reg.novoRecorde, contou: false }
   M.vidas = r.vidas; M.aviso = null; C.destaque = null; canvas.style.filter = ''
-  montarReino(false); C.vidas = 1
+  montarReino(false); C.vidas = 1; C.fimDeJogo = true
   Som.tocar('fimDePartida'); Musica.momento('fim')
   const n = r.vencidas, passos = Math.min(n, 20)
   for (let i = 1; i <= passos; i++) depois(300 + i * 60, () => { M.fim.mostra = Math.round((n * i) / passos); Som.tocar('rankingSobe', { tom: i % 12 }) })
@@ -266,7 +267,7 @@ function aoTocar(id, d, ev) {
     if (M.fase !== 'carta') return
     if (M.sel >= 0 && !M.cartaPosta) { por(d.terreno); return }
     const t = J.v.terrenos[d.terreno - 1]; Som.tocar('toque')
-    M.info = t ? [`${CONFIG.CARTAS[t.carta].nome} - ${T.nivel} ${t.nivel}`, CONFIG.CARTAS[t.carta].texto] : null
+    M.info = t ? [`${CONFIG.CARTAS[t.carta].nome} - ${T.nivel} ${t.nivel}`, CONFIG.CARTAS[t.carta].texto] : null; if (M.info && M.info[1].length > 42) M.info = [M.info[0], M.info[1].slice(0, M.info[1].lastIndexOf(' ', 42)), M.info[1].slice(M.info[1].lastIndexOf(' ', 42) + 1)]
     if (t) depois(4000, () => { M.info = null }); return
   }
   if (id.startsWith('espolio')) { escolherEspolio(d.espolio); return }

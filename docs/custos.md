@@ -12,6 +12,7 @@ Quem escreve: só o diretor. Cada gasto entra aqui no mesmo dia, com a autoriza�
 | 15/11/2026 11:04–11:08 | PixelLab (imagens) | prova do conceito de objeto-criatura: Portcully (6 tentativas) e Rambark (2), mais 1 teste com sombra como guia, tratados por código (`arte/piloto-monstros/prova-criaturas/`) | 8 gerações (saldo 1040,5 → 1032,5) — total do tema novo: 70 de 150 | diretor 15/11 (teto 14) |
 | 19/11/2026 18:20 | ElevenLabs (efeitos sonoros) | Reino: só conferência da chave (pedido vazio, 422 = chave aceita); nenhum som gerado | 0 créditos | — |
 | 19/11/2026 18:36–18:50 | PixelLab (imagens) | jogo de reino, prova de direção de arte: boneco-base + 3 variações + 5 poses por edição, mago, 2 invasores, chefe, castelo, portão, 5 construções, 2 planos de fundo, 3 testes descartados (`arte/reino/`) | 25 gerações (saldo 1004,5 → 979,5) — total nos tetos do dono: 95 de 150 | diretor 19/11 (teto 30) |
+| 19/11/2026 19:00 | ElevenLabs (efeitos sonoros) | Reino: 8 efeitos (choque, marcha, casteloRacha, muralha, chefeEntra, flecha, espolio, recorde), 3 tomadas cada, 22 escolhidas por medição em `public/reino/sons/` (bruto e registro em `sons/reino/`) | 330 créditos (total 1.614 de 5.000; sobram 3.386) | dono 15/11 02:55 "teto de 5.000" + 19/11 18:30 (autonomia); avisado antes |
 
 **Teto do ElevenLabs: 5.000 créditos. Gasto até agora: 1.284 (piloto 342 + pacote 942). Sobra: 3.716.**
 

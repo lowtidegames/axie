@@ -11,6 +11,7 @@ Quem escreve: só o diretor. Cada gasto entra aqui no mesmo dia, com a autoriza�
 | 15/11/2026 10:51–10:53 | PixelLab (imagens) | refazer arena (bandeiras lisas, 1 tentativa aceita) + 3 testes de Cobblepup descartados, guardados em bruto (`arte/piloto-monstros/`) | 7 gerações pelo saldo (1052,5 → 1045,5; o registro soma 6) — total do tema novo: 62 de 150 | diretor 15/11 (teto 12; depois só arena) |
 | 15/11/2026 11:04–11:08 | PixelLab (imagens) | prova do conceito de objeto-criatura: Portcully (6 tentativas) e Rambark (2), mais 1 teste com sombra como guia, tratados por código (`arte/piloto-monstros/prova-criaturas/`) | 8 gerações (saldo 1040,5 → 1032,5) — total do tema novo: 70 de 150 | diretor 15/11 (teto 14) |
 | 19/11/2026 18:20 | ElevenLabs (efeitos sonoros) | Reino: só conferência da chave (pedido vazio, 422 = chave aceita); nenhum som gerado | 0 créditos | — |
+| 19/11/2026 18:36–18:50 | PixelLab (imagens) | jogo de reino, prova de direção de arte: boneco-base + 3 variações + 5 poses por edição, mago, 2 invasores, chefe, castelo, portão, 5 construções, 2 planos de fundo, 3 testes descartados (`arte/reino/`) | 25 gerações (saldo 1004,5 → 979,5) — total nos tetos do dono: 95 de 150 | diretor 19/11 (teto 30) |
 
 **Teto do ElevenLabs: 5.000 créditos. Gasto até agora: 1.284 (piloto 342 + pacote 942). Sobra: 3.716.**
 
@@ -29,3 +30,5 @@ Quem escreve: só o diretor. Cada gasto entra aqui no mesmo dia, com a autoriza�
 
 - **CORREÇÃO (15/11 11:12): o número `subscription.generations` da API do PixelLab é o que SOBRA no plano, não o que foi usado** — ele desce a cada geração (1107,5 → 1052,5 → 1045,5 → 1040,5 → 1032,5). Onde este arquivo diz "1.107 de 10.000 gerações no ciclo" leia: sobravam 1.107 de 10.000. Em 15/11 11:08 sobravam 1.032,5. Entre 10:53 e 11:04 o saldo caiu 5 sem chamada nossa registrada (a conta é dividida com outro projeto do dono).
 - **PixelLab, lição de 15/11 11:08:** a sombra pintada como imagem inicial só calca a silhueta e perde o desenho; texto com o OBJETO primeiro dá mais identidade; palavras como "bulldog face" ou "ram" puxam para o bicho real.
+
+- **PixelLab, lições de 19/11:** família inteira de bonecos por `edit-image-pixen` sobre UM boneco-base (traço e lado coerentes); pixflux 32×32 dá soldado melhor que pixen 24×24; prédio vem em 3/4 e às vezes roxo (trocar matiz por código); escudo vem com cruz (pedir "without any symbol"). Entre 15/11 e 19/11 o saldo caiu de 1.032,5 para 1.004,5 sem uso nosso (conta dividida com outro projeto).

@@ -51,3 +51,10 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 
 ## Já subiu
 - 15/11 09:35 BRT — página de teste (GitHub Pages), commit 79b278b: jogo em modo local. Conferência pelo diretor: construção verde no GitHub; o site em si não abre deste ambiente (rede só libera ElevenLabs e PixelLab), o dono confere abrindo o link.
+
+## Projeto novo (desde 19/11/2026): reino com cartas e batalha automática
+
+| Nº | Tarefa | Agente (modelo) | Arquivos que mexe | Depende de | Estado |
+|---|---|---|---|---|---|
+| R1 | O jogo em 1 página | diretor | docs/reino/jogo.md | — | PRONTO (rascunho; espera os conselheiros e o dono) |
+| R2 | Conselheiros na página: guardião, diversão, economista | guardiao (Sonnet), conselheiro-de-diversao (Fable), economista | só leitura | R1 | RODANDO (17:38) |

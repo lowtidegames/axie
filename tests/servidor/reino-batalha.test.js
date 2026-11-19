@@ -2,12 +2,12 @@
 // Rodar: npm test  (ou: node --test tests/servidor/reino-batalha.test.js)
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
-import { BATALHA, CARTAS, CHEFES, INVASORES, MULT_NIVEL } from '../../shared/reino/config.js'
-import { criarPartida } from '../../shared/reino/partida.js'
+import { BATALHA, CARTAS, CHEFES, INVASORES } from '../../shared/reino/config.js'
+import { criarPartida, reproduzir } from '../../shared/reino/partida.js'
 import { expandirHorda, familiasAtivas, montarExercito, multChefe, simularBatalha } from '../../shared/reino/batalha.js'
-import { hordaDeReferencia } from '../../shared/reino/robos.js'
+import { PLANOS, ROBOS_PLANO, escolher, hordaDeReferencia, jogarPartida } from '../../shared/reino/robos.js'
 import { criarRng } from '../../shared/rng.js'
-import { resumo, simular } from '../../tools/simular-reino.mjs'
+import { bonecosAoMesmoTempo, resumo, simular } from '../../tools/simular-reino.mjs'
 
 const T = (carta, nivel = 1) => ({ carta, nivel })
 const vazio = () => [null, null, null, null, null, null]
@@ -111,17 +111,16 @@ describe('reino: batalha — fim e eventos', () => {
 })
 
 describe('reino: batalha — regras das cartas', () => {
-  test('toda carta em todo nível entra na luta, e todo número de nível é lido pelo motor', () => {
+  test('toda carta em todo nível entra na luta, e todo nível muda alguma coisa (nenhum nível morto)', () => {
     const ctx = (x) => [T('T04', 5), x, T('M01', 5), T('T01', 5), null, null]
-    const nums = (c, n) => JSON.stringify(c.tipo === 'tropa' ? [c.qtd[n - 1], (c.multNivel || MULT_NIVEL)[n - 1]] : [c.valores[n - 1], c.valores2 && c.valores2[n - 1]])
     for (const id of IDS) {
       const c = CARTAS[id]
       let anterior = JSON.stringify(montarExercito(ctx(null)))
       for (let n = 1; n <= 5; n++) {
         const ts = ctx(T(id, n))
         const ex = JSON.stringify(montarExercito(ts))
-        // o reino muda sempre que o número do nível muda
-        if (n === 1 || nums(c, n) !== nums(c, n - 1)) assert.notEqual(ex, anterior, `${c.nome} N${n} não muda nada`)
+        // todo LEVEL UP muda o reino (Equilíbrio 2: Bunkhouse e Market Stall tinham níveis sem ganho)
+        assert.notEqual(ex, anterior, `${c.nome} N${n} não muda nada`)
         anterior = ex
         const b = simularBatalha({ terrenos: ts, horda: hordaDeReferencia(4 * n) })
         assert.equal(b.eventos.at(-1)[1], 'f')
@@ -130,10 +129,19 @@ describe('reino: batalha — regras das cartas', () => {
   })
   test('construção vale para os 2 vizinhos (Blueprints: 2 de cada lado); bônus de 2 construções somam', () => {
     const ex = montarExercito([T('T01'), T('B01'), T('T01'), T('B01'), T('T01'), T('T01')])
-    // Pikeman dano 6; Smithy N1 +20% por vizinho: terreno 3 tem dois Smithy (+40%), o 6 nenhum
-    assert.deepEqual(ex.soldados.map((s) => s.dano), [7, 8, 7, 6])
+    // Pikeman dano 6; Smithy N1 +s% por vizinho: terreno 3 tem dois Smithy (+2s%), o 6 nenhum
+    // (Equilíbrio 2: o número do Smithy mudou de 20 para 30; a regra é a mesma, agora lida do config)
+    const d = CARTAS.T01.dano, s = CARTAS.B01.valores[0], um = Math.floor(d * (100 + s) / 100 + 0.5), dois = Math.floor(d * (100 + 2 * s) / 100 + 0.5)
+    assert.ok(dois > um && um > d)
+    assert.deepEqual(ex.soldados.map((x) => x.dano), [um, dois, um, d])
     const bp = montarExercito([T('T01'), null, T('B01'), null, T('T01'), T('T01')], ['blueprints'])
-    assert.deepEqual(bp.soldados.map((s) => s.dano), [7, 7, 6])
+    assert.deepEqual(bp.soldados.map((x) => x.dano), [um, um, d])
+  })
+  test('Bunkhouse dá soldados e vida aos vizinhos (2º efeito por nível)', () => {
+    const sem = montarExercito([T('T01'), null, null, null, null, null]).soldados[0]
+    const com = montarExercito([T('T01'), T('B02', 2), null, null, null, null]).soldados[0]
+    assert.equal(com.qtd, sem.qtd + CARTAS.B02.valores[1])
+    assert.equal(com.vida, Math.floor(CARTAS.T01.vida * (100 + CARTAS.B02.valores2[1]) / 100 + 0.5))
   })
   test('família liga com 3 terrenos (2 com Twin Banner)', () => {
     const ts = [T('T01'), T('B01'), null, null, null, null]
@@ -199,6 +207,29 @@ describe('reino: batalha — velocidade', () => {
 })
 
 describe('reino: simulador (fumaça, modo rápido)', () => {
+  test('robôs de plano: jogam até o fim com comandos aceitos, preferem as cartas do plano e a partida se reproduz', () => {
+    for (const robo of ROBOS_PLANO) {
+      const plano = PLANOS[robo.slice(6)]
+      for (const c of plano.cartas) assert.ok(CARTAS[c], `${robo}: ${c}`)
+      const rng = criarRng(`plano:${robo}`)
+      const { estado, comandos } = jogarPartida({ robo, semente: `fumaca-${robo}`, cartasLiberadas: IDS, inteiro: (n) => rng.inteiro(n) })
+      assert.equal(estado.fase, 'fim')
+      assert.ok(estado.vencidas >= 1, `${robo} não venceu nenhuma rodada`)
+      const r = reproduzir({ semente: `fumaca-${robo}`, cartasLiberadas: IDS, comandos })
+      assert.ok(r.ok)
+      assert.deepEqual(r.estado, estado)
+      const doPlano = estado.terrenos.filter((t) => t && plano.cartas.includes(t.carta)).length
+      assert.ok(doPlano >= 2, `${robo}: só ${doPlano} cartas do plano no reino final`)
+    }
+    assert.throws(() => escolher('plano:nada', criarPartida({ semente: 'x' }), () => 0), /desconhecido/)
+  })
+  test('bonecos ao mesmo tempo contam nascer, cair e levantar', () => {
+    const ev = [[0, 'n', 1, 0], [0, 'n', 2, 0], [1, 'n', 3, 1], [2, 'c', 1], [3, 'r', 1, 5], [4, 'n', 4, 1], [5, 'c', 2], [5, 'c', 3]]
+    assert.equal(bonecosAoMesmoTempo(ev), 4)
+    const b = luta([T('T11', 5), T('B02', 5), T('T11', 5), null, null, null], hordaDeReferencia(20).ordem, 20)
+    const max = bonecosAoMesmoTempo(b.eventos)
+    assert.ok(max >= 1 && max <= b.soldados + b.invasores)
+  })
   test('roda poucas partidas e devolve os números contra os alvos', () => {
     const sim = simular({ partidas: 3, semente: 'fumaca' })
     const { linhas, res } = resumo(sim)

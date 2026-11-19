@@ -294,7 +294,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   }
   function brinde(agora) {
     const b = M.brinde; if (!b || agora > b.t0 + b.ms || agora < b.t0) return
-    const dt = agora - b.t0, w = Math.min(C.VW - 8, 150), cel = UI.L.cel, x = cel || M.fase === 'fim' ? (C.VW - w) >> 1 : 4, y = M.fase === 'fim' ? (cel ? Math.floor(C.VH * 0.42) : 30) : M.fase === 'chefe' ? 28 : cel ? 128 : 32
+    const dt = agora - b.t0, w = Math.min(C.VW - 8, 150), cel = UI.L.cel, x = cel || M.fase === 'fim' ? (C.VW - w) >> 1 : 4, y = M.fase === 'fim' ? (cel ? Math.floor(C.VH * 0.42) : 30) : M.fase === 'chefe' ? 28 : cel ? (M.fase === 'vitoria' || M.fase === 'derrota' ? UI.L.mesa.y + 6 : 128) : 32
     const desce = C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 200) * 20)
     Arte.painel(g, x, y - desce, w, 30)
     if (b.carta) Arte.icone(g, 'loot', x + 6, y + 9 - desce); else Arte.icone(g, 'pudding', x + 6, y + 9 - desce)
@@ -336,7 +336,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     } else if (f === 'luta') { mesa(); if (L.cel) premios(true) } else if (f === 'terreno') {
       mesa(); faixa([T.escolhaTerreno], true)
       const r = L.lutar2, d = bt('plum', r, 'voltar'); Arte.texto(g, T.voltar, r.x + (r.w >> 1), r.y + 7 + d, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }); g.globalAlpha = 1
-    } else if (f === 'vitoria') { mesa(); vitoria(agora); if (L.cel && M.vitoria.pronto) Arte.texto(g, T.pegue, C.VW >> 1, L.mesa.y + 38, { fonte: 'reino-contorno', alinhar: 'centro' }) } else if (f === 'derrota') { mesa(); derrota(agora) } else if (f === 'chefe') { mesa(); chefe(agora) }
+    } else if (f === 'vitoria') { mesa(); vitoria(agora); if (L.cel && M.vitoria.pronto) Arte.texto(g, T.pegue, C.VW >> 1, L.mesa.y + 56, { fonte: 'reino-contorno', alinhar: 'centro' }) } else if (f === 'derrota') { mesa(); derrota(agora) } else if (f === 'chefe') { mesa(); chefe(agora) }
     hud(agora); aviso(agora); brinde(agora)
     if (M.arrasto?.moveu) { const c = M.mao[M.arrasto.indice]; if (c) Arte.carta(g, c.carta, c.nivel, Math.round(M.arrasto.x - 28), Math.round(M.arrasto.y - 50)) }
   }

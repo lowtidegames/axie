@@ -183,7 +183,7 @@ function fonteCor(nome, cor) {
 }
 export function largura(s, fonte = 'reino') {
   const f = A.fontes[fonte]; let w = 0
-  for (const ch of String(s).toUpperCase()) { const q = f.glifos[ch] || f.glifos[ch.toLowerCase()] || f.glifos[' ']; w += q[2] + f.espaco }
+  for (const ch of String(s).toUpperCase()) { const q = f.glifos[ch] || f.glifos[ch.toLowerCase()] || (ch === ',' && f.glifos['.']) || f.glifos[' ']; w += q[2] + f.espaco }
   return w - f.espaco
 }
 /** Escreve em pixel. `cor` só vale nas fontes sem contorno (reino, mini). Devolve a largura. */
@@ -193,11 +193,10 @@ export function texto(g, s, x, y, { fonte = 'reino', cor = null, alinhar = 'esqu
   if (alinhar === 'centro') x -= w >> 1; else if (alinhar === 'direita') x -= w
   x = Math.round(x); y = Math.round(y)
   for (const ch of s) {
-    const q = f.glifos[ch] || f.glifos[ch.toLowerCase()] || f.glifos[' ']
-    if (ch !== ' ') {
-      const src = f.img === A.fontes[fonte].img ? q : q
-      g.drawImage(f.img, src[0], src[1], src[2], src[3], x, y, src[2], src[3])
-    }
+    let q = f.glifos[ch] || f.glifos[ch.toLowerCase()]
+    if (!q && ch === ',' && f.glifos['.']) { q = f.glifos['.']; g.drawImage(f.img, q[0], q[1], q[2], q[3], x - 1, y + 1, q[2], q[3]) } // fonte sem vírgula: ponto com rabinho
+    if (!q) q = f.glifos[' ']
+    if (ch !== ' ') g.drawImage(f.img, q[0], q[1], q[2], q[3], x, y, q[2], q[3])
     x += q[2] + f.espaco
   }
   return w

@@ -292,8 +292,8 @@ export function cenarioPorCodigo(tipo, hora) {
   const W = pc ? 640 : 180, planos = []
   const novo = (nome, w, h, x, y, par, rep, fazer) => { const c = tela(w, h); fazer(c.getContext('2d')); planos.push({ nome, img: c, quadro: [0, 0, w, h], x, y, paralaxe: par, repete_x: rep }) }
   novo('sky', W, pc ? 132 : 120, pc ? -80 : 0, 0, 0, false, (g) => ceu(g, W, pc ? 132 : 120, hr))
-  novo('far', W, 69, pc ? -80 : 0, pc ? 45 : 27, 0.1, pc, (g) => { morros(g, W, 69, hr.longe, pc ? 3 : 1, 50, 2); morros(g, W, 69, escurecer(hr.longe, 0.86), pc ? 5 : 2, 26, 5) })
-  novo('mid', W, 80, pc ? -80 : 0, pc ? 48 : 32, 0.3, pc, (g) => { const v = noite ? '#284858' : '#56A842'; morros(g, W, 80, escurecer(v, 0.8), pc ? 6 : 2, 34, 1); morros(g, W, 80, v, pc ? 4 : 1, 20, 3) })
+  novo('far', W, 69, pc ? -80 : 0, pc ? 45 : 27, 0.1, pc, (g) => { morros(g, W, 69, escurecer(hr.longe, 0.9), pc ? 3 : 1, 62, 2); morros(g, W, 69, escurecer(hr.longe, 0.76), pc ? 5 : 2, 40, 5) })
+  novo('mid', W, 80, pc ? -80 : 0, pc ? 48 : 32, 0.3, pc, (g) => { const v = noite ? '#284858' : '#56A842'; morros(g, W, 80, escurecer(v, 0.8), pc ? 6 : 2, 58, 1); morros(g, W, 80, v, pc ? 4 : 1, 46, 3) })
   if (pc) {
     novo('ground', W, 170, -80, 118, 1, true, (g) => { chao(g, W, 170, noite); estrada(g, 0, 34, W, 48, noite) })
     novo('front', W, 40, -80, 236, 1.3, true, (g) => { for (let x = 10; x < W; x += 74) { R(g, x, 22, 30, 18, COR.grama[3]); R(g, x + 6, 14, 18, 10, COR.grama[3]) } })

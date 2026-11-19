@@ -26,7 +26,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     L.cartas = [0, 1, 2].map((i) => ({ x: x0 + i * (56 + vao), y: yc, w: 56, h: 78 }))
     L.mesa = cel ? { x: 0, y: VH - 88, w: VW, h: 88 } : { x: x0 - 6, y: yc - 6, w: larg + 12, h: 86 }
     L.faixa = cel ? { x: 0, y: VH - 88, w: VW, h: 10 } : { x: 6, y: VH - 44 - 30 * bs, w: x0 - 14, h: 40 }
-    if (cel) { L.sortear = { x: 3, y: 44, w: 34, h: 26 }; L.consertar = { x: 40, y: 44, w: 34, h: 26 } } else { L.sortear = { x: x0 - 42 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs }; L.consertar = { x: x0 - 80 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs } }
+    if (cel) { L.sortear = { x: 3 * bs, y: 44 * bs, w: 34 * bs, h: 26 * bs }; L.consertar = { x: 40 * bs, y: 44 * bs, w: 34 * bs, h: 26 * bs } } else { L.sortear = { x: x0 - 42 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs }; L.consertar = { x: x0 - 80 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs } }
     L.lutar2 = cel ? { x: Math.floor(VW / 2) - 48, y: VH - 34, w: 96, h: 26 } : { x: Math.floor(VW / 2) - 48, y: VH - 44, w: 96, h: 26 }
     L.premios = cel ? { x: Math.floor(VW / 2) - 78, y: VH - 84, w: 156, h: 46 } : { x: VW - 124, y: VH - 66, w: 120, h: 60 }
     // escolha do espólio: 3 cartões no meio
@@ -138,6 +138,15 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       for (let i = 0; i < 5; i++) Arte.icone(g, i < n ? 'pin-on' : 'pin-off', px + i * 6, py + 3)
       if (!M.proximoChefe.avisado || C.menos || ((agora >> 8) & 1) || M.fase === 'luta') Arte.icone(g, 'boss', px + 32, py)
     }
+    // famílias no reino: quadradinho da cor + quantos terrenos / quantos ligam o bônus (em ouro quando está ligado)
+    if (M.familias && M.fase !== 'luta') {
+      let fx = L.cel ? 50 : 50; const fy = L.cel ? 31 : 19
+      for (const f of M.familias) {
+        g.fillStyle = COR.ameixa; g.fillRect(fx, fy - 1, 7, 7); g.fillStyle = Arte.FAMILIA_COR[f.id].cor; g.fillRect(fx + 1, fy, 5, 5); g.fillStyle = Arte.FAMILIA_COR[f.id].claro; g.fillRect(fx + 1, fy, 5, 1)
+        fx += 9 + Arte.texto(g, `${f.n}/${f.precisa}`, fx + 9, fy - 1, { fonte: f.ligada ? 'mini-contorno' : 'mini-contorno' }) + 4
+        if (f.ligada) { Arte.icone(g, 'pin-on', fx - 3, fy); fx += 5 }
+      }
+    }
     if (M.fase === 'luta' && M.forca) {
       const w = L.cel ? 58 : 110, bx = L.cel ? HW - w - 16 : Math.floor(HW / 2) - (w >> 1), by = L.cel ? 32 : 18, tot = Math.max(1, M.forca.aliados + M.forca.inimigos), meio = Math.round(w * M.forca.aliados / tot)
       Arte.icone(g, 'shield', bx - 13, by - 3); Arte.icone(g, 'horn', bx + w + 2, by - 3)
@@ -190,7 +199,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     Arte.texto(g, T.ganhe, p.x + 6, p.y + 5, { fonte: 'mini', cor: COR.ouro })
     M.espolios.forEach((e, i) => {
       const passo = Math.floor((p.w - 8) / 3), x = p.x + 4 + i * passo, lin = quebrar(nomeEspolio(e), passo - 2)
-      Arte.icone(g, e.tipo === 'carta' ? 'troop' : e.reliquia ? 'pudding' : e.tipo === 'promocao' ? 'up' : 'gold', x + (passo >> 1) - 5, p.y + 13)
+      Arte.icone(g, e.tipo === 'carta' ? { tropa: 'troop', construcao: 'building', magia: 'magic' }[CONFIG.CARTAS[e.carta].tipo] : e.reliquia ? 'pudding' : e.tipo === 'promocao' ? 'up' : 'gold', x + (passo >> 1) - 5, p.y + 13)
       lin.slice(0, 3).forEach((s, j) => Arte.texto(g, s, x + (passo >> 1), p.y + 26 + j * 6, { fonte: 'mini', cor: e.reliquia ? COR.ouro : COR.creme, alinhar: 'centro' }))
     })
   }
@@ -276,7 +285,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     g.globalAlpha = 1
   }
   function aviso(agora) {
-    const a = M.aviso; if (!a || agora > a.t0 + a.ms) return
+    const a = M.aviso; if (!a || agora > a.t0 + a.ms || agora < a.t0) return
     const dt = agora - a.t0, cx = C.VW >> 1, y = Math.floor(C.VH * (UI.L.cel ? 0.24 : 0.2)) - (C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 150) * 8))
     if (dt > a.ms - 200 && ((agora >> 6) & 1) && !C.menos) return
     const k = a.k || 2, lin = quebrar(a.texto, (C.VW - 8) / k, 'reino-contorno')
@@ -284,8 +293,8 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     if (a.sub) quebrar(a.sub, C.VW - 12).forEach((s, i) => Arte.texto(g, s, cx, y + lin.length * 10 * k + 3 + i * 7, { fonte: 'mini-contorno', alinhar: 'centro' }))
   }
   function brinde(agora) {
-    const b = M.brinde; if (!b || agora > b.t0 + b.ms) return
-    const dt = agora - b.t0, w = Math.min(C.VW - 8, 150), cel = UI.L.cel, x = cel || M.fase === 'fim' ? (C.VW - w) >> 1 : 4, y = M.fase === 'fim' ? (cel ? Math.floor(C.VH * 0.42) : 30) : M.fase === 'chefe' ? 28 : cel ? 70 : 32
+    const b = M.brinde; if (!b || agora > b.t0 + b.ms || agora < b.t0) return
+    const dt = agora - b.t0, w = Math.min(C.VW - 8, 150), cel = UI.L.cel, x = cel || M.fase === 'fim' ? (C.VW - w) >> 1 : 4, y = M.fase === 'fim' ? (cel ? Math.floor(C.VH * 0.42) : 30) : M.fase === 'chefe' ? 28 : cel ? 128 : 32
     const desce = C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 200) * 20)
     Arte.painel(g, x, y - desce, w, 30)
     if (b.carta) Arte.icone(g, 'loot', x + 6, y + 9 - desce); else Arte.icone(g, 'pudding', x + 6, y + 9 - desce)

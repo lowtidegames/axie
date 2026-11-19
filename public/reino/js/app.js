@@ -17,7 +17,7 @@ const Q = new URLSearchParams(location.search)
 const TESTE = Q.get('teste') === '1'
 const canvas = document.getElementById('cena'), camada = document.getElementById('toques')
 const C = criarCena(canvas, CONFIG)
-const J = { e: null, v: null, op: null, comandos: [], semente: null, liberadas: [], ouroAlvo: 0, pos: null, ultimaLuta: null, lutas: [], espolioI: -1, semSorteio: true, anunciado: '', avisado: '', erros: [] }
+const J = { familias: [], e: null, v: null, op: null, comandos: [], semente: null, liberadas: [], ouroAlvo: 0, pos: null, ultimaLuta: null, lutas: [], espolioI: -1, semSorteio: true, anunciado: '', avisado: '', erros: [] }
 let UI, M, Bat, Telas
 const timers = new Set()
 const depois = (ms, fn) => { const id = setTimeout(() => { timers.delete(id); fn() }, ms); timers.add(id); return id }
@@ -90,6 +90,11 @@ function preencher() {
   M.sortear = op.sortear; M.consertar = { ...op.consertar, visivel: v.vidas < v.vidasMax && v.fase === 'carta' }
   M.espolios = v.espolios; M.espolioPode = v.espolios.map((_, i) => op.comandos.some((c) => c.tipo === 'espolio' && c.indice === i))
   M.mudo = Som.mudo(); M.vel = Bat.vel
+  // famílias à vista: quantos terrenos de cada uma e quantos ligam o bônus (números do config)
+  const cont = {}; for (const t of v.terrenos) if (t) { const f = CONFIG.CARTAS[t.carta].familia; cont[f] = (cont[f] || 0) + 1 }
+  M.familias = Object.keys(cont).map((id) => ({ id, n: cont[id], precisa: v.reliquias.includes('banner') ? CONFIG.RELIQUIAS.banner.terrenos : CONFIG.FAMILIAS[id].terrenos, ligada: v.familias.includes(id) }))
+  for (const id of v.familias) if (!J.familias.includes(id)) { const f = CONFIG.FAMILIAS[id]; M.aviso = { texto: f.nome + ' BONUS', sub: f.texto, ouro: true, t0: agoraMs() + 500, ms: 2600, k: C.tipo === 'celular' ? 1 : 2 }; depois(500, () => Som.tocar('nivelPequeno')) }
+  J.familias = v.familias.slice()
 }
 function abrirRodada() {
   ler(); preencher()
@@ -113,7 +118,7 @@ function abrirRodada() {
 function novaPartida() {
   semTimers(); Bat.parar()
   J.semente = Q.get('semente') || sementeNova(); J.liberadas = Guarda.liberadas(CONFIG.ALBUM)
-  J.e = criarPartida({ semente: J.semente, cartasLiberadas: J.liberadas }); J.comandos = []; J.lutas = []; J.semSorteio = true; J.anunciado = ''; J.avisado = ''; J.ultimaLuta = null
+  J.e = criarPartida({ semente: J.semente, cartasLiberadas: J.liberadas }); J.comandos = []; J.lutas = []; J.semSorteio = true; J.anunciado = ''; J.avisado = ''; J.ultimaLuta = null; J.familias = []
   M.fim = null; M.aviso = null; M.brinde = null; M.selo = null
   C.fimDeJogo = false
   ler(); M.ouro = J.v.ouro

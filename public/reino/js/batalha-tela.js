@@ -23,7 +23,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
   const tela = (i) => C.telaDe(i)
   const pan = (i) => Math.max(-0.8, Math.min(0.8, (C.sx[i] - C.cam.x) / C.VW * 2 - 1))
   function pausa(agora, ms, tremida) {
-    if (B.silencio || C.menos || agora - B.ultimaPausa < 380) return
+    if (B.silencio || C.menos || agora - B.ultimaPausa < (ms >= 120 ? 380 : 650)) return
     B.ultimaPausa = agora; B.pausaAte = agora + ms / Math.max(1, B.vel / 2); C.tremer(tremida, ms + 40)
   }
 
@@ -50,7 +50,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       C.hp[a] -= valor
       if (o >= 0 && C.lado[o] === 1) { const tp = e[2]; dano[tp] = (dano[tp] || 0) + valor }
       if (quieto) return
-      const forte = e[2] < 0 || valor >= 18 || (o >= 0 && C.peca[o].w > 100)
+      const forte = e[2] < 0 || (valor >= 12 && valor * 5 >= C.hpMax[a] * 2) || (o >= 0 && C.peca[o].w > 100) // golpe forte: magia, chefe, ou tira 40% da vida de uma vez
       if (C.est[a] === 1) { C.tocarAnim(a, AN.hit); if (!C.podeBranco()) C.animT[a] -= C.peca[a].anim.hit.ms[0] }
       const pa = tela(a)
       if (o >= 0) {

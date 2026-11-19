@@ -4,7 +4,8 @@
 //   Som.fundoBatalha(0..1)  ·  Som.menosAnimacao(v)  ·  Musica.momento(nome)  ·  Musica.rodada(n)  ·  Musica.parar()
 // Regras: nada toca antes do primeiro toque do jogador · teto de 12 vozes de efeito (6 de tropa) · limitador + teto de −3 dBFS
 //   · a música troca de momento só na virada do compasso · mudo e volumes ficam guardados no aparelho.
-// Amostras gravadas (opcional): public/reino/sons/manifesto.json; se existir arquivo para o evento, ele toca no lugar do código.
+// Amostras gravadas (opcional): public/reino/sons/manifesto.json; se existir arquivo para o evento, ele toca no lugar do código
+//   — menos nos eventos marcados `somar` (choque, recorde): aí tocam os DOIS, amostra + receita por código.
 
 const N = (m) => 440 * 2 ** ((m - 69) / 12) // nota MIDI → Hz (67 = sol)
 const db2 = (d) => 10 ** (d / 20)
@@ -172,7 +173,7 @@ const EFEITOS = {
     for (let i = 0; i < 4; i++) { const em = i * 0.21; K.tambor({ f: (i % 2 ? 92 : 105) * v.p, dur: 0.12, vol: i % 2 ? 0.4 : 0.55, em }); K.ruido({ dur: 0.07, f: 700, q: 0.8, vol: 0.35, em: em + 0.01 }); K.ruido({ dur: 0.035, f: 4800, q: 2, vol: 0.09, em: em + 0.03 + K.r() * 0.02 }) }
     K.ruido({ dur: 0.1, f: 500, tipo: 'lowpass', vol: 0.12, em: 0.8 })
   } },
-  choque: { ms: 540, pri: 3, alvo: -11, camada: 'batalha', vars: 3, tropa: true, max: 2, fn(K, v) {
+  choque: { ms: 540, pri: 3, alvo: -11, camada: 'batalha', vars: 3, tropa: true, max: 2, somar: true, fn(K, v) {
     K.ruido({ dur: 0.62, f: 1200 * v.p, q: 0.5, vol: 0.14, ataque: 0.01 }); K.tambor({ f: 85, dur: 0.14, vol: 0.5 })
     for (let i = 0; i < 8; i++) { const em = i === 0 ? 0 : i * 0.065 + K.r() * 0.05; K.sino({ f: (1700 + K.r() * 2400) * v.p, dur: 0.05 + K.r() * 0.06, vol: 0.2 + K.r() * 0.14, em, parciais: [1, 1.52, 2.31, 3.4] }) }
     for (let i = 0; i < 4; i++) { const em = 0.05 + K.r() * 0.45; K.ruido({ dur: 0.07, f: 600, tipo: 'lowpass', vol: 0.3, em }); K.tom({ f: 150, f2: 70, dur: 0.07, vol: 0.3, em }) }
@@ -249,7 +250,7 @@ const EFEITOS = {
     K.trompa({ m: 67, dur: 1.25, vol: 0.4, em: 1.0 }); K.trompa({ m: 74, dur: 1.25, vol: 0.4, em: 1.0 }); K.trompa({ m: 79, dur: 1.25, vol: 0.4, em: 1.0 }); K.cordas({ ms: [43, 55, 62, 71], dur: 1.25, vol: 0.4, em: 1.0 }); K.tambor({ f: 70, dur: 0.4, vol: 0.8, em: 1.0 })
     for (let i = 0; i < 10; i++) { K.pandeiro({ vol: 0.14, em: 1.0 + i * 0.09 }); K.sino({ f: N(PENTA[(i * 2) % 9] + 12), dur: 0.3, vol: 0.07, em: 1.1 + i * 0.1 }) }
   } },
-  recorde: { ms: 1250, pri: 1, alvo: -8, camada: 'fim', vars: 1, grande: true, fn(K) {
+  recorde: { ms: 1250, pri: 1, alvo: -8, camada: 'fim', vars: 1, grande: true, somar: true, fn(K) {
     PENTA.forEach((m, i) => K.corda({ m, dur: 0.2, vol: 0.4, em: i * 0.05 })); K.ruido({ dur: 0.5, f: 3000, f2: 9000, tipo: 'highpass', vol: 0.1, ataque: 0.3 })
     K.trompa({ m: 79, dur: 0.75, vol: 0.4, em: 0.48 }); K.trompa({ m: 83, dur: 0.75, vol: 0.3, em: 0.48 }); K.tambor({ f: 80, dur: 0.3, vol: 0.7, em: 0.48 })
     ;[91, 95, 98, 103, 98, 95].forEach((m, i) => K.sino({ f: N(m), dur: 0.3, vol: 0.1, em: 0.55 + i * 0.1 }))
@@ -483,7 +484,14 @@ const Som = {
     S.ultimaForca = forca
     const am = S.amostras[nome]
     try {
-      if (am?.length) {
+      if (am?.length && e.somar) {
+        // amostra E receita por código juntas (cada uma 3 dB abaixo): a amostra dá o corpo, o código dá a nota/fanfarra
+        const a = am[i % am.length], n = S.ctx.createBufferSource(), ga = S.ctx.createGain(); n.buffer = a.b; if (opc.tom) n.playbackRate.value = 2 ** (opc.tom / 12)
+        voz = S.ctx.createGain(); voz.gain.value = 1; voz.connect(S.no.fx); saida = voz
+        ga.gain.value = a.ganho * forca * 0.708; n.connect(ga); ga.connect(voz); n.start(t)
+        fabricar(S.ctx, voz, nome, t, i, { tom: opc.tom || 0, forca: forca * 0.708, pan: opc.pan || 0 })
+        S.somados = (S.somados ?? 0) + 1
+      } else if (am?.length) {
         const a = am[i % am.length], n = S.ctx.createBufferSource(); n.buffer = a.b; if (opc.tom) n.playbackRate.value = 2 ** (opc.tom / 12)
         voz = S.ctx.createGain(); voz.gain.value = a.ganho * forca; n.connect(voz); voz.connect(S.no.fx); n.start(t); saida = voz
       } else ({ voz, fim: saida } = fabricar(S.ctx, S.no.fx, nome, t, i, { tom: opc.tom || 0, forca, pan: opc.pan || 0 }))
@@ -514,11 +522,11 @@ const Som = {
   /** "Menos animação": o som continua; só os estouros grandes ficam 6 dB mais baixos. */
   menosAnimacao(v) { if (v !== undefined) S.menos = !!v; return S.menos },
   nomes: () => Object.keys(EFEITOS),
-  tabela: () => Object.entries(EFEITOS).map(([nome, e]) => ({ nome, ms: e.ms, pri: e.pri, alvo: e.alvo, camada: e.camada, vars: e.vars, grande: !!e.grande, tropa: !!e.tropa, max: e.max || 0 })),
+  tabela: () => Object.entries(EFEITOS).map(([nome, e]) => ({ nome, ms: e.ms, pri: e.pri, alvo: e.alvo, camada: e.camada, vars: e.vars, grande: !!e.grande, tropa: !!e.tropa, max: e.max || 0, somar: !!e.somar })),
   estado() {
     if (S.ctx) limpar(S.ctx.currentTime)
     return { destravado: S.destravado, ligado: !!S.ctx, contexto: S.ctx?.state ?? null, mudo: S.pref.mudo, efeitos: S.pref.efeitos, musica: S.pref.musica, menos: S.menos, vozes: S.vozes.length, tropa: S.vozes.filter((v) => v.tropa).length,
-      tocados: S.tocados, ultimo: S.ultimo, porNome: { ...S.porNome }, recusados: S.recusados, roubados: S.roubados, saida: S.no ? S.no.saida.gain.value : null, ultimaForca: S.ultimaForca ?? null, amostras: Object.keys(S.amostras), historico: S.historico.slice(), atrasoMs: S.ctx ? Math.round(((S.ctx.baseLatency || 0) + 0.004) * 1000) : null }
+      tocados: S.tocados, ultimo: S.ultimo, porNome: { ...S.porNome }, recusados: S.recusados, roubados: S.roubados, saida: S.no ? S.no.saida.gain.value : null, ultimaForca: S.ultimaForca ?? null, amostras: Object.keys(S.amostras), somados: S.somados ?? 0, historico: S.historico.slice(), atrasoMs: S.ctx ? Math.round(((S.ctx.baseLatency || 0) + 0.004) * 1000) : null }
   },
   /** Pico do que está saindo agora (0 a 1), para o medidor da folha e para o teste. */
   picoAoVivo() { if (!S.analisador) return 0; const d = new Float32Array(S.analisador.fftSize); S.analisador.getFloatTimeDomainData(d); let p = 0; for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > p) p = Math.abs(d[i]); return p },

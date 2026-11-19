@@ -34,10 +34,10 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       let i
       if (lado === 0) {
         const k = Math.round((x + 50) / 100), f = C.formacao(contTerreno[k]++ || 0, porTerreno[k] || 1)
-        i = C.nascer(0, tipo, x, vida, f.lane, f.dxe, (nivelTerreno[k] || 1) >= 4 && C.e >= 2 ? (C.e + 1) / C.e : 1)
+        i = C.nascer(0, tipo, x, vida, f.lane, f.dxe)
       } else {
         const chefe = chefes.has(tipo)
-        i = C.nascer(1, tipo, x, vida, chefe ? 0.2 : ((id * 7919) % 100) / 50 - 1, chefe ? 0 : ((id * 31) % 13) - 6)
+        i = C.nascer(1, tipo, x, vida, chefe ? 0.2 : ((id * 7919) % 100) / 50 - 1, chefe ? 0 : ((id * 31) % 29) - 14)
         nascidosInv++; if (nascidosInv > B.inimigosTotal) { B.inimigosTotal++; B.inimigos++ }
         if (chefe && !quieto) { Som.tocar('chefeEntra'); C.tremer(6, 120); B.aoAviso?.('chefe', tipo) }
       }

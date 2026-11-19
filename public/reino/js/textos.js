@@ -4,7 +4,7 @@ export const T = {
   sobe: 'LEVEL UP!', trocar: 'REPLACE?', confirma: 'OK?', ganhe: 'WIN:', escolhaTerreno: 'PICK A PLOT', voltar: 'BACK', nivel: 'LEVEL', ouro: 'GOLD',
   chegou: (n) => `${n} reached the castle`, varreu: (n) => `${n} broke your line`, emRodadas: (n) => (n === 1 ? 'BOSS NEXT ROUND' : `BOSS IN ${n} ROUNDS`),
   fim: 'RUN OVER', aguentou: 'ROUNDS HELD', recorde: 'NEW RECORD!', melhor: 'BEST', pontos: 'SCORE', ouroGanho: 'GOLD', deNovo: 'PLAY AGAIN', postar: 'SHARE',
-  cartaNova: 'NEW CARD', conquista: 'ACHIEVEMENT', limpo: 'CLEAN PLATE', maisNivel: '+1 LEVEL',
+  cartaNova: 'NEW CARD', conquista: 'ACHIEVEMENT', limpo: 'CLEAN PLATE', maisNivel: '+1 LEVEL', pegue: 'PICK 1 REWARD',
   menu: { titulo: 'Keepmile', som: 'Sound', movimento: 'Reduced motion', album: 'Album', conquistas: 'Achievements', nova: 'New run', novaConfirma: 'Give up this run?', fechar: 'Close', sim: 'Yes, new run', nao: 'Keep playing', ligado: 'On', desligado: 'Off', melhores: 'Best runs' },
   album: { titulo: 'Album', chances: 'Draw chances', proxima: (n) => (n === 1 ? 'Next card: 1 more round won' : `Next card: ${n} more rounds won`), todas: 'Every card unlocked', somadas: (n) => `${n} rounds won so far`, bloqueada: 'Locked card' },
   tipo: { tropa: 'Troop', construcao: 'Building', magia: 'Magic' },

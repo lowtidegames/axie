@@ -104,10 +104,11 @@ function pose(e, p) {
   g.save(); g.translate(lean, topo - 14)
   // corpo
   R(g, x0, 26, larg, 8, tun); R(g, x0, 32, larg, 2, escurecer(tun)); R(g, x0, 26, 2, 6, escurecer(tun, 0.86))
+  if (inv) { R(g, x0, 30, larg, 4, '#483E64'); R(g, x0 + 1, 33, 2, 2, '#483E64'); R(g, x0 + larg - 3, 33, 2, 2, '#483E64') }
   if (e.avental) R(g, x0 + 3, 27, larg - 4, 6, COR.creme)
   // cabeça
   R(g, 18, 15, 13, 10, pele); R(g, 19, 14, 11, 12, pele); R(g, 18, 23, 13, 2, escurecer(pele, 0.86))
-  if (inv) { R(g, 25, 19, 2, 3, COR.lima); R(g, 29, 19, 2, 3, COR.lima); R(g, 25, 23, 5, 1, COR.creme) } else { R(g, 25, 19, 2, 3, COR.ameixa); R(g, 29, 19, 1, 3, COR.ameixa); R(g, 23, 22, 2, 1, '#F09C8C') }
+  if (inv) { R(g, 15, 16, 3, 3, pele); R(g, 14, 15, 2, 2, pele); R(g, 24, 18, 3, 3, COR.lima); R(g, 28, 18, 3, 3, COR.lima); R(g, 25, 19, 1, 2, COR.ameixa); R(g, 29, 19, 1, 2, COR.ameixa); R(g, 23, 22, 8, 2, COR.ameixa); R(g, 24, 22, 1, 1, COR.creme); R(g, 26, 22, 1, 1, COR.creme); R(g, 28, 22, 1, 1, COR.creme); R(g, 19, 14, 11, 2, escurecer(pele, 1.18)) } else { R(g, 25, 19, 2, 3, COR.ameixa); R(g, 29, 19, 1, 3, COR.ameixa); R(g, 23, 22, 2, 1, '#F09C8C') }
   ;(CHAPEUS[e.chapeu] || CHAPEUS.nada)(g, e.chapeuCor || COR.aco)
   // braço e arma
   const hx = 27 + (p === 2 ? 4 : 0), hy = 29
@@ -143,7 +144,7 @@ const ELENCO = {
 export function posesDe(tipo) {
   if (tipo === 'T11') return { parado: ganso(0), passo: ganso(1), golpe: ganso(2) }
   const e = { ...(ELENCO[tipo] || ELENCO.T01) }
-  if (e.invasor) { e.pele = COR.roxo; e.tunica = '#483E64' }
+  if (e.invasor) { e.pele = COR.roxo; e.tunica = '#7A3CAC' }
   return { parado: pose(e, 0), passo: pose(e, 1), golpe: pose(e, 2) }
 }
 

@@ -73,7 +73,7 @@ function montarReino(comHorda = true) {
   C.terrenos = v.terrenos.map((t) => (t ? { ...t } : null)); C.vidas = estadoCastelo(); C.magiaAnim = {}
   C.limparBonecos(); C.tb = 0; C.noite = 0; C.cam.alvo = 0
   const ex = montarExercito(v.terrenos, v.reliquias)
-  for (const s of ex.soldados) for (let j = 0; j < s.qtd; j++) { const f = C.formacao(j, s.qtd); C.nascer(0, s.carta, s.terreno * 100 - 50, s.vida, f.lane, f.dxe, s.nivel >= 4 && C.e >= 2 ? (C.e + 1) / C.e : 1) }
+  for (const s of ex.soldados) for (let j = 0; j < s.qtd; j++) { const f = C.formacao(j, s.qtd); C.nascer(0, s.carta, s.terreno * 100 - 50, s.vida, f.lane, f.dxe) }
   M.hordaN = 0; M.hordaChefe = null
   if (comHorda && v.horda) {
     M.hordaN = expandirHorda(v.horda).length; M.hordaChefe = v.horda.chefe

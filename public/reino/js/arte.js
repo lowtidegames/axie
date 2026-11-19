@@ -59,10 +59,10 @@ export async function carregar(CONFIG) {
       const rets = [...p.quadros, ...(p.variantes || []).flat()]
       trocarRoxo(A.folhas[p.folha], rets)
     }
-    if (A.folhas[atlas.cartas?.folha]) for (const c of Object.values(atlas.cartas.piloto || {})) if (c.familia === 'Fizzwick') trocarRoxo(A.folhas[atlas.cartas.folha], [[c.quadro[0], c.quadro[1], c.quadro[2], 16]])
+    if (A.folhas[atlas.cartas?.folha]) for (const c of Object.values(atlas.cartas.piloto || {})) if (c.familia === 'Fizzwick') trocarRoxo(A.folhas[atlas.cartas.folha], [[c.quadro[0], c.quadro[1], c.quadro[2], c.tipo === 'tropa' ? c.quadro[3] : 19]])
     const fl = atlas.pecas['plot-flag']
     if (fl && A.folhas[fl.folha] && fl.animacoes?.Fizzwick) trocarRoxo(A.folhas[fl.folha], fl.animacoes.Fizzwick.quadros.map((i) => fl.quadros[i]))
-    for (const [id, p] of Object.entries(atlas.pecas)) A.porNome[p.nome] = id
+    for (const [id, p] of Object.entries(atlas.pecas)) if (p.tipo !== 'efeito') A.porNome[p.nome] = id
   }
   const provs = ['castelo', 'portao', 'quartel', 'moinho', 'tenda', 'ferraria', 'torre-mago', 'bruto', 'chefe', 'cavaleiro', 'mago']
   const pi = await Promise.all(provs.map((n) => imagem(new URL(`arte-provisoria/${n}.png`, BASE))))
@@ -89,7 +89,7 @@ const PROV_UNIDADE = { T03: ['cavaleiro', 26, 28, false], T12: ['mago', 32, 32, 
 export function unidade(id) {
   return guardada('u:' + id, () => {
     const C = A.config, nome = C.CARTAS[id]?.nome || C.INVASORES[id]?.nome || C.CHEFES.find((c) => c.id === id)?.nome
-    const pa = pecaAtlas(id) || (nome && A.porNome[nome] ? pecaAtlas(A.porNome[nome]) : null)
+    const pa = [nome && A.porNome[nome], id].filter(Boolean).map(pecaAtlas).find((p) => p && p.anim.idle && p.anim.walk) // pelo nome do config primeiro: no atlas, 'spud' é a batata, não o Spud Slinger
     if (pa && pa.anim.idle) { marca(id, 'atlas'); return pa }
     const chefe = C.CHEFES.find((c) => c.id === id)
     if (chefe && A.prov.chefe) {

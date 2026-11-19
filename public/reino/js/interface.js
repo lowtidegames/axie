@@ -25,8 +25,8 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const vao = cel ? 0 : 4, larg = 56 * 3 + vao * 2, x0 = Math.floor((VW - larg) / 2), yc = cel ? VH - 78 : VH - 80
     L.cartas = [0, 1, 2].map((i) => ({ x: x0 + i * (56 + vao), y: yc, w: 56, h: 78 }))
     L.mesa = cel ? { x: 0, y: VH - 88, w: VW, h: 88 } : { x: x0 - 6, y: yc - 6, w: larg + 12, h: 86 }
-    L.faixa = cel ? { x: 0, y: VH - 88, w: VW, h: 10 } : { x: 6, y: VH - 44, w: x0 - 60 * bs, h: 40 }
-    if (cel) { L.sortear = { x: 3, y: 44, w: 34, h: 26 }; L.consertar = { x: 40, y: 44, w: 34, h: 26 } } else { L.sortear = { x: x0 - 44 * bs, y: VH - 2 - 56 * bs, w: 34 * bs, h: 26 * bs }; L.consertar = { x: x0 - 44 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs } }
+    L.faixa = cel ? { x: 0, y: VH - 88, w: VW, h: 10 } : { x: 6, y: VH - 44 - 30 * bs, w: x0 - 14, h: 40 }
+    if (cel) { L.sortear = { x: 3, y: 44, w: 34, h: 26 }; L.consertar = { x: 40, y: 44, w: 34, h: 26 } } else { L.sortear = { x: x0 - 42 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs }; L.consertar = { x: x0 - 80 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs } }
     L.lutar2 = cel ? { x: Math.floor(VW / 2) - 48, y: VH - 34, w: 96, h: 26 } : { x: Math.floor(VW / 2) - 48, y: VH - 44, w: 96, h: 26 }
     L.premios = cel ? { x: Math.floor(VW / 2) - 78, y: VH - 84, w: 156, h: 46 } : { x: VW - 162, y: VH - 66, w: 156, h: 60 }
     // escolha do espólio: 3 cartões no meio
@@ -311,7 +311,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     } else if (f === 'luta') { mesa(); premios(true) } else if (f === 'terreno') {
       mesa(); faixa([T.escolhaTerreno], true)
       const r = L.lutar2, d = bt('plum', r, 'voltar'); Arte.texto(g, T.voltar, r.x + (r.w >> 1), r.y + 7 + d, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }); g.globalAlpha = 1
-    } else if (f === 'vitoria') { mesa(); vitoria(agora) } else if (f === 'derrota') { mesa(); derrota(agora) } else if (f === 'chefe') { mesa(); chefe(agora) }
+    } else if (f === 'vitoria') { mesa(); vitoria(agora); if (L.cel && M.vitoria.pronto) Arte.texto(g, T.pegue, C.VW >> 1, L.mesa.y + 38, { fonte: 'reino-contorno', alinhar: 'centro' }) } else if (f === 'derrota') { mesa(); derrota(agora) } else if (f === 'chefe') { mesa(); chefe(agora) }
     hud(agora); aviso(agora); brinde(agora)
     if (M.arrasto?.moveu) { const c = M.mao[M.arrasto.indice]; if (c) Arte.carta(g, c.carta, c.nivel, Math.round(M.arrasto.x - 28), Math.round(M.arrasto.y - 50)) }
   }

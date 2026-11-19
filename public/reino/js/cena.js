@@ -83,15 +83,19 @@ export function criarCena(canvas, CONFIG) {
   }
   C.pos = (xe, lane = 0) => { const p = pos(xe, lane); return { x: p.x - C.cam.x, y: p.y, tier: p.tier } }
   /** Retângulo (em px de arte da tela) de um terreno 1..6, para o toque. */
-  C.areaDoTerreno = (k) => { const t = C.geo.terrenos[k - 1]; return { x: C.ox + t.x - t.largura / 2 - C.cam.x, y: C.oy + t.base_predio - 34, w: t.largura, h: t.estrada[1] - t.base_predio + 36 } }
+  C.areaDoTerreno = (k) => {
+    const t = C.geo.terrenos[k - 1]; let w = t.largura
+    for (const o of C.geo.terrenos) if (o !== t && o.base_predio === t.base_predio) w = Math.min(w, Math.abs(o.x - t.x)) // vizinhos do mesmo patamar não se sobrepõem
+    return { x: C.ox + t.x - w / 2 - C.cam.x, y: C.oy + t.base_predio - 34, w, h: t.estrada[1] - t.base_predio + 36 }
+  }
   C.centroDoTerreno = (k) => { const t = C.geo.terrenos[k - 1]; return { x: C.ox + t.x - C.cam.x, y: C.oy + (t.estrada[0] + t.estrada[1]) / 2, base: C.oy + t.base_predio } }
 
   // ---------------------------------------------------------------- bonecos
   C.limparBonecos = () => { C.n = 0; ordenar = true }
   /** Fileira e desvio de um soldado j de n no terreno (a mesma conta parado e na luta). */
   C.formacao = (j, n) => {
-    const R = Math.min(n, C.tipo === 'pc' ? 5 : 3), row = j % R, col = Math.floor(j / R), cols = Math.ceil(n / R)
-    return { lane: R === 1 ? 0 : ((row / (R - 1)) * 2 - 1) * 0.9, dxe: (col - (cols - 1) / 2) * 15 + (row % 2) * 6 - 3 }
+    const R = Math.min(n, C.tipo === 'pc' ? 4 : 3), row = j % R, col = Math.floor(j / R), cols = Math.ceil(n / R), passo = Math.min(24, 78 / cols)
+    return { lane: R === 1 ? 0 : ((row / (R - 1)) * 2 - 1) * 0.9, dxe: (col - (cols - 1) / 2) * passo + (row % 2 ? passo * 0.35 : -passo * 0.15) }
   }
   C.nascer = (lado, tipo, x, hp, lane, dxe, grande = 1) => {
     const i = C.n; if (i >= MAXU) return -1

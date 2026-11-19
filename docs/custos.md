@@ -10,6 +10,7 @@ Quem escreve: só o diretor. Cada gasto entra aqui no mesmo dia, com a autoriza�
 | 15/11/2026 10:18–10:50 | PixelLab (imagens) | piloto de monstros (tema medieval): 6 monstros em pose parada e ataque, arena, ninho, mapa, ovo em 3 estados, 5 lugares, 6 ícones (`arte/piloto-monstros/`, finais em `public/piloto/arte/`) | 55 gerações (saldo 1107,5 → 1052,5; só ferramentas de 1 geração) | dono 15/11 10:04: teto de 150 gerações |
 | 15/11/2026 10:51–10:53 | PixelLab (imagens) | refazer arena (bandeiras lisas, 1 tentativa aceita) + 3 testes de Cobblepup descartados, guardados em bruto (`arte/piloto-monstros/`) | 7 gerações pelo saldo (1052,5 → 1045,5; o registro soma 6) — total do tema novo: 62 de 150 | diretor 15/11 (teto 12; depois só arena) |
 | 15/11/2026 11:04–11:08 | PixelLab (imagens) | prova do conceito de objeto-criatura: Portcully (6 tentativas) e Rambark (2), mais 1 teste com sombra como guia, tratados por código (`arte/piloto-monstros/prova-criaturas/`) | 8 gerações (saldo 1040,5 → 1032,5) — total do tema novo: 70 de 150 | diretor 15/11 (teto 14) |
+| 19/11/2026 18:20 | ElevenLabs (efeitos sonoros) | Reino: só conferência da chave (pedido vazio, 422 = chave aceita); nenhum som gerado | 0 créditos | — |
 
 **Teto do ElevenLabs: 5.000 créditos. Gasto até agora: 1.284 (piloto 342 + pacote 942). Sobra: 3.716.**
 

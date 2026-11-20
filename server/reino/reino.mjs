@@ -151,14 +151,17 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     titulo: db.prepare('INSERT INTO reino_titulos (temporada, conta_id, posicao, media, liga) VALUES (?, ?, ?, ?, ?)'),
     titulos: db.prepare('SELECT temporada, posicao, media, liga FROM reino_titulos WHERE conta_id = ? ORDER BY temporada DESC'),
     // placar do dia (K2): só conta criada antes das 00:00 UTC do dia (2º parâmetro) e com 1 ranking terminado e conferido
+    // ANTES do fim do dia (3º parâmetro, R19: ranking terminado depois não põe a conta para trás no placar daquele dia)
     placarDoDia: db.prepare(`SELECT p.id, p.conta_id, p.pontos, p.vencidas, c.apelido FROM reino_partidas p JOIN contas c ON c.id = p.conta_id
                              WHERE p.modo = 'estrada' AND p.dia = ? AND p.status = 'terminada' AND p.conferida = 1 AND c.criada_em < ?
-                             AND EXISTS (SELECT 1 FROM reino_partidas r WHERE r.conta_id = p.conta_id AND r.modo = 'ranking' AND r.status = 'terminada' AND r.conferida = 1)
+                             AND EXISTS (SELECT 1 FROM reino_partidas r WHERE r.conta_id = p.conta_id AND r.modo = 'ranking' AND r.status = 'terminada' AND r.conferida = 1
+                             AND r.terminada_em < ?)
                              ORDER BY p.pontos DESC, p.terminada_em ASC, p.conta_id ASC LIMIT ?`),
     minhaEstrada: db.prepare("SELECT pontos, terminada_em, status, conferida FROM reino_partidas WHERE conta_id = ? AND modo = 'estrada' AND dia = ?"),
     posicaoNaEstrada: db.prepare(`SELECT COUNT(*) n FROM reino_partidas p JOIN contas c ON c.id = p.conta_id
                                   WHERE p.modo = 'estrada' AND p.dia = ? AND p.status = 'terminada' AND p.conferida = 1 AND c.criada_em < ?
-                                  AND EXISTS (SELECT 1 FROM reino_partidas r WHERE r.conta_id = p.conta_id AND r.modo = 'ranking' AND r.status = 'terminada' AND r.conferida = 1)
+                                  AND EXISTS (SELECT 1 FROM reino_partidas r WHERE r.conta_id = p.conta_id AND r.modo = 'ranking' AND r.status = 'terminada' AND r.conferida = 1
+                             AND r.terminada_em < ?)
                                   AND (p.pontos > ? OR (p.pontos = ? AND (p.terminada_em < ? OR (p.terminada_em = ? AND p.conta_id < ?))))`),
     melhores: db.prepare(`SELECT id, modo, dia, temporada, pontos, vencidas, rodada, terminada_em FROM reino_partidas
                           WHERE conta_id = ? AND status = 'terminada' AND conferida = 1 ORDER BY pontos DESC, terminada_em ASC LIMIT ?`),
@@ -527,14 +530,14 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
   }
 
   function placarDoDia(dia, contaId) {
-    const lista = q.placarDoDia.all(dia, dia * DIA_MS, P.placarDoDia).map((l, i) => ({ posicao: i + 1, apelido: l.apelido, pontos: l.pontos, vencidas: l.vencidas, partida: l.id }))
+    const lista = q.placarDoDia.all(dia, dia * DIA_MS, (dia + 1) * DIA_MS, P.placarDoDia).map((l, i) => ({ posicao: i + 1, apelido: l.apelido, pontos: l.pontos, vencidas: l.vencidas, partida: l.id }))
     const minha = q.minhaEstrada.get(contaId, dia)
     const fora = foraDoPlacar(contaId, dia)
     let voce = null
     if (minha) {
       voce = { status: minha.status, pontos: minha.pontos, posicao: null, foraDoPlacar: fora }
       if (!fora && minha.status === 'terminada' && minha.conferida === 1) {
-        voce.posicao = q.posicaoNaEstrada.get(dia, dia * DIA_MS, minha.pontos, minha.pontos, minha.terminada_em, minha.terminada_em, contaId).n + 1
+        voce.posicao = q.posicaoNaEstrada.get(dia, dia * DIA_MS, (dia + 1) * DIA_MS, minha.pontos, minha.pontos, minha.terminada_em, minha.terminada_em, contaId).n + 1
       }
     }
     return { dia: new Date(dia * DIA_MS).toISOString().slice(0, 10), lista, voce, jogou: !!minha, foraDoPlacar: fora }
@@ -604,7 +607,7 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
       const p = posicaoNaTemporada(linha.temporada, linha.conta_id)
       return !!p && p.posicao <= P.topoComReplay
     }
-    if (linha.modo === 'estrada') return q.placarDoDia.all(linha.dia, linha.dia * DIA_MS, P.topoComReplay).some((l) => l.id === linha.id)
+    if (linha.modo === 'estrada') return q.placarDoDia.all(linha.dia, linha.dia * DIA_MS, (linha.dia + 1) * DIA_MS, P.topoComReplay).some((l) => l.id === linha.id)
     return false
   }
 

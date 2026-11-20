@@ -127,3 +127,27 @@ describe('R19 — cache de replay guardado como texto', () => {
     } finally { await fechar(s) }
   })
 })
+
+describe('R19 — placar do dia D só com ranking terminado antes do fim de D', () => {
+  test('ranking terminado em D+1 não põe a estrada de D no placar de D (nem libera o replay dela para os outros)', async () => {
+    const { s, api, conta, relogio } = await subir({ t: T0 - DIA })
+    try {
+      // D-1: a Firme e o Olho terminam 1 ranking; a Tardia só cria a conta
+      const firme = await conta('Firme'), tardia = await conta('Tardia'), olho = await conta('Olho')
+      await desistir(api, firme.token, (await abrir(api, firme.token, 'ranking')).id)
+      await desistir(api, olho.token, (await abrir(api, olho.token, 'ranking')).id)
+      // D: as duas jogam a estrada; a Tardia sem ranking terminado
+      relogio.t = T0
+      const ff = await jogar(api, firme.token, await abrir(api, firme.token, 'estrada'))
+      const ft = await jogar(api, tardia.token, await abrir(api, tardia.token, 'estrada'))
+      assert.equal(ff.status, 'terminada')
+      assert.equal(ft.status, 'terminada')
+      // D+1: a Tardia termina o 1º ranking — tarde demais para o placar de D
+      relogio.t = (SEGUNDA + 1) * DIA + 60_000
+      await desistir(api, tardia.token, (await abrir(api, tardia.token, 'ranking')).id)
+      assert.equal((await api('GET', `/api/reino/replay/${ff.id}`, olho.token)).status, 200, 'controle: a Firme está no placar de D')
+      const rt = await api('GET', `/api/reino/replay/${ft.id}`, olho.token)
+      assert.equal(rt.status, 404, 'a estrada da Tardia entrou para trás no placar de D')
+    } finally { await fechar(s) }
+  })
+})

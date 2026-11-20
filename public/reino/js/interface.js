@@ -2,8 +2,19 @@
 // com um botão de verdade (transparente, com foco de teclado) por cima de cada coisa tocável. Só mostra o modelo `M` que o app monta
 // a partir de `visao`/`opcoes`/eventos do motor; quem manda comando é o app. Nenhum número de regra nasce aqui.
 import * as Arte from './arte.js'
+import * as Part from './particulas.js'
 import { desenharMedalha } from './telas.js'
 import { T } from './textos.js'
+
+// R44 — os fogos da festa do reino: [começo em ms depois da batida, x (fração da largura), acima da faixa?, qual estouro]. Três
+// estouros compridos (840 ms), no máximo 2 abertos ao mesmo tempo; só o 1º fica acima da faixa (acaba antes de ela encolher e
+// subir), os outros abrem no campo, embaixo dela. As folhas são feitas uma vez por tamanho de tela.
+const FOGOS_ROTEIRO = [[0, 0.26, true, 0], [420, 0.73, false, 1], [840, 0.3, false, 2]], FOGOS_X_PC = [0.26, 0.8, 0.3] // (PC: o 2º abre à direita da placa do resumo da luta)
+const FOGOS_PRONTOS = {}
+function fogosDaFesta(cel) {
+  const k = cel ? 'cel' : 'pc', [G, P] = cel ? [28, 24] : [38, 28]
+  return (FOGOS_PRONTOS[k] ||= [Part.fogo(['#FFF096', '#FFD248', '#EC6054'], G), Part.fogo(['#FFFFFF', '#68A0F8', '#FFD248'], G), Part.fogo(['#FFF6E0', '#EC6054', '#FFD248'], P)])
+}
 
 export function criarInterface(C, CONFIG, camada, aoTocar) {
   const g = C.g, COR = Arte.COR
@@ -288,11 +299,43 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     UI.metaRet = null
     if (!M.meta || M.fase !== 'carta' || M.replay) return
     const L = UI.L, bs = L.bs, s = M.venceu ? T.resistiu : T.meta(M.meta), fo = M.venceu && Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno', w = Arte.largura(s, fo)
-    const x = L.cel ? Math.min(Math.ceil((L.consertar.x + L.consertar.w) / bs) + 4, Math.floor(HW) - w - 6) : Math.floor(HW / 2) - (w >> 1), y = L.cel ? Math.ceil(L.sortear.y / bs) + 17 : M.primeira ? 30 : 15
+    let x = Math.floor(HW / 2) - (w >> 1), y = M.primeira ? 30 : 15, vao = null
+    const caixa = M.venceu ? [5, 3, 10, 12] : [0, 0, 0, 7] // o que a meta ocupa em volta do canto do texto: o selo (moldura) ou só as letras
+    if (L.cel) ({ x, y, vao } = lugarDaMeta(HW, w, caixa))
     if (M.venceu) { g.fillStyle = COR.ameixa; g.fillRect(x - 4, y - 3, w + 8, 12); g.fillStyle = COR.ouro; g.fillRect(x - 4, y - 3, w + 8, 1); g.fillRect(x - 4, y + 8, w + 8, 1); g.fillRect(x - 5, y - 2, 1, 10); g.fillRect(x + w + 4, y - 2, 1, 10) }
     Arte.texto(g, s, x, y, { fonte: fo })
-    UI.metaRet = { x: (x - 5) * bs, y: (y - 3) * bs, w: (w + 10) * bs, h: 12 * bs, texto: s }
+    UI.metaRet = { x: (x - caixa[0]) * bs, y: (y - caixa[1]) * bs, w: (w + caixa[2]) * bs, h: caixa[3] * bs, texto: s, vao: vao == null ? null : vao * bs }
     viu(M.venceu ? 'resistiu' : 'meta')
+  }
+  /** R44 — CELULAR: a meta com RESPIRO. Procura, no céu ao lado do botão de sortear, o lugar mais folgado: longe das linhas das
+   *  chances (as de baixo e as que sobem para o lado do botão), dos botões, do bloco do HUD (vidas, rodada, pinos, famílias), do logo
+   *  da abertura, das relíquias e das setas dos terrenos de cima. Empate: o mais perto do lugar de sempre (ao lado do botão, à
+   *  altura do meio dele). Tudo no espaço ×bs do HUD; devolve o canto do texto e a folga (`vao`) até o vizinho mais próximo. Só
+   *  refaz a conta quando alguma coisa em volta muda de lugar. */
+  let metaLugar = null
+  function lugarDaMeta(HW, w, caixa) {
+    const L = UI.L, bs = L.bs, O = [], p = (r, h = r.h) => O.push({ x: r.x / bs, y: r.y / bs, w: r.w / bs, h: h / bs })
+    p(L.sortear, 26 * bs); if (M.consertar?.visivel) p(L.consertar, 26 * bs)
+    for (const b of [L.menu, L.som, L.lutar]) p(b, 26 * bs)
+    let fx = 50; for (const fa of M.familias || []) fx += 9 + Arte.largura(`${fa.n}/${fa.precisa}`, 'mini-contorno') + 4 + (fa.ligada ? 5 : 0)
+    O.push({ x: 0, y: 0, w: 48, h: 40 }); if (M.familias?.length) O.push({ x: 48, y: 29, w: fx - 48, h: 9 })
+    if (M.primeira) { const q = Arte.logoTam('small'); O.push({ x: HW - 37 - (q.w >> 1), y: 32, w: q.w, h: q.h }) }
+    const rr = reliquiasRet(); if (rr) p({ x: rr.x - 2 * bs, y: rr.y - bs, w: rr.w + 2 * bs, h: 15 * bs })
+    const o = L.odds; let fundo = (L.sortear.y + 26 * bs) / bs
+    if (M.chances.length && o.linhas) o.linhas.forEach((lin, i) => { const u = lin.at(-1); if (u) { p({ x: o.x + (o.dx[i] || 0), y: o.y + i * o.alt, w: u.x + u.w, h: o.alt }); fundo = Math.max(fundo, (o.y + (i + 1) * o.alt) / bs) } })
+    const teto = Math.min(C.topoDoVazio(5), C.topoDoVazio(6)) / bs; O.push({ x: 0, y: teto, w: HW, h: 999 })
+    const chave = `${HW}|${w}|${caixa}|` + O.map((b) => `${b.x},${b.y},${b.w},${b.h}`).join(';')
+    if (metaLugar && metaLugar.chave === chave) return metaLugar
+    const xA = Math.ceil((M.consertar?.visivel ? L.consertar.x + L.consertar.w : L.sortear.x + L.sortear.w) / bs) + 6 + caixa[0], xD = Math.floor(HW) - w - 3 - (caixa[2] - caixa[0]), yA = Math.ceil(L.sortear.y / bs) + 9, TETO = 8
+    let melhor = null
+    for (let x = 3 + caixa[0]; x <= xD; x++) for (let y = 30; y <= Math.min(fundo, teto) + 14; y++) {
+      const a = { x: x - caixa[0], y: y - caixa[1], w: w + caixa[2], h: caixa[3] }
+      let v = TETO; for (const b of O) { v = Math.min(v, Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w), b.y - (a.y + a.h), a.y - (b.y + b.h))); if (melhor && v < melhor.vao) break }
+      if (melhor && v < melhor.vao) continue // a folga manda; a distância ao lugar de sempre só desempata
+      const nota = v * 1000 - Math.abs(y - yA) * 2 - Math.abs(x - xA)
+      if (!melhor || nota > melhor.nota) melhor = { x, y, vao: v, nota }
+    }
+    return (metaLugar = { ...(melhor || { x: Math.min(xA, xD), y: yA, vao: 0 }), chave })
   }
   function ouroBt(r, id, icone, st, agora, nome) {
     const bs = UI.L.bs, armado = M.armado === id
@@ -780,21 +823,23 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       // brilhos de ouro andando pelas bordas da faixa (parados fora com Reduced motion)
       if (!C.menos) for (let i = 0; i < 6; i++) { const t = ((agora / 9 + i * 71) % (C.VW + 20)) - 10; g.fillStyle = '#FFF096'; g.fillRect(Math.round(i & 1 ? t : C.VW - t), i & 1 ? y - 1 : y + h - 1, 3, 1) }
     }
-    // R41: FOGOS POR CIMA do escurecido (desenhados aqui, depois dele): estouros em pixel, no máximo 3 de uma vez, 10 faíscas cada. Nunca com Reduced motion.
+    // R41/R44: FOGOS POR CIMA do escurecido (desenhados aqui, depois dele). R44: estouros GRANDES em pixel (`Part.fogo`: risco que sobe,
+    // anel que abre e cai), em 3 cores do jogo, acima e abaixo da faixa (nunca em cima do letreiro). No máximo 2 de uma vez (36
+    // faíscas) e 3 estouros na festa toda (menos de 3 por segundo). Nunca com Reduced motion.
     R.fogos = 0
-    if (!C.menos && dt >= bate && s < 1) {
-      const CORES = [COR.ouro, '#FFF096', COR.carmim, '#68A0F8']
-      for (let i = 0; i < 7; i++) {
-        const t = dt - bate - i * 230; if (t < 0 || t > 640) continue
-        const fx = C.VW * (0.14 + ((i * 37) % 73) / 100), fy = (i & 1 ? y + hG + 14 + ((i * 13) % 24) : Math.max(8, y0 - 18 - ((i * 17) % 30))), a = t / 640, r = 5 + 26 * (1 - (1 - a) * (1 - a))
-        g.fillStyle = CORES[i % 4]; g.globalAlpha = a > 0.7 ? 1 - (a - 0.7) / 0.3 : 1
-        for (let j = 0; j < 10; j++) { const an = (j / 10) * 6.283 + i; g.fillRect(Math.round(fx + Math.cos(an) * r), Math.round(fy + Math.sin(an) * r + a * a * 8), 2, 2) }
-        g.globalAlpha = 1; R.fogos++
+    let faiscas = 0, fogoRaio = 0
+    if (!C.menos && dt >= bate) {
+      const F = fogosDaFesta(cel)
+      for (let i = 0; i < FOGOS_ROTEIRO.length; i++) {
+        const [ms, fxr, emCima, qual] = FOGOS_ROTEIRO[i], p = F[qual], t = dt - bate - ms, q = Math.floor(t / p.anim.play.ms[0]); if (t < 0 || q >= p.quadros.length) continue
+        const fx = Math.round(C.VW * (cel ? fxr : FOGOS_X_PC[i])), fy = emCima ? Math.max(p.raio + 8, y0 - p.raio - 4) : y0 + hG + p.raio + (cel ? 8 : 3)
+        g.drawImage(p.img, q * p.w, 0, p.w, p.h, fx - p.ax, fy - p.ay, p.w, p.h)
+        R.fogos++; faiscas += p.faiscas; fogoRaio = Math.max(fogoRaio, p.raio)
       }
-      if (R.fogos) { R.fogosVistos = (R.fogosVistos || 0) + 1; viu('fogosDoReino') }
+      if (R.fogos) { R.fogosVistos = (R.fogosVistos || 0) + 1; R.faiscasMax = Math.max(R.faiscasMax || 0, faiscas); R.fogoRaio = Math.max(R.fogoRaio || 0, fogoRaio); viu('fogosDoReino') }
     }
     C.zonaTitulo = { x: 0, y: y - 4, w: C.VW, h: h + 8 }
-    R.ret = { x, y: y - 3, w, h: h + 6, linhas: lin, k, sub: T.festaReinoSub, maior: Math.max(...lin.map((q) => Arte.largura(q, 'reino-ouro'))) * k, VW: C.VW, VH: C.VH, n, mostra: mostra.join(' '), pequena, s }
+    R.ret = { x, y: y - 3, w, h: h + 6, linhas: lin, k, sub: T.festaReinoSub, maior: Math.max(...lin.map((q) => Arte.largura(q, 'reino-ouro'))) * k, VW: C.VW, VH: C.VH, n, mostra: mostra.join(' '), pequena, s, faiscas, faiscasMax: R.faiscasMax || 0, fogoRaio: R.fogoRaio || 0, fogosComecos: FOGOS_ROTEIRO.map((f) => f[0]) }
     viu('festaReino')
   }
   /** Aviso pequeno em placa (conquista, carta nova, relíquia): sempre abaixo do HUD, nunca por cima dele. */

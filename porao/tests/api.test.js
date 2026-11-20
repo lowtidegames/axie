@@ -5,7 +5,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { iniciarServidor } from '../servidor/index.mjs'
+import { iniciarServidor, arquivoDoCaminho } from '../servidor/index.mjs'
 
 const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'porao-api-'))
 let srv, porta, n = 0
@@ -224,4 +224,15 @@ describe('P8 — segurança', () => {
       }
     } finally { await s2.fechar(); fs.rmSync(raiz, { recursive: true, force: true }) }
   })
+})
+
+test('a tela recebe só o sorteio compartilhado (shared/rng.js e sha256.js), nada mais de shared/', () => {
+  const rng = arquivoDoCaminho('/shared/rng.js')
+  const sha = arquivoDoCaminho('/shared/sha256.js')
+  assert.ok(rng && rng.arq.endsWith(path.join('shared', 'rng.js')) && fs.existsSync(rng.arq), 'rng.js servido')
+  assert.ok(sha && sha.arq.endsWith(path.join('shared', 'sha256.js')) && fs.existsSync(sha.arq), 'sha256.js servido')
+  for (const p of ['/shared/config.js', '/shared/', '/shared/reino/config.js', '/shared/rng.js/x']) {
+    const r = arquivoDoCaminho(p)
+    assert.ok(!r || !fs.existsSync(r.arq), `${p} não pode ser servido`)
+  }
 })

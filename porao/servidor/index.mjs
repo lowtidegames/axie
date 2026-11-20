@@ -20,6 +20,8 @@ export const PORTA_PADRAO = 4900
 export const LIMITES = { corpoMaxBytes: 4 * 1024, pedidos: { max: 600, janelaMs: 60_000 } }
 
 // Pastas servidas: nada fora delas. servidor/, dados/ e nomes.local.json NUNCA entram aqui.
+const PASTA_SHARED = path.join(PORAO, '..', 'shared')
+const SHARED_LIBERADOS = ['rng.js', 'sha256.js']
 const PASTAS = { tela: path.join(PORAO, 'tela'), comum: path.join(PORAO, 'comum'), arte: path.join(PORAO, 'arte.local') }
 const TIPOS = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -98,7 +100,11 @@ export function arquivoDoCaminho(urlPath, pastas = PASTAS) {
   const partes = p.split('/').slice(1)
   if (partes.some(s => s === '..' || s === '.' || s.startsWith('.') && s !== '.')) return null
   let base = pastas.tela
-  if (partes[0] === 'comum') { base = pastas.comum; partes.shift() }
+  if (partes[0] === 'shared') {
+    // só o sorteio que regras.js importa; o resto de shared/ é do outro jogo
+    if (partes.length !== 2 || !SHARED_LIBERADOS.includes(partes[1])) return null
+    base = PASTA_SHARED; partes.shift()
+  } else if (partes[0] === 'comum') { base = pastas.comum; partes.shift() }
   else if (partes[0] === 'arte.local') { base = pastas.arte; partes.shift() }
   if (partes.length === 0 || partes.at(-1) === '') { if (base !== pastas.tela) return null; partes[partes.length - 1] = 'index.html'; if (partes.length > 1 && partes[0] === '') partes.shift() }
   const arq = path.resolve(base, ...partes)

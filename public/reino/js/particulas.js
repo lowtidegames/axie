@@ -49,19 +49,48 @@ export function anel(cor, cor2) {
   return peca(c, W, H, N, 55, 36, 16)
 }
 
-/** Rastro do golpe (meia-lua que varre de cima para baixo, virada para a direita): 3 quadros de 22×26, punho em (2, 13). */
-export function varrida(cor = '#FFF6E0', cor2 = '#FFD248') {
-  const W = 22, H = 26, N = 3, c = tela(W * N, H), g = c.getContext('2d')
+/** ARMA QUE VARRE: arco de aço (fio claro, lâmina cinza) com sombra ameixa atrás, de cima para baixo, virado para a direita.
+ *  3 quadros de 26×36, punho em (3, 18): sobe armado → corta na frente → some embaixo em pontilhado. */
+export function varrida(fio = '#FFFFFF', lamina = '#CECAD8', sombra = '#2B1E3A') {
+  const W = 26, H = 36, N = 3, c = tela(W * N, H), g = c.getContext('2d')
   for (let f = 0; f < N; f++) {
-    const a0 = [-1.1, -0.5, 0.2][f], a1 = [0.1, 0.8, 1.05][f], R = 11, gro = [2, 2, 1][f]
-    for (let y = -R; y <= R; y++) for (let x = -2; x <= R; x++) {
+    const a0 = [-1.25, -0.7, 0.15][f], a1 = [0.0, 0.85, 1.2][f], R = 16
+    for (let pass = 0; pass < 2; pass++) for (let y = -R - 1; y <= R + 1; y++) for (let x = -3; x <= R + 1; x++) {
       const d = Math.sqrt(x * x + y * y), a = Math.atan2(y, x)
-      if (a < a0 || a > a1 || d > R || d < R - Math.max(1, gro * 1.7 * (a - a0) / (a1 - a0))) continue
+      if (a < a0 || a > a1) continue
+      const gro = Math.max(1, 4.2 * (a - a0) / (a1 - a0)) // grossa na ponta que corta, fina no rabo
+      if (pass === 0) { if (d > R + 1 || d < R - gro - 1) continue; if (f === 2 && ((x + y) & 1)) continue; g.fillStyle = sombra; g.fillRect(f * W + 4 + x, 18 + y, 1, 1); continue }
+      if (d > R || d < R - gro) continue
       if (f === 2 && ((x + y) & 1)) continue
-      g.fillStyle = f === 0 && d < R - 1.5 ? cor2 : cor; g.fillRect(f * W + 3 + x, 13 + y, 1, 1)
+      g.fillStyle = d > R - 1.4 ? fio : lamina; g.fillRect(f * W + 4 + x, 18 + y, 1, 1)
     }
   }
-  return peca(c, W, H, N, 45, 2, 13)
+  return peca(c, W, H, N, 44, 3, 18)
+}
+
+/** MOLDURA da cena de batalha, do próprio castelo: muro de pedra em volta, cantos de madeira com tacha de ouro e duas flâmulas do
+ *  reino penduradas nos lados. Fina no celular (não rouba espaço). Uma tela do tamanho da cena, feita uma vez. */
+export function moldura(w, h, fina) {
+  const c = tela(w, h), g = c.getContext('2d'), T = fina ? 3 : 5, Q = T + (fina ? 2 : 4)
+  const pedra = (x, y, lw, lh, deitada) => {
+    g.fillStyle = '#9E98B4'; g.fillRect(x, y, lw, lh)
+    const passo = fina ? 9 : 12
+    if (deitada) { g.fillStyle = '#CECAD8'; g.fillRect(x, y, lw, 1); g.fillStyle = '#6E668E'; g.fillRect(x, y + lh - 1, lw, 1); for (let i = 0; i < lw; i += passo) g.fillRect(x + i + ((y > 0) ? passo >> 1 : 0), y + 1, 1, lh - 1) } else { g.fillStyle = '#CECAD8'; g.fillRect(x, y, 1, lh); g.fillStyle = '#6E668E'; g.fillRect(x + lw - 1, y, 1, lh); for (let i = 0; i < lh; i += passo) g.fillRect(x + 1, y + i + ((x > 0) ? passo >> 1 : 0), lw - 1, 1) }
+  }
+  pedra(0, 0, w, T, true); pedra(0, h - T, w, T, true); pedra(0, 0, T, h, false); pedra(w - T, 0, T, h, false)
+  g.fillStyle = '#2B1E3A'; g.fillRect(T, T, w - 2 * T, 1); g.fillRect(T, h - T - 1, w - 2 * T, 1); g.fillRect(T, T, 1, h - 2 * T); g.fillRect(w - T - 1, T, 1, h - 2 * T)
+  for (const [x, y] of [[0, 0], [w - Q, 0], [0, h - Q], [w - Q, h - Q]]) { // cantos de madeira
+    g.fillStyle = '#2B1E3A'; g.fillRect(x, y, Q, Q); g.fillStyle = '#96623C'; g.fillRect(x + 1, y + 1, Q - 2, Q - 2); g.fillStyle = '#C48C54'; g.fillRect(x + 1, y + 1, Q - 2, 1); g.fillStyle = '#684030'; g.fillRect(x + 1, y + Q - 2, Q - 2, 1)
+    g.fillStyle = '#FFD248'; g.fillRect(x + (Q >> 1) - 1, y + (Q >> 1) - 1, 2, 2)
+  }
+  const fw = fina ? 5 : 8, fh = fina ? 9 : 14, fy = Math.round(h * (fina ? 0.2 : 0.3))
+  for (const lado of [0, 1]) { // flâmulas do reino nos lados
+    const x = lado ? w - T - 1 - fw : T + 1
+    g.fillStyle = '#2B1E3A'; g.fillRect(x - 1, fy - 2, fw + 2, 3); g.fillStyle = '#C48C54'; g.fillRect(x - 1, fy - 1, fw + 2, 1)
+    for (let yy = 0; yy < fh; yy++) { const corte = yy > fh - 1 - (fw >> 1) ? yy - (fh - 1 - (fw >> 1)) : 0; g.fillStyle = '#2B1E3A'; g.fillRect(x - 1 + corte, fy + 1 + yy, fw + 2 - corte * 2, 1); if (fw - corte * 2 > 0) { g.fillStyle = yy < 2 ? '#8CB4FF' : '#4884E8'; g.fillRect(x + corte, fy + 1 + yy, fw - corte * 2, 1) } }
+    g.fillStyle = '#FFD248'; g.fillRect(x + (fw >> 1), fy + 4, 1, fina ? 2 : 3)
+  }
+  return c
 }
 
 /** Marca de lado no chão (elipse cheia, pontilhada na borda): de relance diz quem é de quem, sem sujar o boneco. */

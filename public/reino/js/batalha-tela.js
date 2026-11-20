@@ -23,6 +23,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     // entrada: a horda marcha no portão ao som do tambor antes do primeiro passo da luta (só desenho; o resultado já está decidido)
     // R21: ela ENTRA marchando de fora da tela, com poeira no pé, e os soldados dão o grito (um pulo, em onda) antes de sair
     B.preludioAte = performance.now() + 1700; C.marcha = true; C.marchaT0 = C.relogio; C.gritoT = C.relogio + 620; C.emLuta = true; C.noite = 0
+    if (C.tipo === 'pc' && !C.menos) { C.cam.alvo = C.camMin; C.cam.vel = 90 } // R25: a câmera vai até o portão para a horda entrar DENTRO da tela
     armado = new Uint8Array(eventos.length)
     C.gatilho?.('entrada', C.VW * (C.tipo === 'celular' ? 0.3 : 0.22), C.oy + C.tiers[C.tiers.length - 1] + 6)
     porTerreno = {}; contTerreno = {}; nivelTerreno = {}
@@ -33,7 +34,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     B.quedasDeSoldado = 0; B.rodadaChefe = horda.chefe
     Som.tocar('marcha')
   }
-  function comecarLuta() { B.preludioAte = 0; C.marcha = false; B.mapa.fill(-1); C.limparBonecos(); C.tb = 0; C.magiaAnim = {} }
+  function comecarLuta() { B.preludioAte = 0; C.marcha = false; C.cam.vel = 0; B.mapa.fill(-1); C.limparBonecos(); C.tb = 0; C.magiaAnim = {} }
   /** Resumo ao vivo (e final) da luta: dano por terreno, o que mais bateu e a contagem dos dois lados. */
   B.resumo = () => { let mvp = -1, m = 0; for (let k = 0; k < 7; k++) if (danoT[k] > m) { m = danoT[k]; mvp = k } return { dano: Array.from(danoT), mvp, aliados: B.aliados, aliadosTotal: B.aliadosTotal, inimigos: B.inimigos, inimigosTotal: B.inimigosTotal } }
   const tela = (i) => C.telaDe(i)
@@ -73,27 +74,30 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       if (quieto) return
       const chefao = o >= 0 && C.peca[o].w > 100
       const forte = e[2] < 0 || (valor >= 12 && valor * 5 >= C.hpMax[a] * 2) || chefao // golpe forte: magia, chefe, ou tira 40% da vida de uma vez
-      const pa = tela(a)
+      // R25 — o golpe tem DONO e ALVO à vista: quem bate e quem apanha são os representantes dos pelotões (a conta de vida acima é a de verdade)
+      const av = C.rep(a), ov = o >= 0 ? C.rep(o) : -1
+      const pa = tela(av)
       let empurra = 0
       if (o >= 0) {
         const xa = C.xDe(a), xo = C.xDe(o), longe = Math.abs(xa - xo) > 60 && atira(o)
         if (xa !== xo) C.dir[o] = xa > xo ? 1 : -1
-        const po = tela(o)
-        empurra = pa.x === po.x ? 0 : pa.x > po.x ? 1 : -1
+        { const xav = C.xDe(av) + C.dxe[av], xov = C.xDe(ov) + C.dxe[ov]; if (xav !== xov) C.dir[ov] = xav > xov ? 1 : -1 } // o representante olha para quem ele acerta
+        const po = tela(ov)
+        empurra = pa.x === po.x ? (C.dir[ov] * (C.sentido[ov] || 1) > 0 ? 1 : -1) : pa.x > po.x ? 1 : -1
         // o golpe já vem ANTECIPADO (antever): aqui é o instante do impacto. Sem antecipação marcada (nasceu agora, luta pulada), entra direto no bote.
-        if (!C.emGolpe(o)) { C.atacar(o, a, false, true); if (longe) C.projetil(po.x + C.cam.x, po.y - 16, pa.x + C.cam.x, pa.y - 14, C.projetilDe(o), 110) }
-        if (longe) { if (C.lado[o] === 0 && (t & 3) === 0) Som.tocar('flecha', { pan: pan(o), forca: 0.7 }) } else if (forte || (e[3] + t) % 3 === 0) C.efeito('spark', pa.x + C.cam.x + empurra * 3, pa.y - 14)
-        if (chefao) { pausa(agora, 60, 6); Som.tocar('critico', { pan: pan(a) }) } else if (forte) { pausa(agora, 45, 3); Som.tocar('critico', { pan: pan(a), forca: 0.7 }) }
+        if (!C.emGolpe(ov)) { C.atacar(ov, av, false, true); if (longe) C.projetil(po.x + C.cam.x, po.y - 16, pa.x + C.cam.x, pa.y - 14, C.projetilDe(ov), 110) }
+        if (longe) { if (C.lado[o] === 0 && (t & 3) === 0) Som.tocar('flecha', { pan: pan(ov), forca: 0.7 }) }
+        if (chefao) { pausa(agora, 60, 6); Som.tocar('critico', { pan: pan(av) }) } else if (forte) { pausa(agora, 45, 3); Som.tocar('critico', { pan: pan(av), forca: 0.7 }) }
       }
-      // quem apanha: pisca branco 1 quadro (no máximo 3 por segundo na tela), recua e amassa; quem está no meio do próprio bote só leva o tranco
-      if (C.est[a] === 1) { if (!C.emGolpe(a)) { C.tocarAnim(a, AN.hit); if (!C.podeBranco()) C.animT[a] -= C.peca[a].anim.hit.ms[0] } C.apanhar(a, empurra, forte ? 1.7 : 1) }
-      C.dano(pa.x + C.cam.x + ((e[3] * 5) % 9) - 4, pa.y - C.peca[a].ay * C.k[a] + 8, valor, forte ? 1 : 0, chefao)
+      // quem apanha: recua, amassa e leva a estrela de impacto em TODO golpe; o corpo inteiro branco (1 quadro) só no golpe FORTE, no máximo 3 por segundo
+      if (C.est[av] === 1) { if (!C.emGolpe(av)) { C.tocarAnim(av, AN.hit); if (!(forte && C.podeBranco())) C.animT[av] -= C.peca[av].anim.hit.ms[0] } C.apanhar(av, empurra, forte ? 1.7 : 1) }
+      C.dano(pa.x + C.cam.x + ((e[3] * 5) % 9) - 4, pa.y - C.peca[av].ay * C.k[av] + 8, valor, forte ? 1 : 0, chefao)
       if (!chocou) C.empurrar(3) // a carga: a câmera leva um tranco curto no primeiro choque
       if (!chocou) { chocou = true; Som.tocar('choque') }
     } else if (cod === 'h') {
       const i = B.mapa[e[2]]; if (i < 0) return
       C.hp[i] = Math.min(C.hpMax[i], C.hp[i] + e[3])
-      if (!quieto) { const p = tela(i); if ((e[2] + t) % 5 === 0) C.efeito('heal', p.x + C.cam.x, p.y); if (e[3] > 0) C.dano(p.x + C.cam.x, p.y - C.peca[i].ay + 8, e[3], 2) } // cura em verde, somada
+      if (!quieto) { const p = tela(C.rep(i)); if ((e[2] + t) % 5 === 0) C.efeito('heal', p.x + C.cam.x, p.y); if (e[3] > 0) C.dano(p.x + C.cam.x, p.y - C.peca[i].ay + 8, e[3], 2) } // cura em verde, somada
     } else if (cod === 'c') {
       const i = B.mapa[e[2]]; if (i < 0) return
       const eraVivo = C.est[i] === 1 || C.est[i] === 3
@@ -106,7 +110,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       // R21 — cada um cai do seu jeito: o soldado tomba para trás e vira fumaça clara; o invasor estoura em fumaça roxa; o bruto tomba
       // com poeira; o chefe cambaleia, ajoelha, tomba e levanta uma nuvem grande (a cena toca as etapas pelo tempo)
       C.morrer(i, chefe ? 2 : C.lado[i] === 0 ? 0 : C.peca[i].w > 60 ? 3 : 1)
-      const p = tela(i); C.gatilho?.(chefe ? 'chefeCai' : C.lado[i] === 0 ? 'morteAliado' : 'morteInvasor', p.x, p.y)
+      const p = tela(i); if (!C.oculto[i]) C.gatilho?.(chefe ? 'chefeCai' : C.lado[i] === 0 ? 'morteAliado' : 'morteInvasor', p.x, p.y)
       if (chefe && chefesVivos <= 0) {
         // FESTA GRANDE: câmera lenta de 600 ms com zoom, ouro e confete (dentro do limite). Com Reduced motion: pausa + som.
         B.chefeCaiuEm = agora; lentoUsado = true; Som.tocar('chefeCai')
@@ -178,8 +182,9 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       const a = B.mapa[e[3]], tp = C.projetilDe(o), longe = a >= 0 && Math.abs(C.xDe(a) - C.xDe(o)) > 60 && atira(o)
       if (C.tb < e[0] - (C.antecipaDe(o) + (longe && tp !== 'raio' ? VOO_MS : 0)) / 100 * esc) continue
       armado[k] = 1
-      if (a >= 0) { const xa = C.xDe(a), xo = C.xDe(o); if (xa !== xo) C.dir[o] = xa > xo ? 1 : -1 }
-      C.atacar(o, a, longe)
+      const ov = C.rep(o), av = a >= 0 ? C.rep(a) : -1 // quem aparece dando o golpe é o representante do pelotão
+      if (a >= 0) { const xa = C.xDe(a), xo = C.xDe(o); if (xa !== xo) C.dir[o] = xa > xo ? 1 : -1; const xav = C.xDe(av) + C.dxe[av], xov = C.xDe(ov) + C.dxe[ov]; if (xav !== xov) C.dir[ov] = xav > xov ? 1 : -1 }
+      C.atacar(ov, av, longe)
     }
   }
   B.tipoDe = (id) => tipos[id] || null

@@ -5,6 +5,9 @@
 // quadros por segundo com 150+ bonecos desenhados; o cenário muda de trecho com a rodada (campos → vila → portões → noite) e os 4
 // são diferentes; com Reduced motion: sem tremida, sem clarão, sem zoom, sem câmera — e o movimento essencial continua.
 // Grava as TIRAS de movimento (8 quadros seguidos, lado a lado) em tests/tela/fotos/reino/movimento/.
+// R25 (movimento 2): cada pelotão é desenhado com poucos REPRESENTANTES maiores (PC até 5, celular até 4, um degrau inteiro de pixel
+// de tela acima do cenário) e a plaqueta diz o número real; estrela de impacto em todo golpe (branco de corpo só no golpe forte);
+// arco de aço no bote; a horda entra dentro da tela no PC; moldura de pedra e madeira na luta.
 // Só uma parte: MOV_SO=celular|pc (a bateria completa é sem a variável).
 // Rode pela trava:  node tools/trava-robos.mjs rodar "timeout 900 node tests/tela/reino-movimento.e2e.mjs"
 import { createRequire } from 'node:module'
@@ -48,7 +51,7 @@ await mkdir(TIRAS, { recursive: true })
 const browser = await chromium.launch()
 
 const K = (page, fn, arg) => page.evaluate(`(${fn})(window.__keepmile, window.__kmCena, ${JSON.stringify(arg ?? null)})`)
-const med = (page) => K(page, (k, C) => ({ ...C.med, brancos: C.med.brancosLog.slice(), flashes: C.flashes.slice(), tremidaMax: C.tremidaMax, pico: C.picoParticulas, limite: C.limite, zoom: C.cam.zoom, camX: C.cam.x, menos: C.menos, e: C.e, liso: C.g.imageSmoothingEnabled, numeros8: C.num.length, n: C.n, cen: { ...C.cenario.n }, trecho: C.nomeDoTrecho() }))
+const med = (page) => K(page, (k, C) => ({ ...C.med, repMax: C.repMax, kRep: C.kRep, camMin: C.camMin, grupos: (() => { const m = {}; let pior = 0, ocultos = 0, vivos = 0; for (let i = 0; i < C.n; i++) { if (C.est[i] !== 1) continue; vivos++; if (C.oculto[i]) { ocultos++; continue } if (C.peca[i].w > 60) continue; const q = C.lado[i] ? 'i' + C.balde[i] : 'a' + C.grupo[i]; m[q] = (m[q] || 0) + 1; if (m[q] > pior) pior = m[q] } return { pior, ocultos, vivos } })(), brancos: C.med.brancosLog.slice(), flashes: C.flashes.slice(), tremidaMax: C.tremidaMax, pico: C.picoParticulas, limite: C.limite, zoom: C.cam.zoom, camX: C.cam.x, menos: C.menos, e: C.e, liso: C.g.imageSmoothingEnabled, numeros8: C.num.length, n: C.n, cen: { ...C.cenario.n }, trecho: C.nomeDoTrecho() }))
 const porSegundo = (ts) => { let m = 0; for (const t of ts) m = Math.max(m, ts.filter((x) => x >= t && x < t + 1000).length); return m }
 const espera = (page, fn, prazo = 30000) => page.waitForFunction(fn, null, { timeout: prazo, polling: 50 }).then(() => true, () => false)
 
@@ -94,11 +97,14 @@ async function rodar(fmt) {
   await K(page, (k, C) => { k.batalhaCheia(); C.zerarMedidas() })
   let m = await med(page)
   confere(m.e === Math.round(m.e) && m.liso === false, `pixel inteiro: escala ×${m.e} e desenho sem suavizar`)
-  if (pc) await tira(page, 'entrada-das-tropas', { gatilho: '', cada: 8, w: 250, h: 100, x: 125, atraso: 14, y: (await K(page, (k, C) => C.oy + C.tiers[C.tiers.length - 1] - 10)) })
+  if (pc) confere(await espera(page, () => window.__kmCena.cam.x < -20 && window.__kmCena.marcha, 4000), `entrada da horda DENTRO da tela no PC: a câmera vai até o portão no prelúdio (até ${m.camMin} px)`)
+  if (pc) await tira(page, 'entrada-das-tropas', { gatilho: '', cada: 8, w: 250, h: 100, x: 125, atraso: 2, y: (await K(page, (k, C) => C.oy + C.tiers[C.tiers.length - 1] - 10)) })
   confere(await espera(page, () => { const d = window.__kmCena.med; return d.volta >= 6 && d.fumacas >= 3 && d.tombos >= 1 && d.estouros >= 1 && d.fincadas >= 1 }, 45000), 'a luta cheia chega ao choque: golpes, quedas e flechas acontecem')
   m = await med(page)
   confere(m.antecipa > 0 && m.bote > 0 && m.volta > 0 && m.seq[0] === 1 && m.seq[1] === 2 && m.seq[2] === 3, `golpe em etapas, nesta ordem: antecipação → bote → volta (o 1º a bater: ${m.seq.join(' ')}; ${m.antecipa} antecipações, ${m.bote} botes, ${m.volta} voltas)`)
   confere(m.fumacas >= 3 && m.tombos >= 1 && m.estouros >= 1, `toda queda vira fumaça (${m.fumacas}); soldado TOMBA (${m.tombos}) e invasor ESTOURA (${m.estouros}): quedas diferentes`)
+  confere(m.grupos.pior <= m.repMax && m.grupos.ocultos > 0 && m.repMax <= 9 && m.kRep === (m.e + 1) / m.e, `poucas figuras GRANDES: cada pelotão desenha no máximo ${m.grupos.pior} representantes (teto ${m.repMax}), ${m.grupos.ocultos} de ${m.grupos.vivos} vivos ficam na plaqueta; boneco em escala ×${m.e + 1} de tela (cenário ×${m.e}), pixel inteiro`)
+  confere(m.estrelas > 0 && m.varridas > 0 && m.moldura === 1, `todo golpe tem estrela de impacto (${m.estrelas}) e o bote de perto tem o arco da arma (${m.varridas}); a luta está na moldura do castelo`)
   confere(m.passos > 0 && m.poeiras > 0, `marcha com passo e poeira no pé (${m.passos} pisadas, ${m.poeiras} poeirinhas)`)
   confere(m.flechas > 0 && m.fincadas > 0, `tiro em arco que chega e finca (${m.flechas} projéteis, ${m.fincadas} fincadas)`)
   confere(m.somados > 0 && m.numeros > 0 && m.numeros8 === 8, `números de dano: ${m.numeros} nasceram, ${m.somados} golpes SOMADOS num número já na tela; no máximo 8 ao mesmo tempo`)
@@ -111,10 +117,10 @@ async function rodar(fmt) {
 
   // ---------------------------------------------------------------- 2. tiras do golpe, da flecha e das quedas (luta nova a cada uma)
   if (pc) {
-    await lutaDoMotor(page, ['T01', 'T03', null, null, null, null], ['muncher', 'muncher', 'muncher', 'brute', 'muncher', 'muncher']); await tira(page, 'ataque-corpo-a-corpo', { gatilho: 'golpe', cada: 3, w: 104, h: 76 })
+    await lutaDoMotor(page, ['T01', 'T03', null, null, null, null], ['muncher', 'muncher', 'muncher', 'brute', 'muncher', 'muncher']); await tira(page, 'ataque-corpo-a-corpo', { gatilho: 'golpe', cada: 3, w: 84, h: 64, zoom: 2, dx: -8 })
     await lutaDoMotor(page, ['T04', 'T04', 'T05', 'T04', null, null], [...Array(10).fill('muncher'), 'brute', 'brute']); await tira(page, 'flecha', { gatilho: 'flecha', cada: 2, w: 170, h: 70, dx: -62 })
-    await K(page, (k) => k.batalhaCheia()); await tira(page, 'morte-do-invasor', { gatilho: 'morteInvasor', cada: 5, w: 96, h: 80 })
-    await lutaDoMotor(page, ['T01', null, null, null, null, null], [...Array(26).fill('muncher'), 'brute', 'brute', 'brute']); await tira(page, 'morte-do-soldado', { gatilho: 'morteAliado', cada: 7, w: 96, h: 80, dx: 6 })
+    await K(page, (k) => k.batalhaCheia()); await tira(page, 'morte-do-invasor', { gatilho: 'morteInvasor', cada: 5, w: 80, h: 64, zoom: 2 })
+    await lutaDoMotor(page, ['T01', null, null, null, null, null], [...Array(26).fill('muncher'), 'brute', 'brute', 'brute']); await tira(page, 'morte-do-soldado', { gatilho: 'morteAliado', cada: 7, w: 80, h: 64, zoom: 2, dx: 6 })
   }
 
   // ---------------------------------------------------------------- 3. estouro: bola de fogo + anel + brasas
@@ -148,12 +154,14 @@ async function rodar(fmt) {
   })
   await page.waitForTimeout(3200)
   { const q = await K(page, (k, C) => { let ocultos = 0, vivos = 0; for (let i = 0; i < C.n; i++) { if (C.oculto[i]) ocultos++; if (C.est[i] === 1) vivos++ } clearInterval(window.__agito); return { ...k.quadros(), vivos, desenhados: vivos - ocultos, bote: C.med.bote, pico: C.picoParticulas, limite: C.limite } })
+    // R25 — REGRA DE DESENHO MUDOU (decisão do diretor): o pelotão não é mais desenhado boneco a boneco; a medida passa a ser com 150+ bonecos
+    // VIVOS na cena (todos atualizados) e os representantes deles desenhados grandes e animando
     const qps = 1000 / q.intervalo
-    console.log(`  medida: ${q.desenhados} bonecos desenhados (${cheio.n} vivos) → ${qps.toFixed(1)} q/s (mediana ${q.intervalo.toFixed(2)} ms entre quadros), desenho ${q.custo.toFixed(2)} ms por quadro (pior ${q.pior.toFixed(1)} ms)`)
-    confere(q.desenhados >= 150 && q.bote > 20, `${q.desenhados} bonecos desenhados e animando ao mesmo tempo (≥ 150; ${q.bote} botes no período)`)
-    confere(q.n > 120 && q.intervalo <= 17.5, `60 quadros por segundo com ${q.desenhados} bonecos: mediana ${q.intervalo.toFixed(2)} ms entre quadros (≤ 17,5) = ${qps.toFixed(1)} q/s`)
+    console.log(`  medida: ${q.vivos} bonecos vivos, ${q.desenhados} representantes desenhados (${cheio.n} na cena) → ${qps.toFixed(1)} q/s (mediana ${q.intervalo.toFixed(2)} ms entre quadros), desenho ${q.custo.toFixed(2)} ms por quadro (pior ${q.pior.toFixed(1)} ms)`)
+    confere(q.vivos >= 150 && q.desenhados >= 40 && q.bote > 20, `${q.vivos} bonecos vivos ao mesmo tempo (≥ 150), ${q.desenhados} representantes grandes desenhados e animando (${q.bote} botes no período)`)
+    confere(q.n > 120 && q.intervalo <= 17.5, `60 quadros por segundo com ${q.vivos} bonecos vivos: mediana ${q.intervalo.toFixed(2)} ms entre quadros (≤ 17,5) = ${qps.toFixed(1)} q/s`)
     confere(q.custo <= 10, `o desenho cabe com folga no quadro de 16,7 ms: ${q.custo.toFixed(2)} ms (≤ 10)`)
-    confere(q.pico <= q.limite, `com 150+ bonecos as partículas seguem no teto (${q.pico} de ${q.limite})`) }
+    confere(q.pico <= q.limite, `com 150+ bonecos vivos as partículas seguem no teto (${q.pico} de ${q.limite})`) }
 
   // ---------------------------------------------------------------- 6. o cenário muda de trecho
   const p2 = await abrir(ctx)

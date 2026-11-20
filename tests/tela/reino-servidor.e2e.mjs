@@ -30,6 +30,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { iniciar } from '../../server/index.mjs'
+import { PARAMS_SERVIDOR } from '../../server/api.mjs'
 import { T } from '../../public/reino/js/textos.js'
 
 const require = createRequire(import.meta.url)
@@ -982,14 +983,27 @@ async function r30() {
 
   // ---- N3a: o perfil diz, em 1 linha, que a conta mora neste aparelho (sem promessa de recuperar)
   await item('R30 N3 perfil: conta neste aparelho', page, async () => {
+    // (R33: a regra mudou — a linha agora traz o prazo da conta que o servidor diz em perfil.conta.diasSemUsoAtePerder)
+    const resposta = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/reino/perfil' && r.request().method() === 'GET')
     await abrirTela('#mLiga', '#perfilRecordes')
+    const dias = (await (await resposta).json()).conta?.diasSemUsoAtePerder
     const t = await texto(page, '#perfilAparelho')
-    confere(t === 'Your keep is saved on this device. Clearing browser data starts a new one.' && t === T.srv.aparelho, `R30 N3: perfil: "${t}"`)
+    confere(dias === PARAMS_SERVIDOR.validadeDaSessaoH / 24 && dias === 30, `R33: o servidor diz ${dias} dias sem uso até perder a conta (a validade da sessão: ${PARAMS_SERVIDOR.validadeDaSessaoH} h)`)
+    confere(t === 'Your keep is saved on this device. Unused for 30 days, or if browser data is cleared, it is lost.' && t === T.srv.aparelhoPrazo(dias), `R30 N3 + R33: perfil: "${t}" (o número da tela = o do servidor)`)
     confere(!/recover|restore|back ?up|prize|reward|\$/i.test(t || ''), 'R30 N3: a linha não promete recuperar nada')
     await medirTela(page, 'R30 perfil com o aviso do aparelho')
     await foto('perfil-aviso-celular')
     await fecharTela()
   })
+  // ---- R33: servidor velho (Perfil sem `conta`): a frase antiga, sem número
+  await item('R33 perfil sem o prazo do servidor', page, async () => {
+    await page.route('**/api/reino/perfil', async (rota) => { const r = await rota.fetch(), j = await r.json(); if (r.ok()) delete j.conta; await rota.fulfill({ response: r, json: j }) })
+    await abrirTela('#mLiga', '#perfilRecordes')
+    const t = await texto(page, '#perfilAparelho')
+    confere(t === 'Your keep is saved on this device. Clearing browser data starts a new one.' && t === T.srv.aparelho, `R33: sem o campo do servidor, a frase antiga sem número: "${t}"`)
+    await fecharTela()
+  }, async () => { await page.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {}) })
+  await page.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {})
 
   // ---- N8: a legenda "Top 10 this season" no ranking e no perfil quando a liga vem por posição; sem ela quando vem por pontos
   await item('R30 N8 liga por posição', page, async () => {
@@ -1036,7 +1050,7 @@ async function r30() {
         await fecharTela(p2)
       }
       await abrirTela('#mLiga', '#perfilRecordes', p2, toque)
-      confere((await texto(p2, '#perfilAparelho')) === T.srv.aparelho, `R30 N3: ${w}x${h}: o perfil traz a linha do aparelho`)
+      confere((await texto(p2, '#perfilAparelho')) === T.srv.aparelhoPrazo(PARAMS_SERVIDOR.validadeDaSessaoH / 24), `R30 N3 + R33: ${w}x${h}: o perfil traz a linha do aparelho com o prazo`)
       await medirTela(p2, `R30 ${w}x${h} perfil`)
       { const t = await topoEPe(p2); confere(t.x && t.pe, `R30: ${w}x${h} perfil: X e pé à vista`) }
       await fecharTela(p2)

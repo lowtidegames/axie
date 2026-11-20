@@ -52,7 +52,9 @@ export const T = {
   // MODO SERVIDOR (docs/reino/servidor.md): avisos curtos, modos de partida, temporada, placar do dia, perfil e replay. Todo número vem do servidor.
   srv: {
     // (R30) a conta mora só neste aparelho: o perfil diz isso, e quando a sessão guardada não vale mais a tela avisa uma vez (sem prometer recuperar)
-    aparelho: 'Your keep is saved on this device. Clearing browser data starts a new one.', sessao: { titulo: 'YOUR SESSION EXPIRED', texto: 'A NEW KEEP WAS STARTED' },
+    aparelho: 'Your keep is saved on this device. Clearing browser data starts a new one.',
+    aparelhoPrazo: (dias) => `Your keep is saved on this device. Unused for ${dias} days, or if browser data is cleared, it is lost.`, // (R33) dias = perfil.conta.diasSemUsoAtePerder do servidor
+    sessao: { titulo: 'YOUR SESSION EXPIRED', texto: 'A NEW KEEP WAS STARTED' },
     // (R30) fim de uma partida de ranking: os pontos da partida e a conta da temporada (números do servidor)
     fimRanking: { partida: (n) => `RUN SCORE ${n}`, temporada: (n, k) => `SEASON SCORE ${n} (AVG OF YOUR BEST ${k})` },
     rede: 'RECONNECTING...', voltou: 'BACK ONLINE', sincronizado: 'SYNCED WITH SERVER', carregando: 'Loading...', deNovo: 'Try again', acabou: 'THAT RUN ENDED ON THE SERVER',

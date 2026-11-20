@@ -8,6 +8,8 @@
 //   resultado(estado)                           → { fim, motivo, rodada, vencidas, pontos, ... }
 //   visao(estado)                               → o que a tela pode ver (nunca a semente nem o sorteio futuro)
 //   reproduzir({ semente, cartasLiberadas, comandos }) → { ok, estado, resultado } | { ok: false, erro, indice }
+//   chancesReais(cartas)                        → [{ id, nome, chance }] chance real (%) de cada raridade para essas cartas
+//   sortearCartaDaSemente(semente, cartas)      → uma carta, pelo mesmo sorteio (conferência das chances)
 //
 // Comandos:
 //   { tipo: 'por', carta: 'T01', terreno: 1..6 }   põe uma carta da oferta (1 por oferta)
@@ -32,21 +34,58 @@ function embaralhar(e, lista) {
   return a
 }
 
+// O dado da raridade: um número de 0 a 99; cada raridade ocupa `chance` números, na ordem do config (soma 100).
+const DADO_RARIDADE = 100
+
+/** Raridade sorteada pelo número do dado (índice em RARIDADES). */
+function raridadeDoNumero(x) {
+  let ri = 0
+  for (; ri < RARIDADES.length - 1; ri++) { if (x < RARIDADES[ri].chance) break; x -= RARIDADES[ri].chance }
+  return ri
+}
+
+/** Raridade que DE FATO sai: a sorteada se houver carta dela; senão a de baixo mais perto; sem nada embaixo, a de cima mais perto. -1 = nenhuma. */
+function raridadeQueSai(ri, tem) {
+  for (let i = ri; i >= 0; i--) if (tem[i]) return i
+  for (let i = ri + 1; i < RARIDADES.length; i++) if (tem[i]) return i
+  return -1
+}
+
+const temRaridade = (cand) => RARIDADES.map((r) => cand.some((id) => CARTAS[id].raridade === r.id))
+
 /** Carta por raridade entre `pool` (menos `fora`). Raridade vazia cai para a de baixo (e, sem nada embaixo, sobe). */
 function sortearCarta(e, pool, fora = []) {
   const cand = pool.filter((id) => !fora.includes(id))
   if (!cand.length) return null
-  let x = int(e, 100), ri = 0
-  for (; ri < RARIDADES.length - 1; ri++) { if (x < RARIDADES[ri].chance) break; x -= RARIDADES[ri].chance }
-  const ordem = []
-  for (let i = ri; i >= 0; i--) ordem.push(i)
-  for (let i = ri + 1; i < RARIDADES.length; i++) ordem.push(i)
-  for (const i of ordem) {
-    const lst = cand.filter((id) => CARTAS[id].raridade === RARIDADES[i].id)
-    if (lst.length) return lst[int(e, lst.length)]
-  }
-  return null
+  const i = raridadeQueSai(raridadeDoNumero(int(e, DADO_RARIDADE)), temRaridade(cand))
+  const lst = cand.filter((id) => CARTAS[id].raridade === RARIDADES[i].id)
+  return lst[int(e, lst.length)]
 }
+
+/**
+ * Chance REAL (em %) de uma carta sorteada sair de cada raridade, para ESTE conjunto de cartas — pelo mesmo dado e pela
+ * mesma queda do sorteio acima (uma fonte só). Raridade sem carta no conjunto: 0. Soma 100 (ou tudo 0 com o conjunto vazio).
+ */
+export function chancesReais(cartas) {
+  if (!Array.isArray(cartas)) throw new Error('Lista de cartas inválida')
+  const cand = cartas.filter((id) => typeof id === 'string' && Object.hasOwn(CARTAS, id))
+  const tem = temRaridade(cand), conta = RARIDADES.map(() => 0)
+  if (cand.length) for (let x = 0; x < DADO_RARIDADE; x++) conta[raridadeQueSai(raridadeDoNumero(x), tem)]++
+  return RARIDADES.map((r, i) => ({ id: r.id, nome: r.nome, chance: (conta[i] * 100) / DADO_RARIDADE }))
+}
+
+/** Uma carta sorteada de `cartas` por uma semente própria, com o MESMO sorteio da partida (para conferir as chances). */
+export function sortearCartaDaSemente(semente, cartas) {
+  const e = { sorteio: estadoDaSemente(semente) }
+  return sortearCarta(e, cartas)
+}
+
+/** Cartas de onde sai a mão desta rodada: na rodada 1, só as Tropas que lutam (Soup Carrier sozinho não vence ninguém). */
+const tropasQueLutam = (lista) => lista.filter((id) => CARTAS[id].tipo === 'tropa' && CARTAS[id].dano > 0)
+const cartasDaMao = (e) => (e.rodada === 1 ? tropasQueLutam(e.liberadas) : e.liberadas)
+
+/** Chance (em %) de a bolsa de uma rodada comum trazer relíquia: a do config, ou 0 se não sobra relíquia livre. */
+const chanceDaReliquia = (livres) => (livres > 0 ? P.bolsa.chanceReliquia : 0)
 
 export function chefeDaRodada(r) {
   if (r % HORDA.chefeACada !== 0) return null
@@ -91,22 +130,20 @@ function novosEspolios(e) {
   const carta = sortearCarta(e, e.liberadas)
   let bolsa = { tipo: 'bolsa', ouro: P.bolsa.ouro }
   const livres = reliquiasLivres(e)
-  if (int(e, 100) < P.bolsa.chanceReliquia && livres.length) bolsa = { tipo: 'bolsa', reliquia: livres[int(e, livres.length)] }
+  if (int(e, 100) < chanceDaReliquia(livres.length)) bolsa = { tipo: 'bolsa', reliquia: livres[int(e, livres.length)] }
   e.espolios = [{ tipo: 'carta', carta }, { tipo: 'promocao' }, bolsa]
 }
 
 function novaOferta(e) {
   const oferta = []
   let levelUp = false
-  if (e.rodada === 1) {
-    // rodada 1: três Tropas diferentes que lutam (Soup Carrier sozinho não vence ninguém)
-    const tropas = e.liberadas.filter((id) => CARTAS[id].tipo === 'tropa' && CARTAS[id].dano > 0)
-    while (oferta.length < 3) { const c = sortearCarta(e, tropas, oferta); if (!c) break; oferta.push(c) }
-  } else {
+  const pool = cartasDaMao(e)
+  if (e.rodada !== 1) {
     const sobe = [...new Set(e.terrenos.filter((t) => t && t.nivel < P.nivelMax).map((t) => t.carta))]
     if (sobe.length) { oferta.push(sobe[int(e, sobe.length)]); levelUp = true }
-    while (oferta.length < 3) { const c = sortearCarta(e, e.liberadas, oferta); if (!c) break; oferta.push(c) }
   }
+  // rodada 1: três Tropas diferentes que lutam; depois, a carta que sobe (se houver) e o resto do álbum
+  while (oferta.length < 3) { const c = sortearCarta(e, pool, oferta); if (!c) break; oferta.push(c) }
   e.oferta = oferta
   e.levelUp = levelUp
   e.sorteios = 0
@@ -130,7 +167,7 @@ function validarLiberadas(lista) {
     if (typeof id !== 'string' || !Object.hasOwn(CARTAS, id) || vistos.has(id)) throw new Error(`Carta liberada inválida: ${String(id)}`)
     vistos.add(id)
   }
-  if (lista.filter((id) => CARTAS[id].tipo === 'tropa' && CARTAS[id].dano > 0).length < 3) throw new Error('São precisas pelo menos 3 Tropas que lutam')
+  if (tropasQueLutam(lista).length < 3) throw new Error('São precisas pelo menos 3 Tropas que lutam')
   // ordem fixa (a do config), para a mesma lista em outra ordem dar a mesma partida
   return Object.keys(CARTAS).filter((id) => vistos.has(id))
 }
@@ -329,6 +366,10 @@ export function visao(e) {
     horda: e.horda ? { rodada: e.horda.rodada, ordem: e.horda.ordem.slice(), chefe: e.horda.chefe } : null,
     proximoChefe: proximoChefe(e.rodada),
     espolios: e.espolios.map((x) => ({ ...x })),
+    // R31: chances VERDADEIRAS desta partida (as do sorteio acima): por raridade, para as cartas de onde sai a mão agora;
+    // e a da bolsa trazer relíquia nesta rodada (null na rodada do chefe, que não sorteia bolsa)
+    chances: chancesReais(cartasDaMao(e)),
+    chanceReliquia: e.horda && e.horda.chefe ? null : chanceDaReliquia(reliquiasLivres(e).length),
     reliquias: e.reliquias.slice(),
     ultima: e.ultima ? { ...e.ultima } : null,
     fim: e.fim ? { ...e.fim } : null,

@@ -30,7 +30,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const vao = cel ? 0 : 4, larg = 56 * 3 + vao * 2, x0 = Math.floor((VW - larg) / 2), yc = cel ? VH - 78 : VH - 80
     L.cartas = [0, 1, 2].map((i) => ({ x: x0 + i * (56 + vao), y: yc, w: 56, h: 78 }))
     L.mesa = cel ? { x: 0, y: VH - 88, w: VW, h: 88 } : { x: x0 - 6, y: yc - 6, w: larg + 12, h: 86 }
-    if (cel) { const y = Math.max(44 * bs, Math.ceil(L.pinos.y + L.pinos.h)); L.sortear = { x: 3 * bs, y, w: 34 * bs, h: 26 * bs }; L.consertar = { x: 40 * bs, y, w: 34 * bs, h: 26 * bs } } else { L.sortear = { x: x0 - 42 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs }; L.consertar = { x: x0 - 80 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs } }
+    if (cel) { const y = Math.max(44 * bs, Math.ceil(L.pinos.y + L.pinos.h + Math.max(0, (hmin - 26 * bs) / 2))); L.sortear = { x: 3 * bs, y, w: 34 * bs, h: 26 * bs }; L.consertar = { x: 40 * bs, y, w: 34 * bs, h: 26 * bs } } else { L.sortear = { x: x0 - 42 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs }; L.consertar = { x: x0 - 80 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs } }
     // chances do sorteio: uma linha junto do botão de sortear
     L.odds = cel ? { x: 3, y: L.sortear.y + 28 * bs + 1 } : { x: 6, y: L.sortear.y - 9 }
     L.faixa = cel ? { x: 0, y: VH - 88, w: VW, h: 0 } : { x: 6, y: L.odds.y - 50, w: x0 - 14, h: 48 }
@@ -69,7 +69,13 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     add('menu', L.menu, T.aria.menu); add('som', L.som, T.aria.som)
     if (f === 'luta') { add('vel', L.lutar, T.aria.vel(M.vel)); return b }
     if (f === 'vitoria') { if (M.vitoria?.pronto) M.espolios.forEach((e, i) => add('espolio' + i, L.espolio[i], T.aria.espolio(nomeEspolio(e)), { espolio: i }, { desliga: !M.espolioPode[i] })); return b }
-    for (let k = 1; k <= 6; k++) { const a = C.areaDoTerreno(k); add('terreno' + k, { x: Math.max(0, a.x), y: a.y, w: Math.min(a.w, C.VW - Math.max(0, a.x)), h: a.h }, T.aria.terreno(k), { terreno: k }) }
+    // tela baixa (320×568): o toque do terreno começa abaixo do botão de sortear/consertar quando os dois se encontram
+    const tampa = L.cel && f === 'carta' ? [M.cartaPosta ? null : L.sortear, M.consertar.visivel ? L.consertar : null].filter(Boolean) : []
+    for (let k = 1; k <= 6; k++) {
+      const a = C.areaDoTerreno(k), x = Math.max(0, a.x), w = Math.min(a.w, C.VW - x); let y = a.y, h = a.h
+      for (const r of tampa) { const fim = r.y + r.h + Math.max(0, (44 / C.css - r.h) / 2) + 1; if (x < r.x + r.w && x + w > r.x && y < fim && h - (fim - y) >= 44 / C.css) { h -= fim - y; y = fim } }
+      add('terreno' + k, { x, y, w, h }, T.aria.terreno(k), { terreno: k })
+    }
     if (f === 'terreno') { add('voltar', L.lutar2, T.voltar); return b }
     add('lutar', L.lutar, T.aria.lutar)
     if (!M.cartaPosta) {
@@ -101,6 +107,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       // toque de 44 px no mínimo, sem sair da tela
       let w = x.r.w * e, h = x.r.h * e, px = x.r.x * e, py = x.r.y * e
       if (w < 44) { px -= (44 - w) / 2; w = 44 } if (h < 44) { py -= (44 - h) / 2; h = 44 }
+      w = Math.min(w, innerWidth); h = Math.min(h, innerHeight)
       px = Math.max(0, Math.min(px, innerWidth - w)); py = Math.max(0, Math.min(py, innerHeight - h))
       d.style.cssText = `left:${px}px;top:${py}px;width:${w}px;height:${h}px`
       d.setAttribute('aria-label', x.rotulo); d.dataset.dados = JSON.stringify(x.dados)

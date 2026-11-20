@@ -236,3 +236,8 @@ test('a tela recebe só o sorteio compartilhado (shared/rng.js e sha256.js), nad
     assert.ok(!r || !fs.existsSync(r.arq), `${p} não pode ser servido`)
   }
 })
+
+test('índice de arte (indice.json) é servido como JSON', () => {
+  const r = arquivoDoCaminho('/arte/indice.json')
+  assert.ok(r && r.tipo.startsWith('application/json') && fs.existsSync(r.arq))
+})

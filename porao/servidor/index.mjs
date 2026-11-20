@@ -27,7 +27,7 @@ const TIPOS = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
   '.gif': 'image/gif', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav',
-  '.woff2': 'font/woff2', '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8',
 }
 
 const emManutencao = () => process.env.MANUTENCAO === '1'
@@ -123,7 +123,14 @@ async function servirEstatico(req, res, urlPath, pastas) {
     real = await fs.promises.realpath(alvo.arq)
     const baseReal = await fs.promises.realpath(alvo.base)
     if (!real.startsWith(baseReal + path.sep)) return erro(res, 404, 'Não achei esse arquivo.', 'nao_achado')
-  } catch { return erro(res, 404, 'Não achei esse arquivo.', 'nao_achado') }
+  } catch {
+    // a pasta de arte do dono é opcional: sem ela, o índice é uma lista vazia (a tela não acusa erro)
+    if (alvo.base === pastas.arte && path.basename(alvo.arq) === 'indice.json') {
+      res.writeHead(200, { ...CABECALHOS_DE_SEGURANCA, 'Cache-Control': 'no-cache', 'Content-Type': alvo.tipo })
+      return res.end(req.method === 'HEAD' ? undefined : '[]')
+    }
+    return erro(res, 404, 'Não achei esse arquivo.', 'nao_achado')
+  }
   fs.readFile(real, (e, dados) => {
     if (e) return erro(res, 404, 'Não achei esse arquivo.', 'nao_achado')
     res.writeHead(200, { ...CABECALHOS_DE_SEGURANCA, 'Cache-Control': 'no-cache', 'Content-Type': alvo.tipo, 'Content-Length': dados.length })

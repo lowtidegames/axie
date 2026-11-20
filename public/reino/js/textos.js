@@ -50,7 +50,7 @@ export const T = {
   menu: {
     titulo: 'Keepmile', som: 'Sound', movimento: 'Reduced motion', album: 'Album', conquistas: 'Achievements', ranking: 'Best runs', nova: 'New run', novaConfirma: 'Give up this run?', fechar: 'Close', sim: 'Yes, new run', nao: 'Keep playing', ligado: 'On', desligado: 'Off', melhores: 'Best runs',
     sair: 'Leave the game?', sairTexto: 'Your run is saved on this device.', sairSim: 'Leave', liga: 'League', media: (n) => `Average of your best 3: ${n}`, proxima: (nome, n) => `${n} more for ${nome}`, topo: 'Top title of the beta', beta: 'Beta: titles only, kept on this device.',
-    efeitos: 'Effects', musica: 'Music', menosVol: (q) => `${q} quieter`, maisVol: (q) => `${q} louder`, data: (d) => `Earned ${d}`, enfeite: 'Title and medal', degrau: (a, b) => `${a} / ${b}`, feitas: (a, b) => `${a} / ${b} earned`, selo: 'HELD', voltar: 'Back to menu',
+    efeitos: 'Effects', musica: 'Music', menosVol: (q) => `${q} quieter`, maisVol: (q) => `${q} louder`, data: (d) => `Earned ${d}`, enfeite: 'Medal', degrau: (a, b) => `${a} / ${b}`, feitas: (a, b) => `${a} / ${b} earned`, selo: 'HELD', voltar: 'Back to menu',
     ajustes: 'Settings', faixa: (de, ate) => (ate ? `${de} to ${ate}` : `${de} or more`), nenhuma: 'No runs yet', rodadas: (n) => `${n} round${n === 1 ? '' : 's'}`,
   },
   album: { titulo: 'Album', chances: 'Odds per hand from round 2, before level-ups', chancesTodas: 'Same, with every card unlocked', proxima: (n) => (n === 1 ? 'Next card: 1 more round won' : `Next card: ${n} more rounds won`), todas: 'Every card unlocked', somadas: (n) => (n === 1 ? '1 round won so far' : `${n} rounds won so far`), bloqueada: 'Locked card' },
@@ -123,14 +123,14 @@ const bonusDe = (f) => `Switch on the ${FAMILIAS[f].nome} bonus`
 const COMO = {
   road: `Beat ${chefe('gutbucket').split(' ')[0]}`, double: `Beat ${chefe('niptuck')}`, mole: `Beat ${chefe('moleworth')}`, pudding: `Beat ${chefeCurto('gobble')}`,
   nopatch: `Beat ${chefe('niptuck')} without a single repair in the run`, scratch: `Beat ${chefeCurto('moleworth')} with every heart full`,
-  supper: 'Win your first battle', plate: 'Win a battle without losing a soldier', last: 'Win with exactly one soldier left', penny: 'Win round 10 without a single reroll',
+  supper: 'Win your first battle', plate: 'Win a battle without losing a soldier', last: 'Win with exactly one soldier left', penny: 'Win round 10 with no rerolls in the run',
   thread: N.coracoes === 1 ? 'Win a battle on your last heart' : `Win a battle with ${N.coracoes} hearts`, seconds: 'Win a battle right after losing one', encore: `Win round ${N.rodadaDoBis} or a later one`,
   house: 'Fill all 6 plots', family: 'Hold 6 plots of the same family', brass: `Raise a card to level ${NIVEL}`,
   shields: bonusDe('pikewall'), bows: bonusDe('thornbow'), dish: bonusDe('potluck'), sparks: bonusDe('fizzwick'),
   mason: `Raise a building to level ${NIVEL}`, spicy: `Raise a magic card to level ${NIVEL}`, pockets: `Hold ${N.reliquias} relics in one run`, grand: `Put a ${LENDARIA} card in your kingdom`,
   librarian: 'Unlock every card',
 }
-for (const [id, n] of Object.entries(N.rodadasSomadas)) COMO[id] = `Win ${n} rounds in total`
+for (const [id, n] of Object.entries(N.rodadasSomadas)) COMO[id] = `Win ${n} rounds in total, any mode`
 /** As 30, na ordem do módulo: { id, nome, grupo, como, meta?, medida? }. */
 export const CONQUISTAS = LISTA.map((c) => ({ ...c, como: COMO[c.id] || '' }))
 export const GRUPOS_CONQUISTA = GRUPOS.map((id) => ({ id, nome: T.grupos[id] }))

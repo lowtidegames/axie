@@ -264,6 +264,85 @@ const EFEITOS = {
     K.tambor({ f: 85, dur: 0.14, vol: 0.7 }); K.ruido({ dur: 0.07, f: 450, tipo: 'lowpass', vol: 0.5 })
     ;[[74, 0.12, 0.12], [79, 0.26, 0.12], [83, 0.4, 0.48]].forEach(([m, em, dur]) => K.trompa({ m, dur, vol: 0.45, em })); K.trompa({ m: 79, dur: 0.48, vol: 0.25, em: 0.4 }); K.sino({ f: N(95), dur: 0.4, vol: 0.14, em: 0.4 })
   } },
+  // ================================================================ R35 — o som da tela nova
+  // ---- interface nova (carta que vira, ouro contando, menu, replay, rede, apelido, ranking)
+  cartaVira: { ms: 128, pri: 2, alvo: -15, camada: 'interface', vars: 3, fn(K, v) { K.ruido({ dur: 0.09, f: 1400 * v.p, f2: 5200, q: 1.2, vol: 0.45, ataque: 0.012 }); K.ruido({ dur: 0.018, f: 2800, vol: 0.5, em: 0.075, ataque: 0.001 }); K.tom({ f: 420 * v.p, f2: 300, dur: 0.035, tipo: 'triangle', vol: 0.35, em: 0.075 }) } },
+  cartaRara: { ms: 350, pri: 2, alvo: -12, camada: 'interface', vars: 1, fn(K) { [83, 86, 91, 95].forEach((m, i) => K.sino({ f: N(m), dur: 0.36, vol: 0.3, em: i * 0.055 })); K.ruido({ dur: 0.4, f: 7500, tipo: 'highpass', vol: 0.07, ataque: 0.08 }); K.corda({ m: 79, dur: 0.3, vol: 0.3 }) } },
+  ouroTique: { ms: 37, pri: 3, alvo: -19, camada: 'interface', vars: 3, fn(K, v) { K.sino({ f: 3100 * v.p, dur: 0.06, vol: 0.4, parciais: [1, 2.42] }); K.ruido({ dur: 0.008, f: 6000, vol: 0.2 }) } },
+  menuAbre: { ms: 340, pri: 2, alvo: -15, camada: 'interface', vars: 1, fn(K) { K.ruido({ dur: 0.14, f: 500, f2: 1600, tipo: 'lowpass', vol: 0.4, ataque: 0.02 }); K.corda({ m: 67, dur: 0.2, vol: 0.4, em: 0.05 }); K.corda({ m: 74, dur: 0.24, vol: 0.4, em: 0.1 }) } },
+  menuFecha: { ms: 280, pri: 2, alvo: -16, camada: 'interface', vars: 1, fn(K) { K.corda({ m: 74, dur: 0.16, vol: 0.4 }); K.corda({ m: 67, dur: 0.22, vol: 0.4, em: 0.05 }); K.ruido({ dur: 0.12, f: 1600, f2: 450, tipo: 'lowpass', vol: 0.4, ataque: 0.01, em: 0.03 }) } },
+  velocidade: { ms: 160, pri: 2, alvo: -15, camada: 'interface', vars: 1, fn(K, v) { K.ruido({ dur: 0.07, f: 1500 * v.p, f2: 4500 * v.p, q: 2, vol: 0.4, ataque: 0.01 }); K.tom({ f: N(74) * v.p, dur: 0.12, tipo: 'triangle', vol: 0.5, em: 0.05 }); K.tom({ f: N(81) * v.p, dur: 0.09, tipo: 'triangle', vol: 0.3, em: 0.09 }) } },
+  replayPula: { ms: 500, pri: 2, alvo: -14, camada: 'interface', vars: 1, fn(K) { [0, 0.09, 0.16, 0.22, 0.27].forEach((em, i) => { K.ruido({ dur: 0.04, f: 1800 + i * 600, q: 2, vol: 0.4, em }); K.tom({ f: N(67 + i * 3), dur: 0.04, tipo: 'triangle', vol: 0.25, em }) }); K.corda({ m: 79, dur: 0.16, vol: 0.5, em: 0.32 }) } },
+  semSinal: { ms: 400, pri: 2, alvo: -16, camada: 'interface', vars: 1, fn(K) { K.corda({ m: 74, dur: 0.2, vol: 0.4 }); K.corda({ m: 69, dur: 0.3, vol: 0.4, em: 0.16 }); K.ruido({ dur: 0.3, f: 400, tipo: 'lowpass', vol: 0.15, ataque: 0.05 }) } },
+  voltou: { ms: 420, pri: 2, alvo: -14, camada: 'interface', vars: 1, fn(K) { [69, 74, 79].forEach((m, i) => K.corda({ m, dur: 0.2, vol: 0.4, em: i * 0.08 })); K.sino({ f: N(91), dur: 0.25, vol: 0.14, em: 0.2 }) } },
+  apelidoOk: { ms: 560, pri: 2, alvo: -12, camada: 'interface', vars: 1, fn(K) {
+    for (let i = 0; i < 4; i++) K.ruido({ dur: 0.045, f: 3200 + K.r() * 1800, q: 3, vol: 0.3, em: i * 0.055, ataque: 0.008 }) // a pena riscando
+    K.tambor({ f: 120, dur: 0.08, vol: 0.5, em: 0.26 }); [67, 74, 79].forEach((m, i) => K.corda({ m, dur: 0.24, vol: 0.4, em: 0.28 + i * 0.05 })); K.sino({ f: N(91), dur: 0.2, vol: 0.12, em: 0.4 })
+  } },
+  gancho: { ms: 560, pri: 2, alvo: -14, camada: 'fim', vars: 1, fn(K) { [[67, 0], [74, 0.12], [71, 0.24], [79, 0.36]].forEach(([m, em]) => K.corda({ m, dur: 0.24, vol: 0.45, em })); K.sino({ f: N(91), dur: 0.3, vol: 0.1, em: 0.36 }) } },
+  rankUp: { ms: 900, pri: 1, alvo: -9, camada: 'fim', vars: 1, grande: true, fn(K) {
+    [[67, 0, 0.09], [71, 0.1, 0.09], [74, 0.2, 0.09], [79, 0.3, 0.55]].forEach(([m, em, dur]) => { K.trompa({ m, dur, vol: 0.5, em }); K.flauta({ m: m + 12, dur, vol: 0.16, em }) }); K.trompa({ m: 74, dur: 0.55, vol: 0.3, em: 0.3 })
+    K.tambor({ f: 95, dur: 0.14, vol: 0.5 }); K.tambor({ f: 85, dur: 0.25, vol: 0.7, em: 0.3 }); K.pandeiro({ vol: 0.2, em: 0.3, dur: 0.25 }); [86, 91, 95, 98].forEach((m, i) => K.sino({ f: N(m), dur: 0.25, vol: 0.1, em: 0.38 + i * 0.08 }))
+  } },
+  // ---- o golpe no quadro do IMPACTO: um som por GESTO (movimento.js); `varia` = cada golpe sai ±N semitons e com outra força
+  impacto: { ms: 50, pri: 4, alvo: -15, camada: 'golpes', vars: 3, tropa: true, max: 3, cauda: 0.1, varia: 2, fn(K, v) { K.ruido({ dur: 0.03, f: 1900 * v.p, q: 0.9, vol: 0.6, ataque: 0.001 }); K.tom({ f: 330 * v.p, f2: 130, dur: 0.06, tipo: 'triangle', vol: 0.6, ataque: 0.001 }) } },
+  golpeCorte: { ms: 70, pri: 4, alvo: -14, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 2, fn(K, v) { K.sino({ f: 2100 * v.p, dur: 0.13, vol: 0.4, parciais: [1, 1.52, 2.31, 3.4] }); K.tom({ f: 260 * v.p, f2: 120, dur: 0.08, tipo: 'triangle', vol: 0.5, ataque: 0.001 }); K.ruido({ dur: 0.016, f: 4800, vol: 0.35, ataque: 0.001 }) } },
+  golpeEstocada: { ms: 30, pri: 4, alvo: -15, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 2, fn(K, v) { K.ruido({ dur: 0.02, f: 4200, q: 2, vol: 0.5, ataque: 0.001 }); K.tom({ f: 560 * v.p, f2: 240, dur: 0.05, tipo: 'triangle', vol: 0.55, ataque: 0.001 }); K.tom({ f: 1500 * v.p, f2: 900, dur: 0.03, vol: 0.2, ataque: 0.001 }) } },
+  golpeFrigideira: { ms: 175, pri: 3, alvo: -12, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 2, fn(K, v) { K.sino({ f: 640 * v.p, dur: 0.34, vol: 0.5, parciais: [1, 2.32, 3.05, 4.71, 6.2] }); K.tom({ f: 200 * v.p, f2: 110, dur: 0.06, vol: 0.5, ataque: 0.001 }); K.ruido({ dur: 0.014, f: 3000, vol: 0.4, ataque: 0.001 }) } },
+  golpeBicada: { ms: 195, pri: 3, alvo: -13, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 2, fn(K, v) {
+    K.tom({ f: 980 * v.p, f2: 520, dur: 0.03, tipo: 'triangle', vol: 0.5, ataque: 0.001 }); K.ruido({ dur: 0.012, f: 3200, vol: 0.3, ataque: 0.001 })
+    K.tom({ f: 470 * v.p, f2: 400 * v.p, dur: 0.1, tipo: 'sawtooth', vol: 0.3, lp: 1800, em: 0.03, sus: true, ataque: 0.008 }); K.tom({ f: 940 * v.p, f2: 800 * v.p, dur: 0.1, tipo: 'square', vol: 0.08, lp: 2600, em: 0.03, sus: true, ataque: 0.008 }) // o "quéc" do ganso
+  } },
+  golpeEsmaga: { ms: 170, pri: 3, alvo: -11, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 1, fn(K, v) {
+    K.tambor({ f: 58 * v.p, dur: 0.24, vol: 0.8 }); K.ruido({ dur: 0.16, f: 320, tipo: 'lowpass', vol: 0.6, ataque: 0.002 }); K.ruido({ dur: 0.03, f: 2200 * v.p, q: 0.8, vol: 0.4, ataque: 0.001 })
+    for (let i = 0; i < 2; i++) K.ruido({ dur: 0.02, f: 2400 + K.r() * 900, q: 3, vol: 0.15, em: 0.1 + i * 0.05 + K.r() * 0.02 })
+  } },
+  golpeMordida: { ms: 120, pri: 3, alvo: -13, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 2, fn(K, v) {
+    for (const em of [0, 0.055]) K.ruido({ dur: 0.014, f: 2600 * v.p, q: 1.2, vol: 0.6, em, ataque: 0.001 }) // a boca abre e fecha
+    K.tom({ f: 240 * v.p, f2: 90, dur: 0.09, tipo: 'sawtooth', lp: 900, vol: 0.5, em: 0.055, ataque: 0.002 }); K.ruido({ dur: 0.06, f: 1200 * v.p, q: 3, vol: 0.4, em: 0.06, ataque: 0.002 })
+  } },
+  golpePortada: { ms: 155, pri: 3, alvo: -12, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 1, fn(K, v) {
+    K.tom({ f: 190 * v.p, f2: 85, dur: 0.12, vol: 0.7, ataque: 0.001 }); K.ruido({ dur: 0.07, f: 750, tipo: 'lowpass', vol: 0.6, ataque: 0.001 }); K.tom({ f: 520 * v.p, f2: 380, dur: 0.035, tipo: 'triangle', vol: 0.4, ataque: 0.001 })
+    for (const em of [0.09, 0.14]) { K.tom({ f: 300 * v.p, f2: 220, dur: 0.03, tipo: 'triangle', vol: 0.2, em }); K.ruido({ dur: 0.012, f: 1800, vol: 0.12, em }) } // a porta ainda treme na dobradiça
+  } },
+  golpeInvestida: { ms: 105, pri: 3, alvo: -12, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 2, fn(K, v) {
+    K.sino({ f: 880 * v.p, dur: 0.18, vol: 0.4, parciais: [1, 1.41, 2.09, 2.92, 4.1] }); K.sino({ f: 1320 * v.p * (1 + K.r() * 0.1), dur: 0.1, vol: 0.3, em: 0.02, parciais: [1, 1.52, 2.31] }); K.tambor({ f: 80, dur: 0.12, vol: 0.5 })
+  } },
+  golpeBarrigada: { ms: 275, pri: 3, alvo: -12, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 2, fn(K, v) {
+    K.tom({ f: 150 * v.p, f2: 300 * v.p, dur: 0.07, vol: 0.6, sus: true, ataque: 0.002, solta: 0.008 }); K.tom({ f: 300 * v.p, f2: 110 * v.p, dur: 0.17, vol: 0.6, em: 0.066, ataque: 0.004 }); K.ruido({ dur: 0.05, f: 500, tipo: 'lowpass', vol: 0.5, ataque: 0.001 })
+  } },
+  // ---- tiro: a corda solta na hora em que a flecha SAI; o "toc" na hora em que ela CHEGA
+  arcoSolta: { ms: 185, pri: 4, alvo: -17, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 2, fn(K, v) { K.corda({ m: [50, 52, 48][v.i], dur: 0.1, vol: 0.5 }); K.ruido({ dur: 0.15, f: 2600 * v.p, f2: 1100, q: 3.5, vol: 0.4, ataque: 0.012, em: 0.008 }) } },
+  arremesso: { ms: 180, pri: 4, alvo: -18, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 2, fn(K, v) { K.ruido({ dur: 0.2, f: 700 * v.p, f2: 1900 * v.p, q: 2.2, vol: 0.5, ataque: 0.05 }) } },
+  flechaFinca: { ms: 140, pri: 4, alvo: -14, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 2, fn(K, v) {
+    K.tom({ f: 260 * v.p, f2: 150, dur: 0.05, tipo: 'triangle', vol: 0.6, ataque: 0.001 }); K.ruido({ dur: 0.03, f: 1400, tipo: 'lowpass', vol: 0.5, ataque: 0.001 })
+    for (let i = 0; i < 4; i++) K.tom({ f: (430 - i * 18) * v.p, dur: 0.022, tipo: 'triangle', vol: 0.22 - i * 0.04, em: 0.035 + i * 0.028 }) // a flecha vibrando fincada
+  } },
+  splat: { ms: 225, pri: 4, alvo: -15, camada: 'golpes', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 2, fn(K, v) { K.ruido({ dur: 0.12, f: 900, f2: 300, tipo: 'lowpass', q: 2, vol: 0.6, ataque: 0.002 }); K.tom({ f: 220 * v.p, f2: 90, dur: 0.09, vol: 0.4, sus: true, solta: 0.03, ataque: 0.001 }); K.ruido({ dur: 0.03, f: 2500 * v.p, q: 2, vol: 0.2, em: 0.04 }) } },
+  // ---- cena: baixa, pelotão que acaba, explosão, entrada, festa, recuo
+  fumaca: { ms: 125, pri: 4, alvo: -20, camada: 'cena', vars: 3, tropa: true, max: 2, cauda: 0.1, varia: 2, fn(K, v) { K.ruido({ dur: 0.16, f: 1100 * v.p, f2: 350, tipo: 'lowpass', vol: 0.5, ataque: 0.015 }); K.tom({ f: 180 * v.p, f2: 120, dur: 0.05, vol: 0.2 }) } },
+  grupoCai: { ms: 470, pri: 2, alvo: -12, camada: 'cena', vars: 1, fn(K) { K.tambor({ f: 70, dur: 0.3, vol: 0.6 }); K.palheta({ m: 74, dur: 0.12, vol: 0.3, em: 0.04 }); K.palheta({ m: 69, dur: 0.24, vol: 0.3, em: 0.17 }); K.ruido({ dur: 0.3, f: 500, tipo: 'lowpass', vol: 0.2, ataque: 0.05 }) } },
+  explosao: { ms: 440, pri: 2, alvo: -9, camada: 'cena', vars: 3, grande: true, fn(K, v) {
+    K.ruido({ dur: 0.02, f: 3000, tipo: 'highpass', vol: 0.5, ataque: 0.001 }); K.tambor({ f: 52 * v.p, dur: 0.4, vol: 0.9 }); K.ruido({ dur: 0.55, f: 2400 * v.p, f2: 180, tipo: 'lowpass', vol: 0.7, ataque: 0.004 }); K.tom({ f: 90, f2: 38, dur: 0.45, tipo: 'sawtooth', vol: 0.25, lp: 420 })
+    for (let i = 0; i < 5; i++) K.ruido({ dur: 0.02, f: 2000 + K.r() * 2500, q: 3, vol: 0.25, em: 0.12 + K.r() * 0.35 })
+  } },
+  poeira: { ms: 470, pri: 4, alvo: -22, camada: 'cena', vars: 1, fn(K) { K.ruido({ dur: 0.75, f: 500, f2: 1400, tipo: 'lowpass', vol: 0.5, ataque: 0.14 }); K.ruido({ dur: 0.06, f: 900, tipo: 'lowpass', vol: 0.1, ataque: 0.004 }) } },
+  gritoTropa: { ms: 320, pri: 3, alvo: -13, camada: 'cena', vars: 1, fn(K) {
+    K.tambor({ f: 110, dur: 0.12, vol: 0.6 }); K.trompa({ m: 67, dur: 0.14, vol: 0.4 }); K.trompa({ m: 74, dur: 0.14, vol: 0.3 }); K.pandeiro({ vol: 0.25, dur: 0.08 })
+    K.ruido({ dur: 0.06, f: 600, tipo: 'lowpass', vol: 0.4, em: 0.3 }); K.pandeiro({ vol: 0.15, em: 0.3 }) // o pouso do pulo
+  } },
+  festaTropa: { ms: 700, pri: 3, alvo: -13, camada: 'cena', vars: 1, fn(K) { for (const k of [0, 0.32]) { K.trompa({ m: 74, dur: 0.1, vol: 0.4, em: k }); K.trompa({ m: 79, dur: 0.14, vol: 0.4, em: k + 0.1 }); K.tambor({ f: 105, dur: 0.1, vol: 0.5, em: k + 0.3 }); K.pandeiro({ vol: 0.22, em: k + 0.3, dur: 0.07 }) } } },
+  recuoTropa: { ms: 470, pri: 3, alvo: -15, camada: 'cena', vars: 1, fn(K) { for (const em of [0, 0.16]) { K.ruido({ dur: 0.07, f: 600, tipo: 'lowpass', vol: 0.5, em }); K.ruido({ dur: 0.03, f: 3800, q: 2, vol: 0.1, em: em + 0.02 }) } K.palheta({ m: 67, dur: 0.12, vol: 0.25, em: 0.05 }); K.palheta({ m: 63, dur: 0.22, vol: 0.25, em: 0.18 }) } },
+  // ---- chefe em etapas: o pisão cai no quadro em que ele pousa; ajoelha; tomba
+  pisao: { ms: 420, pri: 1, alvo: -7, camada: 'chefe', vars: 1, grande: true, somar: true, fn(K) {
+    K.tambor({ f: 50, dur: 0.45, vol: 0.9 }); K.ruido({ dur: 0.4, f: 260, tipo: 'lowpass', vol: 0.6, ataque: 0.002 }); K.ruido({ dur: 0.05, f: 1600, q: 0.7, vol: 0.5, ataque: 0.001 }); K.sino({ f: 110, dur: 0.9, vol: 0.5, parciais: [1, 1.5, 2.1, 2.9, 4.3] })
+    for (let i = 0; i < 4; i++) K.ruido({ dur: 0.022, f: 2000 + K.r() * 1200, q: 3, vol: 0.2, em: 0.18 + i * 0.07 + K.r() * 0.03 })
+  } },
+  chefeJoelho: { ms: 155, pri: 2, alvo: -11, camada: 'chefe', vars: 1, fn(K) { K.tambor({ f: 75, dur: 0.2, vol: 0.7 }); K.ruido({ dur: 0.12, f: 500, tipo: 'lowpass', vol: 0.5, ataque: 0.002 }); for (let i = 0; i < 3; i++) K.sino({ f: 1500 + K.r() * 900, dur: 0.06, vol: 0.12, em: 0.03 + i * 0.05, parciais: [1, 1.52, 2.31] }) } },
+  chefeTomba: { ms: 590, pri: 1, alvo: -8, camada: 'chefe', vars: 1, grande: true, somar: true, fn(K) {
+    K.tambor({ f: 45, dur: 0.6, vol: 1 }); K.ruido({ dur: 0.7, f: 1800, f2: 150, tipo: 'lowpass', vol: 0.7, ataque: 0.003 }); K.tom({ f: 70, f2: 34, dur: 0.6, tipo: 'sawtooth', vol: 0.3, lp: 380 }); K.ruido({ dur: 0.04, f: 1500, q: 0.7, vol: 0.5, ataque: 0.001 })
+    for (let i = 0; i < 6; i++) K.ruido({ dur: 0.024, f: 1800 + K.r() * 1500, q: 3, vol: 0.2, em: 0.22 + i * 0.07 + K.r() * 0.03 })
+  } },
 }
 
 // Pico de cada receita SEM ajuste, em dBFS (medido fora do tempo real). Recalibrar depois de mexer numa receita:
@@ -307,12 +386,55 @@ const PICO_BRUTO = {
   rankingSobe: [-5.7, -6, -5],
   cartaNova: [-0.7],
   conquista: [-2.2],
+  cartaVira: [-9.2, -10.1, -7.2],
+  cartaRara: [-2.5],
+  ouroTique: [-4.4, -4.8, -4.9],
+  menuAbre: [-7.9],
+  menuFecha: [-6.8],
+  velocidade: [-6.5],
+  replayPula: [-7.8],
+  semSinal: [-9.1],
+  voltou: [-7.9],
+  apelidoOk: [-6.1],
+  gancho: [-5.8],
+  rankUp: [-0.7],
+  impacto: [-4.9, -2.9, -3.8],
+  golpeCorte: [-1, -1.2, -0.8],
+  golpeEstocada: [-3.2, -3.9, -3.1],
+  golpeFrigideira: [0.9, 0.8, 1],
+  golpeBicada: [-6.3, -7, -4.7],
+  golpeEsmaga: [-0.5, 0.1, -1],
+  golpeMordida: [-6, -5.2, -5.2],
+  golpePortada: [-2.2, -3, -0.9],
+  golpeInvestida: [0.4, 0.6, 0.4],
+  golpeBarrigada: [-4.2, -4.2, -4.3],
+  arcoSolta: [-7.2, -7.1, -6.4],
+  arremesso: [-19.2, -20.1, -17.6],
+  flechaFinca: [-5.1, -4.3, -4.7],
+  splat: [-4.9, -6, -4.9],
+  fumaca: [-13.7, -12.9, -13.8],
+  grupoCai: [-3.8],
+  explosao: [2.9, 4.1, 4.1],
+  poeira: [-16.6],
+  gritoTropa: [-2.7],
+  festaTropa: [-3.9],
+  recuoTropa: [-9.1],
+  pisao: [3.7],
+  chefeJoelho: [-2.8],
+  chefeTomba: [2.7],
 }
 /* PICO_BRUTO:FIM */
 const POS = 0.61 // desfaz o ganho automático do compressor: som baixo sai da cadeia como entrou
 const MUSICA_GANHO = 0.19 // põe a música ~10 dB abaixo dos efeitos
 const TETO_VOZES = 12, TETO_TROPA = 6, PADRAO = { mudo: false, efeitos: 0.8, musica: 0.6 }
 const AFINA = [1, 0.955, 1.05]
+const CORTE_ABERTO = 22000, CORTE_FECHADO = 1100 // parada de impacto: o agudo some por um instante (o mundo "segura")
+const JANELA_GRUPO = 60 // ms: golpes do mesmo pelotão dentro desta janela viram UM som, mais forte
+const PAN_MAX = 0.6 // posição estéreo leve: nada fica só num lado
+// O som de cada GESTO de golpe (a ordem é a de GESTO em js/movimento.js): corte, estocada, frigideira, bicada, esmaga, tiro, mordida, portada, investida, barrigada
+const GOLPES = ['golpeCorte', 'golpeEstocada', 'golpeFrigideira', 'golpeBicada', 'golpeEsmaga', 'impacto', 'golpeMordida', 'golpePortada', 'golpeInvestida', 'golpeBarrigada']
+// Abaixar a música mais fundo e por mais tempo que os 6 dB de um som grande: [ganho, segundos]
+const DUCK = { chefeCai: [0.3, 2.4], chefeTomba: [0.35, 1.0], recorde: [0.35, 1.6], rankUp: [0.4, 1.1] }
 
 /** A mesma cadeia ao vivo e na medição: efeitos + música → sala → compressor → teto → saída. */
 function cadeia(c) {
@@ -324,8 +446,11 @@ function cadeia(c) {
   const sala = c.createConvolver(); sala.normalize = false; sala.buffer = bufSala(c.sampleRate)
   fx.connect(soma); fx.connect(sFx); sFx.connect(sala)
   mus.connect(musFiltro); musFiltro.connect(musDuck); musDuck.connect(musVol); musVol.connect(soma); musVol.connect(sMus); sMus.connect(sala)
-  sala.connect(soma); soma.connect(comp); comp.connect(pos); pos.connect(teto); teto.connect(saida); saida.connect(c.destination)
-  return { fx, mus, musFiltro, musDuck, musVol, saida }
+  // R35: `corte` = o agudo que some por um instante na parada de impacto (aberto, não muda nada) · `amb` = ambiente do trecho (segue o volume de efeitos)
+  const corte = c.createBiquadFilter(); corte.type = 'lowpass'; corte.frequency.value = CORTE_ABERTO; corte.Q.value = 0.5
+  const amb = g(1); amb.connect(fx)
+  sala.connect(soma); soma.connect(corte); corte.connect(comp); comp.connect(pos); pos.connect(teto); teto.connect(saida); saida.connect(c.destination)
+  return { fx, mus, musFiltro, musDuck, musVol, saida, corte, amb }
 }
 
 /** Monta um efeito no contexto dado (ao vivo ou fora do tempo real). Devolve a ficha e o nó da voz. */
@@ -408,8 +533,50 @@ function compasso(K, mom, n, seg, rodada = 1, so = null) {
   }
 }
 
+// ------------------------------------------------------------------ AMBIENTE por trecho da estrada (R35), fabricado por código
+// Nunca repete igual (não é um arquivo em volta): um leito de vento + bichos e sons de longe sorteados. Fica BEM baixo (~−40 dBFS médio).
+// `ganho` acerta o nível de cada um (medido no teste). Trocar de trecho cruza um no outro em 1,5 s (`Som.ambiente`).
+const AMBIENTES = {
+  manha: { rotulo: 'manhã nos campos (pássaros)', ganho: 0.24, leito: [650, 0.1], fn(K, r, dur) {
+    for (let t = r() * 0.6; t < dur; t += 0.7 + r() * 1.6) {
+      if (r() < 0.6) { const f = 3000 + r() * 1200, n = 3 + Math.floor(r() * 3); for (let i = 0; i < n; i++) K.tom({ f: f * (1 + i * 0.03), f2: f * 1.32, dur: 0.05, vol: 0.2 + r() * 0.1, em: t + i * 0.085, ataque: 0.008 }) } // pio em série
+      else { const f = 2200 + r() * 500; K.tom({ f, f2: f * 1.22, dur: 0.12, vol: 0.2, em: t, sus: true, ataque: 0.02 }); K.tom({ f: f * 0.9, f2: f * 0.8, dur: 0.18, vol: 0.18, em: t + 0.16, sus: true, ataque: 0.02 }) } // assobio de duas notas
+    }
+  } },
+  tarde: { rotulo: 'tarde na vila (bigorna, galinha)', ganho: 0.36, leito: [520, 0.07], fn(K, r, dur) {
+    for (let t = 0.8 + r() * 2; t < dur; t += 3 + r() * 3) for (const em of [0, 0.3]) K.sino({ f: 1650, dur: 0.2, vol: 0.09, em: t + em, parciais: [1, 2.7, 4.9] }) // o ferreiro, longe
+    for (let t = 1.5 + r() * 2; t < dur; t += 4 + r() * 4) { const n = 2 + Math.floor(r() * 3); for (let i = 0; i < n; i++) K.tom({ f: 600 + r() * 60, f2: 880, dur: 0.045, tipo: 'triangle', vol: 0.14, em: t + i * 0.12, ataque: 0.006 }); K.tom({ f: 700, f2: 1150, dur: 0.16, tipo: 'triangle', vol: 0.14, em: t + n * 0.12, sus: true, ataque: 0.02 }) } // galinha
+    for (let t = 2 + r() * 3; t < dur; t += 3.5 + r() * 3) { const f = 3100 + r() * 900; for (let i = 0; i < 3; i++) K.tom({ f, f2: f * 1.3, dur: 0.05, vol: 0.1, em: t + i * 0.09, ataque: 0.008 }) }
+    for (let t = 3 + r() * 5; t < dur; t += 7 + r() * 5) K.tom({ f: 300, f2: 345, dur: 0.28, tipo: 'sawtooth', lp: 900, vol: 0.05, em: t, sus: true, ataque: 0.05 }) // a carroça rangendo
+  } },
+  porDoSol: { rotulo: 'pôr do sol nos portões (vento, sino longe)', ganho: 0.4, leito: [420, 0.08], fn(K, r, dur) {
+    for (let t = 1 + r() * 2; t < dur; t += 6.5 + r() * 3) K.sino({ f: N(67), dur: 1.7, vol: 0.12, em: t, parciais: [1, 2, 2.4, 3] }) // o sino da torre
+    for (let t = 2.5 + r() * 2; t < dur; t += 4 + r() * 3) { const n = 2 + Math.floor(r() * 2); for (let i = 0; i < n; i++) K.tom({ f: 520, f2: 440, dur: 0.22, vol: 0.1, em: t + i * 0.34, sus: true, ataque: 0.05, solta: 0.08, vib: 10 }) } // a rola
+    for (let t = r() * 3; t < dur; t += 2.5 + r() * 2.5) K.ruido({ dur: 1.6, f: 380, f2: 620, tipo: 'lowpass', vol: 0.09, em: t, ataque: 0.7 }) // rajada de vento
+  } },
+  noite: { rotulo: 'noite de chefe (grilos, coruja)', ganho: 0.28, leito: [300, 0.09], fn(K, r, dur) {
+    let pausa = 3 + r() * 3
+    for (let t = r() * 0.3; t < dur; t += 0.42) { if (t > pausa) { t += 0.9 + r() * 1.2; pausa = t + 4 + r() * 4 } for (let i = 0; i < 3; i++) K.tom({ f: 4400, dur: 0.02, vol: 0.14, em: t + i * 0.034, sus: true, ataque: 0.004, solta: 0.005 }) } // grilo perto
+    for (let t = 0.2 + r() * 0.4; t < dur; t += 0.61 + r() * 0.05) for (let i = 0; i < 2; i++) K.tom({ f: 5100, dur: 0.018, vol: 0.06, em: t + i * 0.04, sus: true, ataque: 0.004, solta: 0.005 }) // grilo longe
+    for (let t = 2 + r() * 3; t < dur; t += 8 + r() * 4) { K.tom({ f: 400, f2: 372, dur: 0.22, vol: 0.14, em: t, sus: true, ataque: 0.04, solta: 0.08 }); K.tom({ f: 395, f2: 350, dur: 0.42, vol: 0.14, em: t + 0.36, sus: true, ataque: 0.05, solta: 0.16 }) } // coruja
+  } },
+}
+const TRECHOS_AMB = ['manha', 'tarde', 'porDoSol', 'noite'] // a ordem de C.trecho() na cena: campos, vila, portões, noite
+/** Monta `dur` segundos do ambiente em `destino` a partir de `t` (ao vivo, em pedaços; ou fora do tempo real, para medir). */
+function ambientar(c, destino, nome, t, dur, semente = 1) {
+  const A = AMBIENTES[nome]; if (!A) return false
+  const g = c.createGain(); g.gain.value = A.ganho; g.connect(destino)
+  const n = c.createBufferSource(), fl = c.createBiquadFilter(), lg = c.createGain(), borda = Math.min(0.4, dur / 4)
+  n.buffer = bufRuido(c.sampleRate); n.loop = true; fl.type = 'lowpass'; fl.frequency.value = A.leito[0]; fl.Q.value = 0.4
+  lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(A.leito[1], t + borda); lg.gain.setValueAtTime(A.leito[1], t + dur - borda); lg.gain.linearRampToValueAtTime(0, t + dur) // o leito de um pedaço entra enquanto o do anterior sai
+  n.connect(fl); fl.connect(lg); lg.connect(g); n.start(t, (semente * 0.37) % 1.5); n.stop(t + dur + 0.02)
+  const r = sorteio(hash(nome) + semente * 7919)
+  A.fn(kit(c, g, t, r), r, dur - borda)
+  return g
+}
+
 // ------------------------------------------------------------------ ao vivo
-const S = { ctx: null, no: null, analisador: null, destravado: false, pref: { ...PADRAO }, menos: false, vozes: [], tocados: 0, porNome: {}, ultimo: null, ultimoEm: {}, ultimaVar: {}, recusados: 0, roubados: 0, amostras: {}, historico: [], fundo: null, densidade: 0 }
+const S = { ctx: null, no: null, analisador: null, destravado: false, pref: { ...PADRAO }, menos: false, vozes: [], tocados: 0, porNome: {}, ultimo: null, ultimoEm: {}, ultimaVar: {}, recusados: 0, roubados: 0, amostras: {}, historico: [], fundo: null, densidade: 0, soMassa: false, grupos: {}, golpes: 0, agrupados: 0, golpesEm: [], cortes: 0, ultimoCorte: null, duck: null, amb: null, ambSaindo: null, ambPedido: null, ambN: 0, ambTrocas: 0, ambRelogio: null }
 const M = { momento: null, pendente: null, n: 0, total: 0, prox: 0, rodada: 1, tocando: false, relogio: null, trocas: [], linhas: [], pedidoEm: 0 }
 const CHAVE = 'reino_som'
 try { const p = JSON.parse(globalThis.localStorage?.getItem(CHAVE) || 'null'); if (p) for (const k of Object.keys(PADRAO)) if (typeof p[k] === typeof PADRAO[k]) S.pref[k] = p[k] } catch { /* sem armazenamento: fica o padrão */ }
@@ -418,10 +585,13 @@ const guardar = () => { try { globalThis.localStorage?.setItem(CHAVE, JSON.strin
 const ganhoDe = (qual) => (S.pref[qual] / PADRAO[qual]) ** 2 // no padrão vale 1: os alvos da tabela são medidos assim
 const anota = (tipo, nome) => { S.historico.push({ tipo, nome, em: Math.round(performance.now()) }); if (S.historico.length > 200) S.historico.shift() }
 
+const rampa = (p, v, t, d) => { p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.linearRampToValueAtTime(v, t + d) }
 function aplicarVolumes() {
   if (!S.no) return
   const t = S.ctx.currentTime
-  S.no.saida.gain.setTargetAtTime(S.pref.mudo ? 0 : 1, t, 0.015); S.no.fx.gain.setTargetAtTime(ganhoDe('efeitos'), t, 0.02); S.no.musVol.gain.setTargetAtTime(M.tocando ? ganhoDe('musica') : 0, t, 0.08)
+  // rampa reta (calculada pelo relógio) e não curva de aproximação: com o nó parado (nenhum som passando) a curva só começava a andar quando o
+  // próximo som chegava, e o começo dele vazava no volume antigo (achado pelo teste do R35: efeitos em 0 e o golpe ainda saía por ~60 ms)
+  rampa(S.no.saida.gain, S.pref.mudo ? 0 : 1, t, 0.04); rampa(S.no.fx.gain, ganhoDe('efeitos'), t, 0.05); rampa(S.no.musVol.gain, M.tocando ? ganhoDe('musica') : 0, t, 0.25)
 }
 function ligar() {
   if (S.ctx) return true
@@ -454,62 +624,143 @@ async function carregarAmostras() {
 function limpar(agora) { S.vozes = S.vozes.filter((v) => v.fim > agora) }
 function calar(v, agora) { try { v.no.gain.cancelScheduledValues(agora); v.no.gain.setTargetAtTime(0, agora, 0.008); setTimeout(() => { try { v.saida.disconnect() } catch { /* já saiu */ } }, 80) } catch { /* ok */ } v.fim = 0 }
 
+/** Toca de verdade e devolve a voz (ou null). `opc`: pan (−1..1, entra leve), tom (semitons), forca (0..1,5), em (segundos de espera, no relógio do áudio). */
+function tocarVoz(nome, opc = {}) {
+  const e = EFEITOS[nome]
+  if (!e || !S.destravado || !S.ctx) return null
+  const agora = S.ctx.currentTime, relogio = performance.now()
+  if (relogio - (S.ultimoEm[nome] ?? -1e9) < 35) return null // o mesmo som duas vezes no mesmo instante vira um só
+  limpar(agora)
+  if (e.max && S.vozes.filter((v) => v.nome === nome).length >= e.max) { S.recusados++; return null }
+  if (e.tropa && S.vozes.filter((v) => v.tropa).length >= TETO_TROPA) { S.recusados++; return null }
+  if (S.vozes.length >= TETO_VOZES) { // cheio: sai a voz menos importante e mais antiga; se a nova é a menos importante, é ela que não entra
+    const vitima = S.vozes.reduce((a, v) => (v.pri > a.pri || (v.pri === a.pri && v.t0 < a.t0) ? v : a))
+    if (vitima.pri < e.pri) { S.recusados++; return null }
+    calar(vitima, agora); S.roubados++; limpar(agora)
+  }
+  S.ultimoEm[nome] = relogio
+  let i = Math.floor(Math.random() * e.vars); if (e.vars > 1 && i === S.ultimaVar[nome]) i = (i + 1) % e.vars // a mesma variação nunca toca duas vezes seguidas
+  S.ultimaVar[nome] = i
+  // `varia`: som que se repete muito (golpe) nunca sai igual — a altura muda ±N semitons e a força de −2,5 a +1 dB a cada vez
+  const tom = (opc.tom || 0) + (e.varia ? (Math.random() * 2 - 1) * e.varia : 0), jeito = e.varia ? 0.75 + Math.random() * 0.37 : 1
+  const forca = Math.max(0, Math.min(1.5, (opc.forca ?? 1) * jeito)) * (S.menos && e.grande ? 0.5 : 1), espera = Math.max(0, Math.min(2, opc.em || 0)), t = agora + 0.004 + espera
+  const pan = Math.max(-PAN_MAX, Math.min(PAN_MAX, (opc.pan || 0) * PAN_MAX))
+  let voz, saida
+  S.ultimaForca = forca; S.ultimoTom = tom; S.ultimoPan = pan
+  const am = S.amostras[nome]
+  /** Uma amostra gravada entra pelo nó dado, na posição estéreo pedida. */
+  const amostra = (a, ganho, destino) => {
+    const n = S.ctx.createBufferSource(), ga = S.ctx.createGain(); n.buffer = a.b; if (tom) n.playbackRate.value = 2 ** (tom / 12)
+    ga.gain.value = ganho; n.connect(ga)
+    if (pan && S.ctx.createStereoPanner) { const p = S.ctx.createStereoPanner(); p.pan.value = pan; ga.connect(p); p.connect(destino) } else ga.connect(destino)
+    n.start(t); return ga
+  }
+  try {
+    if (am?.length && e.somar) {
+      // amostra E receita por código juntas (cada uma 3 dB abaixo): a amostra dá o corpo, o código dá a nota/fanfarra
+      voz = S.ctx.createGain(); voz.gain.value = 1; voz.connect(S.no.fx); saida = voz
+      amostra(am[i % am.length], am[i % am.length].ganho * forca * 0.708, voz)
+      fabricar(S.ctx, voz, nome, t, i, { tom, forca: forca * 0.708, pan })
+      S.somados = (S.somados ?? 0) + 1
+    } else if (am?.length) {
+      voz = S.ctx.createGain(); voz.gain.value = 1; voz.connect(S.no.fx); saida = voz
+      amostra(am[i % am.length], am[i % am.length].ganho * forca, voz)
+    } else { voz = S.ctx.createGain(); voz.gain.value = 1; voz.connect(S.no.fx); saida = voz; fabricar(S.ctx, voz, nome, t, i, { tom, forca, pan }) }
+  } catch { return null }
+  // quanto a voz ocupa o teto: a duração de verdade (a da amostra, se for amostra) + a cauda (golpe curto solta a vaga logo: `cauda`)
+  const durMs = am?.length ? Math.max(e.somar ? e.ms : 0, am[i % am.length].b.duration * 1000 / 2 ** (tom / 12)) : e.ms
+  const v = { nome, pri: e.pri, tropa: !!e.tropa, t0: agora, fim: agora + espera + durMs / 1000 + (e.cauda ?? 0.3), no: voz, saida, n: 1 }
+  S.vozes.push(v); setTimeout(() => { try { saida.disconnect() } catch { /* já saiu */ } }, espera * 1000 + durMs + 700)
+  if (e.grande) { const dk = DUCK[nome]; abaixar(dk ? dk[0] : 0.5, dk ? dk[1] : Math.max(0.4, e.ms / 1000 * 0.7), espera) } // golpe grande: a música abaixa (6 dB; mais fundo no chefe caindo e no recorde) e volta
+  S.tocados++; S.ultimo = nome; S.porNome[nome] = (S.porNome[nome] ?? 0) + 1; anota('som', nome)
+  return v
+}
+/** A música abaixa para `ganho` por `segundos` e volta em ~0,5 s. */
+function abaixar(ganho, segundos, espera = 0) {
+  if (!S.no) return
+  const d = S.no.musDuck.gain, t = S.ctx.currentTime + espera
+  d.cancelScheduledValues(t); d.setTargetAtTime(ganho, t, 0.02); d.setTargetAtTime(1, t + segundos, 0.22)
+  S.duck = { ganho, segundos, em: Math.round(performance.now()) }
+}
+// ---- ambiente ao vivo: pedaços de 8 s agendados com folga, cada trecho no seu nó de volume (para cruzar um no outro)
+const AMB_PEDACO = 8, AMB_CRUZA = 1.5
+function ambienteTique() {
+  const a = S.amb; if (!a || !S.ctx || S.ctx.state !== 'running') return
+  const c = S.ctx
+  if (a.ate < c.currentTime) a.ate = c.currentTime + 0.05
+  while (a.ate < c.currentTime + 2) { const g = ambientar(c, a.no, a.nome, a.ate, AMB_PEDACO, ++S.ambN); const fim = (a.ate - c.currentTime + AMB_PEDACO + 2.5) * 1000; setTimeout(() => { try { g.disconnect() } catch { /* já saiu */ } }, fim); a.ate += AMB_PEDACO - 0.4 }
+}
+function ambienteLigar() {
+  if (!S.ctx || !S.no) return
+  const c = S.ctx, t = c.currentTime, quer = S.ambPedido
+  if ((S.amb?.nome ?? null) === quer) return
+  if (S.amb) { const v = S.amb; v.no.gain.cancelScheduledValues(t); v.no.gain.setValueAtTime(v.no.gain.value, t); v.no.gain.linearRampToValueAtTime(0, t + AMB_CRUZA); S.ambSaindo = { nome: v.nome, no: v.no }; setTimeout(() => { try { v.no.disconnect() } catch { /* já saiu */ } if (S.ambSaindo?.no === v.no) S.ambSaindo = null }, AMB_CRUZA * 1000 + 300) }
+  S.amb = null; S.ambTrocas++
+  if (quer) { const no = c.createGain(); no.gain.setValueAtTime(0, t); no.gain.linearRampToValueAtTime(1, t + AMB_CRUZA); no.connect(S.no.amb); S.amb = { nome: quer, no, ate: t + 0.05 }; S.ambRelogio ??= setInterval(ambienteTique, 500); ambienteTique() }
+  anota('ambiente', quer || 'nenhum')
+}
+
 const Som = {
   /** Chamar no primeiro toque ou tecla do jogador. Antes disso nada soa e nenhum contexto de áudio existe. */
   destravar() {
     if (!S.destravado) { S.destravado = true; if (!ligar()) return false }
     if (S.ctx?.state === 'suspended' && !globalThis.document?.hidden) S.ctx.resume?.()
     if (M.pendente && !M.tocando) iniciarMusica()
+    if (S.ambPedido !== (S.amb?.nome ?? null)) ambienteLigar()
     return !!S.ctx
   },
   /** Toca o som de um acontecimento. Devolve false se não tocou (antes do toque, nome desconhecido, repetido no mesmo instante, teto). */
-  tocar(nome, opc = {}) {
-    const e = EFEITOS[nome]
-    if (!e || !S.destravado || !S.ctx) return false
-    const agora = S.ctx.currentTime, relogio = performance.now()
-    if (relogio - (S.ultimoEm[nome] ?? -1e9) < 35) return false // o mesmo som duas vezes no mesmo instante vira um só
-    limpar(agora)
-    if (e.max && S.vozes.filter((v) => v.nome === nome).length >= e.max) { S.recusados++; return false }
-    if (e.tropa && S.vozes.filter((v) => v.tropa).length >= TETO_TROPA) { S.recusados++; return false }
-    if (S.vozes.length >= TETO_VOZES) { // cheio: sai a voz menos importante e mais antiga; se a nova é a menos importante, é ela que não entra
-      const vitima = S.vozes.reduce((a, v) => (v.pri > a.pri || (v.pri === a.pri && v.t0 < a.t0) ? v : a))
-      if (vitima.pri < e.pri) { S.recusados++; return false }
-      calar(vitima, agora); S.roubados++; limpar(agora)
+  tocar(nome, opc = {}) { return !!tocarVoz(nome, opc) },
+  /** O GOLPE, chamado no quadro do IMPACTO. `gesto` = número do gesto (js/movimento.js) ou nome do som. `opc.grupo` = o pelotão de quem bate:
+   *  golpes do mesmo pelotão (e do mesmo som) em até 60 ms NÃO viram vários sons — o que já está tocando fica mais forte (até +4 dB). */
+  golpe(gesto, opc = {}) {
+    const nome = typeof gesto === 'number' ? GOLPES[gesto] || 'impacto' : gesto
+    if (!EFEITOS[nome] || !S.destravado || !S.ctx) return false
+    const relogio = performance.now(), chave = nome + ':' + (opc.grupo ?? ''), g = S.grupos[chave], mesmoSom = S.grupos[nome + ':*']
+    S.golpes++; S.golpesEm.push(Math.round(relogio * 10) / 10); if (S.golpesEm.length > 400) S.golpesEm.shift()
+    if (S.golpes % 400 === 0) for (const k of Object.keys(S.grupos)) if (relogio - S.grupos[k].em > 1000) delete S.grupos[k] // não guarda voz velha
+    // junta: o mesmo pelotão em até 60 ms · o mesmo som em menos de 35 ms · e, com a tela cheia, QUALQUER golpe a menos de 40 ms do anterior (no máximo ~25 golpes novos por segundo: nunca metralhadora)
+    const ultimo = S.grupos['*']
+    const junta = g && relogio - g.em <= JANELA_GRUPO ? g : mesmoSom && relogio - mesmoSom.em < 35 ? mesmoSom : ultimo && relogio - ultimo.em < 40 ? ultimo : null
+    if (junta && junta.v.fim > S.ctx.currentTime) {
+      junta.v.n++; S.agrupados++; S.ultimoGolpe = { nome: junta.v.nome, n: junta.v.n }
+      try { junta.v.no.gain.setTargetAtTime(Math.min(1.6, 1 + 0.2 * (junta.v.n - 1)), S.ctx.currentTime, 0.004) } catch { /* ok */ }
+      return true
     }
-    S.ultimoEm[nome] = relogio
-    let i = Math.floor(Math.random() * e.vars); if (e.vars > 1 && i === S.ultimaVar[nome]) i = (i + 1) % e.vars // a mesma variação nunca toca duas vezes seguidas
-    S.ultimaVar[nome] = i
-    const forca = Math.max(0, Math.min(1.5, opc.forca ?? 1)) * (S.menos && e.grande ? 0.5 : 1), t = agora + 0.004
-    let voz, saida
-    S.ultimaForca = forca
-    const am = S.amostras[nome]
-    try {
-      if (am?.length && e.somar) {
-        // amostra E receita por código juntas (cada uma 3 dB abaixo): a amostra dá o corpo, o código dá a nota/fanfarra
-        const a = am[i % am.length], n = S.ctx.createBufferSource(), ga = S.ctx.createGain(); n.buffer = a.b; if (opc.tom) n.playbackRate.value = 2 ** (opc.tom / 12)
-        voz = S.ctx.createGain(); voz.gain.value = 1; voz.connect(S.no.fx); saida = voz
-        ga.gain.value = a.ganho * forca * 0.708; n.connect(ga); ga.connect(voz); n.start(t)
-        fabricar(S.ctx, voz, nome, t, i, { tom: opc.tom || 0, forca: forca * 0.708, pan: opc.pan || 0 })
-        S.somados = (S.somados ?? 0) + 1
-      } else if (am?.length) {
-        const a = am[i % am.length], n = S.ctx.createBufferSource(); n.buffer = a.b; if (opc.tom) n.playbackRate.value = 2 ** (opc.tom / 12)
-        voz = S.ctx.createGain(); voz.gain.value = a.ganho * forca; n.connect(voz); voz.connect(S.no.fx); n.start(t); saida = voz
-      } else ({ voz, fim: saida } = fabricar(S.ctx, S.no.fx, nome, t, i, { tom: opc.tom || 0, forca, pan: opc.pan || 0 }))
-    } catch { return false }
-    const v = { nome, pri: e.pri, tropa: !!e.tropa, t0: agora, fim: agora + e.ms / 1000 + 0.3, no: voz, saida }
-    S.vozes.push(v); setTimeout(() => { try { saida.disconnect() } catch { /* já saiu */ } }, e.ms + 700)
-    if (e.grande) { const d = S.no.musDuck.gain; d.cancelScheduledValues(agora); d.setTargetAtTime(0.5, agora, 0.02); d.setTargetAtTime(1, agora + Math.max(0.4, e.ms / 1000 * 0.7), 0.22) } // golpe grande: a música abaixa 6 dB e volta
-    S.tocados++; S.ultimo = nome; S.porNome[nome] = (S.porNome[nome] ?? 0) + 1; anota('som', nome)
+    const v = tocarVoz(nome, opc); if (!v) return false
+    S.grupos[chave] = S.grupos[nome + ':*'] = S.grupos['*'] = { em: relogio, v }; S.ultimoGolpe = { nome, n: 1 }
     return true
   },
-  /** O barulho de "dezenas" lutando, de 0 (nada) a 1 (cheio): poucos sons bem escolhidos, nunca um por soldado. */
-  fundoBatalha(densidade = 0) {
-    S.densidade = Math.max(0, Math.min(1, densidade))
+  /** Parada de impacto (hit-stop): o agudo some por `ms` e volta — o ouvido sente o mundo segurar junto com o olho. */
+  hitStop(ms = 50) {
+    if (!S.no || !S.destravado) return false
+    const f = S.no.corte.frequency, t = S.ctx.currentTime, d = Math.max(0.02, Math.min(0.4, ms / 1000))
+    f.cancelScheduledValues(t); f.setValueAtTime(f.value, t); f.exponentialRampToValueAtTime(CORTE_FECHADO, t + 0.006); f.setValueAtTime(CORTE_FECHADO, t + d); f.exponentialRampToValueAtTime(CORTE_ABERTO, t + d + 0.07)
+    S.cortes++; S.ultimoCorte = { ms: Math.round(d * 1000), em: Math.round(performance.now()) }
+    return true
+  },
+  /** Abaixa a música para `ganho` (0..1) por `segundos` (a faixa de recorde, o chefe caindo). */
+  abaixarMusica(ganho = 0.35, segundos = 1.5) { if (!S.no) return false; abaixar(Math.max(0, Math.min(1, ganho)), Math.max(0.1, Math.min(6, segundos))); return true },
+  /** O ambiente do trecho: 'manha' | 'tarde' | 'porDoSol' | 'noite' | número do trecho da cena (0..3) | null (nenhum). Cruza do anterior em 1,5 s. */
+  ambiente(qual) {
+    if (qual === undefined) return S.ambPedido
+    const nome = typeof qual === 'number' ? TRECHOS_AMB[qual] ?? null : qual
+    if (nome !== null && !AMBIENTES[nome]) return false
+    S.ambPedido = nome
+    if (S.destravado && S.ctx) ambienteLigar()
+    return true
+  },
+  ambientes: () => Object.entries(AMBIENTES).map(([nome, a]) => ({ nome, rotulo: a.rotulo })),
+  /** O barulho de "dezenas" lutando, de 0 (nada) a 1 (cheio): poucos sons bem escolhidos, nunca um por soldado.
+   *  `soMassa`: a tela já toca cada golpe no quadro do impacto (Som.golpe) — o fundo fica só com a massa (o choque de longe), sem tinido solto fora de sincronia. */
+  fundoBatalha(densidade = 0, { soMassa = false } = {}) {
+    S.densidade = Math.max(0, Math.min(1, densidade)); S.soMassa = !!soMassa
     if (!S.densidade) { clearInterval(S.fundo); S.fundo = null; return }
     let passo = 0
     S.fundo ??= setInterval(() => {
       const d = S.densidade, pan = Math.random() * 1.4 - 0.7; passo++
-      if (passo % 14 === 0) Som.tocar('choque', { pan: pan / 2, forca: 0.6 + d * 0.4 })
+      if (passo % 14 === 0) Som.tocar('choque', { pan: pan / 2, forca: S.soMassa ? 0.3 + d * 0.3 : 0.6 + d * 0.4 })
+      else if (S.soMassa) return
       else if (Math.random() < d * 0.55) Som.tocar('espada', { pan, forca: 0.5 + Math.random() * 0.5 })
       else if (Math.random() < d * 0.14) Som.tocar('soldadoCai', { pan, forca: 0.8 })
       else if (Math.random() < d * 0.1) Som.tocar('flecha', { pan, forca: 0.8 })
@@ -522,16 +773,18 @@ const Som = {
   /** "Menos animação": o som continua; só os estouros grandes ficam 6 dB mais baixos. */
   menosAnimacao(v) { if (v !== undefined) S.menos = !!v; return S.menos },
   nomes: () => Object.keys(EFEITOS),
-  tabela: () => Object.entries(EFEITOS).map(([nome, e]) => ({ nome, ms: e.ms, pri: e.pri, alvo: e.alvo, camada: e.camada, vars: e.vars, grande: !!e.grande, tropa: !!e.tropa, max: e.max || 0, somar: !!e.somar })),
+  tabela: () => Object.entries(EFEITOS).map(([nome, e]) => ({ nome, ms: e.ms, pri: e.pri, alvo: e.alvo, camada: e.camada, vars: e.vars, grande: !!e.grande, tropa: !!e.tropa, max: e.max || 0, somar: !!e.somar, varia: e.varia || 0, duck: DUCK[nome] || null })),
   estado() {
     if (S.ctx) limpar(S.ctx.currentTime)
     return { destravado: S.destravado, ligado: !!S.ctx, contexto: S.ctx?.state ?? null, mudo: S.pref.mudo, efeitos: S.pref.efeitos, musica: S.pref.musica, menos: S.menos, vozes: S.vozes.length, tropa: S.vozes.filter((v) => v.tropa).length,
-      tocados: S.tocados, ultimo: S.ultimo, porNome: { ...S.porNome }, recusados: S.recusados, roubados: S.roubados, saida: S.no ? S.no.saida.gain.value : null, ultimaForca: S.ultimaForca ?? null, amostras: Object.keys(S.amostras), somados: S.somados ?? 0, historico: S.historico.slice(), atrasoMs: S.ctx ? Math.round(((S.ctx.baseLatency || 0) + 0.004) * 1000) : null }
+      tocados: S.tocados, ultimo: S.ultimo, porNome: { ...S.porNome }, recusados: S.recusados, roubados: S.roubados, saida: S.no ? S.no.saida.gain.value : null, ultimaForca: S.ultimaForca ?? null, amostras: Object.keys(S.amostras), somados: S.somados ?? 0, historico: S.historico.slice(), atrasoMs: S.ctx ? Math.round(((S.ctx.baseLatency || 0) + 0.004) * 1000) : null,
+      golpes: S.golpes, agrupados: S.agrupados, ultimoGolpe: S.ultimoGolpe ?? null, golpesEm: S.golpesEm.slice(), cortes: S.cortes, ultimoCorte: S.ultimoCorte, corteHz: S.no ? S.no.corte.frequency.value : null, duck: S.duck, duckAgora: S.no ? S.no.musDuck.gain.value : null, fxAgora: S.no ? S.no.fx.gain.value : null, ultimoTom: S.ultimoTom ?? null, ultimoPan: S.ultimoPan ?? null,
+      ambiente: S.amb?.nome ?? null, ambientePedido: S.ambPedido, ambienteGanho: S.amb ? S.amb.no.gain.value : 0, ambienteSaindo: S.ambSaindo ? { nome: S.ambSaindo.nome, ganho: S.ambSaindo.no.gain.value } : null, ambienteTrocas: S.ambTrocas }
   },
   /** Pico do que está saindo agora (0 a 1), para o medidor da folha e para o teste. */
   picoAoVivo() { if (!S.analisador) return 0; const d = new Float32Array(S.analisador.fftSize); S.analisador.getFloatTimeDomainData(d); let p = 0; for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > p) p = Math.abs(d[i]); return p },
   // ---- para medir fora do tempo real (teste e calibragem)
-  fabricar, cadeia, TETO_VOZES, TETO_TROPA,
+  fabricar, cadeia, ambientar, TETO_VOZES, TETO_TROPA, GOLPES, JANELA_GRUPO, PAN_MAX, TRECHOS_AMB,
   async calibrar() {
     const sr = 48000, db = (x) => 20 * Math.log10(Math.max(x, 1e-9)), o = {}
     for (const [nome, e] of Object.entries(EFEITOS)) {

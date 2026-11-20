@@ -850,9 +850,9 @@ export function criarCena(canvas, CONFIG) {
         else { // chefe: cambaleia → ajoelha → tomba → poeira e tremor → fumaça grande
           const et = Mov.quedaDoChefe(PO, ms), msQ = ms - Mov.CHEFE.cambaleia - Mov.CHEFE.ajoelha
           C.qi[i] = et < 3 ? qs.hit.quadros[qs.hit.quadros.length - 1] : Arte.quadroDe(fall, msQ)
-          if (et !== C.etapa[i]) { C.etapa[i] = et; med.chefeEtapas.push(et); if (et === 2) C.efeito('dust', p.x - 14 * fc, p.y + 2) }
+          if (et !== C.etapa[i]) { C.etapa[i] = et; med.chefeEtapas.push(et); if (et === 2) { C.efeito('dust', p.x - 14 * fc, p.y + 2); C.aoSom?.('chefeJoelho', p.x - cxp) } }
           if (et === 1 && Math.floor(ms / 130) !== Math.floor((ms - C.dtAnim) / 130)) C.efeito('spark', p.x + (((ms / 130) | 0) % 3 - 1) * 16, p.y - 30 - (((ms / 130) | 0) % 2) * 20) // estalos pelo corpo
-          if (et === 3 && msQ >= durQ) { acabou = true; med.chefeEtapas.push(4); C.tremer(6, 120); C.efeito('dust', p.x - 22, p.y + 2); C.efeito('dust', p.x + 22, p.y + 2, true); porEfeito(fx().anelPo, p.x, p.y, false, fx().anelPo.anim.play) }
+          if (et === 3 && msQ >= durQ) { acabou = true; med.chefeEtapas.push(4); C.aoSom?.('chefeTomba', p.x - cxp); C.tremer(6, 120); C.efeito('dust', p.x - 22, p.y + 2); C.efeito('dust', p.x + 22, p.y + 2, true); porEfeito(fx().anelPo, p.x, p.y, false, fx().anelPo.anim.play) }
         }
         C.pDx[i] = PO.dx; C.pDy[i] = PO.dy; C.pLarg[i] = PO.larg; C.pAlt[i] = PO.alt; C.pIncl[i] = PO.incl
         if (acabou) {
@@ -867,6 +867,7 @@ export function criarCena(canvas, CONFIG) {
           else if (podeFumaca(inv ? 16 + (C.balde[i] % 48) : C.grupo[i] % NG)) { C.est[i] = 5; med.fumacinhas++ }
           else C.est[i] = 4
           if (C.gatilho) C.gatilho(tipo === 2 ? 'fumacaChefe' : 'fumaca', p.x - cxp, p.y)
+          if (tipo !== 2 && C.est[i] === 5) C.aoSom?.('fumaca', p.x - cxp)
         }
         continue
       }
@@ -887,7 +888,7 @@ export function criarCena(canvas, CONFIG) {
       if (!inv && !C.menos) Mov.grito(PO, t - C.gritoT - (i % 6) * 55)
       { const me = t - C.entraT[i]; if (me >= 0 && me < 440) { // R29 — ENTRADA DO CHEFE: um passo pesado (levanta, desce com tudo, amassa) e poeira dos dois lados
         if (!C.menos) Mov.pisao(PO, me)
-        if (me >= 260 && me - C.dtAnim < 260) { med.pisoes++; C.efeito('dust', p.x - 20, p.y + 2); C.efeito('dust', p.x + 20, p.y + 2, true); porEfeito(fx().anelPo, p.x, p.y, false, fx().anelPo.anim.play) }
+        if (me >= 260 && me - C.dtAnim < 260) { med.pisoes++; C.aoSom?.('pisao', p.x - cxp); C.efeito('dust', p.x - 20, p.y + 2); C.efeito('dust', p.x + 20, p.y + 2, true); porEfeito(fx().anelPo, p.x, p.y, false, fx().anelPo.anim.play) }
       } }
       if (C.fimT > 0) { const mf = t - C.fimT - (i % 4) * 70, ganhou = (C.lado[i] === 0) === C.fimVitoria; if (ganhou) { if (!C.menos) { Mov.festa(PO, mf); if (mf >= 0 && mf < 640 && !C.oculto[i]) med.festas++ } } else if (!inv) { Mov.recuo(PO, mf); if (mf >= 0 && !C.oculto[i]) med.recuos++ } } // fim da luta: quem venceu comemora, o reino vencido recua um passo
       const msA = t - C.atqT[i]
@@ -896,7 +897,7 @@ export function criarCena(canvas, CONFIG) {
         fase = Mov.golpe(PO, msA, C.atqAnt[i], peso, C.gesto[i], C.atqDist[i])
         if (C.atqSolta[i] && msA >= C.atqAnt[i]) { // fim da antecipação: solta o tiro para ele chegar junto com o dano
           C.atqSolta[i] = 0; const j = C.atqAlvo[i]
-          if (j >= 0 && j < C.n) { const tp = C.projetilDe(i); if (tp !== 'nada') { C.projetil(p.x + fc * 8, p.y - p0.ay * 0.5, C.sx[j], C.sy[j] - C.peca[j].ay * 0.45, tp); if (C.gatilho) C.gatilho(tp, p.x - cxp, p.y) } }
+          if (j >= 0 && j < C.n) { const tp = C.projetilDe(i); if (tp !== 'nada') { C.projetil(p.x + fc * 8, p.y - p0.ay * 0.5, C.sx[j], C.sy[j] - C.peca[j].ay * 0.45, tp); C.aoSom?.(tp === 'flecha' || tp === 'virote' ? 'arcoSolta' : tp === 'raio' ? '' : 'arremesso', p.x - cxp); if (C.gatilho) C.gatilho(tp, p.x - cxp, p.y) } }
         }
       }
       if (fase !== C.fase[i]) {

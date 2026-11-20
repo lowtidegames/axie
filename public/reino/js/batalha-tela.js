@@ -6,6 +6,7 @@ const VOO_MS = 210 // voo do projétil (ms de animação): a flecha sai ANTES pa
 
 const ANIM_MAGIA = { laco: 'grow', abelhas: 'swarm', corneta: 'blow', repeteco: 'serve', levanta: 'open', finale: 'launch' } // animação da peça do atlas quando a magia dispara
 const FILEIRAS = [-0.9, -0.3, 0.3, 0.9]
+const SOM_CHEGA = { flecha: 'flechaFinca', virote: 'flechaFinca', falcao: 'impacto', torta: 'splat', batata: 'splat', raio: 'magiaRaio' } // R35: o som do projétil CHEGANDO (no quadro do dano)
 const SOM_MAGIA = { barril: 'magiaFogo', piche: 'magiaGelo', abelhas: 'magiaRaio', corneta: 'invasorChega', repeteco: 'magiaCura', laco: 'magiaGelo', levanta: 'magiaCura', finale: 'magiaRaio' }
 
 export function criarBatalha(C, CONFIG, Som, expandirHorda) {
@@ -42,7 +43,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     C.enquadre = C.tipo === 'celular' && curto ? 40 : 0
     // CÂMERA DE DUELO: com ≤ 4 representantes no total (os dois lados), a câmera chega mais perto
     { const reps = exercito.soldados.reduce((a, s) => a + Math.min(s.qtd, C.repMax), 0) + Math.min(B.inimigosTotal, C.tipo === 'pc' ? 6 : 4); C.duelo = !C.menos && C.tipo === 'pc' && reps <= 4; C.dueloCurto = C.tipo === 'celular' && reps <= 4 } // (só no PC: no celular a estrada inteira já cabe na tela e o zoom esconderia quem chega pelo portão)
-    Som.tocar('marcha')
+    Som.tocar('marcha'); Som.tocar('poeira', { pan: -0.7 }); Som.tocar('gritoTropa', { em: 0.62, pan: 0.3 }) // R35: poeira no portão e o grito no instante do pulo (C.gritoT)
   }
   function comecarLuta() { B.preludioAte = 0; C.marcha = false; C.cam.vel = 0; B.mapa.fill(-1); C.limparBonecos(); C.tb = 0; C.magiaAnim = {} }
   /** Resumo ao vivo (e final) da luta: dano por terreno, o que mais bateu e a contagem dos dois lados. */
@@ -54,6 +55,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     if (B.silencio || C.menos || agora - B.ultimaPausa < (ms >= 60 ? 380 : 650)) return
     if (C.dueloCurto) ms += 15 // R32: no duelo do celular o impacto segura 15 ms a mais
     B.ultimaPausa = agora; B.pausaAte = agora + ms / Math.max(1, B.vel / 2); C.tremer(tremida, ms + 40)
+    Som.hitStop(ms / Math.max(1, B.vel / 2)) // R35: o som segura junto (corte curto de agudo)
   }
 
   function evento(e, agora) {
@@ -71,7 +73,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
         i = C.nascer(1, tipo, x, vida, chefe ? 0.2 : FILEIRAS[(id * 7919) % 4] + (((id * 13) % 5) - 2) * 0.03, chefe ? 0 : ((id * 31) % 29) - 14)
         nascidosInv++; if (nascidosInv > B.inimigosTotal) { B.inimigosTotal++; B.inimigos++ }
         if (chefe) chefesVivos++
-        if (chefe && !quieto) { Som.tocar('chefeEntra'); C.tremer(6, 120); C.entrarPesado(i); B.aoAviso?.('chefe', tipo) } // R29: entra com um passo pesado e poeira
+        if (chefe && !quieto) { C.tremer(6, 120); C.entrarPesado(i); B.aoAviso?.('chefe', tipo) } // R29: entra com um passo pesado e poeira
       }
       if (i >= 0) { B.mapa[id] = i; C.t0[i] = t }
     } else if (cod === 'm') {
@@ -98,13 +100,15 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
         empurra = pa.x === po.x ? (C.dir[ov] * (C.sentido[ov] || 1) > 0 ? 1 : -1) : pa.x > po.x ? 1 : -1
         // o golpe já vem ANTECIPADO (antever): aqui é o instante do impacto. Sem antecipação marcada (nasceu agora, luta pulada), entra direto no bote.
         if (!C.emGolpe(ov)) { C.atacar(ov, av, false, true); if (longe) C.projetil(po.x + C.cam.x, po.y - 16, pa.x + C.cam.x, pa.y - 14, C.projetilDe(ov), 110) }
-        if (longe) { if (C.lado[o] === 0 && (t & 3) === 0) Som.tocar('flecha', { pan: pan(ov), forca: 0.7 }) }
+        // R35 — SOM NO QUADRO DO IMPACTO: o gesto de quem bate (corte, frigideira, bicada...) ou o projétil chegando; o mesmo pelotão em 60 ms soa uma vez só, mais forte
+        Som.golpe(longe ? SOM_CHEGA[C.projetilDe(ov)] || 'impacto' : C.gesto[ov], { pan: pan(av), forca: forte ? 1.2 : 0.9, grupo: C.lado[o] * 1000 + C.balde[o] })
         if (chefao) { pausa(agora, 60, 6); Som.tocar('critico', { pan: pan(av) }) } else if (forte) { pausa(agora, 45, 3); Som.tocar('critico', { pan: pan(av), forca: 0.7 }) }
       }
       // quem apanha: recua, amassa e leva a estrela de impacto em TODO golpe; o corpo inteiro branco (1 quadro) só no golpe FORTE, no máximo 3 por segundo
       if (C.est[av] === 1) { if (!C.emGolpe(av)) { C.tocarAnim(av, AN.hit); if (!(forte && C.podeBranco())) C.animT[av] -= C.peca[av].anim.hit.ms[0] } C.apanhar(av, empurra, forte ? 1.7 : 1) }
       C.dano(pa.x + C.cam.x, pa.y - C.peca[av].ay * C.k[av] * 0.6, valor, forte ? 1 : 0, chefao, C.chaveDe(av), empurra || (C.lado[av] ? -1 : 1))
       if (!chocou) C.empurrar(3) // a carga: a câmera leva um tranco curto no primeiro choque
+      if (o < 0) Som.golpe('impacto', { pan: pan(av), forca: 1, grupo: -1 }) // dano de magia ou estouro: a estrela também tem som
       if (!chocou) { chocou = true; Som.tocar('choque') }
     } else if (cod === 'h') {
       const i = B.mapa[e[2]]; if (i < 0) return
@@ -117,7 +121,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       if (!eraVivo) { C.est[i] = 2; C.tocarAnim(i, AN.fall); return }
       if (C.lado[i] === 0) { B.aliados--; B.quedasDeSoldado++ } else B.inimigos--
       // R26 — um grupo inteiro do reino acabou: 250 ms de respiro (a cena segura em câmera lenta no ponto) e poeira onde ele caiu
-      if (C.lado[i] === 0 && !quieto) { const k = terrenoDe[e[2]]; if (k && --vivosT[k] === 0 && B.aliados > 0 && !C.menos) { B.lentoAte = Math.max(B.lentoAte, agora + 250); C.med.gruposCaidos++; C.med.pausaGrupoMs = Math.round(B.lentoAte - agora); const q = tela(i); C.efeito('dust', q.x + C.cam.x, q.y + 2); B.gruposCaidos = (B.gruposCaidos || 0) + 1 } }
+      if (C.lado[i] === 0 && !quieto) { const k = terrenoDe[e[2]]; if (k && --vivosT[k] === 0 && B.aliados > 0 && !C.menos) { B.lentoAte = Math.max(B.lentoAte, agora + 250); C.med.gruposCaidos++; C.med.pausaGrupoMs = Math.round(B.lentoAte - agora); const q = tela(i); C.efeito('dust', q.x + C.cam.x, q.y + 2); B.gruposCaidos = (B.gruposCaidos || 0) + 1 } if (k && vivosT[k] === 0 && B.aliados > 0) Som.tocar('grupoCai', { pan: pan(i) }) } // R35: o pelotão que acaba tem som (com ou sem Reduced motion)
       const chefe = C.lado[i] === 1 && chefes.has(B.tipoDe(e[2]))
       if (chefe) chefesVivos--
       if (quieto) { C.est[i] = 4; return }
@@ -150,7 +154,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       if (quieto) return
       const p = C.pos(e[3], 0)
       const dono = e[2] >= 0 ? B.mapa[e[2]] : -1
-      C.gatilho?.('explosao', p.x, p.y); C.explodir(p.x + C.cam.x, p.y, dono >= 0 && C.lado[dono] === 1); C.flash('#FFE0A0', 110); pausa(agora, 60, 4); Som.tocar('magiaFogo', { pan: p.x / C.VW * 2 - 1 })
+      C.gatilho?.('explosao', p.x, p.y); C.explodir(p.x + C.cam.x, p.y, dono >= 0 && C.lado[dono] === 1); C.flash('#FFE0A0', 110); pausa(agora, 60, 4); Som.tocar('explosao', { pan: p.x / C.VW * 2 - 1 })
     } else if (cod === 'g') {
       const k = e[2], c = CONFIG.CARTAS[e[3]]
       if (quieto || !c) return
@@ -162,7 +166,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     } else if (cod === 's') {
       const i = B.mapa[e[2]]; if (i < 0) return
       if (e[3] === 'preso') C.preso[i] = t + e[4]
-      if (e[3] === 'furia' && !quieto) { const p = tela(i); C.numero(p.x + C.cam.x, p.y - 80, 'FURY!', true); Som.tocar('chefeAnuncia', { forca: 0.6 }) }
+      if (e[3] === 'furia' && !quieto) { const p = tela(i); C.numero(p.x + C.cam.x, p.y - 80, 'FURY!', true); Som.tocar('chefeEntra', { forca: 0.8, pan: pan(i) }) }
     } else if (cod === 'e') {
       const i = B.mapa[e[2]]; if (i < 0) return
       if (e[3] < 0) C.est[i] = 3; else { C.est[i] = 1; C.x0[i] = e[3]; C.v[i] = 0; C.t0[i] = t; if (!quieto) { const p = C.pos(e[3], 0); C.efeito('dust', p.x + C.cam.x, p.y); C.efeito('smoke', p.x + C.cam.x, p.y); Som.tocar('muralha', { forca: 0.7 }) } }
@@ -179,7 +183,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       B.resultado = { vitoria: e[2] === 1, porTempo: e[3] === 1, quem: tipo, tocouCastelo: quem != null && quem >= 0, quedasDeSoldado: B.quedasDeSoldado, aliados: B.aliados }
       // fecho: 1 s para ver o último cair; se o chefe acabou de cair, espera a queda em etapas dele terminar (até 2,6 s desde o golpe final)
       B.fimEm = agora + (quieto ? 0 : B.chefeCaiuEm && agora - B.chefeCaiuEm < 2600 ? Math.max(1000, 2600 - (agora - B.chefeCaiuEm)) : 1000)
-      if (!quieto) { C.fimT = C.relogio; C.fimVitoria = e[2] === 1; C.med.fim = e[2] === 1 ? 'festa' : 'recuo' } // quem venceu comemora (pulo, arma para cima) e o reino vencido recua um passo, antes do painel
+      if (!quieto) { C.fimT = C.relogio; C.fimVitoria = e[2] === 1; C.med.fim = e[2] === 1 ? 'festa' : 'recuo'; Som.tocar(e[2] === 1 ? 'festaTropa' : 'recuoTropa', { pan: e[2] === 1 ? 0.3 : 0.4 }) } // quem venceu comemora (pulo, arma para cima) e o reino vencido recua um passo, antes do painel
       Som.fundoBatalha(0)
     }
   }
@@ -216,7 +220,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     const ev = B.ev
     if (!B.silencio) antever()
     while (B.i < ev.length && ev[B.i][0] <= C.tb) { const e = ev[B.i++]; if (e[1] === 'n') tipos[e[2]] = e[4]; evento(e, agora); if (B.fimEm) break }
-    if (agora - ultimoFundo > 400 && chocou && !B.fimEm) { ultimoFundo = agora; Som.fundoBatalha(Math.min(1, (B.aliados + Math.min(B.inimigos, nascidosInv)) / 36)) }
+    if (agora - ultimoFundo > 400 && chocou && !B.fimEm) { ultimoFundo = agora; Som.fundoBatalha(Math.min(1, (B.aliados + Math.min(B.inimigos, nascidosInv)) / 36), { soMassa: true }) }
     // câmera segue a frente da horda (só no PC; até 24 px/s — a cena limita)
     if (C.tipo === 'pc') { let fr = -1e9; for (let i = 0; i < C.n; i++) if (C.lado[i] === 1 && C.est[i] === 1 && C.sx[i] > fr) fr = C.sx[i]; C.cam.alvo = fr > -1e8 ? Math.max(C.camMin, Math.min(C.camMax, fr - C.VW * 0.45)) : 0 }
     return dtReal * Math.min(fator, 2)

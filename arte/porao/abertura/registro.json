@@ -1,0 +1,170 @@
+[
+ {
+  "peca": "casa_vo_noite",
+  "tentativa": 1,
+  "ferramenta": "create-image-pixflux (frontal)",
+  "tamanho": [
+   320,
+   180
+  ],
+  "texto": "a simple small grandmother's house at night seen straight from the front, whitewashed walls, red tile roof, wooden front door, flowerpots, a tiny low basement window at ground level glowing with a bright blue-green monitor light that spills onto the grass, the other windows dark, deep navy night sky full of stars and a crescent moon, big empty dark sky area at the top and empty grass area at the bottom, pixel art, flat front view, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, original design, no text, no logos, no letters",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 835.51,
+  "saldo_depois": 834.51,
+  "gasto": 1.0,
+  "segundos": 15,
+  "arquivo": "bruto/casa_vo_noite-1.png",
+  "hora_brt": "20/11 18:19"
+ },
+ {
+  "peca": "logo_jogo",
+  "tentativa": 1,
+  "ferramenta": "create-image-pixflux (frontal)",
+  "tamanho": [
+   128,
+   64
+  ],
+  "texto": "an emblem of a rolled-up carpet rug with a red and gold pattern lying on a small desk monitor, gold coins falling onto it with small sparkles, compact centered badge, pixel art, flat front view, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, original design, no text, no logos, no letters, transparent background",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 834.51,
+  "saldo_depois": 833.51,
+  "gasto": 1.0,
+  "segundos": 27,
+  "arquivo": "bruto/logo_jogo-1.png",
+  "hora_brt": "20/11 18:20"
+ },
+ {
+  "peca": "logo_estudio",
+  "tentativa": 1,
+  "ferramenta": "create-image-pixflux (frontal)",
+  "tamanho": [
+   64,
+   64
+  ],
+  "texto": "a simple small studio mark: a round badge with a tiny lighthouse tower on a wave, two flat colors plus outline, compact centered, pixel art, flat front view, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, original design, no text, no logos, no letters, transparent background",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 833.51,
+  "saldo_depois": 832.51,
+  "gasto": 1.0,
+  "segundos": 22,
+  "arquivo": "bruto/logo_estudio-1.png",
+  "hora_brt": "20/11 18:20"
+ },
+ {
+  "peca": "retrato_vo",
+  "tentativa": 1,
+  "ferramenta": "create-image-pixflux (frontal)",
+  "tamanho": [
+   96,
+   96
+  ],
+  "texto": "detailed bust portrait of a sweet elderly grandmother, round glasses, grey hair in a bun, warm smile, knitted shawl, holding a steaming cup of tea in both hands, expressive detailed face, pixel art, flat front view, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, original design, no text, no logos, no letters, transparent background",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 832.51,
+  "saldo_depois": 831.51,
+  "gasto": 1.0,
+  "segundos": 21,
+  "arquivo": "bruto/retrato_vo-1.png",
+  "hora_brt": "20/11 18:21"
+ },
+ {
+  "peca": "retrato_vo_orgulhosa",
+  "tentativa": 1,
+  "ferramenta": "edit-image-pixen",
+  "base": "bruto/retrato_vo-1.png",
+  "texto": "exactly the same head size, hair, bun, round glasses, shawl, cup and framing, only the face changes: proud and beaming, eyes closed in a happy smile, cheeks rosy, chin slightly raised",
+  "ok": true,
+  "status": "completed",
+  "saldo_antes": 831.51,
+  "saldo_depois": 830.51,
+  "gasto": 1.0,
+  "segundos": 49,
+  "arquivo": "bruto/retrato_vo_orgulhosa-1.png",
+  "hora_brt": "20/11 18:22"
+ },
+ {
+  "peca": "carregando_rugrigo",
+  "tentativa": 1,
+  "ferramenta": "edit-image-pixen",
+  "base": "bruto/base_puxar.png",
+  "texto": "exactly the same head size and body size, only the pose changes: standing up on his feet walking to the left, leaning forward, pulling a long rolled-up red and gold carpet behind him with a rope held in both hands, mouth gritted with effort",
+  "ok": true,
+  "status": "completed",
+  "saldo_antes": 830.51,
+  "saldo_depois": 829.51,
+  "gasto": 1.0,
+  "segundos": 42,
+  "arquivo": "bruto/carregando_rugrigo-1.png",
+  "hora_brt": "20/11 18:22"
+ },
+ {
+  "peca": "carregando_rugrigo",
+  "tentativa": 2,
+  "ferramenta": "edit-image-pixen",
+  "base": "bruto/carregando_rugrigo-1.png",
+  "texto": "exactly the same head size, body size, carpet and rope, only the legs change: the other foot is forward in mid-step, body bobbing up one pixel",
+  "ok": true,
+  "status": "completed",
+  "saldo_antes": 829.51,
+  "saldo_depois": 828.51,
+  "gasto": 1.0,
+  "segundos": 35,
+  "arquivo": "bruto/carregando_rugrigo-2.png",
+  "hora_brt": "20/11 18:23"
+ },
+ {
+  "peca": "carregando_rugrigo",
+  "tentativa": 3,
+  "ferramenta": "edit-image-pixen",
+  "base": "bruto/carregando_rugrigo-1.png",
+  "texto": "exactly the same head size, body size, carpet and rope, only the legs change: both feet close together passing, body slightly lower, leaning more forward",
+  "ok": true,
+  "status": "completed",
+  "saldo_antes": 828.51,
+  "saldo_depois": 827.51,
+  "gasto": 1.0,
+  "segundos": 42,
+  "arquivo": "bruto/carregando_rugrigo-3.png",
+  "hora_brt": "20/11 18:24"
+ },
+ {
+  "peca": "casa_vo_noite",
+  "tentativa": 2,
+  "ferramenta": "create-image-pixflux (frontal)",
+  "tamanho": [
+   320,
+   180
+  ],
+  "texto": "a simple small grandmother's house at night seen straight from the front, whitewashed walls, red tile roof, wooden front door in the middle, flowerpots, all upper windows dark, but a small square basement window set low in the foundation wall beside the door is bright glowing cyan-green like a computer monitor, with a wide cyan glow on the wall and grass around it, deep navy night sky full of stars and a crescent moon, large empty dark sky at the top, grass at the bottom, pixel art, flat front view, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, original design, no text, no logos, no letters",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 827.51,
+  "saldo_depois": 826.51,
+  "gasto": 1.0,
+  "segundos": 19,
+  "arquivo": "bruto/casa_vo_noite-2.png",
+  "hora_brt": "20/11 18:25"
+ },
+ {
+  "peca": "casa_vo_noite",
+  "tentativa": 3,
+  "ferramenta": "create-image-pixflux (frontal)",
+  "tamanho": [
+   320,
+   180
+  ],
+  "texto": "small house at night front view, one tiny glowing cyan basement window low on the wall next to the door shining brightly like a computer screen, every other window completely dark, white walls, red roof, door, flowerpots, navy starry sky with moon, empty sky above and grass below, pixel art, flat front view, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, original design, no text, no logos, no letters",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 826.51,
+  "saldo_depois": 825.51,
+  "gasto": 1.0,
+  "segundos": 12,
+  "arquivo": "bruto/casa_vo_noite-3.png",
+  "hora_brt": "20/11 18:26"
+ }
+]

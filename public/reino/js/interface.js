@@ -12,7 +12,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     espolios: [], espolioPode: [], espolioDesc: [], info: null, infoSel: null, forca: null, vel: 1, mudo: false, aviso: null, vitoria: null, derrota: null, chefe: null, fim: null, arrasto: null,
     apertado: null, selo: null, brinde: null, hordaN: 0, hordaChefe: null, pulsaLutar: false, chances: [], reliquias: [], resumo: null, familias: [],
   }
-  const UI = { M, L: {}, botoes: [], desenhou: new Set() }
+  const UI = { M, L: {}, botoes: [], desenhou: new Set(), letra: {} }
   const el = new Map()
   const viu = (t) => UI.desenhou.add(t)
 
@@ -31,11 +31,19 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     L.cartas = [0, 1, 2].map((i) => ({ x: x0 + i * (56 + vao), y: yc, w: 56, h: 78 }))
     L.mesa = cel ? { x: 0, y: VH - 88, w: VW, h: 88 } : { x: x0 - 6, y: yc - 6, w: larg + 12, h: 86 }
     if (cel) { const y = Math.max(44 * bs, Math.ceil(L.pinos.y + L.pinos.h + Math.max(0, (hmin - 26 * bs) / 2))); L.sortear = { x: 3 * bs, y, w: 34 * bs, h: 26 * bs }; L.consertar = { x: 40 * bs, y, w: 34 * bs, h: 26 * bs } } else { L.sortear = { x: x0 - 42 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs }; L.consertar = { x: x0 - 80 * bs, y: VH - 2 - 28 * bs, w: 34 * bs, h: 26 * bs } }
-    // chances do sorteio: uma linha junto do botão de sortear
-    L.odds = cel ? { x: 3, y: L.sortear.y + 28 * bs + 1 } : { x: 6, y: L.sortear.y - 9 }
+    // chances do sorteio junto do botão de sortear, com o NOME de cada raridade (não só a cor): quebram em linhas na largura que há.
+    // Tela pequena: a letra miúda nunca desce de ~8 px de tela (passa para a letra maior).
+    L.letraGrande = 5 * C.css < 7.9
+    { const fonte = L.letraGrande ? 'reino-contorno' : 'mini-contorno', alt = L.letraGrande ? 10 : 8, max = cel ? VW - 4 : Math.max(60, x0 - 10), ox = cel ? 3 : 6
+      const itens = [{ s: T.chances, w: Arte.largura(T.chances, fonte) + 4 }, ...M.chances.map((c) => { const t = `${c.nome} ${c.chance}%`; return { s: t, c, w: 9 + Arte.largura(t, fonte) + 5 } })]
+      const linhas = [[]]; let x = 0
+      for (const it of itens) { if (x + it.w > max && linhas.at(-1).length) { linhas.push([]); x = 0 } linhas.at(-1).push({ ...it, x }); x += it.w }
+      L.odds = cel ? { x: ox, y: L.sortear.y + 28 * bs + 1 } : { x: ox, y: L.sortear.y - 1 - linhas.length * alt }
+      L.odds.linhas = linhas; L.odds.fonte = fonte; L.odds.alt = alt; L.odds.h = linhas.length * alt }
     L.faixa = cel ? { x: 0, y: VH - 88, w: VW, h: 0 } : { x: 6, y: L.odds.y - 50, w: x0 - 14, h: 48 }
-    L.lutar2 = cel ? { x: Math.floor(VW / 2) - 48, y: VH - 34, w: 96, h: 26 } : { x: Math.floor(VW / 2) - 48, y: VH - 44, w: 96, h: 26 }
-    L.premios = cel ? { x: Math.floor(VW / 2) - 78, y: VH - 84, w: 156, h: 46 } : { x: VW - 124, y: VH - 66, w: 120, h: 60 }
+    L.lutar2 = cel ? { x: 4, y: VH - 30, w: VW - 8, h: 26 } : { x: Math.floor(VW / 2) - 48, y: VH - 44, w: 96, h: 26 }
+    L.voltar = cel ? { x: 64, y: VH - 30, w: VW - 68, h: 26 } : L.lutar2
+    L.premios = cel ? { x: 2, y: VH - 87, w: VW - 4, h: 55 } : { x: VW - 124, y: VH - 66, w: 120, h: 60 }
     L.ganhe = cel ? { x: 0, y: VH - 78 - hmin, w: VW, h: hmin } : L.premios
     L.resumo = cel ? L.mesa : { x: 4, y: VH - 66, w: VW - 132, h: 60 }
     // escolha do espólio: 3 cartões no meio (PC: mais afastados, com o texto embaixo de cada um)
@@ -44,12 +52,30 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       L.espolio = [0, 1, 2].map((i) => ({ x: Math.floor(VW / 2) + (i - 1) * passo - 28, y: ey, w: 56, h: 78 }))
     }
     // fim de partida: placa embaixo, tela cheia
-    if (cel) { L.fimPainel = { x: 0, y: VH - 100, w: VW, h: 100 }; L.fimBotoes = [{ x: 4, y: VH - 29, w: VW - 72, h: 26 }, { x: VW - 64, y: VH - 29, w: 60, h: 26 }] } else {
+    if (cel) { L.fimPainel = { x: 0, y: VH - 118, w: VW, h: 118 }; L.fimBotoes = [{ x: 4, y: VH - 29, w: VW - 72, h: 26 }, { x: VW - 64, y: VH - 29, w: 60, h: 26 }] } else {
       const pw = Math.min(VW - 8, 420), px = (VW - pw) >> 1
-      L.fimPainel = { x: px, y: VH - 112, w: pw, h: 110 }; L.fimBotoes = [{ x: px + 118, y: VH - 32, w: 150, h: 26 }, { x: px + 276, y: VH - 32, w: Math.min(80, pw - 284), h: 26 }]
+      L.fimPainel = { x: px, y: VH - 98, w: pw, h: 96 }; L.fimBotoes = [{ x: px + 8, y: VH - 34, w: 196, h: 26 }, { x: px + 214, y: VH - 34, w: pw - 222, h: 26 }]
     }
     UI.L = L
     return L
+  }
+  /** RELÍQUIAS NO HUD (celular e PC): ícones pequenos; um toque mostra o efeito de uma por vez. Devolve o retângulo em px de arte
+   *  ({ x, y, w } da fileira de ícones, `passo`, e `toque` = o retângulo do botão) ou null. */
+  function reliquiasRet() {
+    const n = M.reliquias.length, f = M.fase
+    if (!n || f === 'chefe' || f === 'derrota' || f === 'fim') return null
+    const L = UI.L, bs = L.bs, hmin = 44 / C.css, w = n * 14 * bs
+    let fx = 50; for (const fa of M.familias || []) fx += 9 + Arte.largura(`${fa.n}/${fa.precisa}`, 'mini-contorno') + 4 + (fa.ligada ? 5 : 0)
+    if (L.cel) {
+      // no céu, logo abaixo dos botões do topo, à direita; na luta desce para baixo da barra de força
+      const topo = Math.ceil(L.menu.y + 26 * bs + Math.max(0, (hmin - 26 * bs) / 2)) + 1
+      let y = f === 'luta' ? Math.max(topo, 50 * bs) : topo
+      const x = C.VW - 2 * bs - w
+      if (f !== 'luta' && fx * bs + 2 > x && y < 40 * bs) y = Math.max(topo, 40 * bs) // as famílias chegaram até aqui: desce uma linha
+      return { x, y: y + 1, w, passo: 14 * bs, toque: { x: Math.max(0, Math.min(x, C.VW - Math.max(w, hmin))), y, w: Math.max(w, hmin), h: Math.max(15 * bs, hmin) } }
+    }
+    const x = (f === 'luta' ? 50 : fx) * bs, lim = Math.floor(C.VW / 2) - 70 * bs, cabem = Math.max(1, Math.min(n, Math.floor((lim - x) / (14 * bs))))
+    return { x, y: 15 * bs, w: cabem * 14 * bs, passo: 14 * bs, cabem, toque: { x, y: 15 * bs - 1, w: cabem * 14 * bs, h: 15 * bs } }
   }
   function hordaRet() {
     const p = C.pos(-34, -1), w = Math.max(30, 44 / C.css), a1 = C.areaDoTerreno(1)
@@ -64,9 +90,10 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   function lista() {
     const L = UI.L, b = [], f = M.fase
     const add = (id, r, rotulo, dados = {}, extra = {}) => b.push({ id, r, rotulo, dados, ...extra })
-    if (f === 'fim') { add('denovo', L.fimBotoes[0], T.deNovo); add('postar', L.fimBotoes[1], T.postar); add('menu', L.menu, T.aria.menu); return b }
+    if (f === 'fim') { if (!M.fim?.contou) { add('seguir', { x: 0, y: 0, w: C.VW, h: C.VH }, T.aria.pular); return b } add('denovo', L.fimBotoes[0], T.deNovo); add('postar', L.fimBotoes[1], T.postar); add('menu', L.menu, T.aria.menu); return b }
     if (f === 'chefe' || f === 'derrota') { add('seguir', { x: 0, y: 0, w: C.VW, h: C.VH }, T.aria.seguir); return b }
     add('menu', L.menu, T.aria.menu); add('som', L.som, T.aria.som)
+    { const rr = reliquiasRet(); if (rr) add('reliquias', rr.toque, T.aria.reliquias) }
     if (f === 'luta') { add('vel', L.lutar, T.aria.vel(M.vel)); return b }
     if (f === 'vitoria') { if (M.vitoria?.pronto) M.espolios.forEach((e, i) => add('espolio' + i, L.espolio[i], T.aria.espolio(nomeEspolio(e)), { espolio: i }, { desliga: !M.espolioPode[i] })); return b }
     // tela baixa (320×568): o toque do terreno começa abaixo do botão de sortear/consertar quando os dois se encontram
@@ -76,7 +103,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       for (const r of tampa) { const fim = r.y + r.h + Math.max(0, (44 / C.css - r.h) / 2) + 1; if (x < r.x + r.w && x + w > r.x && y < fim && h - (fim - y) >= 44 / C.css) { h -= fim - y; y = fim } }
       add('terreno' + k, { x, y, w, h }, T.aria.terreno(k), { terreno: k })
     }
-    if (f === 'terreno') { add('voltar', L.lutar2, T.voltar); return b }
+    if (f === 'terreno') { add('voltar', L.voltar, T.voltar); return b }
     add('lutar', L.lutar, T.aria.lutar)
     if (!M.cartaPosta) {
       M.mao.forEach((c, i) => add('carta' + i, L.cartas[i], T.aria.carta(CONFIG.CARTAS[c.carta].nome), { carta: c.carta, indice: i }, { arrasta: true }))
@@ -115,10 +142,23 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       d.disabled = !!x.desliga; d.classList.toggle('km-arrasta', !!x.arrasta)
       if (d.parentNode !== camada) camada.appendChild(d)
     }
-    for (const [id, d] of el) if (!vistos.has(id) && d.parentNode) { if (document.activeElement === d) d.blur(); d.remove() }
+    for (const [id, d] of el) if (!vistos.has(id) && d.parentNode) { if (document.activeElement === d) { d.blur(); UI.querFoco = true } d.remove() }
     // a ordem na página segue a lista (Tab anda na ordem certa)
     b.forEach((x, i) => { const d = el.get(x.id); if (camada.children[i] !== d) camada.insertBefore(d, camada.children[i] || null) })
+    // o botão que tinha o foco saiu com a fase: o foco vai para o controle principal da fase nova (nunca fica no BODY)
+    if (UI.querFoco) { const d = el.get(principal()); if (d && d.parentNode && !d.disabled) { UI.querFoco = false; d.focus({ preventScroll: true }) } }
   }
+  /** O controle principal de cada fase (para onde o foco do teclado vai). */
+  function principal() {
+    const f = M.fase
+    if (f === 'carta') return M.cartaPosta ? 'lutar2' : 'carta0'
+    if (f === 'luta') return 'vel'
+    if (f === 'vitoria') { const i = M.espolioPode.findIndex(Boolean); return M.vitoria?.pronto && i >= 0 ? 'espolio' + i : '' }
+    if (f === 'terreno') { const ts = C.destaque?.terrenos ? [...C.destaque.terrenos].sort() : []; return ts.length ? 'terreno' + ts[0] : 'voltar' }
+    if (f === 'fim') return M.fim?.contou ? 'denovo' : 'seguir'
+    return 'seguir'
+  }
+  UI.focar = () => { UI.querFoco = true; UI.mudou() }
   addEventListener('pointerup', () => { M.apertado = null })
   UI.botao = (id) => el.get(id)
 
@@ -167,7 +207,12 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     let x = 3
     for (let i = 0; i < M.vidasMax; i++) { const some = M.vidaSome && M.vidaSome.i === i && agora < M.vidaSome.ate; Arte.icone(g, i < M.vidas || (some && ((agora >> 7) & 1)) ? 'life' : 'life-empty', x, 3); x += 12 }
     Arte.icone(g, 'gold', x + 3, 3); Arte.texto(g, String(M.ouro), x + 16, 4, { fonte: 'reino-ouro' })
-    if (L.cel || (M.fase !== 'vitoria' && M.fase !== 'chefe')) Arte.texto(g, `${T.rodada} ${M.rodada}`, L.cel ? 3 : Math.floor(HW / 2), L.cel ? 17 : 4, { fonte: 'reino-contorno', alinhar: L.cel ? 'esquerda' : 'centro' })
+    if (L.cel || (M.fase !== 'vitoria' && M.fase !== 'chefe')) {
+      const s = `${T.rodada} ${M.rodada}`, w = Arte.largura(s, 'reino-contorno'), rx = L.cel ? 3 : Math.floor(HW / 2) - (w >> 1), ry = L.cel ? 17 : 4
+      Arte.texto(g, s, rx, ry, { fonte: 'reino-contorno' })
+      // estrada de um amigo: a meta a bater fica à vista ao lado da rodada
+      if (M.desafio && M.desafio.rodadas != null) { Arte.texto(g, T.bater(M.desafio.rodadas), rx + w + 5, ry + 1, { fonte: Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno' }); viu('desafio') }
+    }
     // pinos até o chefe (ciclo de 5 rodadas) + a cara dele, que pisca quando está avisado
     if (M.proximoChefe) {
       const px = 3, py = L.cel ? 29 : 17, n = ((M.rodada - 1) % CONFIG.HORDA.chefeACada) + 1
@@ -182,7 +227,19 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
         fx += 9 + Arte.texto(g, `${f.n}/${f.precisa}`, fx + 9, fy - 1, { fonte: 'mini-contorno' }) + 4
         if (f.ligada) { Arte.icone(g, 'pin-on', fx - 3, fy); fx += 5 }
       }
-      if (!L.cel) for (const r of M.reliquias) { if (fx + 14 > HW / 2 - 30) break; Arte.reliquia(g, r, fx, fy - 4); fx += 14 }
+    }
+    { // relíquias que o jogador tem: ícones pequenos (a acesa é a que a faixa de informação está explicando)
+      const rr = reliquiasRet()
+      if (rr) {
+        const x0 = rr.x / bs, y0 = rr.y / bs, n = rr.cabem ?? M.reliquias.length, nova = M.relNova && agora - M.relNova < 1600
+        if (L.cel) { g.fillStyle = COR.ameixa; g.globalAlpha = 0.55; g.fillRect(x0 - 2, y0 - 1, n * 14 + 2, 15); g.globalAlpha = 1 }
+        for (let i = 0; i < n; i++) {
+          const acesa = M.relSel === i
+          if (acesa && (C.menos || !nova || ((agora >> 7) & 1))) { g.fillStyle = COR.ouro; g.fillRect(x0 + i * 14 - 1, y0 - 1, 15, 15); g.fillStyle = COR.ameixa; g.fillRect(x0 + i * 14, y0, 13, 13) }
+          Arte.reliquia(g, M.reliquias[i], x0 + i * 14, y0)
+        }
+        viu('reliquiasHud')
+      }
     }
     // abertura: o logo do jogo no céu até a 1ª carta ser posta
     if (M.primeira && M.fase === 'carta') { if (L.cel) Arte.logo(g, 'small', HW - 37, 32, C.menos ? -1 : agora); else Arte.logo(g, 'small', Math.floor(HW / 2), 16, C.menos ? -1 : agora); viu('logo') }
@@ -204,27 +261,40 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       if (M.pulsaLutar && C.menos) { moldura(L.lutar.x - 1, L.lutar.y - 1, L.lutar.w + 2, 26 * bs + 2); viu('lutarFixo') } // Reduced motion: destaque parado
     }
   }
-  function ouroBt(r, id, icone, st, agora) {
+  function ouroBt(r, id, icone, st, agora, nome) {
     const bs = UI.L.bs, armado = M.armado === id
     g.save(); g.scale(bs, bs)
     const q = { x: r.x / bs, y: r.y / bs, w: r.w / bs, h: 26 }
     const d = bt(armado ? 'green' : 'plum', q, id, !st.pode)
-    if (armado) Arte.texto(g, T.confirma, q.x + (q.w >> 1), q.y + 6 + d, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' }); else Arte.icone(g, icone, q.x + 3, q.y + 5 + d)
-    if (armado) Arte.texto(g, String(st.custo), q.x + (q.w >> 1), q.y + 12 + d, { fonte: 'mini', cor: COR.ouro, alinhar: 'centro' }); else { Arte.texto(g, String(st.custo), q.x + 16, q.y + 7 + d, { fonte: 'reino', cor: st.pode ? COR.ouro : COR.pedra[1] }) }
+    if (armado) { Arte.texto(g, T.confirma, q.x + (q.w >> 1), q.y + 6 + d, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' }); Arte.texto(g, String(st.custo), q.x + (q.w >> 1), q.y + 12 + d, { fonte: 'mini', cor: COR.ouro, alinhar: 'centro' }) } else {
+      // o nome do botão em cima ("REROLL"), o ícone e o preço embaixo
+      Arte.texto(g, nome, q.x + (q.w >> 1), q.y + 3 + d, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' }); viu('nome:' + id)
+      const wc = Arte.largura(String(st.custo), 'reino'), x0 = q.x + ((q.w - 13 - wc) >> 1)
+      Arte.icone(g, icone, x0, q.y + 9 + d); Arte.texto(g, String(st.custo), x0 + 13, q.y + 11 + d, { fonte: 'reino', cor: st.pode ? COR.ouro : COR.pedra[1] })
+    }
     g.globalAlpha = 1
-    if (st.destaque && !armado && (C.menos || ((agora >> 8) & 1))) { moldura(q.x - 1, q.y - 1, q.w + 2, 28); viu('consertoDestaque') }
+    if (st.destaque && !armado) {
+      // ouro parado e vida perdida: o conserto chama a atenção (mais forte na última vida: pisca mais depressa e ganha a seta)
+      if (C.menos || ((agora >> (st.forte ? 7 : 8)) & 1)) moldura(q.x - 1, q.y - 1, q.w + 2, 28)
+      if (st.forte) { const b = C.menos ? 0 : Math.round(Math.abs(Math.sin(agora / 200)) * 3); g.save(); g.translate(q.x + (q.w >> 1), q.y + 34 + b); Arte.icone(g, 'up', -5, -5); g.restore() }
+      viu('consertoDestaque'); if (st.forte) viu('consertoForte')
+    }
     g.restore()
   }
-  /** As chances de raridade do sorteio, numa linha junto do botão de sortear (números do config). */
+  /** As chances de raridade do sorteio junto do botão de sortear: quadradinho da cor + NOME + % (números do config). */
   function chances() {
-    const o = UI.L.odds; let x = o.x
-    const cabe = UI.L.cel || o.x + Arte.largura(T.chances, 'mini-contorno') + 3 + M.chances.length * 23 < UI.L.cartas[0].x - 2
-    if (cabe) x += Arte.texto(g, T.chances, x, o.y, { fonte: 'mini-contorno' }) + 3; else x = 2
-    for (const c of M.chances) {
-      g.fillStyle = COR.ameixa; g.fillRect(x, o.y, 7, 7); g.fillStyle = c.cor; g.fillRect(x + 1, o.y + 1, 5, 5); g.fillStyle = c.claro; g.fillRect(x + 1, o.y + 1, 5, 1)
-      x += 8 + Arte.texto(g, c.chance + '%', x + 8, o.y, { fonte: 'mini-contorno' }) + 3
-    }
-    if (M.chances.length) viu('chances')
+    const o = UI.L.odds; if (!M.chances.length || !o.linhas) return
+    if (UI.L.cel) { g.fillStyle = COR.ameixa; g.globalAlpha = 0.5; g.fillRect(0, o.y - 1, C.VW, o.h + 1); g.globalAlpha = 1 }
+    o.linhas.forEach((lin, i) => {
+      const y = o.y + i * o.alt
+      for (const it of lin) {
+        let x = o.x + it.x
+        if (it.c) { g.fillStyle = COR.ameixa; g.fillRect(x, y, 7, 7); g.fillStyle = it.c.cor; g.fillRect(x + 1, y + 1, 5, 5); g.fillStyle = it.c.claro; g.fillRect(x + 1, y + 1, 5, 1); x += 9 }
+        Arte.texto(g, it.s, x, y, { fonte: o.fonte })
+      }
+    })
+    UI.letra.chances = (UI.L.letraGrande ? 7 : 5) * C.css
+    viu('chances'); viu('chancesNomes')
   }
 
   // ---------------------------------------------------------------- mão, mesa, faixa de informação
@@ -244,10 +314,30 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     for (const s of linhas) { const ouro = s[0] === '#'; for (const q of quebrar(ouro ? s.slice(1) : s, larg)) out.push((ouro ? '#' : '') + q) }
     return out.slice(0, max)
   }
+  /** A linha "WIN: A / B / C" inteira; se não couber, com a última palavra de cada nome; se ainda não couber, "WIN: PICK 1 OF 3" (nunca cortada). */
+  function linhaGanhe(larg) {
+    const cheio = `${T.ganhe} ${M.espolios.map(nomeEspolio).join(' / ')}`
+    if (Arte.largura(cheio, 'mini') <= larg) return cheio
+    const curto = `${T.ganhe} ${M.espolios.map((e) => (e.tipo === 'carta' || e.reliquia ? nomeEspolio(e).split(' ').at(-1) : nomeEspolio(e))).join(' / ')}`
+    return Arte.largura(curto, 'mini') <= larg ? curto : T.ganheN(M.espolios.length)
+  }
   function premios(grande) {
     const L = UI.L, p = L.premios
     if (!M.espolios.length) return
-    if (!grande) { faixa(['#' + quebrar(`${T.ganhe} ${M.espolios.map(nomeEspolio).join(' / ')}`, C.VW - 6)[0]]); viu('ganhe'); return }
+    if (!grande) { faixa(['#' + linhaGanhe(C.VW - 6)]); viu('ganhe'); return }
+    if (L.cel) {
+      // celular: a base inteira — "WIN:" e os 3 espólios em ladrilhos grandes (os mesmos da escolha), com o nome embaixo
+      Arte.painel(g, p.x, p.y, p.w, p.h)
+      Arte.texto(g, T.ganhe, p.x + 5, p.y + 5, { fonte: 'mini', cor: COR.ouro })
+      const x1 = p.x + 22, passo = Math.floor((p.w - 26) / 3)
+      M.espolios.forEach((e, i) => {
+        const cx = x1 + i * passo + (passo >> 1), nome = e.tipo === 'promocao' ? 'Promotion' : e.tipo === 'carta' ? 'Card' : 'Purse'
+        if (e.reliquia) { g.fillStyle = COR.ameixa; g.fillRect(cx - 16, p.y + 4, 32, 32); g.fillStyle = '#4E3A66'; g.fillRect(cx - 15, p.y + 5, 30, 30); moldura(cx - 16, p.y + 4, 32, 32); Arte.reliquia(g, e.reliquia, cx - 13, p.y + 7, 2) } else if (!Arte.ui(g, 'loot.' + nome, cx - 22, p.y - 2)) Arte.icone(g, e.tipo === 'carta' ? 'troop' : e.tipo === 'promocao' ? 'up' : 'gold', cx - 5, p.y + 14)
+        const lin = quebrar(e.tipo === 'promocao' ? T.maisNivel : e.tipo === 'bolsa' && !e.reliquia ? `+${e.ouro} ${T.ouro}` : nomeEspolio(e), passo - 2)
+        lin.slice(0, 2).forEach((q, j) => Arte.texto(g, q, cx, p.y + (lin.length > 1 ? 40 : 43) + j * 6, { fonte: 'mini', cor: e.reliquia || e.tipo === 'bolsa' ? COR.ouro : COR.creme, alinhar: 'centro' }))
+      })
+      viu('ganhe'); return
+    }
     Arte.painel(g, p.x, p.y, p.w, p.h)
     Arte.texto(g, T.ganhe, p.x + 6, p.y + 5, { fonte: 'mini', cor: COR.ouro })
     M.espolios.forEach((e, i) => {
@@ -272,6 +362,17 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       if (c.sobe) { const q = C.menos ? 0 : (agora / 120) | 0; if (!Arte.ui(g, 'level-up', r.x + 5, y - 9, q)) Arte.texto(g, T.sobe, r.x + 28, y - 8, { fonte: 'reino-ouro', alinhar: 'centro' }) }
     })
   }
+  function setaCarta(agora) {
+    const L = UI.L
+    // primeira partida: uma seta "TAP A CARD" em cima da mão (some depois do 1º toque numa carta)
+    if (M.setaCarta && M.sel < 0 && !M.cartaPosta && agora - M.maoT0 > 500) {
+      const r = L.cartas[1], cx = r.x + 28, b = C.menos ? 0 : Math.round(Math.abs(Math.sin(agora / 260)) * 4), y = r.y - (L.cel ? 34 : 30) - b, w = Arte.largura(T.toqueCarta, 'reino-ouro') + 10
+      g.fillStyle = COR.ameixa; g.globalAlpha = 0.85; g.fillRect(cx - (w >> 1), y - 2, w, 13); g.globalAlpha = 1; g.fillStyle = COR.ouro; g.fillRect(cx - (w >> 1), y - 2, w, 1); g.fillRect(cx - (w >> 1), y + 10, w, 1)
+      Arte.texto(g, T.toqueCarta, cx, y, { fonte: 'reino-ouro', alinhar: 'centro' })
+      g.save(); g.translate(cx, y + 19); g.scale(1, -1); Arte.icone(g, 'up', -5, -5); g.restore()
+      viu('setaCarta')
+    }
+  }
   /** RESUMO DA LUTA (ao vivo e no fim): contagem dos dois lados, dano por terreno em colunas e o MVP. Só mostra o que os eventos do motor disseram. */
   function resumo(r, comGanhe) {
     const R = M.resumo; if (!R) return
@@ -281,18 +382,43 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     Arte.icone(g, 'shield', x0, y0 - 1); Arte.texto(g, `${R.aliados}/${R.aliadosTotal}`, x0 + 13, y0, { fonte: 'reino-contorno' })
     Arte.icone(g, 'horn', xr - 11, y0 - 1); Arte.texto(g, `${R.inimigos}/${R.inimigosTotal}`, xr - 13, y0, { fonte: 'reino-contorno', alinhar: 'direita' })
     Arte.texto(g, T.resumo.dano, r.x + (r.w >> 1), y0 + 2, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' })
-    const passo = Math.min(cel ? 24 : 30, Math.floor((r.w - 10) / 7)), bx = cel ? r.x + ((r.w - passo * 7) >> 1) : x0, by = y0 + 18, max = Math.max(1, ...R.dano)
-    for (let n = 0; n < 7; n++) {
-      const k = n < 6 ? n + 1 : 0, id = R.cartas[k], v = R.dano[k], cx = bx + n * passo + (passo >> 1), mvp = R.mvp === k && v > 0
-      const h = v > 0 ? Math.max(2, Math.round((H * v) / max)) : 0, cor = mvp ? COR.ouro : k === 0 ? '#CECAD8' : id ? Arte.FAMILIA_COR[CONFIG.CARTAS[id].familia].cor : '#4E3A66'
-      g.fillStyle = COR.ameixa; g.fillRect(cx - 7, by + H, 14, 1)
-      if (h) { g.fillStyle = COR.ameixa; g.fillRect(cx - 7, by + H - h - 1, 14, h + 1); g.fillStyle = cor; g.fillRect(cx - 6, by + H - h, 12, h); g.fillStyle = '#FFF6E0'; g.globalAlpha = 0.35; g.fillRect(cx - 6, by + H - h, 12, 1); g.globalAlpha = 1 }
-      if (v > 0) Arte.texto(g, String(v), cx, by + H - h - 7, { fonte: mvp && Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno', alinhar: 'centro' })
-      Arte.texto(g, mvp ? T.resumo.mvp : k === 0 ? 'MAG' : String(k), cx, by + H + 3, { fonte: 'mini', cor: mvp ? COR.ouro : id || (k === 0 && v > 0) ? COR.creme : COR.pedra[2], alinhar: 'centro' })
+    // celular: só os terrenos OCUPADOS (e a magia, se bateu), um por LINHA, com o nome da carta, a barra e o número — a linha cresce
+    // quando há poucos; nada de coluna vazia. PC: as 7 colunas.
+    const cols = []
+    for (let n = 0; n < 7; n++) { const k = n < 6 ? n + 1 : 0; if (!cel || (k ? R.cartas[k] : R.dano[0] > 0)) cols.push(k) }
+    if (!cols.length) cols.push(1)
+    UI.resumoCols = cols.length
+    const max = Math.max(1, ...R.dano)
+    if (cel) {
+      const area = r.h - 28 - (comGanhe ? 0 : -8), alt = Math.max(8, Math.min(14, Math.floor(area / cols.length))), fonte = alt >= 11 ? 'reino' : 'mini', fh = alt >= 11 ? 7 : 5
+      const wn = Math.min(84, Math.max(...cols.map((k) => Arte.largura(k === 0 ? T.resumo.magia : R.cartas[k] ? CONFIG.CARTAS[R.cartas[k]].nome : '', fonte)))), bx = r.x + 16 + wn + 4, bw = r.x + r.w - 34 - bx
+      let y = y0 + 14 + Math.max(0, (area - alt * cols.length) >> 1)
+      for (const k of cols) {
+        const id = R.cartas[k], v = R.dano[k], mvp = R.mvp === k && v > 0, cor = mvp ? COR.ouro : k === 0 ? '#CECAD8' : id ? Arte.FAMILIA_COR[CONFIG.CARTAS[id].familia].cor : '#4E3A66', bh = alt - 4
+        const nome = k === 0 ? T.resumo.magia : id ? CONFIG.CARTAS[id].nome : ''
+        Arte.texto(g, k === 0 ? '*' : String(k), r.x + 8, y + ((bh - fh) >> 1), { fonte, cor: COR.pedra[2], alinhar: 'centro' })
+        Arte.texto(g, quebrar(nome, wn + 1, fonte)[0] || '', r.x + 16, y + ((bh - fh) >> 1), { fonte, cor: mvp ? COR.ouro : COR.creme })
+        g.fillStyle = COR.ameixa; g.fillRect(bx - 1, y - 1, bw + 2, bh + 2); g.fillStyle = '#4E3A66'; g.fillRect(bx, y, bw, bh)
+        const w = v > 0 ? Math.max(2, Math.round((bw * v) / max)) : 0
+        if (w) { g.fillStyle = cor; g.fillRect(bx, y, w, bh); g.fillStyle = '#FFF6E0'; g.globalAlpha = 0.35; g.fillRect(bx, y, w, 1); g.globalAlpha = 1 }
+        Arte.texto(g, String(v), r.x + r.w - 5, y + ((bh - 7) >> 1), { fonte: mvp ? 'reino-ouro' : 'reino-contorno', alinhar: 'direita' })
+        if (mvp && bw >= 30) Arte.texto(g, T.resumo.mvp, bx + 3, y + ((bh - 5) >> 1), { fonte: 'mini', cor: COR.ameixa })
+        y += alt
+      }
+    } else {
+      const passo = Math.min(30, Math.floor((r.w - 10) / 7)), bx = x0, by = y0 + 18
+      cols.forEach((k, n) => {
+        const id = R.cartas[k], v = R.dano[k], cx = bx + n * passo + (passo >> 1), mvp = R.mvp === k && v > 0
+        const h = v > 0 ? Math.max(2, Math.round((H * v) / max)) : 0, cor = mvp ? COR.ouro : k === 0 ? '#CECAD8' : id ? Arte.FAMILIA_COR[CONFIG.CARTAS[id].familia].cor : '#4E3A66'
+        g.fillStyle = COR.ameixa; g.fillRect(cx - 7, by + H, 14, 1)
+        if (h) { g.fillStyle = COR.ameixa; g.fillRect(cx - 7, by + H - h - 1, 14, h + 1); g.fillStyle = cor; g.fillRect(cx - 6, by + H - h, 12, h); g.fillStyle = '#FFF6E0'; g.globalAlpha = 0.35; g.fillRect(cx - 6, by + H - h, 12, 1); g.globalAlpha = 1 }
+        if (v > 0) Arte.texto(g, String(v), cx, by + H - h - 7, { fonte: mvp && Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno', alinhar: 'centro' })
+        Arte.texto(g, mvp ? T.resumo.mvp : k === 0 ? 'MAG' : String(k), cx, by + H + 3, { fonte: 'mini', cor: mvp ? COR.ouro : id || (k === 0 && v > 0) ? COR.creme : COR.pedra[2], alinhar: 'centro' })
+      })
+      const nomeMvp = R.mvp > 0 ? CONFIG.CARTAS[R.cartas[R.mvp]]?.nome : R.mvp === 0 ? T.resumo.magia : null
+      if (nomeMvp) { const s = `${T.resumo.mvp}: ${nomeMvp} ${R.dano[R.mvp]}`; quebrar(s, r.w - passo * 7 - 14).slice(0, 3).forEach((q, i) => Arte.texto(g, q, bx + passo * 7 + 4, by + 4 + i * 7, { fonte: 'mini', cor: COR.ouro })) }
     }
-    const nomeMvp = R.mvp > 0 ? CONFIG.CARTAS[R.cartas[R.mvp]]?.nome : R.mvp === 0 ? T.resumo.magia : null
-    if (nomeMvp) { const s = `${T.resumo.mvp}: ${nomeMvp} ${R.dano[R.mvp]}`; if (cel) Arte.texto(g, s, r.x + (r.w >> 1), by + H + 11, { fonte: 'mini', cor: COR.ouro, alinhar: 'centro' }); else quebrar(s, r.w - passo * 7 - 14).slice(0, 3).forEach((q, i) => Arte.texto(g, q, bx + passo * 7 + 4, by + 4 + i * 7, { fonte: 'mini', cor: COR.ouro })) }
-    if (cel && comGanhe && M.espolios.length) Arte.texto(g, quebrar(`${T.ganhe} ${M.espolios.map(nomeEspolio).join(' / ')}`, r.w - 6)[0], r.x + (r.w >> 1), r.y + r.h - 9, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' })
+    if (cel && comGanhe && M.espolios.length) Arte.texto(g, linhaGanhe(r.w - 6), r.x + (r.w >> 1), r.y + r.h - 9, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' })
     viu('resumo')
   }
 
@@ -303,17 +429,28 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const L = UI.L
     if (!M.espolioDesc.length) return
     if (L.cel) {
-      let y = L.mesa.y + 4
-      Arte.texto(g, T.pegue, C.VW >> 1, y, { fonte: 'reino-contorno', alinhar: 'centro' }); y += 12
-      for (const d of M.espolioDesc) {
-        const junto = `${d.titulo}: ${d.texto}`, lin = Arte.largura(junto, 'mini') <= C.VW - 8 ? [junto] : [d.titulo, ...quebrar(d.texto, C.VW - 8).slice(0, 2)]
-        lin.forEach((s, i) => {
-          if (i === 0) { const t = lin.length === 1 ? d.titulo + ':' : d.titulo, w = Arte.largura(lin[0], 'mini'), x = (C.VW - w) >> 1; Arte.texto(g, t, x, y, { fonte: 'mini', cor: COR.ouro }); if (lin.length === 1) Arte.texto(g, d.texto, x + Arte.largura(t + ' ', 'mini') + 1, y, { fonte: 'mini', cor: COR.creme }) } else Arte.texto(g, s, C.VW >> 1, y, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' })
-          y += 6
+      const larg = C.VW - 8, opcoes = L.letraGrande ? [['reino', 9, 7]] : [['reino', 9, 7], ['mini', 6, 5]], tetoY = L.espolio[0].y + 94
+      let esc = null
+      for (const [fonte, alt, cap] of opcoes) {
+        const blocos = M.espolioDesc.map((d) => ({ d, lin: quebrar(`${d.titulo}: ${d.texto}`, larg, fonte) })), h = 13 + blocos.reduce((a, b) => a + b.lin.length * alt + 3, 0)
+        esc = { fonte, alt, cap, blocos, h }
+        if (h <= L.mesa.h - 2) break
+      }
+      // não coube na mesa nem com a última letra: a placa cresce para cima (nunca corta o texto)
+      const topo = Math.max(tetoY, Math.min(L.mesa.y, C.VH - esc.h - 2))
+      if (topo < L.mesa.y) { g.fillStyle = COR.ameixa; g.fillRect(0, topo - 1, C.VW, 1); g.fillStyle = COR.painel; g.fillRect(0, topo, C.VW, L.mesa.y - topo + 1); g.fillStyle = COR.filete; g.fillRect(0, topo, C.VW, 1) }
+      let y = topo + Math.max(3, (C.VH - topo - esc.h) >> 1)
+      Arte.texto(g, T.pegue, C.VW >> 1, y, { fonte: 'reino-contorno', alinhar: 'centro' }); y += 13
+      for (const { d, lin } of esc.blocos) {
+        lin.forEach((q, i) => {
+          const x = (C.VW - Arte.largura(q, esc.fonte)) >> 1, t = d.titulo + ':'
+          if (i === 0 && q.toUpperCase().startsWith(t.toUpperCase())) { const wt = Arte.texto(g, t, x, y, { fonte: esc.fonte, cor: COR.ouro }); Arte.texto(g, q.slice(t.length), x + wt, y, { fonte: esc.fonte, cor: COR.creme }) } else Arte.texto(g, q, x, y, { fonte: esc.fonte, cor: i === 0 ? COR.ouro : COR.creme })
+          y += esc.alt
         })
         y += 3
       }
-    } else M.espolioDesc.forEach((d, i) => { const r = L.espolio[i]; quebrar(d.texto, L.passo - 6).slice(0, 3).forEach((s, j) => Arte.texto(g, s, r.x + 28, r.y + 82 + j * 7, { fonte: 'mini-contorno', alinhar: 'centro' })) })
+      UI.letra.espolio = esc.cap * C.css; UI.letra.espolioFim = y; UI.letra.espolioTopo = topo
+    } else { M.espolioDesc.forEach((d, i) => { const r = L.espolio[i]; quebrar(d.texto, L.passo - 6).slice(0, 3).forEach((s, j) => Arte.texto(g, s, r.x + 28, r.y + 82 + j * 7, { fonte: 'mini-contorno', alinhar: 'centro' })) }); UI.letra.espolio = 5 * C.css }
     viu('espolioDesc')
   }
   function vitoria(agora) {
@@ -373,88 +510,132 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     Arte.desenhar(g, p, (p.variantes?.[0] || p.quadros)[Arte.quadroDe(p.anim.idle, C.menos ? 0 : dt)], cx - entra, cy + 22, p.olhaEsquerda, null, k)
     if (!Arte.ui(g, 'label-boss', cx - 11, cy - 62 - (p.h * k - p.h))) Arte.texto(g, T.chefe, cx, cy - 62, { fonte: 'reino-ouro', alinhar: 'centro' })
     nome.forEach((s, i) => Arte.titulo(g, s, cx, cy + 32 + i * 20, 2, true))
-    quebrar(def.texto, C.VW - 16).forEach((s, i) => Arte.texto(g, s, cx, cy + 36 + nome.length * 20 + i * 8, { fonte: 'mini-contorno', alinhar: 'centro' }))
+    quebrar(c.texto || def.texto, C.VW - 16).forEach((s, i) => Arte.texto(g, s, cx, cy + 36 + nome.length * 20 + i * 8, { fonte: 'mini-contorno', alinhar: 'centro' }))
     viu('chefe')
   }
-  /** FIM DA PARTIDA: tela cheia composta. Em cima o número grande contando sobre o reino iluminado; embaixo a placa com pontos,
-   *  recorde (de PONTOS), média das 3 melhores, liga provisória, barra da próxima carta do álbum e os dois botões. */
+  /** Escurece a borda em degraus (pixel, nunca degradê liso). `a` 0..1. */
+  function bordaEscura(a) {
+    if (a <= 0) return
+    g.fillStyle = '#1C1230'; g.globalAlpha = 0.14 * a; g.fillRect(0, 0, C.VW, C.VH)
+    g.globalAlpha = 0.13 * a
+    for (let i = 0; i < 4; i++) { const t = (4 - i) * 9, l = (4 - i) * 5; g.fillRect(0, 0, C.VW, t); g.fillRect(0, C.VH - t, C.VW, t); g.fillRect(0, t, l, C.VH - 2 * t); g.fillRect(C.VW - l, t, l, C.VH - 2 * t) }
+    g.globalAlpha = 1
+  }
+  /** FIM DA PARTIDA como festa em sequência (os tempos vêm do app): a borda escurece, o número de rodadas GRANDE no centro conta de 0
+   *  ao total, a faixa NEW RECORD cruza a tela e pousa junto do SCORE (o recorde é de PONTOS) — sem recorde, o melhor momento da
+   *  partida e quanto faltou —, a placa sobe (pontos, liga provisória, próxima carta) e por fim os botões. Parado: tudo no lugar. */
   function fim(agora) {
-    const f = M.fim, L = UI.L, dt = agora - f.t0, P = L.fimPainel, b0 = L.fimBotoes[0], b1 = L.fimBotoes[1], ouro = f.novoRecorde && f.contou
-    const faixaRecorde = (cx, y) => {
-      if (!f.contou) return
-      if (f.novoRecorde) { if (!Arte.fimPeca(g, 'faixa_recorde', cx - 46, y, C.menos ? 0 : agora)) { g.fillStyle = COR.carmim; g.fillRect(cx - 46, y + 2, 93, 14); Arte.texto(g, T.recorde, cx, y + 5, { fonte: 'reino-ouro', alinhar: 'centro' }) } viu('fimRecorde') }
+    const f = M.fim, L = UI.L, cel = L.cel, P = L.fimPainel, b0 = L.fimBotoes[0], b1 = L.fimBotoes[1], cx = C.VW >> 1
+    const fixo = f.parado || f.contou || C.menos, dt = fixo ? 1e9 : agora - f.t0, ouro = f.novoRecorde && f.contado
+    bordaEscura(Math.min(1, dt / 450))
+    // o número grande no centro
+    const yT = cel ? Math.ceil((L.menu.y + 26 * L.bs)) + 4 : 6, k = P.y - yT >= 150 ? 4 : 3, grande = Arte.temFonte('dano-g')
+    const hN = (grande ? 16 : 9) * k, pulo = !fixo && f.pulo && agora - f.pulo < 70 ? 2 : 0, yH = yT + 24 + hN + 4
+    Arte.titulo(g, T.fim, cx, yT, 2)
+    Arte.titulo(g, String(f.mostra), cx, yT + 24 - pulo, k, grande ? (ouro ? 'dano-g-ouro' : 'dano-g') : ouro)
+    Arte.texto(g, T.aguentou, cx, yH, { fonte: 'reino-contorno', alinhar: 'centro' })
+    f.numeroRet = { x: cx - 30, y: yT, w: 60, h: yH + 9 - yT, k }
+    viu('fimNumero')
+    let y = yH + 13
+    const yFaixa = y
+    if (f.novoRecorde) y += 22
+    // o fecho: melhor momento da partida, quanto faltou, e quem levou na estrada do amigo
+    if (f.contado && dt >= f.tFaixa + (f.novoRecorde ? 500 : 0)) {
+      const larg = C.VW - 12, lin = [], cabe = (t, a, b) => (Arte.largura(t, a) <= larg ? a : b)
+      if (f.amigo) for (const q of quebrar(f.amigo.texto, larg, 'mini')) lin.push([q, cabe(q, 'reino-ouro', 'mini-ouro')])
+      if (f.melhor) { const junto = `${T.melhorMomento}: ${f.melhor}`; if (Arte.largura(junto, 'mini-contorno') <= larg && !cel) lin.push([junto, 'mini-ouro']); else { lin.push([T.melhorMomento, 'mini-ouro']); for (const q of quebrar(f.melhor, larg, 'mini-contorno')) lin.push([q, 'mini-contorno']) } }
+      if (f.faltaLinha) lin.push([f.faltaLinha, cabe(f.faltaLinha, 'reino-contorno', 'mini-contorno')])
+      const alt = (fo) => (fo.startsWith('reino') ? 11 : 8)
+      while (lin.length && y + lin.reduce((a, l) => a + alt(l[1]), 0) > P.y - 2) lin.pop()
+      if (lin.length) {
+        const w = Math.max(...lin.map((l) => Arte.largura(l[0], l[1]))) + 10, h = lin.reduce((a, l) => a + alt(l[1]), 0) + 3
+        g.fillStyle = COR.ameixa; g.globalAlpha = 0.78; g.fillRect(cx - (w >> 1), y - 2, w, h); g.globalAlpha = 1
+        let yy = y
+        for (const [t, fo] of lin) { Arte.texto(g, t, cx, yy, { fonte: Arte.temFonte(fo) || fo !== 'mini-ouro' ? fo : 'mini-contorno', alinhar: 'centro' }); yy += alt(fo) }
+        viu('fimFecho')
+      }
     }
-    const numeros = (x, y, w) => {
-      const cols = [[T.pontos, f.pontos, true], [T.melhor, f.recorde, f.novoRecorde], [T.media, f.media, false]]
-      cols.forEach(([rot, v, o], i) => { const cx = x + Math.round((w * (i * 2 + 1)) / 6); Arte.texto(g, String(v), cx, y, { fonte: o ? 'reino-ouro' : 'reino-contorno', alinhar: 'centro' }); Arte.texto(g, rot, cx, y + 11, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' }) })
-      const d = f.pontos - f.recordeAntes, s = f.recordeAntes === 0 ? T.primeira : d > 0 ? T.recordeMais(d) : d === 0 ? T.recordeIgual : T.recordeFalta(-d)
-      Arte.texto(g, quebrar(s, w - 4)[0], x + (w >> 1), y + 20, { fonte: 'mini', cor: d > 0 ? COR.ouro : COR.creme, alinhar: 'centro' })
+    const numeros = (x, y0, w) => {
+      if (f.novoRecorde) {
+        // recorde: o SCORE grande em ouro com a faixa NEW RECORD ao lado dele
+        const ws = Arte.largura(String(f.pontos), 'reino-ouro') * 2
+        Arte.titulo(g, String(f.pontos), x + 4 + ws / 2, y0, 2, true)
+        Arte.texto(g, T.pontos, x + 4, y0 + 20, { fonte: 'mini', cor: COR.creme })
+        f.faixaAlvo = { x: Math.min(x + 4 + ws + 6, x + w - 94), y: y0 + P.y }
+        const d = f.pontos - f.recordeAntes, s = f.recordeAntes === 0 ? T.primeira : T.recordeMais(d)
+        Arte.texto(g, quebrar(s, w - 6)[0], x + 4, y0 + 28, { fonte: 'mini', cor: COR.ouro })
+        Arte.texto(g, T.mediaLinha(f.media), x + 4, y0 + 35, { fonte: 'mini', cor: COR.creme })
+      } else {
+        const cols = [[T.pontos, f.pontos, true], [T.melhor, f.recorde, false], [T.media, f.media, false]]
+        cols.forEach(([rot, v, o], i) => { const c = x + Math.round((w * (i * 2 + 1)) / 6); Arte.texto(g, String(v), c, y0, { fonte: o ? 'reino-ouro' : 'reino-contorno', alinhar: 'centro' }); Arte.texto(g, rot, c, y0 + 11, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' }) })
+        const d = f.pontos - f.recordeAntes, s = d === 0 ? T.recordeIgual : T.recordeFalta(-d)
+        Arte.texto(g, quebrar(s, w - 4)[0], x + (w >> 1), y0 + 21, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' })
+      }
       viu('fimNumeros')
     }
-    const liga = (x, y, w) => {
-      if (!Arte.liga(g, f.liga.nome, x, y)) { g.fillStyle = COR.ameixa; g.fillRect(x + 3, y + 3, 21, 24); Arte.icone(g, 'shield', x + 8, y + 9) }
-      Arte.texto(g, f.liga.nome, x + 31, y + 1, { fonte: 'reino-contorno' })
+    const liga = (x, y0, w) => {
+      if (!Arte.liga(g, f.liga.nome, x, y0)) { g.fillStyle = COR.ameixa; g.fillRect(x + 3, y0 + 3, 21, 24); Arte.icone(g, 'shield', x + 8, y0 + 9) }
+      Arte.texto(g, f.liga.nome, x + 31, y0 + 1, { fonte: 'reino-contorno' })
       { const sobra = w - 33 - Arte.largura(f.liga.nome, 'reino-contorno'), marca = Arte.largura(T.provisorio, 'mini') <= sobra ? T.provisorio : T.beta // a liga do beta é PROVISÓRIA: está escrito ao lado do nome
-        Arte.texto(g, marca, x + w, y + 3, { fonte: 'mini', cor: COR.ouro, alinhar: 'direita' }); f.ligaMarca = marca }
-      barra(x + 32, y + 13, w - 34, 4, f.liga.pct, COR.ouro)
-      Arte.texto(g, f.liga.proxima ? T.ligaProxima(f.liga.proxima, f.liga.falta) : T.ligaTopo, x + 31, y + 21, { fonte: 'mini', cor: COR.creme })
+        Arte.texto(g, marca, x + w, y0 + 3, { fonte: 'mini', cor: COR.ouro, alinhar: 'direita' }); f.ligaMarca = marca }
+      barra(x + 32, y0 + 13, w - 34, 4, f.liga.pct, COR.ouro)
+      Arte.texto(g, f.liga.proxima ? T.ligaProxima(f.liga.proxima, f.liga.falta) : T.ligaTopo, x + 31, y0 + 21, { fonte: 'mini', cor: COR.creme })
       viu('fimLiga')
     }
-    const album = (x, y, w) => {
-      Arte.icone(g, 'loot', x, y - 2)
-      Arte.texto(g, f.album ? T.proximaCarta(f.album.falta) : T.todasCartas, x + 14, y - 1, { fonte: 'mini', cor: COR.creme })
-      barra(x + 14, y + 6, w - 16, 3, f.album ? f.album.pct : 100, '#7CC950')
+    const album = (x, y0, w) => {
+      Arte.icone(g, 'loot', x, y0 - 2)
+      Arte.texto(g, f.album ? T.proximaCarta(f.album.falta) : T.todasCartas, x + 14, y0 - 1, { fonte: 'mini', cor: COR.creme })
+      barra(x + 14, y0 + 6, w - 16, 3, f.album ? f.album.pct : 100, '#7CC950')
       viu('fimAlbum')
     }
-    const botoes = () => {
-      if (dt < 0) return
+    // a placa sobe: pontos, liga e próxima carta
+    if (dt >= f.tSobe) {
+      const sobe = fixo ? 0 : Math.round(Math.max(0, 1 - (dt - f.tSobe) / 260) * P.h)
+      g.save(); g.translate(0, P.y + sobe)
+      if (cel) {
+        g.fillStyle = COR.ameixa; g.fillRect(0, -1, P.w, 1); g.fillStyle = COR.painel; g.fillRect(0, 0, P.w, P.h); g.fillStyle = COR.filete; g.fillRect(0, 0, P.w, 1)
+        numeros(0, 5, P.w); liga(4, 47, P.w - 8); album(36, 79, P.w - 40)
+      } else {
+        Arte.painel(g, P.x, 0, P.w, P.h)
+        numeros(P.x + 8, 7, 196); liga(P.x + 214, 8, P.w - 222); album(P.x + 214, 47, P.w - 222)
+      }
+      g.restore()
+    }
+    // a faixa NEW RECORD: cruza a tela com o confete e depois pousa ao lado do SCORE
+    if (f.novoRecorde && f.contado && dt >= f.tFaixa) {
+      const xc = cx - 46, a = Math.min(1, (dt - f.tFaixa) / 420), e1 = 1 - (1 - a) * (1 - a)
+      let bx = Math.round(-100 + (xc + 100) * e1), by = yFaixa
+      if (dt >= f.tSobe && f.faixaAlvo) { const b = Math.max(0, Math.min(1, (dt - f.tSobe - 200) / 320)); bx = Math.round(xc + (f.faixaAlvo.x - xc) * b); by = Math.round(yFaixa + (f.faixaAlvo.y - yFaixa) * b) }
+      if (!Arte.fimPeca(g, 'faixa_recorde', bx, by, C.menos ? 0 : agora)) { g.fillStyle = COR.carmim; g.fillRect(bx, by + 2, 93, 14); Arte.texto(g, T.recorde, bx + 46, by + 5, { fonte: 'reino-ouro', alinhar: 'centro' }) }
+      f.faixaRet = { x: bx, y: by, w: 93, h: 18 }
+      viu('fimRecorde')
+    }
+    if (f.contou) {
       let d = bt('green', b0, 'denovo'); Arte.texto(g, T.deNovo, b0.x + (b0.w >> 1), b0.y + 7 + d, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' })
       d = bt('plum', b1, 'postar'); Arte.texto(g, T.postar, b1.x + (b1.w >> 1), b1.y + 7 + d, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' })
       g.globalAlpha = 1
+      hudBt('plum', L.menu, 'menu', (x0, y0, w) => { g.fillStyle = COR.creme; for (let i = 0; i < 3; i++) g.fillRect(x0 + 6, y0 + 7 + i * 4, w - 12, 2) })
     }
-    if (L.cel) {
-      // em cima, à esquerda do castelo: título, número grande e a faixa do recorde; o reino inteiro fica à vista no meio
-      const topo = Math.max(0, C.oyBase >> 1), cx = Math.min(54, (C.VW >> 1) - 36)
-      Arte.texto(g, T.fim, cx, topo + 4, { fonte: 'reino-contorno', alinhar: 'centro' })
-      Arte.titulo(g, String(f.mostra), cx, topo + 13, 4, ouro)
-      Arte.texto(g, T.aguentou, cx, topo + 50, { fonte: 'mini-contorno', alinhar: 'centro' })
-      faixaRecorde(Math.max(47, cx), topo + 58)
-      g.fillStyle = COR.ameixa; g.fillRect(0, P.y - 1, P.w, 1); g.fillStyle = COR.painel; g.fillRect(0, P.y, P.w, P.h); g.fillStyle = COR.filete; g.fillRect(0, P.y, P.w, 1)
-      numeros(0, P.y + 4, P.w)
-      liga(4, P.y + 31, P.w - 8)
-      album(36, P.y + 62, P.w - 40)
-    } else {
-      const cx = P.x + 58
-      Arte.painel(g, P.x, P.y, P.w, P.h)
-      Arte.texto(g, T.fim, cx, P.y + 5, { fonte: 'reino-contorno', alinhar: 'centro' })
-      Arte.titulo(g, String(f.mostra), cx, P.y + 15, 4, ouro)
-      Arte.texto(g, T.aguentou, cx, P.y + 53, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' })
-      faixaRecorde(cx, P.y + 62)
-      const mx = P.x + 118, mw = P.w - 126, meio = Math.floor(mw * 0.52)
-      numeros(mx, P.y + 6, mw)
-      liga(mx, P.y + 36, meio - 6)
-      album(mx + meio, P.y + 46, mw - meio)
-    }
-    botoes()
-    hudBt('plum', L.menu, 'menu', (x0, y0, w) => { g.fillStyle = COR.creme; for (let i = 0; i < 3; i++) g.fillRect(x0 + 6, y0 + 7 + i * 4, w - 12, 2) })
     viu('fim')
   }
   function aviso(agora) {
     const a = M.aviso; if (!a || agora > a.t0 + a.ms || agora < a.t0) return
-    const dt = agora - a.t0, cx = C.VW >> 1, y = Math.floor(C.VH * (UI.L.cel ? 0.24 : 0.2)) - (C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 150) * 8))
+    const dt = agora - a.t0, cx = C.VW >> 1, base = Math.floor(C.VH * (UI.L.cel ? 0.24 : 0.2)), livre = UI.L.cel && M.fase === 'carta' && !M.cartaPosta ? UI.L.odds.y + UI.L.odds.h + 5 : 0 // celular: abaixo das linhas de chances
+    const y = Math.max(base, livre) - (C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 150) * 8))
     if (dt > a.ms - 200 && ((agora >> 6) & 1) && !C.menos) return
     const k = a.k || 2, lin = quebrar(a.texto, (C.VW - 8) / k, 'reino-contorno')
     lin.forEach((s, i) => Arte.titulo(g, s, cx, y + i * 10 * k, k, a.ouro))
+    { const w = Math.max(...lin.map((s) => Arte.largura(s, 'reino-contorno'))) * k; C.zonaTitulo = { x: cx - (w >> 1) - 4, y: y - 4, w: w + 8, h: lin.length * 10 * k + 8 } } // os números de dano não passam por cima do título
     if (a.sub) quebrar(a.sub, C.VW - 12).forEach((s, i) => Arte.texto(g, s, cx, y + lin.length * 10 * k + 3 + i * 7, { fonte: 'mini-contorno', alinhar: 'centro' }))
   }
   /** Aviso pequeno em placa (conquista, carta nova, relíquia): sempre abaixo do HUD, nunca por cima dele. */
   function brinde(agora) {
     const b = M.brinde; if (!b || agora > b.t0 + b.ms || agora < b.t0) return
     const L = UI.L, dt = agora - b.t0, cel = L.cel, hudFim = Math.ceil((L.pinos.y + L.pinos.h) / 1) + 2
-    const canto = !cel && M.fase === 'vitoria' // PC na escolha do espólio: a placa vai para o canto livre de baixo (nunca por cima dos 3 espólios)
+    const canto = !cel && (M.fase === 'vitoria' || M.fase === 'luta') // PC na escolha do espólio e na luta: a placa vai para o canto de baixo (nunca por cima dos 3 espólios nem da horda no portão)
     const w = canto ? L.premios.w : Math.min(C.VW - 8, 150)
     const x = canto ? L.premios.x : cel || M.fase === 'fim' ? (C.VW - w) >> 1 : 4
-    const y = canto ? L.premios.y + 15 : M.fase === 'fim' ? L.fimPainel.y - 34 : cel ? (M.fase === 'carta' || M.fase === 'terreno' ? L.odds.y + 10 : M.fase === 'luta' ? Math.max(48, hudFim) : L.mesa.y - 34) : Math.max(32, hudFim)
+    const y = canto ? L.premios.y + 15 : M.fase === 'fim' ? L.fimPainel.y - 34 : cel ? (M.fase === 'carta' || M.fase === 'terreno' ? L.odds.y + L.odds.h + 3 : M.fase === 'luta' ? Math.max(48, hudFim) : L.mesa.y - 34) : Math.max(32, hudFim)
     M.brindeRet = { x, y, w, h: 30 }
     const desce = C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 200) * 20)
     Arte.painel(g, x, y - desce, w, 30)
@@ -468,7 +649,13 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   /** Por cima do mundo, ainda com a câmera: selo de LEVEL UP com "antes > depois", contagem da horda no portão, "REPLACE?". */
   C.depoisDoMundo = (gg, t) => {
     const agora = performance.now()
-    if (M.trocar && (M.fase === 'carta' || M.fase === 'terreno')) { const p = C.centroDoTerreno(M.trocar); Arte.texto(gg, T.trocar, p.x, p.base - 44, { fonte: 'reino-ouro', alinhar: 'centro' }); viu('trocar') }
+    if (M.trocar && (M.fase === 'carta' || M.fase === 'terreno')) {
+      // "REPLACE SMITHY LV2?": diz o que se perde, numa plaquinha que nunca sai da tela
+      const p = C.centroDoTerreno(M.trocar), lin = M.trocarLinhas || [T.trocar], w = Math.max(...lin.map((s) => Arte.largura(s, 'reino-ouro'))) + 8, h = lin.length * 10 + 3
+      const x = Math.max(2 + (w >> 1), Math.min(C.VW - 2 - (w >> 1), Math.round(p.x))), y = p.base - 38 - h
+      gg.fillStyle = COR.ameixa; gg.globalAlpha = 0.88; gg.fillRect(x - (w >> 1), y, w, h); gg.globalAlpha = 1; gg.fillStyle = COR.ouro; gg.fillRect(x - (w >> 1), y, w, 1); gg.fillRect(x - (w >> 1), y + h - 1, w, 1)
+      lin.forEach((s, i) => Arte.texto(gg, s, x, y + 2 + i * 10, { fonte: 'reino-ouro', alinhar: 'centro' })); viu('trocar')
+    }
     if ((M.fase === 'carta') && M.hordaN) {
       const p = C.pos(-34, -1), b = C.menos ? 0 : Math.round(Math.abs(Math.sin(agora / 400)) * 2)
       Arte.icone(gg, 'horn', Math.max(1, Math.round(p.x) - 14), Math.round(p.y) - 46 - b); Arte.texto(gg, 'x' + M.hordaN, Math.max(13, Math.round(p.x) - 2), Math.round(p.y) - 44 - b, { fonte: 'reino-contorno' })
@@ -487,6 +674,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   UI.desenhar = (agora) => {
     const L = UI.L, f = M.fase
     g.setTransform(C.e, 0, 0, C.e, 0, 0); g.imageSmoothingEnabled = false
+    C.zonaTitulo = null
     if (f === 'fim') { fim(agora); aviso(agora); brinde(agora); return }
     if (f === 'carta') {
       mesa()
@@ -495,7 +683,8 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
         if (!L.cel) premios(true)
         mao(agora)
         if (sel) { faixa(linhasQueCabem(M.infoSel, 6)); viu('infoCarta') } else if (M.info) { faixa(linhasQueCabem(M.info, 7)); viu('info') } else if (L.cel) premios(false)
-        ouroBt(L.sortear, 'sortear', 'reroll', M.sortear, agora)
+        ouroBt(L.sortear, 'sortear', 'reroll', M.sortear, agora, T.sortearNome)
+        setaCarta(agora)
         chances()
       } else {
         premios(true)
@@ -504,10 +693,17 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
         const d = bt('green', { ...r, y: r.y - pulsa }, 'lutar2'); Arte.texto(g, T.lutar, r.x + (r.w >> 1), r.y + 7 + d - pulsa, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }); g.globalAlpha = 1
         if (C.menos) { moldura(r.x - 2, r.y - 2, r.w + 4, 30); Arte.icone(g, 'play', r.x - 14, r.y + 8); viu('lutarFixo') } // Reduced motion: contorno de ouro e seta parados no lugar do pulso
       }
-      if (M.consertar.visivel) ouroBt(L.consertar, 'consertar', 'life', M.consertar, agora)
+      if (M.consertar.visivel) ouroBt(L.consertar, 'consertar', 'life', M.consertar, agora, T.consertarNome)
     } else if (f === 'luta') { mesa(); resumo(L.resumo, true); if (!L.cel) premios(true) } else if (f === 'terreno') {
       mesa(); faixa(['#' + T.escolhaTerreno, ...(M.info || [])])
-      const r = L.lutar2, d = bt('plum', r, 'voltar'); Arte.texto(g, T.voltar, r.x + (r.w >> 1), r.y + 7 + d, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }); g.globalAlpha = 1
+      const e = M.espolios[M.espolioI], ds = M.espolioDesc[M.espolioI]
+      if (L.cel && e && ds) {
+        premio(e, 4, C.VH - 83)
+        Arte.texto(g, quebrar(ds.titulo, C.VW - 70, 'reino')[0], 66, C.VH - 82, { fonte: 'reino', cor: COR.ouro })
+        quebrar(ds.texto, C.VW - 70).slice(0, 6).forEach((q, i) => Arte.texto(g, q, 66, C.VH - 71 + i * 6, { fonte: 'mini', cor: COR.creme }))
+        viu('terrenoEspolio')
+      }
+      const r = L.voltar, d = bt('plum', r, 'voltar'); Arte.texto(g, T.voltar, r.x + (r.w >> 1), r.y + 7 + d, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }); g.globalAlpha = 1
     } else if (f === 'vitoria') { mesa(); if (!L.cel || !M.vitoria.pronto) resumo(L.resumo, false); vitoria(agora) } else if (f === 'derrota') { mesa(); derrota(agora); resumo(L.resumo, false) } else if (f === 'chefe') { mesa(); chefe(agora) }
     hud(agora); aviso(agora); brinde(agora)
     if (M.arrasto?.moveu) { const c = M.mao[M.arrasto.indice]; if (c) Arte.carta(g, c.carta, c.nivel, Math.round(M.arrasto.x - 28), Math.round(M.arrasto.y - 50)) }

@@ -3,6 +3,7 @@
 import { AN } from './cena.js'
 
 const ANIM_MAGIA = { laco: 'grow', abelhas: 'swarm', corneta: 'blow', repeteco: 'serve', levanta: 'open', finale: 'launch' } // animação da peça do atlas quando a magia dispara
+const FILEIRAS = [-0.9, -0.3, 0.3, 0.9]
 const SOM_MAGIA = { barril: 'magiaFogo', piche: 'magiaGelo', abelhas: 'magiaRaio', corneta: 'invasorChega', repeteco: 'magiaCura', laco: 'magiaGelo', levanta: 'magiaCura', finale: 'magiaRaio' }
 
 export function criarBatalha(C, CONFIG, Som, expandirHorda) {
@@ -47,7 +48,8 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
         terrenoDe[id] = k
       } else {
         const chefe = chefes.has(tipo)
-        i = C.nascer(1, tipo, x, vida, chefe ? 0.2 : ((id * 7919) % 100) / 50 - 1, chefe ? 0 : ((id * 31) % 29) - 14)
+        // a horda anda em 4 fileiras (cada uma com a sua altura e o seu tom), não num borrão
+        i = C.nascer(1, tipo, x, vida, chefe ? 0.2 : FILEIRAS[(id * 7919) % 4] + (((id * 13) % 5) - 2) * 0.03, chefe ? 0 : ((id * 31) % 29) - 14)
         nascidosInv++; if (nascidosInv > B.inimigosTotal) { B.inimigosTotal++; B.inimigos++ }
         if (chefe) chefesVivos++
         if (chefe && !quieto) { Som.tocar('chefeEntra'); C.tremer(6, 120); B.aoAviso?.('chefe', tipo) }

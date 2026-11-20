@@ -1,10 +1,10 @@
-/* Keepmile — a página é só o canvas em pixel + os botões transparentes por cima + as telas simples (menu, álbum, conquistas). */
-@font-face { font-family: 'Nunito'; font-weight: 600; font-display: swap; src: url('../fontes/nunito-latin-600-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Nunito'; font-weight: 800; font-display: swap; src: url('../fontes/nunito-latin-800-normal.woff2') format('woff2'); }
+/* Keepmile — a página é só o canvas em pixel + os botões transparentes por cima + as telas simples (menu, álbum, conquistas).
+   As telas usam a LETRA DO JOGO (texto desenhado em canvas com as fontes em pixel do atlas: js/telas.js) e o acabamento do atlas
+   (painel e botões entram como imagem de borda, pelas variáveis --km-painel e --km-bt-*). Nenhuma fonte de fora. */
 :root { --ameixa: #2B1E3A; --painel: #3A2A4E; --filete: #624C7C; --creme: #FFF6E0; --ouro: #FFD248; --verde: #56A842; --carmim: #CC3C3E; }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--ameixa); overflow: hidden; overscroll-behavior: none; }
-body { font: 600 15px/1.35 'Nunito', system-ui, sans-serif; color: var(--creme); -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none; }
+body { font: 14px/1.3 ui-monospace, Menlo, Consolas, monospace; color: var(--creme); -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none; }
 #jogo { position: fixed; inset: 0; overflow: hidden; }
 #cena { position: absolute; left: 0; top: 0; display: block; image-rendering: pixelated; image-rendering: crisp-edges; transition: filter .6s linear; }
 .km-menos #cena { transition: none; }
@@ -14,49 +14,55 @@ body { font: 600 15px/1.35 'Nunito', system-ui, sans-serif; color: var(--creme);
 .km-toque.km-arrasta { cursor: grab; }
 .km-toque:focus-visible, .km-bt:focus-visible, .km-x:focus-visible, .km-carta:focus-visible { outline: 3px solid var(--ouro); outline-offset: -3px; box-shadow: 0 0 0 5px var(--ameixa) inset; }
 
-.km-fundo { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(28, 18, 48, .72); touch-action: auto; }
+/* a letra do jogo: canvas em pixel + o texto de verdade escondido da vista */
+.km-px { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+.km-letra { display: inline-block; max-width: 100%; vertical-align: middle; }
+.km-letra > canvas { max-width: 100%; }
+.km-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.km-fundo { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(28, 18, 48, .72); touch-action: manipulation; image-rendering: pixelated; }
 .km-fundo[hidden] { display: none; }
-.km-caixa { width: min(100%, 560px); max-height: 100%; overflow: auto; overscroll-behavior: contain; padding: 14px; background: var(--painel); border: 3px solid var(--ameixa); box-shadow: 0 0 0 3px var(--filete), 0 6px 0 3px var(--ameixa); display: flex; flex-direction: column; gap: 10px; -webkit-user-select: text; user-select: text; }
+/* celular: a caixa não cobre a fileira de cima do HUD (tocar no ícone do menu com o menu aberto fecha) */
+@media (max-width: 620px) { .km-fundo { padding-top: 60px; } }
+.km-caixa { width: min(100%, 560px); max-height: 100%; overflow: auto; overscroll-behavior: contain; padding: 8px; background: var(--painel); border: 6px solid var(--ameixa); border-image: var(--km-painel) 3 fill / 6px / 0 stretch; display: flex; flex-direction: column; gap: 6px; }
 .km-caixa > * { flex: none; }
 .km-tela-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.km-caixa h2 { margin: 0; font: 800 22px/1.1 'Nunito', system-ui, sans-serif; color: var(--ouro); letter-spacing: .5px; }
-.km-caixa h3 { margin: 6px 0 0; font: 800 15px/1.2 'Nunito', system-ui, sans-serif; color: var(--ouro); }
-.km-x { flex: none; width: 44px; height: 44px; border: 3px solid var(--ameixa); background: var(--filete); color: var(--creme); font: 800 24px/1 'Nunito', system-ui, sans-serif; cursor: pointer; }
-.km-bt { min-height: 48px; padding: 8px 14px; border: 3px solid var(--ameixa); border-bottom-width: 6px; background: var(--verde); color: var(--creme); font: 800 16px/1.1 'Nunito', system-ui, sans-serif; text-align: left; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.km-bt:active { border-bottom-width: 3px; transform: translateY(3px); }
-.km-bt--fraco { background: var(--filete); }
-.km-bt--perigo { background: var(--carmim); }
-.km-liga b { color: var(--ouro); }
-.km-liga[aria-pressed="false"] b { color: #CECAD8; }
+.km-caixa h2, .km-caixa h3 { margin: 0; font: inherit; }
+.km-caixa h3 { margin-top: 6px; }
+.km-x { flex: none; width: 48px; height: 48px; padding: 0 0 6px; border: 0 solid transparent; border-width: 0 12px; border-image: var(--km-bt-plum) 0 6 fill / 0 12px / 0 stretch; background: var(--filete); background-clip: padding-box; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.km-bt { min-height: 48px; padding: 4px 4px 10px; border: 0 solid transparent; border-width: 0 12px; border-image: var(--km-bt-green) 0 6 fill / 0 12px / 0 stretch; background: var(--verde); background-clip: padding-box; color: var(--creme); font: inherit; text-align: left; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.km-bt:active { border-image-source: var(--km-bt-green-ap); padding: 8px 4px 6px; }
+.km-bt--fraco, .km-x { border-image-source: var(--km-bt-plum); background-color: var(--filete); }
+.km-bt--fraco:active, .km-x:active { border-image-source: var(--km-bt-plum-ap); }
+.km-bt--perigo { border-image-source: var(--km-bt-red); background-color: var(--carmim); }
+.km-bt--perigo:active { border-image-source: var(--km-bt-red-ap); }
 .km-confirma { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 3px solid var(--ameixa); background: var(--ameixa); }
-.km-confirma p { margin: 0; }
 .km-caixa footer { display: flex; flex-direction: column; }
 .km-linha { margin: 0; }
-.km-chances { font-size: 13px; color: #CECAD8; }
 .km-barra { height: 12px; border: 3px solid var(--ameixa); background: var(--ameixa); }
-.km-barra i { display: block; height: 100%; background: var(--ouro); }
+.km-barra i { display: block; height: 100%; background: var(--ouro); box-shadow: 0 3px 0 #FFF096 inset; }
+.km-vol { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 0 0 12px; }
+.km-vol-botoes { display: flex; align-items: center; gap: 6px; }
+.km-mini { min-width: 48px; justify-content: center; }
+.km-pinos { display: flex; gap: 4px; align-items: center; }
+.km-pinos i { display: block; width: 10px; height: 16px; background: var(--ameixa); box-shadow: 0 0 0 2px var(--ameixa); }
+.km-pinos i.km-on { background: var(--ouro); box-shadow: 0 0 0 2px var(--ameixa), 0 4px 0 #FFF096 inset; }
 .km-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; justify-items: center; }
 .km-carta { position: relative; width: 84px; height: 117px; padding: 0; border: 0; background: transparent; cursor: pointer; }
-.km-px { width: 84px; height: 117px; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
-.km-carta small { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font: 800 13px/1 'Nunito', system-ui, sans-serif; color: var(--ouro); text-shadow: 0 2px 0 var(--ameixa); }
-.km-detalhe { margin: 0; min-height: 3.9em; padding: 8px 10px; background: var(--ameixa); border: 3px solid var(--filete); }
-.km-detalhe b { color: var(--ouro); }
+.km-carta > .km-px { width: 84px; height: 117px; }
+.km-carta small { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; justify-content: center; }
+.km-detalhe { margin: 0; min-height: 72px; padding: 8px 10px; background: var(--ameixa); border: 3px solid var(--filete); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .km-lista { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
-.km-lista li { display: flex; flex-direction: column; padding: 8px 10px; background: var(--ameixa); border-left: 6px solid var(--filete); opacity: .7; }
-.km-lista li.km-feita { border-left-color: var(--ouro); opacity: 1; }
-.km-lista li.km-feita b::after { content: ' ★'; color: var(--ouro); }
-.km-melhores li { flex-direction: row; gap: 12px; align-items: baseline; opacity: 1; }
-.km-lista span { font-size: 13px; color: #CECAD8; }
-.km-chapa { gap: 12px; }
-.km-chapa span { display: flex; flex-direction: column; gap: 2px; }
-.km-chapa b { color: var(--ouro); }
-.km-chapa small { font: 600 12px/1.2 'Nunito', system-ui, sans-serif; color: #CECAD8; }
-.km-tela-topo canvas { max-width: calc(100% - 56px); height: auto !important; }
+.km-lista li { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; background: var(--ameixa); border-left: 6px solid var(--filete); }
+.km-lista li.km-feita { border-left-color: var(--ouro); }
+.km-melhores li { flex-direction: row; gap: 12px; align-items: center; }
+.km-chapa { gap: 12px; justify-content: flex-start; }
+.km-chapa > span { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+.km-tela-topo > canvas { max-width: calc(100% - 56px); height: auto !important; }
 .km-medalhas li { flex-direction: row; gap: 10px; align-items: center; }
-.km-medalha-texto { display: flex; flex-direction: column; }
-.km-medalha-texto b { font-size: 15px; color: var(--creme); }
+.km-medalhas li:not(.km-feita) > canvas { opacity: .8; }
+.km-medalha-texto { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
 .km-liga-topo { display: flex; gap: 12px; align-items: center; padding: 8px 10px; background: var(--ameixa); border: 3px solid var(--filete); }
-.km-liga-topo > span { display: flex; flex-direction: column; }
-.km-liga-topo b { font: 800 18px/1.2 'Nunito', system-ui, sans-serif; color: var(--ouro); }
+.km-liga-topo > span { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
 .km-escada li { flex-direction: row; gap: 10px; align-items: center; padding: 4px 10px; }
-@media (prefers-reduced-motion: reduce) { #cena { transition: none; } .km-bt:active { transform: none; } }
+@media (prefers-reduced-motion: reduce) { #cena { transition: none; } }

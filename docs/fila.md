@@ -148,5 +148,5 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | P17 | Carteira no navegador e api de sessão (T6) | dev-tela (Opus) | porao/tela/carteira-navegador.js, api.js, porao/tests/carteira-navegador.test.mjs | P12 | PRONTO (dda2cc0; 11 testes, agora no npm test) |
 | P18 | Vó tutora, apelido, história + trocar os stubs da abertura pela api e carteira reais (T7) | dev-tela (Opus) | porao/tela/vo.js, abertura.js, app.js | P16, P17 | RODANDO |
 | P19 | Contas no jogo e apelido (T2) | nucleo-do-jogo | porao/servidor/jogo.mjs, porao/comum/apelido.js, porao/tests/jogo.test.js | P14 | PRONTO (c5717ff; 124 testes; ponte do save antigo sai na P20) |
-| P20 | Sessão e rotas (T4) | engenheiro-de-carteira (Opus) | porao/servidor/sessao.mjs, index.mjs, porao/tests/api.test.js, sessao.test.js | P14, P15, P19 | RODANDO |
+| P20 | Sessão e rotas (T4) | engenheiro-de-carteira (Opus) | porao/servidor/sessao.mjs, index.mjs, porao/tests/api.test.js, sessao.test.js | P14, P15, P19 | PRONTO (73f61a8; 144 testes; falta GO do seguranca) |
 | P21 | e2e da abertura (T8) | dev-tela | porao/tests/tela.e2e.mjs | P16, P17, P18 | FILA |

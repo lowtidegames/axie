@@ -419,8 +419,9 @@ function aoFimDaLuta(res) {
     for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.3)
     if (chefe) for (const dx of [-0.2, 0.2]) C.efeito('fireworks', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.22)
     // ouro contando, depois os 3 espólios viram cartas grandes
-    const passos = Math.min(ouro, 12)
-    for (let i = 1; i <= passos; i++) depois(350 + i * 70, () => { M.vitoria.ouroMostra = Math.round((ouro * i) / passos); Som.tocar('ouro', { tom: i }) })
+    // (R30) o ouro do HUD conta JUNTO com o letreiro, do que estava à vista até o número que o motor/servidor mandou (`J.v.ouro`)
+    const passos = Math.min(ouro, 12), ouroDe = M.ouro, ouroPara = J.v.ouro
+    for (let i = 1; i <= passos; i++) depois(350 + i * 70, () => { M.vitoria.ouroMostra = Math.round((ouro * i) / passos); J.ouroAlvo = ouroDe + Math.round(((ouroPara - ouroDe) * i) / passos); Som.tocar('ouro', { tom: i }) })
     depois(450 + passos * 70 + 250, () => { M.vitoria.pronto = true; M.vitoria.prontoT0 = agoraMs(); J.ouroAlvo = J.v.ouro; Som.tocar('espolio'); UI.mudou() })
     conquista('supper'); if (limpo) conquista('plate'); if (um) conquista('last')
     if (bat.horda.chefe && CHEFE_CONQUISTA[bat.horda.chefe]) conquista(CHEFE_CONQUISTA[bat.horda.chefe])

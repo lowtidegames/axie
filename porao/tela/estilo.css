@@ -1,0 +1,128 @@
+/* Porão — estilo da tela. Cores só pelos tokens do :root (os --pix-* são lidos pelo canvas). */
+:root {
+  --noite: #14111c;
+  --noite-funda: #0d0b13;
+  --painel: #231d30;
+  --painel-claro: #31283f;
+  --borda: #5b4d73;
+  --linho: #f3ead6;
+  --linho-apagado: #bfb3a0;
+  --ouro: #ffd84a;
+  --acao: #ff8a3d;
+  --acao-texto: #1d1622;
+  --foco: #8fd0ff;
+  --aviso: #5be08a;
+  --fonte: ui-rounded, "Trebuchet MS", system-ui, sans-serif;
+  --fonte-num: ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* cores do desenho em canvas (pixel art provisória) */
+  --pix-contorno: #1d1622; --pix-chao-a: #4d4259; --pix-chao-b: #453b50; --pix-chao-l: #322a3b;
+  --pix-parede-e: #8c7563; --pix-parede-d: #735e52; --pix-junta-e: #6a564a; --pix-junta-d: #57463d;
+  --pix-madeira: #8b5a3c; --pix-madeira-c: #a8744b; --pix-madeira-e: #6a4230;
+  --pix-metal: #8d95a3; --pix-metal-c: #b3bbc8; --pix-metal-e: #5d6472;
+  --pix-tela-a: #3b8fd9; --pix-tela-c: #8fd0ff; --pix-tela-v: #5be08a; --pix-tela-r: #ff6b5e; --pix-tela-f: #16222f;
+  --pix-hype: #ffd84a; --pix-codigo: #5be08a; --pix-pele: #e8b690; --pix-cabelo: #3a2a22;
+  --pix-moletom: #c4483f; --pix-moletom-e: #8e312c;
+  --pix-trouxa-1: #5aa9e6; --pix-trouxa-2: #e6a85a; --pix-trouxa-3: #a65ae6;
+  --pix-agua: #3fa7c9; --pix-vidro: #9fe3ee; --pix-peixe: #ff8a3d; --pix-planta: #3f9b5a;
+  --pix-sofa: #a23b5a; --pix-sofa-c: #c25577; --pix-sofa-e: #7a2b43;
+  --pix-carro: #e8c13a; --pix-carro-c: #f7de7a; --pix-carro-e: #b08f22; --pix-roda: #23202b; --pix-farol: #fff4a8;
+  --pix-lugar: #f2e6c9; --pix-janela-ceu: #7fb2e8; --pix-porta: #2a1f2e; --pix-luz: #fff4a8;
+  --pix-lata-a: #e05a4f; --pix-lata-b: #4fa0e0; --pix-lata-c: #f0c64a; --pix-gamer: #d1344c; --pix-gamer-e: #2b2833;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--noite); color: var(--linho); font-family: var(--fonte); font-size: 16px; line-height: 1.35;
+  display: flex; flex-direction: column; min-height: 100dvh; overflow-x: hidden;
+}
+:focus-visible { outline: 3px solid var(--foco); outline-offset: 2px; }
+
+.pagina-topo {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; background: var(--noite-funda); border-bottom: 2px solid var(--borda);
+}
+.pagina-topo h1 { margin: 0; font-size: 1.1rem; letter-spacing: 0.04em; }
+.pagina-topo small { color: var(--linho-apagado); font-weight: normal; }
+.pagina-palco { flex: 1; min-height: 0; display: flex; }
+#cena { flex: 1; min-width: 0; }
+
+/* botões */
+.cena__btn, .pagina-topo button {
+  font: inherit; font-weight: 700; color: var(--linho); background: var(--painel-claro);
+  border: 2px solid var(--borda); border-radius: 6px; padding: 10px 14px; min-height: 44px; cursor: pointer;
+}
+.cena__btn:hover, .pagina-topo button:hover { border-color: var(--linho-apagado); }
+.cena__btn--primario { background: var(--acao); color: var(--acao-texto); border-color: var(--acao); }
+.pagina-topo button[aria-pressed="true"] { background: var(--ouro); color: var(--acao-texto); border-color: var(--ouro); }
+
+/* cena */
+.cena { position: relative; display: flex; flex-direction: column; overflow: hidden; height: 100%; min-height: 0; background: var(--noite); }
+.cena__palco { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.cena__mundo { position: absolute; transform-origin: 0 0; will-change: transform; }
+.cena__canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; image-rendering: pixelated; touch-action: manipulation; }
+.cena__hud {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; background: var(--noite-funda); border-top: 2px solid var(--borda);
+}
+.cena__trouxas { margin: 0; color: var(--linho-apagado); }
+.cena__trouxas-num { font-family: var(--fonte-num); font-size: 1.7rem; color: var(--ouro); }
+.cena__botoes { display: flex; gap: 8px; }
+
+/* zoom: os três monitores */
+.cena__zoom {
+  position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px;
+  background: var(--noite-funda); opacity: 0; transition: opacity 0.2s ease;
+}
+.cena__zoom[hidden] { display: none; }
+.cena__zoom--aberto { opacity: 1; }
+.cena__zoom-topo { display: flex; align-items: center; gap: 14px; }
+.cena__zoom-titulo { color: var(--linho-apagado); font-weight: 700; }
+.cena__trilho { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: center; padding-bottom: 30px; }
+.cena__monitor {
+  position: relative; display: flex; flex-direction: column; min-width: 0; padding: 10px 10px 14px; border-radius: 10px;
+  background: var(--painel); border: 3px solid var(--borda);
+}
+/* pé do monitor */
+.cena__monitor::after {
+  content: ""; position: absolute; left: 50%; bottom: -24px; width: 34%; height: 18px; transform: translateX(-50%);
+  background: var(--borda); clip-path: polygon(30% 0, 70% 0, 100% 100%, 0 100%);
+}
+.cena__monitor-titulo { margin: 0 0 8px; font-size: 1.05rem; color: var(--linho); text-align: center; }
+.cena__tela {
+  flex: none; aspect-ratio: 4 / 3; border-radius: 4px; background: var(--pix-tela-f); border: 2px solid var(--noite-funda);
+  background-image: repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 255, 255, 0.03) 3px 4px);
+}
+.cena__monitor--aviso { border-color: var(--aviso); box-shadow: 0 0 0 3px var(--aviso); }
+.cena__pontos { display: none; justify-content: center; gap: 14px; padding: 4px 0 6px; }
+.cena__ponto {
+  width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--linho-apagado); background: transparent; padding: 0; cursor: pointer;
+}
+.cena__ponto[aria-current="true"] { background: var(--ouro); border-color: var(--ouro); }
+
+/* celular (tela estreita): um monitor por vez, troca por toque/arrasto */
+@media (max-width: 720px) {
+  .cena__zoom { position: fixed; }
+  .cena__tela { aspect-ratio: auto; flex: 1; min-height: 200px; }
+  .cena__monitor { align-self: stretch; max-height: 520px; }
+  .cena__trilho { align-items: flex-start; }
+  .cena__trilho {
+    display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; gap: 12px;
+    scrollbar-width: none; overscroll-behavior-x: contain;
+  }
+  .cena__trilho::-webkit-scrollbar { display: none; }
+  .cena__monitor { flex: 0 0 100%; scroll-snap-align: center; }
+  .cena__pontos { display: flex; }
+  .cena__zoom-titulo { display: none; }
+  .cena__hud { flex-direction: column; align-items: stretch; }
+  .cena__botoes .cena__btn { flex: 1; }
+}
+
+/* Menos animação: sem movimento, sem transição */
+.cena--menos .cena__zoom, .cena--menos .cena__mundo { transition: none !important; }
+.cena--menos .cena__trilho { scroll-behavior: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .cena__zoom, .cena__mundo { transition: none !important; }
+  .cena__trilho { scroll-behavior: auto; }
+}

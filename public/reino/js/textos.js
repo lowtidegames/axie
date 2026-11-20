@@ -46,7 +46,9 @@ export const T = {
   comUnidade: (s) => String(s).replace(/(within \d+(?:\.\d+)?)(?=\.?$)/i, '$1 plots'),
   ganheN: (n) => `WIN: PICK 1 OF ${n}`,
   // R46 — revanche: a mesma horda de novo e UMA troca grátis de 2 terrenos (o motor decide; a dica é dele e vale para o reino como está)
-  revanche: { titulo: ['REMATCH', 'SAME HORDE AGAIN'], linha: 'SWAP TWO PLOTS (FREE)', segundo: 'NOW TAP THE OTHER PLOT', dica: 'THIS SWAP WINS AS IT STANDS', manter: 'KEEP AS IS', feita: 'SWAPPED', vazios: 'BOTH PLOTS ARE EMPTY' },
+  // R52: a dica não entrega o par ("A SWAP WINS THIS" + "SHOW ME"); sem dica, "NO SWAP WINS ALONE: TRY A CARD"; "KEEP AS IS" recolhe a
+  // faixa na etiqueta "SWAP"; vencer a revanche ganha "REVENGE!"
+  revanche: { titulo: ['REMATCH', 'SAME HORDE AGAIN'], linha: 'SWAP TWO PLOTS ONCE', segundo: 'TAP THE OTHER PLOT', dica: 'A SWAP WINS THIS', semDica: 'NO SWAP WINS ALONE: TRY A CARD', mostrar: 'SHOW ME', manter: 'KEEP AS IS', etiqueta: 'SWAP', feita: 'SWAPPED', vazios: 'BOTH PLOTS ARE EMPTY', vinganca: 'REVENGE!', derrota: 'SAME HORDE AGAIN: +1 CARD +1 SWAP', ariaEtiqueta: 'Open the free swap' },
   toqueCarta: 'TAP A CARD', sortearNome: 'REROLL', consertarNome: 'REPAIR', chefeAmanha: (c) => `BOSS NEXT ROUND: REPAIR A HEART FOR ${c} GOLD`, dicaConserto: (c) => `SPARE GOLD? REPAIR A HEART FOR ${c}`,
   proximaMao: 'NEXT HAND', unidadeTerreno: (x) => `${x} PLOTS`,
   cartaNova: 'NEW CARD', conquista: 'ACHIEVEMENT', limpo: 'CLEAN PLATE', maisNivel: '+1 LEVEL', pegue: 'PICK 1 REWARD', continua: (r) => `RUN RESUMED: ROUND ${r}`,

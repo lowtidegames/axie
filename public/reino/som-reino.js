@@ -357,6 +357,13 @@ const EFEITOS = {
       K.tom({ f: f * 0.5, dur: dur * 0.5, tipo: 'triangle', vol: 0.12, em, ataque: 0.003 }); K.ruido({ dur: 0.012, f: 1300, tipo: 'lowpass', vol: 0.14, em, ataque: 0.001 }) // corpo e a baqueta
     }
   } },
+  // R52 — vinganca: "REVENGE!" — a revanche foi vencida (a mesma horda que tinha derrubado o reino). Fanfarra curta de 3 notas subindo
+  // (ré → sol → si, o acorde de casa do tema), duas trompas com a batida do letreiro no começo e o pouso na última. Por código, sem
+  // amostra. Prioridade 2 e não é som grande: toca por cima do fim da fanfarra da vitória sem abaixar a música.
+  vinganca: { ms: 640, pri: 2, alvo: -10, camada: 'resultado', vars: 1, max: 1, fn(K) {
+    for (const [m, em, dur, vol] of [[74, 0, 0.1, 0.5], [79, 0.115, 0.1, 0.5], [83, 0.23, 0.32, 0.55]]) { K.trompa({ m, dur, vol, em }); K.trompa({ m: m - 12, dur, vol: vol * 0.5, em }) }
+    K.tambor({ f: 96, dur: 0.14, vol: 0.6 }); K.tambor({ f: 84, dur: 0.22, vol: 0.7, em: 0.23 }); K.pandeiro({ vol: 0.2, em: 0.23, dur: 0.09 }); K.pandeiro({ vol: 0.12, em: 0.36, dur: 0.07 })
+  } },
 }
 
 // Pico de cada receita SEM ajuste, em dBFS (medido fora do tempo real). Recalibrar depois de mexer numa receita:
@@ -438,6 +445,7 @@ const PICO_BRUTO = {
   chefeTomba: [2.7],
   troca: [-5.3, -5.3, -4.3],
   dica: [-4.4],
+  vinganca: [-1.9],
 }
 /* PICO_BRUTO:FIM */
 const POS = 0.61 // desfaz o ganho automático do compressor: som baixo sai da cadeia como entrou

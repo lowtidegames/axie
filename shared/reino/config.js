@@ -31,6 +31,16 @@ export const PARTIDA = {
   },
   bolsa: { ouro: 8, chanceReliquia: 15 }, // espólio Purse: 8 de ouro; 15% das vezes uma relíquia
   pontosPorRodada: 100,
+  rodadaDaVitoria: 20, // 20/11 R39: vencer a rodada 20 = "o reino resistiu" (a partida segue para quem quer pontuar)
+}
+
+// ---------------------------------------------------------------- conquistas (R39, 20/11) — só título, sem prêmio
+// A regra mora em shared/reino/conquistas.js; aqui só os números.
+export const CONQUISTAS = {
+  rodadasSomadas: { tally25: 25, tally50: 50, tally100: 100, tally200: 200, tally400: 400 }, // degraus: rodadas vencidas somadas da conta
+  rodadaDoBis: 25, // Encore!: vencer esta rodada
+  coracoes: 1, // By a Thread: vencer com este número de vidas no castelo
+  reliquias: 3, // Pocketful: relíquias numa partida
 }
 
 // ---------------------------------------------------------------- raridades e sorteio

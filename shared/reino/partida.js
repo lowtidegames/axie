@@ -5,7 +5,8 @@
 //   criarPartida({ semente, cartasLiberadas })  → estado (JSON puro; guardar no servidor)
 //   opcoes(estado)                              → oferta, espólios, custos e a lista de comandos válidos agora
 //   aplicar(estado, comando, { eventos })       → { ok: true, estado, eventos } | { ok: false, erro, motivo }  (não muda o recebido)
-//   resultado(estado)                           → { fim, motivo, rodada, vencidas, pontos, ... }
+//   resultado(estado)                           → { fim, motivo, rodada, vencidas, pontos, venceu, ... }
+//   resistiu(vencidas)                          → true se a partida já venceu a rodada da vitória (R39: a 20)
 //   visao(estado)                               → o que a tela pode ver (nunca a semente nem o sorteio futuro)
 //   reproduzir({ semente, cartasLiberadas, comandos }) → { ok, estado, resultado } | { ok: false, erro, indice }
 //   chancesReais(cartas)                        → [{ id, nome, chance }] chance real (%) de cada raridade para essas cartas
@@ -393,10 +394,18 @@ export function aplicar(estado, comando, { eventos = true } = {}) {
 }
 
 // ---------------------------------------------------------------- leitura
+/**
+ * R39: o reino resistiu = venceu a rodada da vitória. Quem perde repete a rodada, então vencer a 20 é ter 20 vencidas.
+ * Sai só do número de vencidas (nada novo guardado na partida, nenhum evento novo): partida antiga também tem.
+ */
+export function resistiu(vencidas) {
+  return Number.isSafeInteger(vencidas) && vencidas >= P.rodadaDaVitoria
+}
+
 export function resultado(e) {
   return {
     fim: e.fase === 'fim', motivo: e.fim ? e.fim.motivo : null,
-    rodada: e.rodada, vencidas: e.vencidas, pontos: pontosDe(e),
+    rodada: e.rodada, vencidas: e.vencidas, pontos: pontosDe(e), venceu: resistiu(e.vencidas),
     vidas: e.vidas, ouro: e.ouro, ouroGanho: e.ouroGanho, ouroGasto: e.ouroGasto,
     terrenos: e.terrenos.map((t) => (t ? { ...t } : null)), reliquias: e.reliquias.slice(), comandos: e.comandos,
   }
@@ -405,7 +414,7 @@ export function resultado(e) {
 /** Tudo que a tela pode mostrar. Nunca a semente/estado do sorteio. */
 export function visao(e) {
   return {
-    rodada: e.rodada, vencidas: e.vencidas, pontos: pontosDe(e),
+    rodada: e.rodada, vencidas: e.vencidas, pontos: pontosDe(e), venceu: resistiu(e.vencidas),
     vidas: e.vidas, vidasMax: e.vidasMax, ouro: e.ouro,
     fase: e.fase,
     terrenos: e.terrenos.map((t) => (t ? { ...t } : null)),
@@ -423,7 +432,7 @@ export function visao(e) {
     chanceReliquia: e.horda && e.horda.chefe ? null : chanceDaReliquia(reliquiasLivres(e).length),
     reliquias: e.reliquias.slice(),
     ultima: e.ultima ? { ...e.ultima } : null,
-    fim: e.fim ? { ...e.fim } : null,
+    fim: e.fim ? { ...e.fim, venceu: resistiu(e.fim.vencidas) } : null,
     comandos: e.comandos,
   }
 }

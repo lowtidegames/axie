@@ -89,6 +89,18 @@ export function rotasDoReino(reino, { lerCorpo, chaveDoIp }) {
       lerConsulta(url, [])
       return [200, reino.perfil(conta.id)]
     }],
+    // R22: trocar apelido (a regra inteira fica em reino.trocarApelido; aqui só o formato do corpo)
+    ['POST', /^\/api\/reino\/apelido$/, true, async (req, conta, m, url, ip) => {
+      const c = await lerCorpo(req)
+      soCampos(c, ['apelido'])
+      if (typeof c.apelido !== 'string') throw recusa('APELIDO_INVALIDO', 'Campo inválido: apelido.')
+      return [200, reino.trocarApelido(conta.id, c.apelido, ip ? chaveDoIp(ip) : null)]
+    }],
+    // R22: a última partida terminada da conta (a tela de fim sobrevive a recarregar)
+    ['GET', /^\/api\/reino\/partida\/ultima$/, true, (req, conta, m, url, ip) => {
+      const { modo: md } = lerConsulta(url, ['modo'])
+      return [200, reino.ultima(conta.id, md === undefined ? undefined : modo(md), ip ? chaveDoIp(ip) : null)]
+    }],
     ['GET', /^\/api\/reino\/replay\/([^/]+)$/, true, (req, conta, m, url, ip) => {
       const { desde } = lerConsulta(url, ['desde'])
       if (desde !== undefined && !/^[0-9]{1,6}$/.test(desde)) throw recusa('CAMPO_INVALIDO', 'Campo inválido: desde.')

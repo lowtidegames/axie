@@ -7,6 +7,8 @@ import { aplicar as aplicarDoMotor, criarPartida, opcoes, reproduzir as reproduz
 import { ALBUM, BETA, CARTAS, FAMILIAS, PARTIDA } from '../../shared/reino/config.js'
 import { transacao } from '../db.mjs'
 import { ErroDoJogo } from '../jogo.mjs'
+import { chaveDoApelido } from '../apelido.mjs'
+import { apelidoBarrado } from './apelidos-barrados.mjs'
 import { criarLimitesNoBanco, criarLimite } from '../api.mjs'
 
 // Limites técnicos do servidor do Keepmile — PROVISÓRIOS (não são números de economia).
@@ -25,6 +27,10 @@ export const PARAMS_REINO = {
   treinosGuardados: 100, // partidas de treino terminadas guardadas por conta (as 5 melhores ficam sempre)
   melhoresNoPerfil: 5,
   tempoMaxGuardadoMs: 2 ** 31 - 1, // tempo de um comando acima disso fica com este valor
+  apelido: { min: 3, max: 16 }, // troca de apelido no Keepmile (R22): só [A-Za-z0-9 _-]
+  apelidoTrocaMs: 24 * 60 * 60 * 1000, // 1 troca de apelido por conta neste tempo (R22)
+  apelidoPorConta: { max: 10, janelaMs: 60 * 60 * 1000 }, // tentativas de troca de apelido por conta (contam as recusadas)
+  apelidoPorIp: { max: 30, janelaMs: 60 * 60 * 1000 }, // tentativas de troca de apelido por IP (IPv6: /64), somando as contas
 }
 
 export const MODOS = ['ranking', 'treino', 'estrada']
@@ -116,7 +122,7 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     novaConta: db.prepare('INSERT OR IGNORE INTO reino_contas (conta_id, energia_saldo, energia_dia, criada_em) VALUES (?, ?, ?, ?)'),
     energia: db.prepare('UPDATE reino_contas SET energia_saldo = ?, energia_dia = ? WHERE conta_id = ?'),
     rodadas: db.prepare('UPDATE reino_contas SET rodadas_vencidas = rodadas_vencidas + ? WHERE conta_id = ?'),
-    conquistas: db.prepare('UPDATE reino_contas SET conquistas = ? WHERE conta_id = ?'),
+    conquistas: db.prepare('UPDATE reino_contas SET conquistas = ?, conquistas_quando = ? WHERE conta_id = ?'),
     fimDaConta: db.prepare('UPDATE reino_contas SET partidas = partidas + 1, recorde = MAX(recorde, ?) WHERE conta_id = ?'),
     apelido: db.prepare('SELECT apelido FROM contas WHERE id = ?'),
     partida: db.prepare('SELECT * FROM reino_partidas WHERE id = ?'),
@@ -171,14 +177,26 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
                                    AND id NOT IN (SELECT id FROM reino_partidas WHERE conta_id = ? AND status = 'terminada' ORDER BY pontos DESC, terminada_em ASC LIMIT ?)
                                    ORDER BY terminada_em DESC, rowid DESC LIMIT -1 OFFSET ?`),
     apagar: db.prepare("DELETE FROM reino_partidas WHERE id = ? AND status = 'terminada'"),
+    // R22: a melhor partida da temporada da conta (a mesma ordem de melhoresDaTemporada) e a última terminada
+    melhorDaTemporada: db.prepare(`SELECT id FROM reino_partidas WHERE conta_id = ? AND temporada = ? AND modo = 'ranking'
+                                   AND status = 'terminada' AND conferida = 1 ORDER BY pontos DESC, terminada_em ASC LIMIT 1`),
+    ultima: db.prepare("SELECT * FROM reino_partidas WHERE conta_id = ? AND status = 'terminada' ORDER BY terminada_em DESC, rowid DESC LIMIT 1"),
+    ultimaDoModo: db.prepare("SELECT * FROM reino_partidas WHERE conta_id = ? AND modo = ? AND status = 'terminada' ORDER BY terminada_em DESC, rowid DESC LIMIT 1"),
+    apelidoDeOutro: db.prepare('SELECT 1 FROM contas WHERE apelido_norm = ? AND id <> ?'),
+    trocarApelido: db.prepare('UPDATE contas SET apelido = ?, apelido_norm = ? WHERE id = ?'),
+    apelidoTrocado: db.prepare('UPDATE reino_contas SET apelido_trocado_em = ? WHERE conta_id = ? AND (apelido_trocado_em IS NULL OR apelido_trocado_em <= ?)'),
   }
 
   // limites de abertura de partida e de replay, guardados no banco (sobrevivem a reinício); com SAVE_SO_LEITURA, em memória
-  const janelas = { rpc: P.partidasPorConta.janelaMs, rpi: P.partidasPorIp.janelaMs, rrc: P.replaysPorConta.janelaMs, rri: P.replaysPorIp.janelaMs }
+  const janelas = {
+    rpc: P.partidasPorConta.janelaMs, rpi: P.partidasPorIp.janelaMs, rrc: P.replaysPorConta.janelaMs, rri: P.replaysPorIp.janelaMs,
+    rac: P.apelidoPorConta.janelaMs, rai: P.apelidoPorIp.janelaMs,
+  }
   const noBanco = criarLimitesNoBanco(db, agora, { intervaloMs: 60_000, lote: 2000, janelas, idadeMaxMs: Infinity })
   const mem = {
     rpc: criarLimite(P.partidasPorConta, agora), rpi: criarLimite(P.partidasPorIp, agora),
     rrc: criarLimite(P.replaysPorConta, agora), rri: criarLimite(P.replaysPorIp, agora),
+    rac: criarLimite(P.apelidoPorConta, agora), rai: criarLimite(P.apelidoPorIp, agora),
   }
   const cabe = (tipo, chave, cfg) => (soLeitura() ? mem[tipo](`${tipo}:${chave}`) : noBanco(`${tipo}:${chave}`, cfg))
 
@@ -186,7 +204,7 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
 
   /** Linha da conta no Keepmile; sem linha, a de uma conta nova (sem gravar). */
   function contaDoReino(contaId, t = agora()) {
-    return q.conta.get(contaId) ?? { conta_id: contaId, rodadas_vencidas: 0, partidas: 0, recorde: 0, energia_saldo: E.porDia, energia_dia: diaUtc(t), conquistas: '[]', nova: true }
+    return q.conta.get(contaId) ?? { conta_id: contaId, rodadas_vencidas: 0, partidas: 0, recorde: 0, energia_saldo: E.porDia, energia_dia: diaUtc(t), conquistas: '[]', conquistas_quando: '{}', apelido_trocado_em: null, nova: true }
   }
   function garantirConta(contaId) {
     q.novaConta.run(contaId, E.porDia, diaUtc(agora()), agora())
@@ -443,7 +461,12 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
       if (depoisN > antesN) cartaNova = ALBUM.ordem[depoisN - 1]
       if (depoisN >= ALBUM.ordem.length) marcar('librarian')
     }
-    if (ganhou.length) q.conquistas.run(json([...tem]), linha.conta_id)
+    if (ganhou.length) {
+      const quando = JSON.parse(c.conquistas_quando || '{}') // R22: a hora em que cada conquista foi ganha
+      const t = agora()
+      for (const id of ganhou) quando[id] = t
+      q.conquistas.run(json([...tem]), json(quando), linha.conta_id)
+    }
     return { cartaNova, conquistas: ganhou }
   }
 
@@ -544,6 +567,19 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     return { dia: new Date(dia * DIA_MS).toISOString().slice(0, 10), lista, voce, jogou: !!minha, foraDoPlacar: fora }
   }
 
+  /**
+   * R22: placar da estrada de ONTEM (dia passado, só leitura). O id da partida só vem quando a rota de replay deixa
+   * assistir: dentro do topo do replay e, para quem ainda tem a estrada daquele dia aberta, só a própria.
+   */
+  function placarDeOntem(dia, contaId) {
+    const aberta = q.estradaDoDia.get(contaId, dia)?.status === 'aberta'
+    const lista = q.placarDoDia.all(dia, dia * DIA_MS, (dia + 1) * DIA_MS, P.placarDoDia).map((l, i) => ({
+      posicao: i + 1, apelido: l.apelido, pontos: l.pontos, vencidas: l.vencidas,
+      partida: l.conta_id === contaId || (!aberta && i < P.topoComReplay) ? l.id : null,
+    }))
+    return { dia: new Date(dia * DIA_MS).toISOString().slice(0, 10), lista }
+  }
+
   function ranking(contaId, { cursor = '', temporada: pedida } = {}) {
     arrumar(contaId)
     const t = agora()
@@ -558,7 +594,10 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     const base = c ? c.posicao : 0
     const lista = pagina.map((l, i) => {
       const media = mediaDe(l.soma)
-      return { posicao: base + i + 1, apelido: l.apelido, pontos: media, partidas: l.partidas, liga: ligaDe(media, base + i + 1) }
+      const posicao = base + i + 1
+      // R22: a melhor partida terminada da conta na temporada, só quando a rota de replay deixa assistir (topo ou a própria)
+      const partida = posicao <= P.topoComReplay || l.conta_id === contaId ? q.melhorDaTemporada.get(l.conta_id, temporada)?.id ?? null : null
+      return { posicao, apelido: l.apelido, pontos: media, partidas: l.partidas, liga: ligaDe(media, posicao), partida }
     })
     const fechada = q.temporadaFechada.get(temporada)
     return {
@@ -571,6 +610,7 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
       voce: posicaoNaTemporada(temporada, contaId),
       ligas: [...BETA.ligas.map((l) => ({ ...l })), { id: BETA.lenda.id, nome: BETA.lenda.nome, primeiros: BETA.lenda.primeiros }],
       estradaDoDia: placarDoDia(diaUtc(t), contaId),
+      estradaDeOntem: placarDeOntem(diaUtc(t) - 1, contaId),
     }
   }
 
@@ -585,10 +625,12 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     const proxima = n < ALBUM.ordem.length ? { carta: ALBUM.ordem[n], rodadas: limiarDoAlbum(n), faltam: limiarDoAlbum(n) - rodadas } : null
     const temporada = temporadaDoDia(diaUtc(t))
     const tem = new Set(JSON.parse(c.conquistas))
+    const quando = JSON.parse(c.conquistas_quando || '{}')
+    const podeEm = proximaTrocaDeApelido(c, t)
     return {
       apelido: q.apelido.get(contaId)?.apelido ?? null,
       album: { rodadasVencidas: rodadas, liberadas: liberadasPorRodadas(rodadas), total: Object.keys(CARTAS).length, proxima },
-      conquistas: CONQUISTAS.map((id) => ({ id, feita: tem.has(id) })),
+      conquistas: CONQUISTAS.map((id) => ({ id, feita: tem.has(id), quando: tem.has(id) && Number.isSafeInteger(quando[id]) ? new Date(quando[id]).toISOString() : null })),
       recordes: { pontos: c.recorde, rodadasVencidas: q.maisRodadas.get(contaId)?.n ?? 0, partidas: c.partidas },
       melhores: q.melhores.all(contaId, P.melhoresNoPerfil).map((m) => ({
         id: m.id, modo: m.modo, pontos: m.pontos, vencidas: m.vencidas, rodada: m.rodada, quando: new Date(m.terminada_em).toISOString(),
@@ -597,7 +639,74 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
       temporada: { numero: temporada, termina: new Date(inicioDaTemporada(temporada + 1)).toISOString(), voce: posicaoNaTemporada(temporada, contaId) },
       titulos: q.titulos.all(contaId).map((x) => ({ temporada: x.temporada, posicao: x.posicao, pontos: x.media, liga: x.liga })),
       familias: Object.keys(FAMILIAS),
+      trocaDeApelido: { podeEm: podeEm === null ? null : new Date(podeEm).toISOString() },
     }
+  }
+
+  // ---------------------------------------------------------------- apelido (R22)
+
+  /** Hora (ms) a partir da qual a conta pode trocar o apelido de novo; null = já pode. Relógio que volta não libera antes. */
+  function proximaTrocaDeApelido(c, t = agora()) {
+    const antes = c.apelido_trocado_em
+    if (!Number.isSafeInteger(antes)) return null
+    const pode = antes + P.apelidoTrocaMs
+    return t >= pode ? null : pode
+  }
+
+  const RE_APELIDO = /^[A-Za-z0-9 _-]+$/
+  /**
+   * Troca o apelido da conta. Regra (nada é consertado em silêncio): min–max letras só de [A-Za-z0-9 _-], com letra ou
+   * número, sem espaço nas pontas nem dois seguidos, sem palavra barrada (apelidos-barrados.mjs); único pela forma de
+   * comparar do jogo (sem caixa e com as letras que se confundem juntas); 1 troca a cada apelidoTrocaMs (recusa não
+   * gasta a vez). Tentativas limitadas por conta e por IP (contam as recusadas). Devolve o Perfil.
+   */
+  function trocarApelido(contaId, apelido, chaveIp) {
+    if (!cabe('rac', String(contaId), P.apelidoPorConta)) throw erro(429, 'MUITOS_PEDIDOS', 'Muitas tentativas de trocar o apelido. Espere um pouco.')
+    if (chaveIp && !cabe('rai', chaveIp, P.apelidoPorIp)) throw erro(429, 'MUITOS_PEDIDOS', 'Muitas tentativas de trocar o apelido daqui. Espere um pouco.')
+    const { min, max } = P.apelido
+    if (typeof apelido !== 'string' || apelido.length < min || apelido.length > max || !RE_APELIDO.test(apelido) || !/[A-Za-z0-9]/.test(apelido)
+      || apelido !== apelido.trim() || apelido.includes('  ')) {
+      throw erro(400, 'APELIDO_INVALIDO', `Apelido de ${min} a ${max} letras: só letras sem acento, números, espaço, traço ou _ (sem espaço no começo, no fim ou dois seguidos).`)
+    }
+    if (apelidoBarrado(apelido)) throw erro(400, 'APELIDO_BARRADO', 'Esse apelido não pode ser usado. Escolha outro.')
+    const norma = chaveDoApelido(apelido)
+    transacao(db, () => {
+      const c = garantirConta(contaId)
+      const t = agora()
+      const podeEm = proximaTrocaDeApelido(c, t)
+      if (podeEm !== null) {
+        throw erro(429, 'APELIDO_TROCADO_HOJE', 'Você já trocou o apelido nas últimas 24 horas. Tente de novo mais tarde.', { podeEm: new Date(podeEm).toISOString() })
+      }
+      if (q.apelidoDeOutro.get(norma, contaId)) throw erro(409, 'APELIDO_EM_USO', 'Esse apelido já tem dono. Escolha outro.')
+      try {
+        q.trocarApelido.run(apelido, norma, contaId)
+      } catch (x) {
+        if (/UNIQUE/i.test(String(x.message))) throw erro(409, 'APELIDO_EM_USO', 'Esse apelido já tem dono. Escolha outro.')
+        throw x
+      }
+      if (Number(q.apelidoTrocado.run(t, contaId, t - P.apelidoTrocaMs).changes) !== 1) throw erro(409, 'CONCORRENCIA', 'O apelido mudou agora há pouco. Tente de novo.')
+    })
+    return perfil(contaId)
+  }
+
+  // ---------------------------------------------------------------- última partida terminada (R22)
+
+  /**
+   * A última partida TERMINADA da conta (de um modo, ou de qualquer um), para a tela de fim sobreviver a recarregar.
+   * Só da própria conta. Sai a resposta guardada do último comando (sem rodar o motor); partida sem ela (antes da v6, ou
+   * terminada sem comando) é remontada: com comandos, conta no limite do replay (K1).
+   */
+  function ultima(contaId, modo, chaveIp = null) {
+    arrumar(contaId)
+    const linha = modo ? q.ultimaDoModo.get(contaId, modo) : q.ultima.get(contaId)
+    if (!linha) return { partida: null }
+    const guardada = respostaGuardada(linha)
+    if (guardada) return { partida: guardada }
+    if (linha.seq > 0) {
+      if (!cabe('rrc', String(contaId), P.replaysPorConta)) throw erro(429, 'MUITOS_PEDIDOS', 'Muitos pedidos em pouco tempo. Espere um pouco.')
+      if (chaveIp && !cabe('rri', chaveIp, P.replaysPorIp)) throw erro(429, 'MUITOS_PEDIDOS', 'Muitos pedidos daqui em pouco tempo. Espere um pouco.')
+    }
+    return { partida: resposta(linha, estadoAtual(linha)) }
   }
 
   // ---------------------------------------------------------------- replay
@@ -698,5 +807,5 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     replaysGuardadosValores: () => [...replaysGuardados.values()],
   }
 
-  return { abrir, comando, desistir, verAberta, ranking, perfil, replay, _interno }
+  return { abrir, comando, desistir, verAberta, ranking, perfil, replay, trocarApelido, ultima, _interno }
 }

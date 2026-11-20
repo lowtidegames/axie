@@ -394,3 +394,68 @@ describe('R46 — custo do replay', () => {
     assert.ok(porLuta2 <= 2 * porLuta1 + 1, `regra 2 ${porLuta2.toFixed(2)} ms/luta contra ${porLuta1.toFixed(2)} da regra 1`)
   })
 })
+
+// ---------------------------------------------------------------- 8. R51: a dica vale para o reino de AGORA
+// Achado do guardião (R51): a dica nascia na derrota e ficava igual depois de pôr carta. Agora, enquanto a troca vale, todo
+// comando que muda o que entra na luta (terrenos, relíquias) recalcula a dica; sortear e consertar não mudam a luta.
+describe('R51 — a dica da revanche acompanha o reino', () => {
+  test('200 sementes: depois de pôr carta na revanche a dica = dicaDaTroca = conta bruta, e ela vence de fato; muda de par, some e aparece', () => {
+    const casos = { mudou: 0, sumiu: 0, apareceu: 0, igual: 0, venceu: 0 }
+    for (let i = 0; i < 200; i++) {
+      const robo = ['ganancioso', 'planejador', 'aleatorio'][i % 3]
+      const { estado: e } = primeiraRevanche(i, { robo, album: i % 2 ? 'completo' : 'inicial' })
+      const pors = motor.opcoes(e).comandos.filter((c) => c.tipo === 'por')
+      // até 4 jogadas espalhadas pela lista (terrenos vazios, a mesma carta subindo, carta trocando outra)
+      const escolhidas = [...new Set([0, Math.floor(pors.length / 3), Math.floor((2 * pors.length) / 3), pors.length - 1])].map((k) => pors[k]).filter(Boolean)
+      for (const c of escolhidas) {
+        const r = aplicar(e, c)
+        assert.equal(r.ok, true)
+        const d = r.estado
+        assert.equal(d.revanche.troca, true, 'pôr carta não gasta a troca')
+        const bruta = dicaBruta(d)
+        assert.deepEqual(d.revanche.dica, bruta, `semente ${i} ${JSON.stringify(c)}`)
+        assert.deepEqual(motor.dicaDaTroca(d), bruta)
+        assert.deepEqual(motor.visao(d).revanche, { troca: true, dica: bruta })
+        const antes = e.revanche.dica
+        if (antes && bruta && (antes.a !== bruta.a || antes.b !== bruta.b)) casos.mudou++
+        else if (antes && !bruta) casos.sumiu++
+        else if (!antes && bruta) casos.apareceu++
+        else casos.igual++
+        if (bruta) {
+          const luta = aplicar(aplicar(d, { tipo: 'trocar', ...bruta }).estado, { tipo: 'batalhar' })
+          assert.equal(luta.estado.ultima.vitoria, true, `semente ${i}: a dica mostrada vence`)
+          casos.venceu++
+        }
+      }
+    }
+    assert.ok(casos.mudou >= 3 && casos.sumiu >= 3 && casos.apareceu >= 3, JSON.stringify(casos))
+  })
+
+  test('sortear e consertar não mexem na luta: a dica fica a mesma (e continua certa)', () => {
+    let vistos = 0
+    for (let i = 0; i < 60 && vistos < 10; i++) {
+      const { estado: e } = primeiraRevanche(i, { robo: 'ganancioso' })
+      for (const c of motor.opcoes(e).comandos.filter((x) => x.tipo === 'sortear' || x.tipo === 'consertar')) {
+        const r = aplicar(e, c)
+        assert.equal(r.ok, true)
+        assert.deepEqual(r.estado.revanche, e.revanche)
+        assert.deepEqual(r.estado.revanche.dica, motor.dicaDaTroca(r.estado))
+        vistos++
+      }
+    }
+    assert.ok(vistos >= 5, `sortear/consertar na revanche: ${vistos}`)
+  })
+
+  test('40 sementes jogadas: em todo passo com a troca valendo, a dica guardada é a do reino daquele passo', () => {
+    let passos = 0, depoisDePor = 0
+    for (let i = 0; i < 40; i++) {
+      for (const x of jogarR2(i).passos) {
+        if (!x.depois.revanche.troca) continue
+        passos++
+        if (x.comando.tipo === 'por') depoisDePor++
+        assert.deepEqual(x.depois.revanche.dica, motor.dicaDaTroca(x.depois), `semente ${i} ${JSON.stringify(x.comando)}`)
+      }
+    }
+    assert.ok(depoisDePor >= 40, `passos de pôr carta na revanche: ${depoisDePor} (de ${passos})`)
+  })
+})

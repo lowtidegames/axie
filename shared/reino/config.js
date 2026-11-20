@@ -74,8 +74,8 @@ export const CARTAS = {
 
   // Construções (10)
   B01: { nome: 'Smithy', tipo: 'construcao', familia: 'pikewall', raridade: 'C', piloto: true, efeito: 'dano', valores: [30, 40, 50, 60, 70], texto: 'Neighbors deal more damage.' },
-  B02: { nome: 'Bunkhouse', tipo: 'construcao', familia: 'pikewall', raridade: 'C', efeito: 'soldados', valores: [1, 1, 1, 2, 2], efeito2: 'vida', valores2: [10, 20, 30, 30, 40], texto: 'Neighbor troops get extra soldiers and health.' },
-  B03: { nome: 'Stone Wall', tipo: 'construcao', familia: 'pikewall', raridade: 'U', efeito: 'reducao', valores: [25, 30, 35, 40, 45], texto: 'Neighbors take less damage.' },
+  B02: { nome: 'Bunkhouse', tipo: 'construcao', familia: 'pikewall', raridade: 'C', efeito: 'soldados', valores: [1, 1, 1, 2, 2], efeito2: 'vida', valores2: [5, 10, 15, 20, 25], texto: 'Neighbor troops get extra soldiers and health.' }, // 20/11 R37: vida 10..40 → 5..25 (dominava 54% dos melhores reinos)
+  B03: { nome: 'Stone Wall', tipo: 'construcao', familia: 'pikewall', raridade: 'U', efeito: 'reducao', valores: [30, 36, 42, 48, 55], texto: 'Neighbors take less damage.' }, // 20/11 R37: 25..45 → 30..55 (quase morta)
   B04: { nome: 'Watchtower', tipo: 'construcao', familia: 'thornbow', raridade: 'C', piloto: true, efeito: 'torre', valores: [50, 75, 100, 125, 150], valores2: [50, 60, 70, 85, 100], texto: 'Neighbor shooters see farther and hit harder.' },
   B05: { nome: "Fletcher's Hut", tipo: 'construcao', familia: 'thornbow', raridade: 'U', efeito: 'rapidez', valores: [50, 60, 70, 80, 90], texto: 'Neighbors attack faster.' },
   B06: { nome: 'Cookhouse', tipo: 'construcao', familia: 'potluck', raridade: 'C', piloto: true, efeito: 'curaSeg', valores: [3, 5, 7, 9, 12], texto: 'Neighbors heal every second.' },
@@ -89,8 +89,8 @@ export const CARTAS = {
   M02: { nome: 'Tar Puddle', tipo: 'magia', familia: 'fizzwick', raridade: 'U', efeito: 'piche', valores: [40, 45, 50, 55, 60], texto: 'Invaders here walk slower.' },
   M03: { nome: 'Angry Bees', tipo: 'magia', familia: 'thornbow', raridade: 'U', efeito: 'abelhas', valores: [8, 11, 14, 17, 21], texto: 'Invaders here get stung every second.' },
   M04: { nome: 'Rally Horn', tipo: 'magia', familia: 'pikewall', raridade: 'U', efeito: 'corneta', valores: [50, 60, 70, 85, 100], tiques: 50, texto: 'When invaders reach here, all soldiers attack faster for 5 s.' },
-  M05: { nome: 'Second Helping', tipo: 'magia', familia: 'potluck', raridade: 'U', efeito: 'repeteco', valores: [80, 85, 90, 95, 100], texto: 'When invaders reach here, all soldiers heal.' },
-  M06: { nome: 'Bramble Snare', tipo: 'magia', familia: 'thornbow', raridade: 'C', piloto: true, efeito: 'laco', valores: [3, 4, 5, 6, 8], tiques: 25, texto: 'The first invaders to step here are stuck for 2.5 s.' },
+  M05: { nome: 'Second Helping', tipo: 'magia', familia: 'potluck', raridade: 'U', efeito: 'repeteco', valores: [120, 130, 140, 150, 160], texto: 'When invaders reach here, all soldiers heal.' }, // 20/11 R37: 80..100 → 120..160 (quase morta)
+  M06: { nome: 'Bramble Snare', tipo: 'magia', familia: 'thornbow', raridade: 'C', piloto: true, efeito: 'laco', valores: [4, 5, 6, 8, 10], tiques: 35, texto: 'The first invaders to step here are stuck for 3.5 s.' }, // 20/11 R37: 3..8 por 2,5 s → 4..10 por 3,5 s (morta: 3,9%)
   M07: { nome: 'Seconds!', tipo: 'magia', familia: 'potluck', raridade: 'E', efeito: 'levanta', valores: [2, 3, 4, 5, 6], texto: 'The first soldiers to fall get back up with half health.' },
   M08: { nome: 'Grand Finale', tipo: 'magia', familia: 'fizzwick', raridade: 'L', efeito: 'finale', valores: [12, 18, 24, 30, 36], texto: 'When invaders reach here, every invader loses part of its health.' },
 }
@@ -154,7 +154,7 @@ export const HORDA = {
 
 // Chefes (rodadas 5, 10, 15, 20; depois repetem a cada 5 com o dobro de vida e dano).
 export const CHEFES = [
-  { id: 'gutbucket', nome: 'Gutbucket the Wide', rodada: 5, vida: 380, dano: 14, cad: 15, vel: 60, alcance: 30, golpeArea: 50, texto: 'Each swing hits every soldier within 0.5.' },
+  { id: 'gutbucket', nome: 'Gutbucket the Wide', rodada: 5, vida: 320, dano: 14, cad: 15, vel: 60, alcance: 30, golpeArea: 50, texto: 'Each swing hits every soldier within 0.5.' }, // 20/11 R37: vida 380 → 320 (novato atento passava na 1ª partida só 27%)
   { id: 'niptuck', nome: 'Tick & Tock', rodada: 10, vida: 300, dano: 16, cad: 10, vel: 60, alcance: 30, gemeos: 2, furia: 50, texto: 'When one twin falls, the other gets 50% faster and stronger.' },
   { id: 'moleworth', nome: 'Madame Moleworth', rodada: 15, vida: 1100, dano: 25, cad: 12, vel: 60, alcance: 30, cava: { tiques: 15, sai: 300 }, texto: 'Digs under the first three plots and comes up at plot 4.' },
   { id: 'gobble', nome: 'King Gobble the Uninvited', rodada: 20, vida: 800, dano: 30, cad: 12, vel: 60, alcance: 30, chama: { quantos: 3, tiques: 50, teto: 9 }, imune: true, texto: 'Calls 3 Scoffers every 5 s (9 at most); cannot be slowed or stuck.' },

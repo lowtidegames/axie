@@ -89,9 +89,10 @@ export function rotasDoReino(reino, { lerCorpo, chaveDoIp }) {
       lerConsulta(url, [])
       return [200, reino.perfil(conta.id)]
     }],
-    ['GET', /^\/api\/reino\/replay\/([^/]+)$/, true, (req, conta, m, url) => {
-      lerConsulta(url, [])
-      return [200, reino.replay(conta.id, partidaId(m[1]))]
+    ['GET', /^\/api\/reino\/replay\/([^/]+)$/, true, (req, conta, m, url, ip) => {
+      const { desde } = lerConsulta(url, ['desde'])
+      if (desde !== undefined && !/^[0-9]{1,6}$/.test(desde)) throw recusa('CAMPO_INVALIDO', 'Campo inválido: desde.')
+      return [200, reino.replay(conta.id, partidaId(m[1]), { desde: desde === undefined ? 0 : Number(desde) }, ip ? chaveDoIp(ip) : null)]
     }],
   ]
 }

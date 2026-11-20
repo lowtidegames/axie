@@ -73,3 +73,11 @@ export function migracaoV5(db) {
   `)
   db.prepare("INSERT INTO meta (chave, valor) VALUES ('reino_segredo', ?)").run(randomBytes(32).toString('hex'))
 }
+
+/**
+ * v6 — tarefa R16 (achado K1): a ÚLTIMA resposta de comando fica na linha da partida. Repetir o último `seq` devolve
+ * ela, sem refazer a partida pelo motor. Linha antiga fica com NULL até o próximo comando.
+ */
+export function migracaoV6(db) {
+  db.exec('ALTER TABLE reino_partidas ADD COLUMN resposta TEXT')
+}

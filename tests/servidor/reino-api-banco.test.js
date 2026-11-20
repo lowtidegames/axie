@@ -46,8 +46,9 @@ describe('R14 — migração v4 → v5', () => {
 
     const { s, api } = await subir(arq, T0 + 60_000)
     try {
-      assert.equal(VERSAO_DO_BANCO, 5)
-      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, 5)
+      // regra mudou (R16, K1): entrou a v6 (resposta guardada na partida); a v4 migra até ela, com a cópia da v4 antes
+      assert.equal(VERSAO_DO_BANCO, 6)
+      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, 6)
       // cópia ANTES da migração, com a versão de antes no nome e os dados de antes dentro
       const copias = fs.readdirSync(path.join(pasta, 'copias')).filter((n) => n.startsWith('v4.db.v4.'))
       assert.equal(copias.length, 1, copias.join(','))

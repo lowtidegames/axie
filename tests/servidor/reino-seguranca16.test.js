@@ -157,8 +157,11 @@ describe('R16 K1 — repetir seq e replay sem refazer a partida', () => {
       const cmds = JSON.parse(s.db.prepare('SELECT comandos FROM reino_partidas WHERE id = ?').get(r.id).comandos)
       assert.deepEqual(passos.map((p) => p.comando), cmds)
       assert.equal(passos.at(-1).visao.pontos, fim.resultado.pontos)
+      // refeita UMA vez (1 chamada do motor por comando) para todas as páginas; depois, nada
+      assert.equal(motor(s) - antes, total, 'o replay refez a partida mais de uma vez')
+      const montado = motor(s)
       for (let i = 0; i < 50; i++) assert.equal((await api('GET', `/api/reino/replay/${r.id}`, a.token)).status, 200)
-      assert.ok(motor(s) - antes <= 1, `o replay refez a partida ${motor(s) - antes} vezes`)
+      assert.equal(motor(s), montado, 'replay guardado refeito de novo')
       for (const q of ['?desde=-1', `?desde=${total + 1}`, '?desde=x', '?desde=1&desde=1', '?outro=1']) {
         assert.equal((await api('GET', `/api/reino/replay/${r.id}${q}`, a.token)).status, 400, q)
       }

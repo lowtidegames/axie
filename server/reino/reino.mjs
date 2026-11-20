@@ -591,7 +591,9 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     const inicio = c ? [c.soma, c.soma, c.quando, c.quando, c.conta] : [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 0, 0, 0]
     const linhas = q.pagina.all(temporada, ...inicio, n + 1)
     const pagina = linhas.slice(0, n)
-    const base = c ? c.posicao : 0
+    // R24: a posição vem do banco (quantos estão à frente da 1ª linha), nunca do cursor — a tela pode forjar a posição
+    // dentro dele e fazer conta de fora do topo aparecer como 1, 2, 3 e levar o id da partida.
+    const base = c && pagina.length ? q.posicao.get(temporada, pagina[0].soma, pagina[0].soma, pagina[0].quando, pagina[0].quando, pagina[0].conta_id).n : 0
     const lista = pagina.map((l, i) => {
       const media = mediaDe(l.soma)
       const posicao = base + i + 1

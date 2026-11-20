@@ -117,6 +117,7 @@ async function rodar(fmt) {
   confere(m.empurrao > 0 && m.empurrao <= 3, `empurrão de câmera na carga: ${m.empurrao} px (≤ 3)`)
   await page.waitForTimeout(2500)
   m = await med(page)
+  confere(m.quadrosLuta > 30 && m.abracos / m.quadrosLuta < 0.1, `portão sem abraço: em repouso (sem bote, sem apanhar) invasor e soldado ficam a menos de meio boneco em ${m.abracos} de ${m.quadrosLuta} quadros medidos (${(100 * m.abracos / m.quadrosLuta).toFixed(0)}%, < 10%)`)
   confere(m.limite <= TETO_DO_GUIA && m.pico <= m.limite, `teto de partículas: pico ${m.pico} de ${m.limite} (guia de estilo: ≤ ${TETO_DO_GUIA})`)
   confere(m.tremidaMax <= 6, `tremida de no máximo 6 px (${m.tremidaMax})`)
   confere(porSegundo(m.flashes) <= 3 && porSegundo(m.brancos) <= 3, `clarões ≤ 3 por segundo (${porSegundo(m.flashes)}) e quadros brancos de "apanhou" ≤ 3 por segundo (${porSegundo(m.brancos)}; ${m.brancos.length} no total)`)

@@ -81,6 +81,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       if (o >= 0) {
         const xa = C.xDe(a), xo = C.xDe(o), longe = Math.abs(xa - xo) > 60 && atira(o)
         if (xa !== xo) C.dir[o] = xa > xo ? 1 : -1
+        if (!longe) { C.marcarLuta(o); C.marcarLuta(a) } // os dois estão no choque: valem para a linha de frente
         { const xav = C.xDe(av) + C.dxe[av], xov = C.xDe(ov) + C.dxe[ov]; if (xav !== xov) C.dir[ov] = xav > xov ? 1 : -1 } // o representante olha para quem ele acerta
         const po = tela(ov)
         empurra = pa.x === po.x ? (C.dir[ov] * (C.sentido[ov] || 1) > 0 ? 1 : -1) : pa.x > po.x ? 1 : -1

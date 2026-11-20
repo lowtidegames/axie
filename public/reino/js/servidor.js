@@ -104,7 +104,15 @@ export const Srv = {
   comando: (partida, seq, comando) => Srv.comRede(() => Srv.pedir('POST', 'partida/comando', { partida, seq, comando })),
   desistir: (partida) => Srv.pedir('POST', 'partida/desistir', { partida }),
   ranking: (cursor = '') => Srv.comRede(() => Srv.pedir('GET', 'ranking' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')), 8000),
-  perfil: () => Srv.comRede(() => Srv.pedir('GET', 'perfil'), 8000),
+  /** O perfil manda o nome da conta: o do SERVIDOR vale (pode ter mudado em outra aba ou aparelho); o que fica guardado no aparelho acompanha. */
+  async perfil() {
+    const p = await Srv.comRede(() => Srv.pedir('GET', 'perfil'), 8000)
+    if (typeof p?.apelido === 'string' && p.apelido && p.apelido !== Srv.apelido) {
+      Srv.apelido = p.apelido
+      try { localStorage.setItem(CHAVE, JSON.stringify({ token: Srv.token, apelido: Srv.apelido })) } catch { /* vale só nesta visita */ }
+    }
+    return p
+  },
   /** A última partida TERMINADA da conta (a tela de fim que sobrevive a recarregar). */
   ultima: () => Srv.comRede(() => Srv.pedir('GET', 'partida/ultima'), 8000),
   /** Troca o apelido (quem aceita ou recusa é o servidor). Deu certo: o nome novo vale na hora, também no que fica guardado no aparelho. */

@@ -55,6 +55,9 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
     const meio = h('div', { class: 'km-corpo', id: 'telaCorpo' }, corpo)
     caixa.replaceChildren(h('header', { class: 'km-tela-topo' }, [cabeca || tit, x]), meio, h('footer', {}, [pe]))
     fundo.hidden = false; fundo.dataset.tela = nome; meio.scrollTop = 0
+    // quando o meio rola, uma faixa de ouro embaixo e a barra de rolagem avisam que ainda tem mais (some ao chegar no fim)
+    const avisoDeMais = () => { if (meio.scrollHeight > meio.clientHeight + 1 && meio.scrollTop + meio.clientHeight < meio.scrollHeight - 2) meio.dataset.mais = '1'; else delete meio.dataset.mais }
+    meio.addEventListener('scroll', avisoDeMais, { passive: true }); avisoDeMais(); requestAnimationFrame(avisoDeMais)
     x.focus()
   }
   function fechar() { if (!aberta) return; aberta = null; pedido++; Som.tocar('menuFecha'); fundo.hidden = true; const f = aoSair; aoSair = null; aoFechar(); if (f) f() }

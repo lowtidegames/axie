@@ -10,7 +10,7 @@ export const T = {
   trocarDica: 'TAP AGAIN TO REPLACE WHAT IS THERE', trocarQue: (nome, n) => ['REPLACE', `${nome} LV${n}?`],
   chegou: (n) => `${n} reached the castle`, varreu: (n) => `${n} broke your line`, emRodadas: (n) => (n === 1 ? 'BOSS NEXT ROUND' : `BOSS IN ${n} ROUNDS`),
   quase: (p) => `HORDE HEALTH DOWN ${p}%`, deNovoMais: 'SAME ROUND AGAIN: +1 CARD', semVidas: 'NO HEARTS LEFT',
-  chances: 'ODDS', bolsaSo: 'GOLD ONLY. NO RELIC THIS TIME.', // R31: a bolsa já veio sorteada; sem relíquia, a chance dela é 0 bolsaSorte: (n) => `LUCKY PURSE: ${n}% CHANCE`,
+  chances: 'ODDS', bolsaSo: 'GOLD ONLY. NO RELIC THIS TIME.' /* R31: a bolsa já veio sorteada; sem relíquia, a chance dela é 0 */, bolsaSorte: (n) => `LUCKY PURSE: ${n}% CHANCE`,
   poder: (a, b) => `POWER ${a}% > ${b}%`, deAte: (a, b, leg) => `${a} > ${b}${leg ? ' ' + leg : ''}`, sobeLinha: (s) => `LEVEL UP: ${s}`,
   pinos: (n, max, rar) => `PINS: LEVEL ${n} OF ${max} - FRAME: ${rar}`,
   familia: (nome, n, p) => `${nome} ${n}/${p}`, familiaMais: (nome, n, p, liga) => `${nome} ${n}/${p} > ${n + 1}/${p}${liga ? ' BONUS' : ''}`, familiaLigada: (nome, n, p) => `${nome} ${n}/${p} BONUS ON`,

@@ -17,6 +17,11 @@
 // sem subir, não há festa; "N points to pass <nome>" no ranking; o gancho do fim (silhueta da próxima carta + a estrada do dia pelo
 // relógio do servidor, sempre menos de 24 h); replay vivo (a carta de cada passo, SKIP TO FIGHT, MVP da luta, x1/x2, WATCH AGAIN e
 // BACK); e o nome digitado aparece ao vivo na letra em pixel.
+// R30 (função `r30`): no modo servidor o ouro do HUD conta junto com o letreiro da vitória e termina no número do servidor; o perfil
+// diz que a conta mora neste aparelho e a sessão vencida (401) avisa uma vez que a conta é nova; seq velho num comando novo mostra
+// "OTHER TAB PLAYED" na hora; o fim do ranking escreve "RUN SCORE n" e "SEASON SCORE n (AVG OF YOUR BEST 3)" com os números do
+// servidor; a liga que vem por posição ganha a legenda "TOP 10 THIS SEASON"; e a linha da energia respira no menu Play (320 e 360).
+// Só uma parte: REINO_SO=r30 (a bateria completa é sem a variável).
 // Fotos em tests/tela/fotos/reino/servidor-*.png.
 // Rode pela trava:  node tools/trava-robos.mjs rodar "timeout 900 node tests/tela/reino-servidor.e2e.mjs"
 import { createRequire } from 'node:module'
@@ -833,8 +838,219 @@ async function sessaoVencida() {
   const e = await srv(page), guardado = JSON.parse(await page.evaluate(() => localStorage.getItem('keepmile_sessao_v1')))
   confere(e.temToken && guardado.token !== velho && /^Keeper \d{5}$/.test(e.apelido || '') && guardado.apelido === e.apelido, 'R23: a conta nova fica guardada no aparelho e o jogo abre nela')
   confere((await api('GET', '/api/reino/perfil', guardado.token)).json.apelido === e.apelido, 'R23: o token guardado é o da conta que ficou')
+  // R30 (N3b): a tela trocou de conta porque o servidor recusou (401) o token guardado → avisa UMA vez, sem prometer recuperar
+  await item('R30 sessão vencida: aviso', page, async () => {
+    const S = T.srv.sessao
+    await espera(page, (t) => window.__keepmile.festas().log.some((l) => l.texto === t), S.texto, 8000)
+    const log = (await K(page, () => window.__keepmile.festas())).log.filter((l) => l.texto === S.texto)
+    confere(log.length === 1 && log[0].titulo === S.titulo && `${S.titulo}. ${S.texto}.` === 'YOUR SESSION EXPIRED. A NEW KEEP WAS STARTED.', `R30 N3: sessão vencida (401 a um token guardado): a tela avisa uma vez "${S.titulo}. ${S.texto}."`)
+    confere(!/recover|restore|back ?up|prize|reward|\$/i.test(S.titulo + ' ' + S.texto), 'R30 N3: o aviso não promete recuperar nada')
+    await espera(page, (t) => window.__keepmile.modelo().brindeTitulo === t, S.titulo, 8000)
+    const m = await modelo(page), lay = await K(page, () => window.__keepmile.layout())
+    confere(!!m.brindeRet && m.brindeRet.x >= 0 && m.brindeRet.x + m.brindeRet.w <= lay.VW && m.brindeRet.y >= lay.pinos.y + lay.pinos.h, 'R30 N3: o aviso da sessão cabe na tela, abaixo do HUD')
+    await page.screenshot({ path: path.join(FOTOS, 'servidor-sessao-nova-celular.png') })
+    // abrir de novo com a conta nova guardada (o token agora vale): o aviso não volta
+    const ctx2 = await abrirContexto({ w: 360, h: 740, toque: true }, JSON.stringify(guardado)), p2 = await ctx2.newPage()
+    await p2.goto(URL_JOGO)
+    await espera(p2, () => document.documentElement.dataset.pronto === '1' && window.__keepmile?.pronto && window.__keepmile.fase() === 'carta')
+    await p2.waitForTimeout(900)
+    const fe = await K(p2, () => window.__keepmile.festas())
+    confere((await srv(p2)).apelido === e.apelido && ![...fe.log, ...fe.fila].some((l) => l.texto === S.texto), 'R30 N3: abrir de novo com a conta nova guardada não repete o aviso')
+    await ctx2.close()
+  })
   confere(erros.length === 0, 'sessão vencida: zero erro de console' + (erros.length ? ' — ' + erros.slice(0, 3).join(' | ') : ''))
   await ctx.close()
+}
+
+// =============================================================== R30: achados da rodada 3 do jogador desconfiado (conta nova, celular)
+async function r30() {
+  console.log('\n=== R30 (celular 360x740, conta nova) ===')
+  const ctx = await abrirContexto({ w: 360, h: 740, toque: true })
+  const page = await ctx.newPage(), erros = [], pedidos = []
+  vigiar(page, erros, pedidos)
+  const foto = async (nome, pg = page) => { const arq = path.join(FOTOS, `servidor-${nome}.png`); await pg.screenshot({ path: arq }); const kb = fs.statSync(arq).size / 1024; confere(kb < 400, `foto servidor-${nome}.png com ${kb.toFixed(0)} KB (< 400)`) }
+  const tap = (sel) => page.locator(sel).first().tap()
+  const token = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('keepmile_sessao_v1'))).token
+  const pronto = (pg = page) => espera(pg, () => document.documentElement.dataset.pronto === '1' && window.__keepmile?.pronto)
+  const fecharTela = async (pg = page) => { if (await pg.evaluate(() => !document.getElementById('tela').hidden)) { await pg.keyboard.press('Escape'); await espera(pg, () => document.getElementById('tela').hidden) } }
+  const abrirTela = async (botao, prontoSel, pg = page, toque = true) => { await fecharTela(pg); const c = (q) => (toque ? pg.locator(q).first().tap() : pg.locator(q).first().click()); await c('#bt-menu'); await espera(pg, () => document.getElementById('tela').dataset.tela === 'menu' && !document.getElementById('tela').hidden); await c(botao); await espera(pg, (q) => !!document.querySelector(q) && !document.getElementById('telaCarregando'), prontoSel) }
+  await page.goto(URL_JOGO); await pronto()
+  await espera(page, () => window.__keepmile.fase() === 'carta')
+  await page.keyboard.press('Shift')
+
+  // ---- N3: 1ª visita (nenhum token guardado): conta criada sem aviso de sessão
+  await page.waitForTimeout(600)
+  { const fe = await K(page, () => window.__keepmile.festas())
+    confere(![...fe.log, ...fe.fila].some((l) => l.texto === T.srv.sessao.texto), 'R30 N3: 1ª visita (sem token guardado): nenhum aviso de sessão vencida') }
+
+  // ---- N1: o ouro do HUD conta junto com o letreiro da vitória e termina no número do servidor
+  await item('R30 N1 ouro do HUD na vitória', page, async () => {
+    let am = null, antes = 0
+    for (let vez = 0; vez < 6 && !am; vez++) {
+      await espera(page, () => window.__keepmile.fase() === 'carta' && !window.__keepmile.servidor().ocupado && window.__keepmile.modelo().maoRevelada, null, 20_000)
+      const alvo = await K(page, () => { const w = window.__keepmile, v = w.visao(), op = w.opcoes(), mao = w.modelo().mao; for (let i = 0; i < mao.length; i++) { const por = op.comandos.filter((x) => x.tipo === 'por' && x.carta === mao[i].carta), a = por.find((x) => !v.terrenos[x.terreno - 1]) || por.find((x) => v.terrenos[x.terreno - 1]?.carta === mao[i].carta); if (a) return { i, k: a.terreno } } return null })
+      if (alvo) { await tap('#bt-carta' + alvo.i); await tap('#bt-terreno' + alvo.k); await espera(page, () => window.__keepmile.modelo().cartaPosta && !window.__keepmile.servidor().ocupado) }
+      antes = (await modelo(page)).ouro
+      await page.evaluate(() => { window.__ouro = []; window.__ouroT = setInterval(() => { const m = window.__keepmile.modelo(); if (m.fase === 'vitoria' && m.vitoria) window.__ouro.push({ hud: m.ouro, mostra: m.vitoria.ouroMostra, pronto: !!m.vitoria.pronto, total: m.vitoria.ouro }) }, 12) })
+      await tap('#bt-lutar')
+      await espera(page, () => window.__keepmile.lutando())
+      await K(page, () => window.__keepmile.avancarBatalha())
+      await espera(page, () => ['vitoria', 'derrota'].includes(window.__keepmile.fase()))
+      if ((await modelo(page)).fase === 'derrota') { await page.evaluate(() => clearInterval(window.__ouroT)); await K(page, () => window.__keepmile.seguir()); if ((await modelo(page)).fase === 'fim') throw new Error('a partida acabou sem nenhuma vitória'); continue }
+      await espera(page, () => window.__keepmile.modelo().vitoria?.pronto, null, 10_000)
+      const doSrv = (await api('GET', '/api/reino/partida?modo=treino', await token())).json.partida.visao.ouro
+      await espera(page, (o) => window.__keepmile.modelo().ouro === o, doSrv, 5000).catch(() => {})
+      am = { lista: await page.evaluate(() => { clearInterval(window.__ouroT); return window.__ouro }), doSrv, fim: (await modelo(page)).ouro }
+    }
+    if (!am) throw new Error('nenhuma vitória em 6 lutas')
+    const contando = am.lista.filter((a) => !a.pronto), total = am.lista[0]?.total
+    confere(total > 0 && am.doSrv > antes, `R30 N1: vitória no modo servidor: letreiro "+${total}", HUD em ${antes} antes e o servidor com ${am.doSrv}`)
+    confere(contando.some((a) => a.hud > antes && a.mostra > 0), `R30 N1: o ouro do HUD conta JUNTO com o letreiro (enquanto o "+${total}" conta, o HUD já saiu de ${antes}: ${[...new Set(contando.map((a) => a.hud))].join(' ')})`)
+    confere(am.lista.every((a, i) => a.hud >= antes && a.hud <= am.doSrv && (i === 0 || a.hud >= am.lista[i - 1].hud)), 'R30 N1: o HUD só sobe, sem passar do número do servidor')
+    confere(am.fim === am.doSrv, `R30 N1: e termina no número do servidor (${am.fim} = ${am.doSrv})`)
+  })
+
+  // ---- N4: aba velha — a partida andou por fora; um comando NOVO leva 409 SEQ_* → a tela recarrega e avisa "OTHER TAB PLAYED" na hora
+  await item('R30 N4 outra aba', page, async () => {
+    await K(page, () => window.__keepmile.jogarNoServidor({ ateRodada: 1 })) // sai da escolha do espólio: rodada aberta, sem carta posta
+    await espera(page, () => window.__keepmile.fase() === 'carta' && !window.__keepmile.servidor().ocupado && window.__keepmile.modelo().maoRevelada)
+    await K(page, () => window.__keepmile.limparFestas()); await page.waitForTimeout(450)
+    const tk = await token()
+    let q = (await api('GET', '/api/reino/partida?modo=treino', tk)).json.partida
+    const seqDaTela = q.seq
+    // "a outra aba": dois comandos pela API com a mesma conta (põe uma carta e luta)
+    for (let n = 0; n < 2 && q.status === 'aberta'; n++) { const c = q.opcoes.comandos, por = c.filter((x) => x.tipo === 'por'); q = (await api('POST', '/api/reino/partida/comando', tk, { partida: q.id, seq: q.seq, comando: (n === 0 && (por.find((x) => !q.visao.terrenos[x.terreno - 1]) || por[0])) || c.find((x) => x.tipo === 'batalhar') })).json }
+    confere(q.seq === seqDaTela + 2 && (await srv(page)).seq === seqDaTela, `R30 N4: a partida andou por fora (servidor no seq ${q.seq}, a tela parada no ${seqDaTela})`)
+    const m0 = pedidos.length, rodadaAntes = (await modelo(page)).rodada
+    const alvo = await K(page, () => { const w = window.__keepmile, v = w.visao(), op = w.opcoes(), mao = w.modelo().mao; for (let i = 0; i < mao.length; i++) { const por = op.comandos.filter((x) => x.tipo === 'por' && x.carta === mao[i].carta), a = por.find((x) => !v.terrenos[x.terreno - 1]) || por[0]; if (a) return { i, k: a.terreno } } return null })
+    await tap('#bt-carta' + alvo.i)
+    const t0 = await page.evaluate(() => performance.now())
+    await tap('#bt-terreno' + alvo.k)
+    const avisou = await espera(page, (t) => window.__keepmile.modelo().brindeTitulo === t, T.outraAba, 2500).then(() => true, () => false)
+    const m = await modelo(page), cod = pedidos.slice(m0).map((x) => x.codigo).filter(Boolean)
+    confere(cod.some((c) => c === 'SEQ_ANTIGA' || c === 'SEQ_JA_USADA'), `R30 N4: o servidor recusou o comando novo da tela parada (409 ${cod.join(', ')})`)
+    confere(avisou && T.outraAba === 'OTHER TAB PLAYED' && m.brinde === T.continua((await K(page, () => window.__keepmile.visao())).rodada), `R30 N4: a tela avisa na hora "${T.outraAba}" / "${m.brinde}" (o mesmo aviso do modo local), sem pular de rodada em silêncio (estava na ${rodadaAntes})`)
+    { const fe = await K(page, () => window.__keepmile.festas()), i = fe.log.findIndex((l) => l.titulo === T.outraAba); confere(i >= 0 && !fe.log.some((l, j) => j !== i && l.ini >= t0 && l.ini <= fe.log[i].ini), 'R30 N4: o aviso da outra aba é a 1ª festa depois de recarregar (nada na frente dele)') }
+    const l = (await api('GET', '/api/reino/partida?modo=treino', tk)).json.partida
+    confere((await srv(page)).seq === l.seq && JSON.stringify(await K(page, () => window.__keepmile.visao())) === JSON.stringify(l.visao), `R30 N4: e fica igual ao servidor (seq ${l.seq})`)
+    { const lay = await K(page, () => window.__keepmile.layout()); confere(!!m.brindeRet && m.brindeRet.x >= 0 && m.brindeRet.x + m.brindeRet.w <= lay.VW && m.brindeRet.y >= lay.pinos.y + lay.pinos.h, 'R30 N4: o aviso cabe na tela, abaixo do HUD') }
+    await page.waitForTimeout(300) // a placa acaba de descer
+    await foto('outra-aba-celular')
+  })
+
+  // ---- N5 + N8: fim de uma partida de RANKING — os pontos da partida e a conta da temporada com os números do servidor
+  let rk = null
+  await item('R30 N5 fim do ranking', page, async () => {
+    await K(page, () => window.__keepmile.limparFestas())
+    const c = await K(page, () => window.__keepmile.abrirModo('ranking'))
+    if (c) throw new Error('não abriu o ranking: ' + c)
+    await espera(page, () => window.__keepmile.servidor().modo === 'ranking' && window.__keepmile.fase() !== 'fim')
+    await K(page, () => window.__keepmile.jogarNoServidor({ ateRodada: 3 }))
+    await K(page, () => window.__keepmile.jogarNoServidor({ semCarta: true }))
+    await espera(page, () => window.__keepmile.fase() === 'fim' && window.__keepmile.modelo().fim?.contou && !!window.__keepmile.modelo().fim.gancho, null, 20_000)
+    await espera(page, () => window.__keepmile.desenhou().includes('fimPontosRanking'), null, 5000).catch(() => {})
+    const tk = await token(), f = (await modelo(page)).fim, d = await K(page, () => window.__keepmile.desenhou())
+    rk = (await api('GET', '/api/reino/ranking', tk)).json
+    const ult = (await api('GET', '/api/reino/partida/ultima?modo=ranking', tk)).json.partida, n = rk.temporada.melhoresQueContam
+    const esperado = [`RUN SCORE ${ult.resultado.pontos}`, `SEASON SCORE ${rk.voce.pontos} (AVG OF YOUR BEST ${n})`]
+    confere(JSON.stringify(f.rankingLinhas) === JSON.stringify(esperado) && d.includes('fimPontosRanking'), `R30 N5: o fim do ranking escreve "${esperado[0]}" e "${esperado[1]}" (pontos da partida e conta da temporada: os do servidor)`)
+    confere(JSON.stringify(f.rankingLinhas) === JSON.stringify([T.srv.fimRanking.partida(f.ranking?.pontos), T.srv.fimRanking.temporada(f.ranking?.temporada, f.ranking?.melhores)]) && n === 3, 'R30 N5: a tela não calcula: usa os campos da resposta (resultado.pontos, perfil.temporada.voce.pontos, ranking.temporada.melhoresQueContam)')
+    confere(!!f.subiu && f.subiu.texto === T.srv.subiu.entrou(rk.voce.posicao) && d.includes('fimSubiu'), `R30 N5: junto de "${f.subiu?.texto}"`)
+    { const lay = await K(page, () => window.__keepmile.layout()), r = f.fechoRet; confere(!!r && r.x >= 0 && r.x + r.w <= lay.VW && r.y + r.h <= lay.fimPainel.y, 'R30 N5: o bloco cabe na tela, acima da placa de pontos') }
+    confere(!/prize|reward|\$|earn|token/i.test((f.rankingLinhas || []).join(' ')), 'R30 N5: nenhuma promessa de prêmio')
+    // N8: com poucas contas a liga vem por POSIÇÃO — a legenda diz isso com o número do servidor
+    const lenda = rk.ligas.find((l) => l.primeiros)
+    if (rk.voce.liga === lenda.id) confere(f.liga.linha === `TOP ${lenda.primeiros} THIS SEASON` && f.liga.linha === 'TOP 10 THIS SEASON', `R30 N8: fim: "${f.liga.nome}" com ${rk.voce.pontos} pontos traz a legenda "${f.liga.linha}" (liga por posição)`)
+    else confere(f.liga.linha !== 'TOP 10 THIS SEASON', 'R30 N8: fim: liga por pontos, sem a legenda de posição')
+    await foto('fim-ranking-pontos-celular')
+  })
+  await item('R30 N5 treino sem a conta do ranking', page, async () => {
+    const c = await K(page, () => window.__keepmile.abrirModo('treino'))
+    if (c) throw new Error('não abriu o treino: ' + c)
+    await espera(page, () => window.__keepmile.servidor().modo === 'treino' && window.__keepmile.fase() !== 'fim')
+    await K(page, () => window.__keepmile.jogarNoServidor({ semCarta: true }))
+    await espera(page, () => window.__keepmile.fase() === 'fim' && window.__keepmile.modelo().fim?.contou && !!window.__keepmile.modelo().fim.gancho, null, 20_000)
+    await page.waitForTimeout(300)
+    const f = (await modelo(page)).fim
+    confere(!f.ranking && !(await K(page, () => window.__keepmile.desenhou())).includes('fimPontosRanking'), 'R30 N5: fim de treino: sem "RUN SCORE / SEASON SCORE" (só no ranking)')
+  })
+
+  // ---- N3a: o perfil diz, em 1 linha, que a conta mora neste aparelho (sem promessa de recuperar)
+  await item('R30 N3 perfil: conta neste aparelho', page, async () => {
+    await abrirTela('#mLiga', '#perfilRecordes')
+    const t = await texto(page, '#perfilAparelho')
+    confere(t === 'Your keep is saved on this device. Clearing browser data starts a new one.' && t === T.srv.aparelho, `R30 N3: perfil: "${t}"`)
+    confere(!/recover|restore|back ?up|prize|reward|\$/i.test(t || ''), 'R30 N3: a linha não promete recuperar nada')
+    await medirTela(page, 'R30 perfil com o aviso do aparelho')
+    await foto('perfil-aviso-celular')
+    await fecharTela()
+  })
+
+  // ---- N8: a legenda "Top 10 this season" no ranking e no perfil quando a liga vem por posição; sem ela quando vem por pontos
+  await item('R30 N8 liga por posição', page, async () => {
+    const forca = { liga: 'legend' }
+    await page.route('**/api/reino/ranking*', async (rota) => { const r = await rota.fetch(), j = await r.json(); if (r.ok() && j.voce) j.voce.liga = forca.liga; await rota.fulfill({ response: r, json: j }) })
+    await page.route('**/api/reino/perfil', async (rota) => { const r = await rota.fetch(), j = await r.json(); if (r.ok() && j.temporada?.voce) j.temporada.voce.liga = forca.liga; await rota.fulfill({ response: r, json: j }) })
+    await abrirTela('#mRanking', '#rankTemporada')
+    const n = rk.ligas.find((l) => l.primeiros).primeiros
+    confere((await texto(page, '#rankPosicao')) === `Top ${n} this season` && n === 10, `R30 N8: ranking: sob "Legend of the Mile" a legenda "${await texto(page, '#rankPosicao')}" (o \`primeiros\` da lista de títulos do servidor)`)
+    confere(await page.evaluate(() => { const a = document.getElementById('rankPosicao'), l = document.getElementById('rankLiga'); return !!a && l.contains(a) && a.previousElementSibling?.textContent === 'Legend of the Mile' }), 'R30 N8: a legenda fica logo abaixo do nome da liga')
+    await medirTela(page, 'R30 ranking com a legenda da posição')
+    await foto('ranking-top10-celular')
+    await abrirTela('#mLiga', '#perfilRecordes')
+    confere((await texto(page, '#perfilTopoPosicao')) === `Top ${n} this season`, 'R30 N8: perfil: a mesma legenda sob a liga')
+    await medirTela(page, 'R30 perfil com a legenda da posição')
+    forca.liga = 'gate'
+    await abrirTela('#mRanking', '#rankTemporada')
+    confere(!(await page.evaluate(() => !!document.getElementById('rankPosicao'))), 'R30 N8: liga por pontos (Gate Sweeper): sem a legenda de posição no ranking')
+    await abrirTela('#mLiga', '#perfilRecordes')
+    confere(!(await page.evaluate(() => !!document.getElementById('perfilTopoPosicao'))), 'R30 N8: nem no perfil')
+    await fecharTela()
+  }, async () => { await page.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {}) })
+  await page.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {})
+  confere((await K(page, () => window.__keepmile.erros())).length === 0, 'R30: nenhuma divergência entre a tela e o servidor')
+  confere(erros.length === 0, 'R30: zero erro de console' + (erros.length ? ' — ' + erros.slice(0, 5).join(' | ') : ''))
+  const sessao = await page.evaluate(() => localStorage.getItem('keepmile_sessao_v1'))
+  await ctx.close()
+
+  // ---- N6: menu Play no celular — a linha da energia com respiro (6 px de tela além do vão comum de 6 px) dos botões de cima e de baixo, em 320 e 360.
+  // E nos 5 tamanhos: o perfil com a linha do aparelho cabe; no menor celular, o fim de mais uma partida de ranking com as linhas novas.
+  for (const [w, h, toque] of [[320, 568, true], [360, 740, true], [390, 844, true], [1280, 720, false], [740, 360, true]]) {
+    const c2 = await abrirContexto({ w, h, toque }, sessao), p2 = await c2.newPage(), er2 = []
+    vigiar(p2, er2, [])
+    await item(`R30 ${w}x${h}`, p2, async () => {
+      await p2.goto(URL_JOGO); await pronto(p2)
+      if (await K(p2, () => window.__keepmile.fase() === 'fim')) { await K(p2, () => window.__keepmile.abrirModo('treino')); await espera(p2, () => window.__keepmile.fase() === 'carta') }
+      if (w <= 360) {
+        await abrirTela('#mJogar', '#jEstrada', p2, toque)
+        const g = await p2.evaluate(() => { const r = (e) => e.getBoundingClientRect(), cs = [...document.querySelectorAll('#telaEnergia canvas')].map(r); return { n: cs.length, cima: Math.min(...cs.map((c) => c.top)) - r(document.getElementById('jRanking')).bottom, baixo: r(document.getElementById('jEstrada')).top - Math.max(...cs.map((c) => c.bottom)), texto: document.getElementById('telaEnergia').textContent } })
+        confere(g.n === 2 && / \+3 in /.test(g.texto) && g.cima >= 12 && g.baixo >= 12, `R30 N6: ${w}x${h} Play: "${g.texto}" com respiro dos botões (${g.cima.toFixed(1)} px acima, ${g.baixo.toFixed(1)} px abaixo; >= 12 = os 6 px do vão comum entre botões + 6 px de respiro)`)
+        await medirTela(p2, `R30 ${w}x${h} Play`)
+        const t = await topoEPe(p2); confere(t.x && t.pe, `R30 N6: ${w}x${h} Play: X e pé à vista`)
+        if (w === 320) await foto('jogar-menu-320', p2)
+        await fecharTela(p2)
+      }
+      await abrirTela('#mLiga', '#perfilRecordes', p2, toque)
+      confere((await texto(p2, '#perfilAparelho')) === T.srv.aparelho, `R30 N3: ${w}x${h}: o perfil traz a linha do aparelho`)
+      await medirTela(p2, `R30 ${w}x${h} perfil`)
+      { const t = await topoEPe(p2); confere(t.x && t.pe, `R30: ${w}x${h} perfil: X e pé à vista`) }
+      await fecharTela(p2)
+      if (w === 320) {
+        const c = await K(p2, () => window.__keepmile.abrirModo('ranking'))
+        if (c) throw new Error('não abriu o ranking: ' + c)
+        await espera(p2, () => window.__keepmile.servidor().modo === 'ranking' && window.__keepmile.fase() !== 'fim')
+        await K(p2, () => window.__keepmile.jogarNoServidor({ ateRodada: 2 }))
+        await K(p2, () => window.__keepmile.jogarNoServidor({ semCarta: true }))
+        await espera(p2, () => window.__keepmile.fase() === 'fim' && window.__keepmile.modelo().fim?.contou && !!window.__keepmile.modelo().fim.gancho, null, 20_000)
+        await espera(p2, () => window.__keepmile.desenhou().includes('fimPontosRanking'), null, 5000).catch(() => {})
+        const f = (await modelo(p2)).fim, lay = await K(p2, () => window.__keepmile.layout()), r = f.fechoRet
+        confere((await K(p2, () => window.__keepmile.desenhou())).includes('fimPontosRanking') && !!r && r.x >= 0 && r.x + r.w <= lay.VW && r.y + r.h <= lay.fimPainel.y, `R30 N5: 320x568: "${(f.rankingLinhas || []).join('" e "')}" cabem inteiras acima da placa`)
+        await foto('fim-ranking-pontos-320', p2)
+      }
+    })
+    confere(er2.length === 0, `R30 ${w}x${h}: zero erro de console` + (er2.length ? ' — ' + er2.slice(0, 3).join(' | ') : ''))
+    await c2.close()
+  }
 }
 
 // =============================================================== R27: RANKING COM FESTA (celular, dia 2). A posição "antes" e "depois" é a do
@@ -894,15 +1110,18 @@ async function festaDoRanking({ sessao }) {
   await ctx.close()
 }
 
+const SO = process.env.REINO_SO || '' // para rodar só uma parte enquanto se trabalha nela (a bateria completa é sem isto)
 let codigo = 0
 try {
   SORREL = await roboDeRanking('Aunt Sorrel', 2) // "ontem": conta criada e 1 partida de ranking terminada
   relogio.desvio = 0
-  const conta = await celular()
-  await pc(conta)
-  await festaDoRanking(conta)
-  await desenho(conta)
-  await sessaoVencida()
+  if (!SO) {
+    const conta = await celular()
+    await pc(conta)
+    await festaDoRanking(conta)
+    await desenho(conta)
+  }
+  if (!SO || SO === 'r30') { await sessaoVencida(); await r30() }
 } catch (err) {
   falha('o teste parou: ' + (err?.stack || err))
   for (const c of browser.contexts()) for (const pg of c.pages()) console.log('  estado na parada: ' + JSON.stringify(await pg.evaluate(() => ({ fase: window.__keepmile?.fase(), srv: window.__keepmile?.servidor(), erros: window.__keepmile?.erros(), tela: document.getElementById('tela').hidden ? null : document.getElementById('tela').dataset.tela, v: (({ rodada, fase, cartaPosta, vidas }) => ({ rodada, fase, cartaPosta, vidas }))(window.__keepmile?.visao() || {}) })).catch((e) => String(e))))
@@ -913,6 +1132,6 @@ try {
   await new Promise((ok) => s.servidor.close(ok))
   fs.rmSync(pasta, { recursive: true, force: true })
 }
-console.log(`\n${conferencias} conferências, ${falhas.length} falha(s)`)
+console.log(`\n${conferencias} conferências, ${falhas.length} falha(s)` + (SO ? ` (só ${SO})` : ''))
 if (falhas.length) { console.log(falhas.map((f) => ' - ' + f).join('\n')); codigo = 1 }
 process.exit(codigo)

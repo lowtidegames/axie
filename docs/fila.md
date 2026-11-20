@@ -141,9 +141,9 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | A4 | Aplicar o kit em todas as telas e aumentar a grade do porão | dev-tela (Opus) | porao/tela/*.js, estilo.css, tela.e2e.mjs | A2, A3 | PRONTO (cffbb1a juntado; e2e 94 conferências; trindade ≥ 85 em todas as fotos) |
 | P12 | Desenho da abertura + login por assinatura + progresso por conta | arquiteto (Opus) | — (só desenho) | — | PRONTO (docs/porao/desenho-abertura.md) |
 | P13 | Textos da abertura: vó tutora, aviso da assinatura, sugestões de apelido, historinha | humorista (Fable) | porao/comum/nomes.js, porao/tests/nomes.test.js | — | PRONTO (juntado pelo diretor: o humorista não tinha shell; 85 testes) |
-| A5 | Arte da abertura: casa da vó à noite, logo do jogo, logo do estúdio, retrato da vó | artista-pixel | arte/porao/abertura/, porao/tela/arte/ (só nomes novos) | — | RODANDO (teto 15) |
+| A5 | Arte da abertura: casa da vó à noite, logo do jogo, logo do estúdio, retrato da vó | artista-pixel | arte/porao/abertura/, porao/tela/arte/ (só nomes novos) | — | PRONTO (ffc8d93; 10 de 15 gerações) |
 | P14 | Contas e migração v2 (T1) | nucleo-do-jogo | porao/servidor/banco.mjs, porao/tests/contas.test.js | P12 | RODANDO |
-| P15 | base58 e conferência da assinatura (T3) | engenheiro-de-carteira (Opus) | porao/comum/base58.js, porao/servidor/assinatura.mjs, porao/tests/assinatura.test.js | P12 | RODANDO |
+| P15 | base58 e conferência da assinatura (T3) | engenheiro-de-carteira (Opus) | porao/comum/base58.js, porao/servidor/assinatura.mjs, porao/tests/assinatura.test.js | P12 | PRONTO (b8d258f; 25 testes; recusa chaves fracas) |
 | P16 | Telas da abertura (T5) | dev-tela (Opus) | porao/tela/abertura.js, index.html, estilo.css, app.js, sprites.js | P12 | RODANDO |
 | P17 | Carteira no navegador e api de sessão (T6) | dev-tela (Opus) | porao/tela/carteira-navegador.js, api.js, porao/tests/carteira-navegador.test.mjs | P12 | RODANDO |
 | P18 | Vó tutora, apelido, história (T7) | dev-tela | porao/tela/vo.js | P16 | FILA |

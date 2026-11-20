@@ -1,7 +1,9 @@
 // Keepmile — R36: MEDIR A PROFUNDIDADE do jogo (sem mudar número nem regra). Só lê o motor; variantes entram por injeção, aqui.
 // Uso: node tools/medir-reino.mjs <medida> [--n 2000] [--semente keepmile36] [--variante base] [--trabalhos 4] [--json]
 //   medidas: A (novato no 1º chefe) · B (qualidade da decisão) · C (posição) · D (cartas e planos) · E (longo prazo) · F (tempo) · todas
-//   --n      partidas (A, D, F; padrão 2000) ou ofertas (B 400, C 300); E usa n/10 jogadores atentos e n/50 bons (padrão 200 e 40)
+//   --n      partidas (A, D, F; padrão 2000) ou ofertas (B 400, C 300); E usa n/10 contas atentas e aleatórias e n/50 do planejador
+//            (padrão 200 e 40), cada conta com --partidas partidas seguidas (padrão 60; R40: as 30 conquistas e a vitória da rodada 20)
+//   --sem-ranking  E sem o ranking semanal (mais rápido) · --sem-aleatorio  E sem as contas do aleatório
 //   --planos partidas por robô de plano no D (padrão 300; 0 = sem planos)
 //   --k      continuações por opção (B, C; padrão 8)
 //   --saida arquivo.json  guarda os números crus (para comparar variantes com as mesmas sementes)
@@ -12,10 +14,11 @@ import { Worker, isMainThread, parentPort } from 'node:worker_threads'
 import { availableParallelism } from 'node:os'
 import { writeFileSync } from 'node:fs'
 import { criarRng, estadoDaSemente } from '../shared/rng.js'
-import { ALBUM, CARTAS, CHEFES, FAMILIAS, PARTIDA as P, RELIQUIAS } from '../shared/reino/config.js'
+import { ALBUM, CARTAS, CHEFES, CONQUISTAS, FAMILIAS, PARTIDA as P, RELIQUIAS } from '../shared/reino/config.js'
 import { montarExercito, simularBatalha } from '../shared/reino/batalha.js'
-import { aplicar, criarPartida, opcoes, visao } from '../shared/reino/partida.js'
+import { aplicar, criarPartida, opcoes, resistiu, visao } from '../shared/reino/partida.js'
 import { PLANOS, escolher, forcaEstatica, hordaDeReferencia, notaDaLuta } from '../shared/reino/robos.js'
+import { IDS as IDS_CONQ, conquistasDoPasso, vitoriasDoPasso } from '../shared/reino/conquistas.js'
 
 // ================================================================ variantes (injeção; desfeita no fim de cada tarefa)
 const desfazer = []
@@ -49,6 +52,11 @@ export const VARIANTES = {
   },
   // pacote: as três que mexem no novato e na decisão — o chefe 320 JÁ ESTÁ no config (R37); hoje só soma ouroGuardar 3
   pacote: { cfg: () => { por(CHEFES[0], 'vida', 320) }, regras: { ouroGuardar: 3 } },
+  // R40 — degraus e condições das conquistas (medida E). Só números de CONQUISTAS; a regra é a de shared/reino/conquistas.js.
+  tally300: { cfg: () => por(CONQUISTAS.rodadasSomadas, 'tally400', 300) }, // último degrau longe do álbum cheio (398)
+  bis22: { cfg: () => por(CONQUISTAS, 'rodadaDoBis', 22) }, // Encore! mais perto da vitória (20)
+  bis21: { cfg: () => por(CONQUISTAS, 'rodadaDoBis', 21) },
+  bolsos4: { cfg: () => por(CONQUISTAS, 'reliquias', 4) }, // Pocketful: os 3 chefes dão 3 relíquias (cai junto com Mole Patrol)
 }
 
 function aplicarVariante(nome) {
@@ -565,74 +573,123 @@ function resumoD(lista, planos) {
   return { linhas: L, res }
 }
 
-// ================================================================ E — longo prazo (álbum, conquistas) e ranking semanal
-const CONQ = ['supper', 'road', 'plate', 'last', 'house', 'brass', 'family', 'penny', 'double', 'mole', 'pudding', 'librarian']
-const CHEFE_CONQ = { gutbucket: 'road', niptuck: 'double', moleworth: 'mole', gobble: 'pudding' }
-function contarSoldados(eventos) {
-  const soldados = new Set(), vivos = new Set()
-  let quedas = 0
-  for (const x of eventos) {
-    if (x[1] === 'n' && x[3] === 0) { soldados.add(x[2]); vivos.add(x[2]) } else if (x[1] === 'c' && vivos.has(x[2])) { vivos.delete(x[2]); quedas++ } else if (x[1] === 'r' && soldados.has(x[2])) vivos.add(x[2])
-  }
-  return { quedas, vivos: vivos.size }
+// ================================================================ E — longo prazo: as 30 conquistas, a vitória (rodada 20) e o ranking
+// R40: as conquistas saem de shared/reino/conquistas.js (conquistasDoPasso, a MESMA regra do servidor e da tela), comando a comando,
+// com o álbum que cresce entre as partidas (liberadas = rodadas vencidas somadas no começo da partida, como o servidor faz).
+// Velocidade: a partida roda sem os eventos da luta; enquanto a conta não tem Clean Plate ou Last One Standing (as únicas que leem os
+// eventos), a luta vencida é refeita COM eventos (a luta não tem dado: mesma entrada → mesmo resultado). O teste confere contra a
+// partida jogada com eventos o tempo todo.
+const PRECISA_EVENTOS = ['plate', 'last']
+/** Uma partida inteira com as conquistas de cada passo. `tem` (Set) e `conta` ({ rodadas }) são da conta e mudam aqui. */
+export function jogarComConquistas({ robo, semente, liberadas, regras = {}, tem, conta, eventos = false, aoGanhar }) {
+  const comandos = []
+  return jogar({ robo, semente, liberadas, regras, eventos, aoPasso: (e0, c, r) => {
+    comandos.push(c)
+    let evs = r.eventos
+    if (!eventos && c.tipo === 'batalhar' && r.estado.ultima.vitoria && PRECISA_EVENTOS.some((id) => !tem.has(id))) {
+      const b = simularBatalha({ terrenos: e0.terrenos, reliquias: e0.reliquias, horda: e0.horda, eventos: true })
+      evs = evs.map((ev) => (ev.tipo === 'batalha' ? { ...ev, eventos: b.eventos } : ev))
+    }
+    const novas = conquistasDoPasso({ antes: e0, depois: r.estado, eventos: evs, comandos, rodadasAntes: conta.rodadas, tem })
+    for (const id of novas) { tem.add(id); if (aoGanhar) aoGanhar(id) }
+    conta.rodadas += vitoriasDoPasso(evs)
+  } })
 }
-function tarefaE({ robo, de, ate, semente, regras, teto }) {
+function tarefaE({ robo, de, ate, semente, regras, partidas }) {
   const out = []
   for (let j = de; j < ate; j++) {
-    let rodadas = 0
-    const tem = new Map()
-    let album = null
-    const pontos = []
-    for (let p = 1; p <= teto && (tem.size < CONQ.length || album === null); p++) {
-      const lib = liberadasPorRodadas(rodadas)
-      let sorteou = false
-      const marcar = (id) => { if (!tem.has(id)) tem.set(id, p) }
-      const e = jogar({ robo, semente: `${semente}:E:${j}:${p}`, liberadas: lib, regras, aoPasso: (e0, c, r) => {
-        const e1 = r.estado
-        if (c.tipo === 'sortear') sorteou = true
-        if (c.tipo === 'batalhar' && e1.ultima.vitoria) {
-          marcar('supper')
-          if (e1.ultima.chefe && CHEFE_CONQ[e1.ultima.chefe]) marcar(CHEFE_CONQ[e1.ultima.chefe])
-          if (e0.rodada === 10 && !sorteou) marcar('penny')
-          if (!tem.has('plate') || !tem.has('last')) {
-            const { quedas, vivos } = contarSoldados(simularBatalha({ terrenos: e0.terrenos, reliquias: e0.reliquias, horda: e0.horda, eventos: true }).eventos)
-            if (quedas === 0) marcar('plate')
-            if (vivos === 1) marcar('last')
-          }
-        }
-        const t = e1.terrenos
-        if (t.every(Boolean)) { marcar('house'); if (new Set(t.map((x) => CARTAS[x.carta].familia)).size === 1) marcar('family') }
-        if (t.some((x) => x && x.nivel >= P.nivelMax)) marcar('brass')
-      } })
-      rodadas += e.vencidas
-      pontos.push(e.fim.pontos)
-      if (album === null && rodadas >= RODADAS_ALBUM_CHEIO) { album = p; marcar('librarian') }
+    const tem = new Set(), conta = { rodadas: 0 }
+    const conq = {}, venceu = []
+    for (let p = 1; p <= partidas; p++) {
+      const e = jogarComConquistas({ robo, semente: `${semente}:E:${j}:${p}`, liberadas: liberadasPorRodadas(conta.rodadas), regras, tem, conta, aoGanhar: (id) => { conq[id] = p } })
+      if (resistiu(e.vencidas)) venceu.push(p)
     }
-    out.push({ conq: Object.fromEntries(tem), album, partidas: pontos.length, pontos })
+    out.push({ conq, venceu, somadas: conta.rodadas })
   }
   return out
 }
-function resumoE(porRobo, teto) {
-  const L = ['| robô | jogadores | partidas até o álbum de 30 (mediana / p90) | partidas até as 12 conquistas (mediana) | conquistas feitas até o teto (mediana) |', '|---|---|---|---|---|']
-  const res = {}
-  for (const [robo, jogs] of Object.entries(porRobo)) {
-    const alb = jogs.map((x) => x.album ?? Infinity)
-    const todas = jogs.map((x) => (Object.keys(x.conq).length === CONQ.length ? Math.max(...Object.values(x.conq)) : Infinity))
-    const fmt = (v) => (v === Infinity ? `> ${teto[robo]}` : String(v))
-    L.push(`| ${robo} | ${jogs.length} | ${fmt(quantil(alb, 0.5))} / ${fmt(quantil(alb, 0.9))} | ${fmt(quantil(todas, 0.5))} | ${quantil(jogs.map((x) => Object.keys(x.conq).length), 0.5)} de 12 |`)
-    res[robo] = { album: quantil(alb, 0.5), todas: quantil(todas, 0.5), porConquista: {} }
+const NUNCA = Infinity
+const fmtP = (v, teto) => (v === NUNCA ? `> ${teto}` : String(v))
+/** Maior trecho de partidas seguidas sem conquista nova, de 1 até a última conquista (ou até `partidas`, se ainda falta alguma). */
+export function maiorVazio(conq, partidas, total = IDS_CONQ.length) {
+  const comNova = new Set(Object.values(conq))
+  const ate = Object.keys(conq).length >= total ? Math.max(...Object.values(conq)) : partidas
+  let tam = 0, de = 0, seguidas = 0
+  for (let p = 1; p <= ate; p++) {
+    if (comNova.has(p)) { seguidas = 0; continue }
+    seguidas++
+    if (seguidas > tam) { tam = seguidas; de = p - seguidas + 1 }
+  }
+  return { tam, de }
+}
+/**
+ * Pares que caem na mesma partida DEPOIS da 1ª (as da 1ª já saem no aviso "automática"): das contas que alcançam alguma das duas
+ * e não as duas na 1ª, % em que as duas caem juntas (≥ `limite`; só pares que ao menos 10% das contas alcançam).
+ */
+export function paresJuntos(jogs, limite = 90) {
+  const out = []
+  for (let a = 0; a < IDS_CONQ.length; a++) for (let b = a + 1; b < IDS_CONQ.length; b++) {
+    const x = IDS_CONQ[a], y = IDS_CONQ[b]
+    const conta = jogs.filter((j) => (j.conq[x] || j.conq[y]) && !(j.conq[x] === 1 && j.conq[y] === 1))
+    if (!conta.length || conta.length < jogs.length * 0.1) continue
+    const juntas = pct(conta.filter((j) => j.conq[x] && j.conq[x] === j.conq[y]).length, conta.length)
+    if (juntas >= limite) out.push({ par: `${x}+${y}`, juntas, contas: conta.length })
+  }
+  return out
+}
+function resumoE(porRobo, partidas) {
+  const L = []
+  const res = { partidas }
+  const robos = Object.keys(porRobo)
+  L.push(`| robô | jogadores | partidas com VITÓRIA (rodada ${P.rodadaDaVitoria}): todas / 1–5 / 6–20 / 21–${partidas} | 1ª vitória: partida mediana / p90 (% que vence alguma) | conquistas em ${partidas} partidas: mediana / p10 | sem alcançar: mediana / p90 | maior vazio sem conquista nova: mediana / p90 (começa na partida, mediana) |`)
+  L.push('|---|---|---|---|---|---|---|')
+  for (const robo of robos) {
+    const jogs = porRobo[robo]
+    const n = jogs.length
+    const faixa = (a, b) => pct(jogs.reduce((s, x) => s + x.venceu.filter((p) => p >= a && p <= b).length, 0), n * (Math.min(b, partidas) - a + 1))
+    const prim = jogs.map((x) => (x.venceu.length ? x.venceu[0] : NUNCA))
+    const qtd = jogs.map((x) => Object.keys(x.conq).length)
+    const vz = jogs.map((x) => maiorVazio(x.conq, partidas))
+    const r = {
+      jogadores: n, vitoria: faixa(1, partidas), vitoria1a5: faixa(1, 5), vitoria6a20: faixa(6, 20), vitoria21: faixa(21, partidas),
+      primeiraVitoria: quantil(prim, 0.5), primeiraVitoriaP90: quantil(prim, 0.9), algumaVitoria: pct(prim.filter((v) => v !== NUNCA).length, n),
+      conquistas: quantil(qtd, 0.5), conquistasP10: quantil(qtd, 0.1), faltam: quantil(qtd.map((q) => IDS_CONQ.length - q), 0.5), faltamP90: quantil(qtd.map((q) => IDS_CONQ.length - q), 0.9),
+      vazio: quantil(vz.map((x) => x.tam), 0.5), vazioP90: quantil(vz.map((x) => x.tam), 0.9), vazioDe: quantil(vz.map((x) => x.de), 0.5),
+      porConquista: {},
+    }
+    res[robo] = r
+    L.push(`| ${robo} | ${n} | ${f1(r.vitoria)}% / ${f1(r.vitoria1a5)}% / ${f1(r.vitoria6a20)}% / ${f1(r.vitoria21)}% | ${fmtP(r.primeiraVitoria, partidas)} / ${fmtP(r.primeiraVitoriaP90, partidas)} (${f1(r.algumaVitoria)}%) | ${r.conquistas} / ${r.conquistasP10} de ${IDS_CONQ.length} | ${r.faltam} / ${r.faltamP90} | ${r.vazio} / ${r.vazioP90} (${r.vazioDe}) |`)
   }
   L.push('')
-  L.push('| conquista | ' + Object.keys(porRobo).map((r) => `${r}: % dos jogadores / partida mediana`).join(' | ') + ' |')
-  L.push('|---|' + Object.keys(porRobo).map(() => '---|').join(''))
-  for (const id of CONQ) {
-    const cel = Object.entries(porRobo).map(([robo, jogs]) => {
-      const ps = jogs.filter((x) => x.conq[id]).map((x) => x.conq[id])
-      res[robo].porConquista[id] = { pct: pct(ps.length, jogs.length), mediana: quantil(ps, 0.5) }
-      return `${f1(pct(ps.length, jogs.length))}% / ${ps.length ? quantil(ps, 0.5) : '—'}`
+  L.push('| conquista | ' + robos.map((r) => `${r}: partida mediana / p90 · % alcança · % na 1ª`).join(' | ') + ' |')
+  L.push('|---|' + robos.map(() => '---|').join(''))
+  for (const id of IDS_CONQ) {
+    const cel = robos.map((robo) => {
+      const jogs = porRobo[robo]
+      const ps = jogs.map((x) => x.conq[id] ?? NUNCA)
+      const c = { mediana: quantil(ps, 0.5), p90: quantil(ps, 0.9), pct: pct(ps.filter((v) => v !== NUNCA).length, jogs.length), na1: pct(ps.filter((v) => v === 1).length, jogs.length) }
+      res[robo].porConquista[id] = c
+      return `${fmtP(c.mediana, partidas)} / ${fmtP(c.p90, partidas)} · ${f1(c.pct)}% · ${f1(c.na1)}%`
     })
     L.push(`| ${id} | ${cel.join(' | ')} |`)
   }
+  // avisos
+  const avisos = []
+  for (const robo of robos) {
+    const pc = res[robo].porConquista
+    for (const id of IDS_CONQ) {
+      if (pc[id].pct < 2) avisos.push(`${robo}: ${id} praticamente impossível (${f1(pc[id].pct)}% em ${partidas} partidas)`)
+      if (pc[id].na1 >= 95) avisos.push(`${robo}: ${id} automática na 1ª partida (${f1(pc[id].na1)}%)`)
+      if (robo === 'novato-atento' && pc[id].pct >= 2 && (pc[id].mediana > 56 || pc[id].p90 > 56)) avisos.push(`${robo}: ${id} passa da partida 56 (mediana ${fmtP(pc[id].mediana, partidas)}, p90 ${fmtP(pc[id].p90, partidas)}, alcança ${f1(pc[id].pct)}%)`)
+    }
+    const pares = paresJuntos(porRobo[robo])
+    res[robo].mesmaPartida = pares
+    if (pares.length) avisos.push(`${robo}: caem na mesma partida depois da 1ª (≥ 90% das contas que alcançam alguma das duas): ${pares.map((x) => `${x.par} ${f1(x.juntas)}% (${x.contas} contas)`).join(', ')}`)
+  }
+  res.avisos = avisos
+  L.push('')
+  L.push(`Avisos: ${avisos.length ? '' : 'nenhum'}`)
+  for (const a of avisos) L.push(`- ${a}`)
   return { linhas: L, res }
 }
 /** Ranking semanal: média das 3 melhores de 21 partidas; reamostra das partidas já jogadas (partidas são independentes). */
@@ -711,13 +768,15 @@ export async function medirPontos({ robo, n = 2000, semente = 'keepmile36', vari
   const ts = fatias(n, 50).map(([de, ate]) => ({ tipo: 'D', robo, de, ate, semente: `${semente}:pontos`, variante, leve: true }))
   return (await emParalelo(ts, trabalhos)).flat().map((r) => r.pontos)
 }
-export async function medirE({ n = 200, nBom = 40, teto = { 'novato-atento': 400, planejador: 150 }, semente = 'keepmile36', variante = 'base', trabalhos, pontos } = {}) {
-  const ts = [...fatias(n, 10).map(([de, ate]) => ({ tipo: 'E', robo: 'novato-atento', de, ate, semente, variante, teto: teto['novato-atento'] })),
-    ...fatias(nBom, 2).map(([de, ate]) => ({ tipo: 'E', robo: 'planejador', de, ate, semente, variante, teto: teto.planejador }))]
+/** E: `n` contas do novato atento (e do aleatório, se `aleatorio`), `nBom` do planejador; cada conta joga `partidas` partidas seguidas. */
+export async function medirE({ n = 200, nBom = 40, partidas = 60, aleatorio = true, semente = 'keepmile36', variante = 'base', trabalhos, pontos } = {}) {
+  const ts = [...fatias(n, 5).map(([de, ate]) => ({ tipo: 'E', robo: 'novato-atento', de, ate, semente, variante, partidas })),
+    ...fatias(nBom, 1).map(([de, ate]) => ({ tipo: 'E', robo: 'planejador', de, ate, semente, variante, partidas })),
+    ...(aleatorio ? fatias(n, 5).map(([de, ate]) => ({ tipo: 'E', robo: 'aleatorio', de, ate, semente, variante, partidas })) : [])]
   const r = await emParalelo(ts, trabalhos)
   const por = {}
   ts.forEach((t, i) => (por[t.robo] ||= []).push(...r[i]))
-  const out = resumoE(por, teto)
+  const out = resumoE(por, partidas)
   out.cru = por
   if (pontos) {
     out.linhas.push('')
@@ -761,6 +820,9 @@ function argumentos(argv) {
     else if (argv[i] === '--json') a.json = true
     else if (argv[i] === '--saida') a.saida = argv[++i]
     else if (argv[i] === '--planos') a.planos = Number(argv[++i])
+    else if (argv[i] === '--partidas') a.partidas = Number(argv[++i])
+    else if (argv[i] === '--sem-ranking') a.semRanking = true
+    else if (argv[i] === '--sem-aleatorio') a.semAleatorio = true
   }
   if (!VARIANTES[a.variante]) throw new Error(`variante desconhecida: ${a.variante} (há: ${Object.keys(VARIANTES).join(', ')})`)
   return a
@@ -788,9 +850,10 @@ if (!isMainThread && parentPort) {
   if (quer('D') || quer('F')) { D = await medirD({ ...base, n: a.n ?? 2000, planos: quer('D') ? a.planos : 0 }); if (quer('D')) mostrar('D — cartas, planos e ouro (planejador, álbum completo)', D) }
   if (quer('E')) {
     // ranking: os 4 robôs com o álbum completo (quem disputa ranking já jogou bastante)
-    const pontos = {}
-    for (const robo of ['aleatorio', 'ganancioso-puro', 'novato-atento', 'planejador']) pontos[robo] = await medirPontos({ ...base, robo, n: a.n ?? 2000 })
-    mostrar('E — longo prazo e ranking', await medirE({ ...base, n: a.n ? Math.max(10, Math.round(a.n / 10)) : 200, nBom: a.n ? Math.max(2, Math.round(a.n / 50)) : 40, pontos }))
+    const pontos = a.semRanking ? null : {}
+    if (pontos) for (const robo of ['aleatorio', 'ganancioso-puro', 'novato-atento', 'planejador']) pontos[robo] = await medirPontos({ ...base, robo, n: a.n ?? 2000 })
+    const partidas = a.partidas ?? 60
+    mostrar(`E — longo prazo: as 30 conquistas e a vitória em ${partidas} partidas por conta${pontos ? ', e o ranking' : ''}`, await medirE({ ...base, n: a.n ? Math.max(10, Math.round(a.n / 10)) : 200, nBom: a.n ? Math.max(2, Math.round(a.n / 50)) : 40, partidas, aleatorio: !a.semAleatorio, pontos }))
   }
   if (quer('F')) {
     const por = {}

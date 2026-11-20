@@ -228,7 +228,9 @@ async function celular() {
   { const p = (await doServidor('treino')).partida, tk = await token()
     const r = await api('POST', '/api/reino/partida/comando', tk, { partida: p.id, seq: p.seq, comando: { tipo: 'batalhar' } })
     let q = r.json
-    if (q.status === 'aberta') q = (await api('POST', '/api/reino/partida/comando', tk, { partida: p.id, seq: q.seq, comando: q.opcoes.comandos.find((c) => c.tipo === 'espolio' || c.tipo === 'batalhar') })).json
+    // (R23: o 2º comando de fora, depois de uma derrota, troca a mão (ou põe uma carta) em vez de lutar de novo sem carta — três derrotas
+    // seguidas acabavam a partida aqui, ou logo depois, e o teste parava por azar; trocando a mão a rodada fica como o passo 6 precisa)
+    if (q.status === 'aberta') { const c = q.opcoes.comandos, por = c.filter((x) => x.tipo === 'por'); q = (await api('POST', '/api/reino/partida/comando', tk, { partida: p.id, seq: q.seq, comando: c.find((x) => x.tipo === 'espolio') || c.find((x) => x.tipo === 'sortear') || por.find((x) => !q.visao.terrenos[x.terreno - 1]) || por[0] || c.find((x) => x.tipo === 'batalhar') })).json }
     const m0 = pedidos.length
     await tap('#bt-lutar')
     await espera(page, (alvo) => window.__keepmile.servidor().seq === alvo && !window.__keepmile.servidor().ocupado, q.seq)

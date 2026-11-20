@@ -109,7 +109,7 @@ export async function ligarGanchos(X) {
     guardaSet: (k, v) => Guarda.set(k, v),
     forca: (id, n) => ({ numero: Arte.forcaDaCarta(id, n), legenda: Arte.legendaDaCarta(id) }),
     avisar: (tipo, dado) => X.Bat().aoAviso(tipo, dado),
-    layout: () => { const L = X.UI().L; return { odds: { linhas: (L.odds.linhas || []).map((l) => l.map((i) => i.s)), fonte: L.odds.fonte, y: L.odds.y, h: L.odds.h }, lutar2: { ...L.lutar2 }, mesa: { ...L.mesa }, resumo: { ...L.resumo }, premios: { ...L.premios }, fimPainel: { ...L.fimPainel }, espolio: L.espolio.map((c) => ({ ...c })), cartas: L.cartas.map((c) => ({ ...c })), VW: C.VW, VH: C.VH, camY: C.camY } },
+    layout: () => { const L = X.UI().L; return { odds: { linhas: (L.odds.linhas || []).map((l) => l.map((i) => i.s)), fonte: L.odds.fonte, y: L.odds.y, h: L.odds.h }, lutar2: { ...L.lutar2 }, mesa: { ...L.mesa }, resumo: { ...L.resumo }, premios: { ...L.premios }, fimPainel: { ...L.fimPainel }, pinos: { ...L.pinos }, menu: { ...L.menu }, cel: L.cel, espolio: L.espolio.map((c) => ({ ...c })), cartas: L.cartas.map((c) => ({ ...c })), VW: C.VW, VH: C.VH, camY: C.camY } },
     /** O nome do chefe quebrado como o anúncio desenha (título ×2): cabe na tela? */
     nomeDoChefe: (id) => { const nome = X.CONFIG.CHEFES.find((c) => c.id === id).nome, lin = X.UI().quebrar(nome, (C.VW - 12) / 2, 'reino-contorno'); return { linhas: lin, maior: Math.max(...lin.map((l) => Arte.largura(l, 'reino-contorno') * 2)), VW: C.VW } },
     partidaSalva: () => Guarda.partidaSalva(),
@@ -139,5 +139,6 @@ export async function ligarGanchos(X) {
       return { comandos: n, rodada: J.v.rodada, fim: J.e.fase === 'fim', seq: S.seq }
     },
     avisarServidor: (c) => X.avisarServidor(c),
+    abrirModo: (m) => X.abrirModo(m),
   }
 }

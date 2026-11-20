@@ -44,7 +44,7 @@ export const T = {
     titulo: 'Keepmile', som: 'Sound', movimento: 'Reduced motion', album: 'Album', conquistas: 'Achievements', ranking: 'Best runs', nova: 'New run', novaConfirma: 'Give up this run?', fechar: 'Close', sim: 'Yes, new run', nao: 'Keep playing', ligado: 'On', desligado: 'Off', melhores: 'Best runs',
     sair: 'Leave the game?', sairTexto: 'Your run is saved on this device.', sairSim: 'Leave', liga: 'League', media: (n) => `Average of your best 3: ${n}`, proxima: (nome, n) => `${n} more for ${nome}`, topo: 'Top title of the beta', beta: 'Beta: titles only, kept on this device.',
     efeitos: 'Effects', musica: 'Music', menosVol: (q) => `${q} quieter`, maisVol: (q) => `${q} louder`, data: (d) => `Earned ${d}`, enfeite: 'Title and medal', voltar: 'Back to menu',
-    faixa: (de, ate) => (ate ? `${de} to ${ate}` : `${de} or more`), nenhuma: 'No runs yet', rodadas: (n) => `${n} round${n === 1 ? '' : 's'}`,
+    ajustes: 'Settings', faixa: (de, ate) => (ate ? `${de} to ${ate}` : `${de} or more`), nenhuma: 'No runs yet', rodadas: (n) => `${n} round${n === 1 ? '' : 's'}`,
   },
   album: { titulo: 'Album', chances: 'Draw chances', proxima: (n) => (n === 1 ? 'Next card: 1 more round won' : `Next card: ${n} more rounds won`), todas: 'Every card unlocked', somadas: (n) => `${n} rounds won so far`, bloqueada: 'Locked card' },
   tipo: { tropa: 'Troop', construcao: 'Building', magia: 'Magic' },
@@ -79,13 +79,20 @@ export const T = {
     },
     placar: {
       titulo: "Today's road", menu: "Today's road", dia: (d, quando) => `${d} - new road in ${quando}`, voce: (pos, pts) => `You: rank ${pos} - ${pts} points`, aberta: 'Your road is in progress', naoJogou: 'You have not played today',
+      abaHoje: 'Today', abaOntem: 'Yesterday', tituloOntem: "Yesterday's road", diaOntem: (d) => `${d} - final board`, vazioOntem: "Nobody on yesterday's board",
       fora: (pts) => `Your run: ${pts} - not on the board`, vazio: 'Nobody on the board yet', jogar: "Play today's road", replays: "Replays of today's road open tomorrow.", linha: (pts, n) => `${pts} - ${n} round${n === 1 ? '' : 's'}`,
     },
     perfil: {
       titulo: 'Profile', menu: 'Profile', recordes: (p, r, n) => `Best ${p} - Longest ${r} round${r === 1 ? '' : 's'} - ${n} run${n === 1 ? '' : 's'}`, temporada: (n, quando) => `Season ${n} ends in ${quando}`, titulos: 'Past seasons',
       titulo1: (t, pos, liga, pts) => `Season ${t}: rank ${pos} - ${liga} - ${pts}`, melhores: 'Best runs', ver: 'Watch', nenhuma: 'No runs yet', corrida: (n, modo, dia) => `${n} round${n === 1 ? '' : 's'} - ${modo} - ${dia}`, nome: (n) => `Name: ${n}`,
     },
-    replay: { sair: 'Leave replay', de: (n) => `REPLAY: ${n}`, passo: (i, n) => `STEP ${i}/${n}`, fim: (r, p) => `RUN OVER: ${r} ROUNDS - SCORE ${p}`, saia: 'TAP X TO LEAVE', por: (carta, k) => `${carta} > PLOT ${k}`, espolio: 'TOOK A REWARD', desistir: 'GAVE UP' },
+    // trocar o nome (POST apelido): a regra em 1 linha e as recusas do servidor em texto curto. O tempo de espera é o `podeEm` dele.
+    apelido: {
+      menu: 'Change name', titulo: 'Your name', rotulo: 'New name', atual: (n) => `Now: ${n}`, regra: '3-16 letters, numbers, spaces, - or underscore. 1 change a day.', salvar: 'Save name', feito: 'Name changed.', voltar: 'Back to profile',
+      espera: (quando) => `You can change again in ${quando}.`,
+      erro: { APELIDO_EM_USO: 'That name is taken. Try another.', APELIDO_BARRADO: 'That name is not allowed. Try another.', APELIDO_INVALIDO: 'Use 3-16 letters, numbers, spaces, - or underscore.' },
+    },
+    replay: { sair: 'Leave replay', de: (n) => `REPLAY: ${n}`, passo: (r, i, n) => `ROUND ${r} - STEP ${i}/${n}`, fim: (r, p) => `RUN OVER: ${r} ROUNDS - SCORE ${p}`, saia: 'TAP X TO LEAVE', por: (carta, k) => `${carta} > PLOT ${k}`, espolio: 'TOOK A REWARD', desistir: 'GAVE UP' },
   },
   aria: {
     carta: (n) => `Card ${n}`, terreno: (k) => `Plot ${k}`, sortear: (c) => `Reroll cards for ${c} gold`, consertar: (c) => `Repair one life for ${c} gold`, vel: (v) => `Speed ${v}x`, som: 'Sound on or off', menu: 'Menu', espolio: (n) => `Take ${n}`, seguir: 'Continue', lutar: 'Fight',

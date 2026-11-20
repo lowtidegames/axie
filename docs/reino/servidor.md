@@ -1,6 +1,6 @@
 # Keepmile — servidor (R14, 19/11/2026; consertos de segurança R16, 20/11/2026)
 
-Código: `server/reino/` (regras `reino.mjs`, rotas `rotas.mjs`, tabelas `banco.mjs` = migrações v5 e v6) · testes `tests/servidor/reino-api*.test.js`.
+Código: `server/reino/` (regras `reino.mjs`, rotas `rotas.mjs`, tabelas `banco.mjs` = migrações v5, v6 e v7) · testes `tests/servidor/reino-api*.test.js`.
 Sem dinheiro e sem token: só título e enfeite. O servidor sorteia, aplica cada comando com o motor (`shared/reino/partida.js`) e grava o resultado que ELE calculou.
 
 ## Para a tela

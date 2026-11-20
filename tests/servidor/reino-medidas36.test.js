@@ -7,6 +7,7 @@ import { jogarPartida } from '../../shared/reino/robos.js'
 import { criarRng } from '../../shared/rng.js'
 import { ROBOS36, VARIANTES, classificar, emParalelo, jogar, liberadasPorRodadas, medirA, medirB, rankingSemanal, RODADAS_ALBUM_CHEIO, segundosDeTela } from '../../tools/medir-reino.mjs'
 import { jogarComConquistas, maiorVazio, medirE, paresJuntos } from '../../tools/medir-reino.mjs'
+import { LIMIARES_V, maoRuim, vitoriaNoLimiar } from '../../tools/medir-reino.mjs'
 import { IDS, conquistasDoPasso } from '../../shared/reino/conquistas.js'
 
 describe('R36 — medidor de profundidade', () => {
@@ -120,6 +121,45 @@ describe('R40 — medida E com as 30 conquistas da regra única (shared/reino/co
     const antes = JSON.stringify(CONQUISTAS)
     for (const variante of ['tally300', 'bis22', 'bis21', 'bolsos4']) await medirE({ n: 1, nBom: 0, partidas: 1, aleatorio: false, semente: 'm40v', variante, trabalhos: 1 })
     assert.equal(JSON.stringify(CONQUISTAS), antes)
+  })
+
+  test('V: a rodada da vitória tirada das vencidas é a MESMA da injeção (vitNN) e o Encore! é vencidas ≥ B (bisNN)', async () => {
+    const base = await medirE({ n: 2, nBom: 1, partidas: 3, aleatorio: false, intermediario: true, semente: 'm40w', trabalhos: 1 })
+    assert.ok(base.cru.planejador[0].vencidas.some((x) => x >= 12), 'a semente chega à rodada 12 (o teste compara algo)')
+    for (const [variante, R] of [['vit12', 12], ['vit15', 15], ['vit16', 16], ['vit18', 18]]) {
+      const v = await medirE({ n: 2, nBom: 1, partidas: 3, aleatorio: false, intermediario: true, semente: 'm40w', variante, trabalhos: 1 })
+      for (const robo of ['novato-atento', 'intermediario', 'planejador']) {
+        assert.deepEqual(v.cru[robo].map((j) => j.vencidas), base.cru[robo].map((j) => j.vencidas)) // a vitória não muda o jogo
+        assert.deepEqual(v.cru[robo].map((j) => j.venceu), base.cru[robo].map((j) => j.vencidas.flatMap((x, i) => (x >= R ? [i + 1] : []))))
+      }
+    }
+    for (const [variante, B] of [['bis21', 21], ['bis22', 22]]) {
+      const v = await medirE({ n: 2, nBom: 1, partidas: 3, aleatorio: false, intermediario: true, semente: 'm40w', variante, trabalhos: 1 })
+      for (const robo of ['novato-atento', 'intermediario', 'planejador']) for (const j of v.cru[robo]) {
+        const p = j.vencidas.findIndex((x) => x >= B)
+        assert.equal(j.conq.encore ?? 0, p < 0 ? 0 : p + 1)
+      }
+    }
+    // conta à mão
+    const jogs = [{ vencidas: [3, 12, 20] }, { vencidas: [11, 11, 11] }, { vencidas: [12, 0, 0] }]
+    const doisTercos = (100 * 2) / 3
+    assert.deepEqual(vitoriaNoLimiar(jogs, 12), { partidas: (100 * 3) / 9, primeira: 2, primeiraP90: Infinity, ate10: doisTercos, ate20: doisTercos, ate30: doisTercos, ate60: doisTercos })
+    assert.deepEqual(LIMIARES_V, [12, 15, 16, 18, 20])
+  })
+
+  test('intermediário: só comandos válidos; sorteia quando a mão é ruim; mão ruim segue a regra escrita', () => {
+    const tipos = { sortear: 0, consertar: 0 }
+    for (let s = 0; s < 6; s++) jogar({ robo: 'intermediario', semente: `m40i:${s}`, liberadas: ALBUM.inicial, aoPasso: (e0, c) => { if (c.tipo in tipos) tipos[c.tipo]++ } })
+    assert.ok(tipos.sortear > 0, 'sorteia quando a mão é ruim')
+    const T = (...cs) => cs.map((c) => (c ? { carta: c, nivel: 1 } : null))
+    const fam = (f) => Object.keys(CARTAS).filter((id) => CARTAS[id].familia === f)
+    const [f1, f2] = [...new Set(Object.values(CARTAS).map((c) => c.familia))]
+    const a = fam(f1), b = fam(f2)
+    assert.equal(maoRuim({ terrenos: T(a[0], null, null, null, null, null), oferta: [{ carta: b[0] }] }), false) // começo: qualquer carta serve
+    assert.equal(maoRuim({ terrenos: T(a[0], a[1], a[0], null, null, null), oferta: [{ carta: b[0] }, { carta: b[1] }] }), true)
+    assert.equal(maoRuim({ terrenos: T(a[0], a[1], a[0], null, null, null), oferta: [{ carta: b[0] }, { carta: a[1] }] }), false) // família que já tem
+    assert.equal(maoRuim({ terrenos: T(a[0], a[1], a[0], b[0], b[1], b[0]), oferta: [{ carta: a[0], levelUp: true }] }), false) // sobe
+    assert.equal(maoRuim({ terrenos: T(a[0], a[1], a[0], b[0], b[1], b[0]), oferta: [{ carta: a[1] }] }), true) // cheio, nada sobe
   })
 
   test('E: mesma semente → mesmos números com 1 e 2 trabalhos; as 30 conquistas e a vitória no resumo', async () => {

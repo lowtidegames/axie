@@ -52,6 +52,14 @@ Pegamos a MECÂNICA do gênero, nunca a arte, os nomes ou o visual:
 - Crescer de garagem para escritório → **porão da vó → porão de luxo → bunker → iate** (fases que viram prestígio).
 - Contratar e treinar equipe → v2: moderador do grupo, artista de NFT, dev que copia código.
 
+## Referência do dono 2 (20/11 05:10, jogo de golpes por telefone com área de trabalho de PC)
+Só layout e direção de arte, nada copiado:
+- Monitor como **área de trabalho de PC**: apps em janelas (Gráfico, Comunidade, Impressora, Chat) e barra de ícones embaixo, em vez de abas.
+- **Número gigante do ganho** pulando por cima de tudo no tapete (verde, grosso).
+- **Barra de status** fixa: caixa, Calor, relógio do jogo (sem contagem regressiva de pressão).
+- **Medidor de confiança** do alvo → "Confiança dos trouxas" por projeto (é o hype com nome de sátira).
+- Cores saturadas, contorno grosso, letra gorda e legível; tudo lido num relance.
+
 ## Versão 1 × versão 2
 - **V1:** porão + 3 monitores, cartas de ideia, ciclo do golpe, Calor + rebrand, multidão, luxos, álbum, prestígio simples, influenciadores (3 tamanhos, 1 vaga, carteirinha, posts, contrato por vídeo com preço que sobe).
 - **V2:** eventos aleatórios (auditoria falsa, bull run, "descobriram no X"), 5 tamanhos de influenciador, o influenciador que vende antes de você e o que te dedura na batida.

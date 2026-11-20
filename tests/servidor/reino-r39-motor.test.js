@@ -125,7 +125,7 @@ describe('R39 — partidas de robô iguais à foto de antes', () => {
       assert.deepEqual(foto, semConquistas, `semente ${i}`)
       assert.deepEqual(ANTIGAS.filter((id) => tem.has(id)), antigas, `semente ${i}: conquistas antigas`)
       // venceu sai do número de vencidas
-      const v = estado.vencidas >= 20
+      const v = estado.vencidas >= 15 // R42 (a regra mudou: decisão de 20/11 10:10, vitória 20 → 15, Encore! 25 → 17, último degrau 400 → 300)
       assert.equal(resultado(estado).venceu, v, `semente ${i}`)
       assert.equal(visao(estado).venceu, v)
       assert.equal(visao(estado).fim.venceu, v)
@@ -134,29 +134,30 @@ describe('R39 — partidas de robô iguais à foto de antes', () => {
 })
 
 // ---------------------------------------------------------------- 2. vitória na rodada 20
-describe('R39 — vitória: aguentar a rodada 20', () => {
-  test('config: PARTIDA.rodadaDaVitoria = 20; resistiu(vencidas)', () => {
-    assert.equal(PARTIDA.rodadaDaVitoria, 20)
+// R42 (a regra mudou: decisão de 20/11 10:10, vitória 20 → 15, Encore! 25 → 17, último degrau 400 → 300)
+describe('R39 — vitória: aguentar a rodada 15', () => {
+  test('config: PARTIDA.rodadaDaVitoria = 15; resistiu(vencidas)', () => {
+    assert.equal(PARTIDA.rodadaDaVitoria, 15)
     assert.equal(resistiu(0), false)
-    assert.equal(resistiu(19), false)
-    assert.equal(resistiu(20), true)
-    assert.equal(resistiu(21), true)
-    for (const x of [null, undefined, '20', 20.5, NaN, Infinity]) assert.equal(resistiu(x), false, String(x))
+    assert.equal(resistiu(14), false)
+    assert.equal(resistiu(15), true)
+    assert.equal(resistiu(16), true)
+    for (const x of [null, undefined, '15', 15.5, NaN, Infinity]) assert.equal(resistiu(x), false, String(x))
   })
 
-  test('venceu false com 19 e true logo depois de vencer a 20 (visão e resultado); a partida segue', () => {
+  test('venceu false com 14 e true logo depois de vencer a 15 (visão e resultado); a partida segue', () => {
     const antes = fotoAntes()
-    const i = antes.findIndex((x) => x.vencidas >= 21)
-    assert.ok(i >= 0, 'alguma semente passa da 20')
+    const i = antes.findIndex((x) => x.vencidas >= 16)
+    assert.ok(i >= 0, 'alguma semente passa da 15')
     let viu19 = false, virou = false
     jogar(i, ({ antes: a, depois, eventos }) => {
-      if (a.vencidas === 19) { viu19 = true; assert.equal(visao(a).venceu, false); assert.equal(resultado(a).venceu, false) }
-      if (a.vencidas === 19 && depois.vencidas === 20) {
+      if (a.vencidas === 14) { viu19 = true; assert.equal(visao(a).venceu, false); assert.equal(resultado(a).venceu, false) }
+      if (a.vencidas === 14 && depois.vencidas === 15) {
         virou = true
         assert.ok(eventos.some((x) => x.tipo === 'batalha' && x.vitoria))
         assert.equal(visao(depois).venceu, true)
         assert.equal(resultado(depois).venceu, true)
-        assert.equal(visao(depois).fim, null) // a partida segue: não acaba na 20
+        assert.equal(visao(depois).fim, null) // a partida segue: não acaba na 15
       }
     })
     assert.ok(viu19 && virou)
@@ -192,7 +193,7 @@ describe('R39 — LISTA das conquistas', () => {
     }
     for (const id of ANTIGAS) assert.ok(LISTA.some((c) => c.id === id), id)
     for (const [id, meta] of Object.entries(CONQUISTAS.rodadasSomadas)) assert.equal(LISTA.find((c) => c.id === id).meta, meta, id)
-    assert.deepEqual(Object.values(CONQUISTAS.rodadasSomadas), [25, 50, 100, 200, 400])
+    assert.deepEqual(Object.values(CONQUISTAS.rodadasSomadas), [25, 50, 100, 200, 300]) // R42 (a regra mudou: decisão de 20/11 10:10, vitória 20 → 15, Encore! 25 → 17, último degrau 400 → 300)
     assert.equal(LISTA.find((c) => c.id === 'librarian').meta, 398)
     // ES module puro: roda no navegador (sem node:)
     const fonte = fs.readFileSync(path.join(AQUI, '../../shared/reino/conquistas.js'), 'utf8')
@@ -211,7 +212,7 @@ const com = (e, mudar) => { const x = structuredClone(e); mudar(x); return x }
 const terreno = (carta, nivel = 1) => ({ carta, nivel })
 
 describe('R39 — cada conquista nova (definição exata no teste)', () => {
-  for (const [id, meta] of Object.entries({ tally25: 25, tally50: 50, tally100: 100, tally200: 200, tally400: 400 })) {
+  for (const [id, meta] of Object.entries({ tally25: 25, tally50: 50, tally100: 100, tally200: 200, tally400: 300 })) { // R42 (a regra mudou: decisão de 20/11 10:10, vitória 20 → 15, Encore! 25 → 17, último degrau 400 → 300): o id tally400 fica, a meta é 300
     test(`${id}: rodadas vencidas somadas (conta) chegam a ${meta} neste passo`, () => {
       assert.ok(passo({ eventos: [luta(true)], rodadasAntes: meta - 1 }).includes(id))
       assert.ok(!passo({ eventos: [luta(true)], rodadasAntes: meta - 2 }).includes(id))
@@ -242,10 +243,10 @@ describe('R39 — cada conquista nova (definição exata no teste)', () => {
     assert.ok(!passo({ depois: com(base(), (x) => { x.terrenos[0] = terreno('M01', 4); x.terrenos[1] = terreno('B01', 5) }) }).includes('spicy'))
   })
 
-  test('encore: vencer a batalha da rodada 25', () => {
-    assert.ok(passo({ antes: com(base(), (x) => { x.rodada = 25; x.vencidas = 24 }), eventos: [luta(true)] }).includes('encore'))
-    assert.ok(!passo({ antes: com(base(), (x) => { x.rodada = 24; x.vencidas = 23 }), eventos: [luta(true)] }).includes('encore'))
-    assert.ok(!passo({ antes: com(base(), (x) => { x.rodada = 25; x.vencidas = 24 }), eventos: [luta(false)] }).includes('encore'))
+  test('encore: vencer a batalha da rodada 17', () => { // R42 (a regra mudou: decisão de 20/11 10:10, vitória 20 → 15, Encore! 25 → 17, último degrau 400 → 300)
+    assert.ok(passo({ antes: com(base(), (x) => { x.rodada = 17; x.vencidas = 16 }), eventos: [luta(true)] }).includes('encore'))
+    assert.ok(!passo({ antes: com(base(), (x) => { x.rodada = 16; x.vencidas = 15 }), eventos: [luta(true)] }).includes('encore'))
+    assert.ok(!passo({ antes: com(base(), (x) => { x.rodada = 17; x.vencidas = 16 }), eventos: [luta(false)] }).includes('encore'))
   })
 
   test('thread: vencer uma batalha com 1 coração (vida do castelo na hora da luta)', () => {

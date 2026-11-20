@@ -99,7 +99,7 @@ describe('R39 — perfil', () => {
       const dia = Math.floor(T0 / DIA)
       // (segurança R39: vitória em treino não entra em recordes.vitorias; esta partida é de ranking)
       gravarTerminada(s.db, { id: pid(1), conta: a.id, modo: 'ranking', dia, vencidas: 21, quando: T0 - 3000 })
-      gravarTerminada(s.db, { id: pid(2), conta: a.id, dia, vencidas: 19, quando: T0 - 2000 })
+      gravarTerminada(s.db, { id: pid(2), conta: a.id, dia, vencidas: 14, quando: T0 - 2000 }) // R42 (a regra mudou: decisão de 20/11 10:10, vitória 20 → 15, Encore! 25 → 17, último degrau 400 → 300): a partida que NÃO venceu tinha 19 vencidas, agora 14
       gravarTerminada(s.db, { id: pid(3), conta: a.id, dia, vencidas: 30, conferida: 0, quando: T0 - 1000 })
       const p = (await api('GET', '/api/reino/perfil', a.token)).json
       assert.equal(p.recordes.vitorias, 1)
@@ -328,7 +328,7 @@ describe('R39 — migração v8 (só dados)', () => {
       console.log = logAntes
       const ler = (id) => db.prepare('SELECT conquistas FROM reino_contas WHERE conta_id = ?').get(id).conquistas
       for (const [id, txt] of ids.slice(0, 3)) assert.equal(ler(id), txt, 'estragada fica como estava')
-      assert.deepEqual(JSON.parse(ler(ids[3][0])), ['tally25', 'tally50', 'tally100', 'tally200'])
+      assert.deepEqual(JSON.parse(ler(ids[3][0])), ['tally25', 'tally50', 'tally100', 'tally200', 'tally400']) // R42 (a regra mudou: decisão de 20/11 10:10, vitória 20 → 15, Encore! 25 → 17, último degrau 400 → 300): 300 rodadas somadas já ligam o último degrau
       assert.equal(avisos.length, 3, avisos.join('\n'))
       for (const a of avisos) assert.ok(/AVISO/.test(a) && !/Quebrada/.test(a), a)
     } finally { console.log = logAntes; db.close() }

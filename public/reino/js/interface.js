@@ -281,7 +281,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       if (M.pulsaLutar && C.menos) { moldura(L.lutar.x - 1, L.lutar.y - 1, L.lutar.w + 2, 26 * bs + 2); viu('lutarFixo') } // Reduced motion: destaque parado
     }
   }
-  /** R39 — A META DA PARTIDA à vista na fase de carta: "HOLD TO ROUND 20" (letra miúda, no céu, fora do caminho do HUD); depois de
+  /** R39 — A META DA PARTIDA à vista na fase de carta: "HOLD TO ROUND N" (N do config; letra miúda, no céu, fora do caminho do HUD); depois de
    *  vencer, no MESMO lugar, o selo de ouro "HELD". Celular: à direita dos botões de sortear/consertar, abaixo das relíquias. PC:
    *  centrado sob a rodada (sob o logo, na abertura). Desenhado dentro do espaço ×bs do HUD. */
   function metaDoReino(HW) {
@@ -532,7 +532,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   }
   function vitoria(agora) {
     const v = M.vitoria, L = UI.L, dt = agora - v.t0, cx = C.VW >> 1, ey = L.espolio[0].y
-    if (v.reino && !v.pronto) { faixaDoReino(agora, v.reino); return } // R39: a festa do reino segura a tela; os espólios vêm depois
+    if (v.reino && !v.pronto && agora >= v.reino.t0) { faixaDoReino(agora, v.reino); return } // (R42: antes de `t0` é a queda do chefe, com o título dele) // R39: a festa do reino segura a tela; os espólios vêm depois
     escurecer(Math.min(0.5, dt / 600))
     const k = L.cel ? 2 : 3, pop = C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 180) * 10), ty = ey - (L.cel ? 62 : 56) - pop
     if (v.chefe) {
@@ -752,7 +752,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     { const w = Math.max(...lin.map((s) => Arte.largura(s, 'reino-contorno'))) * k; C.zonaTitulo = { x: cx - (w >> 1) - 4, y: y - 4, w: w + 8, h: lin.length * 10 * k + 8 } } // os números de dano não passam por cima do título
     if (a.sub) quebrar(a.sub, C.VW - 12).forEach((s, i) => Arte.texto(g, s, cx, y + lin.length * 10 * k + 3 + i * 7, { fonte: 'mini-contorno', alinhar: 'centro' }))
   }
-  /** R39 — A FAIXA DO REINO: "ROUND 20 HELD!" grande, em ouro, numa faixa que atravessa a tela, e "KEEP GOING FOR SCORE" embaixo. Os fogos e
+  /** R39 — A FAIXA DO REINO: "ROUND N HELD!" (N do config) grande, em ouro, numa faixa que atravessa a tela, e "KEEP GOING FOR SCORE" embaixo. Os fogos e
    *  o confete são da cena (o app solta). "Reduced motion": a faixa já no lugar, parada, sem brilho piscando. */
   function faixaDoReino(agora, R) {
     const dt = agora - R.t0, cx = C.VW >> 1, cel = UI.L.cel, bate = R.bate || 0, sai = R.sai ?? 1e9

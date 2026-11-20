@@ -1,6 +1,8 @@
 // Porão — teste de tela (Chrome de verdade, modo falso: as regras rodam no navegador).
 // Confere: 1º tapete em menos de 60 s desde abrir a página · celular 390×844 mostra um monitor por vez · borda acesa no
-// monitor fora da vista · "Menos animação" sem tremida · sem erro no console · sem rolagem lateral.
+// monitor fora da vista · "Menos animação" sem tremida · sem erro no console · sem rolagem lateral ·
+// área de trabalho (ícone traz a janela para frente; no celular uma janela em tela cheia) · número gigante do ganho
+// no tapete · barra de status com caixa e Calor iguais aos do jogo.
 // Fotos (opcional): PORAO_FOTOS=/pasta  node tools/trava-robos.mjs rodar "node porao/tests/tela.e2e.mjs"
 import { createRequire } from 'node:module'
 import { createServer } from 'node:http'
@@ -38,6 +40,7 @@ if (FOTOS) await mkdir(FOTOS, { recursive: true })
 const navegador = await chromium.launch()
 const erros = []
 let ultima = null
+let ultimaAnim = null // animação do número gigante no último tapete
 
 async function nova({ largura, altura, movel = false, menos = false }) {
   const ctx = await navegador.newContext({ viewport: { width: largura, height: altura }, isMobile: movel, hasTouch: movel, deviceScaleFactor: 1 })
@@ -52,7 +55,24 @@ async function nova({ largura, altura, movel = false, menos = false }) {
 const foto = async (page, nome) => { if (FOTOS) await page.screenshot({ path: path.join(FOTOS, nome + '.png') }) }
 const q = (page, sel) => page.locator(sel).first()
 const tela = (m) => `[data-pm-monitor="${m}"]`
-const aba = (page, m, a) => q(page, `${tela(m)} [data-aba="${a}"]`).click()
+// abre o aplicativo pelo ícone da barra de baixo do monitor (a janela vem para a frente)
+const aba = async (page, m, a) => {
+  await q(page, `${tela(m)} .pm-icone[data-app="${a}"]`).click()
+  await q(page, `${tela(m)} .pm-jan--frente[data-app="${a}"]`).waitFor({ timeout: 3000 })
+}
+/** A barra de status mostra o caixa e o Calor que o jogo tem agora (mesmo número). */
+async function conferirStatus(page, onde) {
+  const ok = await page.waitForFunction(() => {
+    const e = window.poraoApp.api.depurar(() => {}).estado // sem avançar o relógio: o mesmo estado que a tela recebeu
+    const caixa = document.querySelector('[data-pm="status-caixa"] .pagina-chip__valor')?.textContent
+    const calor = document.querySelector('[data-pm="status-calor"] .pagina-chip__valor')?.textContent
+    const nivel = document.querySelector('[data-pm="status-calor"]')?.dataset.nivel
+    return caixa === `$ ${Number(e.caixa).toLocaleString('pt-BR')}` && calor === Number(e.calor).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) && !!nivel
+  }, null, { timeout: 5000 }).then(() => true).catch(() => false)
+  confere(ok, `${onde}: barra de status mostra o caixa e o Calor (com cor) do jogo`)
+  const vis = await page.evaluate(() => ['caixa', 'calor', 'hora'].every((k) => { const r = document.querySelector(`[data-pm="status-${k}"]`).getBoundingClientRect(); return r.width > 0 && r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth }))
+  confere(vis, `${onde}: caixa, Calor e hora à vista na barra de status`)
+}
 const semRolagemLateral = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1 && document.body.scrollWidth <= window.innerWidth + 1)
 
 /** Imprime e lança a ideia (fluxo do jogador). Devolve quando o projeto está no ar. */
@@ -80,9 +100,22 @@ async function puxarEMedir(page, fotosNome) {
     await foto(page, fotosNome + '-treme')
     await page.waitForFunction(() => /Puxou/.test(document.querySelector('.pm-tapete__legenda')?.textContent || ''), null, { timeout: 8000 }).catch(() => {})
     await foto(page, fotosNome + '-cai')
+    await q(page, '[data-pm="ganho-gigante"]').waitFor({ timeout: 8000 })
+    await page.waitForTimeout(700)
+    await foto(page, fotosNome + '-gigante')
   }
   await q(page, '[data-pm="tapete-resumo"]').waitFor({ timeout: 15000 })
   const max = await page.evaluate(() => { clearInterval(window.__tim); return Math.max(0, ...window.__tr) })
+  // número gigante do ganho: aparece por cima de tudo, com o mesmo valor do resumo (o que o servidor pagou)
+  const g = await page.evaluate(() => {
+    const el = document.querySelector('[data-pm="ganho-gigante"]'), res = document.querySelector('[data-pm="tapete-resumo"] .pm-grande')
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    return { texto: el.textContent, resumo: res?.textContent, alto: r.height, dentro: r.left >= 0 && r.right <= innerWidth, anim: getComputedStyle(el.firstChild).animationName }
+  })
+  confere(!!g && /^\+\$ [\d.]+$/.test(g.texto) && g.texto === g.resumo, `número gigante do ganho aparece no tapete (${g?.texto} = resumo ${g?.resumo})`)
+  confere(!!g && g.alto >= 50 && g.dentro, `número gigante é grande e cabe na tela (altura ${g?.alto?.toFixed?.(0)} px)`)
+  ultimaAnim = g?.anim
   if (fotosNome) await foto(page, fotosNome + '-resumo')
   return max
 }
@@ -116,13 +149,24 @@ try {
     confere(gasto < 60000, `1º tapete em ${(gasto / 1000).toFixed(1)} s desde abrir a página (limite 60 s)`)
     confere(max > 0 && max <= 8, `tremida leve na cena do tapete (maior deslocamento ${max.toFixed(1)} px, limite 8)`)
     confere(await semRolagemLateral(page), 'PC: sem rolagem lateral')
+    confere(ultimaAnim === 'pm-pulo', `número gigante entra pulando (animação: ${ultimaAnim})`)
+    await conferirStatus(page, 'PC')
     await q(page, '[data-pm="tapete-fechar"]').click()
+    // área de trabalho: o ícone traz a janela para a frente; as janelas ficam paradas no lugar
+    const antes = await q(page, `${tela('projeto')} [data-app="ideias"].pm-jan`).boundingBox()
+    await aba(page, 'projeto', 'ideias')
+    const depois = await q(page, `${tela('projeto')} [data-app="ideias"].pm-jan`).boundingBox()
+    confere(antes.x === depois.x && antes.y === depois.y, 'PC: janela vem para a frente sem sair do lugar')
+    confere(await page.locator(`${tela('projeto')} .pm-jan--frente`).count() === 1, 'PC: uma janela na frente por monitor')
+    await aba(page, 'projeto', 'projetos')
 
     // 2ª rodada: parceria, celular, batida (o modo falso deixa mexer no estado só para a conferência)
     await page.evaluate(() => window.poraoApp.api.depurar((e) => { e.caixa = 5000; e.calor = 95; e.contagem.tapetes = 5 }))
     await page.waitForTimeout(3300)
     await imprimirELancar(page); await page.waitForTimeout(3300); await imprimirELancar(page)
     await foto(page, 'pc-07-projeto-no-ar')
+    await foto(page, 'pc-07b-monitor3-projetos')
+    confere(/Confiança dos trouxas/.test(await q(page, '[data-pm="confianca"]').textContent()), 'projeto no ar mostra o medidor "Confiança dos trouxas"')
     await esperarPuxar(page)
     await q(page, '[data-pm="celular-btn"]').click()
     await q(page, '[data-aba="cel-contratar"]').click()
@@ -149,7 +193,7 @@ try {
     await aba(page, 'projeto', 'porao')
     await foto(page, 'pc-13-luxos')
     await q(page, '[data-k="luxo-aquario"]').click()
-    await aba(page, 'projeto', 'noar')
+    await aba(page, 'projeto', 'projetos')
     await aba(page, 'grafico', 'grafico')
     await foto(page, 'pc-14-todos-monitores')
     await puxarEMedir(page, null)
@@ -177,6 +221,16 @@ try {
     await page.locator('.cena__ponto').nth(2).click()
     await page.waitForFunction(() => { const r = document.querySelector('[data-monitor="projeto"]').getBoundingClientRect(); return r.left >= -2 && r.right <= innerWidth + 2 }, null, { timeout: 5000 })
     confere(await visiveis() === 1, 'celular: ainda um monitor por vez depois de trocar')
+    await aba(page, 'projeto', 'ideias')
+    const cheia = await page.evaluate(() => {
+      const m = document.querySelector('[data-pm-monitor="projeto"]')
+      const jan = [...m.querySelectorAll('.pm-jan')].filter((j) => getComputedStyle(j).visibility !== 'hidden')
+      const a = m.querySelector('.pm-mesa__area').getBoundingClientRect(), r = jan[0]?.getBoundingClientRect(), d = m.querySelector('.pm-dock').getBoundingClientRect()
+      return { n: jan.length, cheia: !!r && Math.abs(r.width - a.width) < 2 && Math.abs(r.height - a.height) < 2, dockEmbaixo: !!r && d.top >= r.bottom - 1 && d.bottom <= innerHeight }
+    })
+    confere(cheia.n === 1 && cheia.cheia, 'celular: uma janela por vez, em tela cheia')
+    confere(cheia.dockEmbaixo, 'celular: barra de ícones embaixo da janela, à vista')
+    await foto(page, 'cel-01b-monitor3-ideias')
     await aba(page, 'projeto', 'impressora')
     await q(page, '[data-pm="imprimir"]').click()
     await q(page, '[data-pm="folha"][data-etapa="1"]').waitFor({ timeout: 5000 })
@@ -200,6 +254,7 @@ try {
     await foto(page, 'cel-07-grafico')
     confere(await semRolagemLateral(page), 'celular: sem rolagem lateral (monitor 1)')
     await puxarEMedir(page, 'cel-08-tapete')
+    await conferirStatus(page, 'celular')
     await q(page, '[data-pm="tapete-fechar"]').click()
     await aba(page, 'grafico', 'caixa')
     await foto(page, 'cel-09-caixa')
@@ -258,6 +313,7 @@ try {
     const max = await puxarEMedir(page, null)
     confere(max === 0, `Menos animação: sem tremida (maior deslocamento ${max} px)`)
     confere(Date.now() - t2 < 2000, 'Menos animação: o tapete já mostra o resumo na hora')
+    confere(ultimaAnim === 'none', `Menos animação: número gigante parado (animação: ${ultimaAnim})`)
     await foto(page, 'menos-02-tapete')
     const trans = await page.evaluate(() => [...document.querySelectorAll('.pm-folha')].map((e) => getComputedStyle(e).transitionDuration))
     confere(trans.every((d) => /^0s(, 0s)*$/.test(d)), 'Menos animação: folha sem transição')

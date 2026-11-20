@@ -64,7 +64,7 @@ const CSS = `
 @media (max-width: 720px) {
   /* celular: cada janela em tela cheia; a barra de ícones fica embaixo */
   .pm-mesa__area { margin: 0; }
-  .pm-jan[data-pos] { inset: 0; border-radius: 0; box-shadow: none; border-width: 0 0 0 0; }
+  .pm-mesa .pm-jan[data-pos][data-total] { inset: 0; border-radius: 0; box-shadow: none; border-width: 0; }
   .pm-jan:not(.pm-jan--frente) { visibility: hidden; }
   .pm-dock { margin-top: 0; gap: 4px; padding: 4px; }
   .pm-icone { flex: 1 1 0; }
@@ -691,8 +691,8 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     const v = Math.max(0, Math.min(100, p.hype));
     const cheios = Math.round(v / 10);
     return h('div', { class: 'pm-confianca', 'data-pm': 'confianca', 'data-nivel': v < 34 ? 'baixa' : v < 67 ? 'media' : 'alta' },
-      h('div', { class: 'pm-confianca__topo' }, h('span', { class: 'pm-confianca__rot' }, 'Confiança dos trouxas'), h('span', { class: 'pm-num' }, fmt(p.hype))),
-      h('div', { class: 'pm-confianca__gomos', role: 'meter', 'aria-label': `Confiança dos trouxas em ${nomeIdeia(p.ideia)}`, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(p.hype)) },
+      h('div', { class: 'pm-confianca__topo' }, h('span', { class: 'pm-confianca__rot' }, T('ui.confianca', 'Confiança dos trouxas')), h('span', { class: 'pm-num' }, fmt(p.hype))),
+      h('div', { class: 'pm-confianca__gomos', role: 'meter', 'aria-label': `${T('ui.confianca', 'Confiança dos trouxas')} em ${nomeIdeia(p.ideia)}`, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(p.hype)) },
         Array.from({ length: 10 }, (_, i) => h('span', { class: `pm-confianca__gomo${i < cheios ? ' pm-confianca__gomo--cheio' : ''}` }))));
   }
 
@@ -884,7 +884,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     return h('div', { class: 'pm-chat', 'data-pm': 'mensagens' }, com.map((p) => {
       const c = p.contrato, nome = nomeIdeia(p.ideia), quem = nomeInflu(c.influenciador);
       const inf = visao.influenciadores.find((i) => i.id === c.influenciador);
-      const oferta = citar(T('msg.video1.oferta'), nome).replace(/\b5 mil\b/, din(c.p1));
+      const oferta = citar(T('msg.video1.oferta'), nome).replaceAll('{valor}', din(c.p1));
       const bal = [
         h('div', { class: 'pm-balao' }, oferta),
         h('div', { class: 'pm-balao pm-balao--eu' }, `Fechado: ${din(c.p1)} pelo vídeo 1.`),

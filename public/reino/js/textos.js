@@ -23,6 +23,7 @@ export const T = {
   resumo: { dano: 'DAMAGE BY PLOT', mvp: 'MVP', magia: 'MAGIC', ajuda: 'EACH BAR IS THE DAMAGE OF ONE PLOT' },
   ganheAjuda: 'WIN, THEN PICK 1',
   // R39 — vitória: a meta à vista, o selo depois dela, a festa da rodada da vitória e o fim com vitória (o número vem do config)
+  maisConquistas: (n) => `+${n} MORE`, degrauPertoCurto: (meta, n) => `${meta} ROUNDS WON: ${n} TO GO`, degrauPerto: (nome, n) => `${nome}: ${n} ROUND${n === 1 ? '' : 'S'} TO GO`, // R41
   meta: (n) => `HOLD TO ROUND ${n}`, resistiu: 'HELD',
   festaReino: (n) => `ROUND ${n} HELD!`, festaReinoSub: 'KEEP GOING FOR SCORE', fimVenceu: 'THE KINGDOM HELD', cartaoVenceu: 'THE KINGDOM HELD',
   grupos: { chefes: 'Bosses', lutas: 'Battles', reino: 'Kingdom', marcos: 'Milestones' },
@@ -50,7 +51,7 @@ export const T = {
   menu: {
     titulo: 'Keepmile', som: 'Sound', movimento: 'Reduced motion', album: 'Album', conquistas: 'Achievements', ranking: 'Best runs', nova: 'New run', novaConfirma: 'Give up this run?', fechar: 'Close', sim: 'Yes, new run', nao: 'Keep playing', ligado: 'On', desligado: 'Off', melhores: 'Best runs',
     sair: 'Leave the game?', sairTexto: 'Your run is saved on this device.', sairSim: 'Leave', liga: 'League', media: (n) => `Average of your best 3: ${n}`, proxima: (nome, n) => `${n} more for ${nome}`, topo: 'Top title of the beta', beta: 'Beta: titles only, kept on this device.',
-    efeitos: 'Effects', musica: 'Music', menosVol: (q) => `${q} quieter`, maisVol: (q) => `${q} louder`, data: (d) => `Earned ${d}`, enfeite: 'Medal', degrau: (a, b) => `${a} / ${b}`, feitas: (a, b) => `${a} / ${b} earned`, selo: 'HELD', voltar: 'Back to menu',
+    efeitos: 'Effects', musica: 'Music', menosVol: (q) => `${q} quieter`, maisVol: (q) => `${q} louder`, data: (d) => `Earned ${d}`, enfeite: 'Medal', degrau: (a, b) => `${a} / ${b}`, feitas: (a, b) => `${a} / ${b} earned`, selo: 'HELD', nova: 'NEW', voltar: 'Back to menu',
     ajustes: 'Settings', faixa: (de, ate) => (ate ? `${de} to ${ate}` : `${de} or more`), nenhuma: 'No runs yet', rodadas: (n) => `${n} round${n === 1 ? '' : 's'}`,
   },
   album: { titulo: 'Album', chances: 'Odds per hand from round 2, before level-ups', chancesTodas: 'Same, with every card unlocked', proxima: (n) => (n === 1 ? 'Next card: 1 more round won' : `Next card: ${n} more rounds won`), todas: 'Every card unlocked', somadas: (n) => (n === 1 ? '1 round won so far' : `${n} rounds won so far`), bloqueada: 'Locked card' },

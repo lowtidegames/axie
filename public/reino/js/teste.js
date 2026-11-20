@@ -148,8 +148,19 @@ export async function ligarGanchos(X) {
     pularParaLuta: () => X.pularParaLuta(),
     revela: () => ({ ...X.UI().REVELA }),
     // ---- R39: a vitória (meta/selo do HUD, a festa do reino e o fim) como a tela guarda e desenha
-    vitoria: () => { const M = X.M(), V = M.vitoria, R = V?.reino || null; return { festas: J.festasDoReino, meta: M.meta ?? null, venceu: !!M.venceu, metaRet: X.UI().metaRet ? { ...X.UI().metaRet } : null, pronto: !!V?.pronto, reino: R ? { ms: R.ms, fim: R.fim, rodada: R.rodada, ha: performance.now() - R.t0, ret: R.ret ? { ...R.ret } : null } : null } },
-    fimInfo: () => { const f = X.M().fim; return f ? { venceu: !!f.venceu, titulo: f.titulo ?? null, linhas: f.tituloLinhas ?? null, tituloW: f.tituloW ?? 0, VW: C.VW, vencidas: f.vencidas, contou: !!f.contou, fita: f.fitaRet ? { ...f.fitaRet } : null, veu: f.veuRet ? { ...f.veuRet } : null, painelY: X.UI().L.fimPainel.y, fecho: f.fechoRet ? { ...f.fechoRet } : null } : null },
+    vitoria: () => { const M = X.M(), V = M.vitoria, R = V?.reino || null; return { festas: J.festasDoReino, meta: M.meta ?? null, venceu: !!M.venceu, metaRet: X.UI().metaRet ? { ...X.UI().metaRet } : null, pronto: !!V?.pronto, reino: R ? { ms: R.ms, fim: R.fim, rodada: R.rodada, bate: R.bate ?? null, sai: R.sai ?? null, fogos: R.fogos || 0, fogosVistos: R.fogosVistos || 0, ha: performance.now() - R.t0, ret: R.ret ? { ...R.ret } : null } : null } },
+    fimInfo: () => { const f = X.M().fim; return f ? { venceu: !!f.venceu, titulo: f.titulo ?? null, linhas: f.tituloLinhas ?? null, tituloW: f.tituloW ?? 0, VW: C.VW, vencidas: f.vencidas, contou: !!f.contou, gancho: f.gancho ?? null, ganchoCabe: f.ganchoCabe ?? null, ganchoDegrau: f.ganchoDegrau ? { ...f.ganchoDegrau } : null, album: f.album ? { ...f.album } : null, fita: f.fitaRet ? { ...f.fitaRet } : null, veu: f.veuRet ? { ...f.veuRet } : null, painelY: X.UI().L.fimPainel.y, fecho: f.fechoRet ? { ...f.fechoRet } : null } : null },
+    // ---- R41: o aviso de conquista (ganha pelo gancho, para ver a placa e a fila; no modo local fica guardada no aparelho)
+    conquistar: (ids) => { for (const id of ids) X.conquista(id, X.S.on) },
+    brinde: () => { const M = X.M(), b = M.brinde; return b && performance.now() <= b.t0 + b.ms ? { titulo: b.titulo, texto: b.texto, ms: b.ms, conq: b.conq ?? null, mais: b.mais ?? 0, ret: M.brindeRet ? { ...M.brindeRet } : null } : null },
+    degrauPerto: (r, tem) => X.degrauPerto(r, tem),
+    /** A barra do chefe e a vida dele na batalha, lidas no MESMO quadro: o total nos eventos do motor, a vida de agora nos bonecos da luta e o que a cena desenhou. */
+    chefeNaLuta() {
+      const b = J.pos?.bat, id = b?.horda.chefe, ch = C.chefe; if (!id || !ch) return null
+      let vidaMotor = 0; for (const e of b.eventos) if (e[1] === 'n' && e[3] === 1 && e[4] === id) vidaMotor += e[6]
+      let hp = vidaMotor; for (let i = 0; i < C.n; i++) { if (C.idTipo[i] !== id || C.lado[i] !== 1 || C.est[i] === 0) continue; hp -= C.hpMax[i]; if (C.est[i] === 1 || C.est[i] === 3) hp += Math.max(0, C.hp[i]) }
+      return { id, vidaMotor, max: ch.max, f: ch.f, hpAgora: hp, desenhado: C.med.chefeBarraRet ? { ...C.med.chefeBarraRet } : null }
+    },
     replayInfo: () => { const r = X.M().replay; return r ? { fim: r.fim, venceu: !!r.venceu } : null },
   }
 }

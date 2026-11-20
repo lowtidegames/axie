@@ -4,9 +4,30 @@
 // últimas; sem cópia, não migra (o servidor não sobe).
 // Marca: meta.marca = 'porao'. Arquivo com tabelas sem a marca é recusado ANTES de qualquer escrita.
 // Modo: meta.modo = 'teste' | 'producao'; o banco recusa abrir no outro modo.
-// O estado do jogo fica como JSON na tabela `save` (1 linha, com a semente — que nunca sai para a tela).
-// `diario` (cada mudança de caixa: motivo e valor) e `pedidos` (chave única) são tabelas próprias.
-// Cartas, projetos, luxos, contratos, carteirinha e mensagens vivem dentro do JSON do save na v1.
+//
+// v2 (abertura, 20/11 18:17): progresso SEPARADO POR CONTA (carteira ou convidado).
+//   contas(id, tipo 'carteira'|'convidado', carteira UNIQUE, apelido, apelido_chave UNIQUE, local_padrao, criada_em, visto_em)
+//   saves(conta_id PK → estado JSON COM a semente, que nunca sai para a tela; cada conta nova tem semente própria)
+//   desafios(nonce PK, carteira, mensagem, vence_em, usado_em) · sessoes(hash PK, conta_id, vence_em, visto_em)
+//   diario e pedidos ganham conta_id (gatilho recusa linha nova sem conta).
+//   Conta 1 = convidada local padrão (local_padrao = 1) com o save que existia; a tabela `save` antiga fica INTOCADA
+//   (apagar é decisão do dono).
+// Cartas, projetos, luxos, contratos, carteirinha e mensagens vivem dentro do JSON do save.
+//
+// API das contas (v2):
+//   criarConta(db, { tipo, carteira?, localPadrao?, agora, semente? })      → conta (cria conta + save inicial)
+//   contaDaCarteira(db, carteira, { agora, semente?, criar = true })         → conta { ..., nova } | null (criar:false)
+//   contaConvidadaLocal(db, { agora, semente? })                             → conta local padrão (acha ou cria)
+//   buscarConta(db, id)                                                      → conta | null
+//   carregarSaveDaConta(db, contaId) / gravarSaveDaConta(db, contaId, estado, em)
+//   somaDoDiarioDaConta(db, contaId)
+//   anotarDiario / gravarPedido aceitam contaId; buscarPedido devolve contaId.
+//   conta = { id, tipo, carteira, apelido, localPadrao, criadaEm, vistoEm }
+// COMPATIBILIDADE até a tarefa 2 (jogo.mjs ainda não conhece contas): carregarSave(db), gravarSave(db, …),
+// anotarDiario e gravarPedido sem contaId usam a conta convidada local padrão.
+// PONTE até a tarefa 2: banco NOVO ainda ganha a linha antiga `save` (id 1) e, com a marca meta.save_antigo_espelho,
+// o save da conta local é espelhado nela, porque testes de hoje leem a tabela antiga (jogo.test.js foto e cópia,
+// api.test.js SAVE_SO_LEITURA). Banco migrado da v1 NÃO espelha (save antiga intocada). A tarefa 2 tira a ponte.
 import { DatabaseSync } from 'node:sqlite'
 import { randomBytes } from 'node:crypto'
 import fs from 'node:fs'
@@ -22,6 +43,71 @@ export const MARCA = 'porao'
 export const COPIAS_GUARDADAS = 10
 /** Pedidos (chaves de repetição) mais velhos que isto são apagados no boot (limite técnico: 1 dia). */
 export const PEDIDOS_GUARDADOS_MS = 24 * 3600 * 1000
+/** Endereço de carteira Solana: base58, 32 a 44 letras (a chave em si é conferida na assinatura, tarefa 3). */
+export const CARTEIRA_VALIDA = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
+export const TIPOS_DE_CONTA = Object.freeze(['carteira', 'convidado'])
+/** meta: conta cujo save é espelhado na tabela antiga `save` (PONTE até a tarefa 2; só em banco nascido na v2). */
+const ESPELHO = 'save_antigo_espelho'
+
+const colunas = (db, tabela) => db.prepare(`PRAGMA table_info(${tabela})`).all().map(c => c.name)
+
+/**
+ * v2 — contas. Idempotente: rodar de novo por cima de um banco já migrado não muda nada
+ * (CREATE IF NOT EXISTS, INSERT OR IGNORE, coluna só se faltar, UPDATE só onde conta_id está vazio).
+ */
+function migracaoContas(db, { agora = Date.now } = {}) {
+  db.exec(`
+  CREATE TABLE IF NOT EXISTS contas (
+    id INTEGER PRIMARY KEY,
+    tipo TEXT NOT NULL CHECK (tipo IN ('carteira', 'convidado')),
+    carteira TEXT UNIQUE,
+    apelido TEXT,
+    apelido_chave TEXT UNIQUE,
+    local_padrao INTEGER UNIQUE CHECK (local_padrao IS NULL OR local_padrao = 1),
+    criada_em INTEGER NOT NULL,
+    visto_em INTEGER NOT NULL,
+    CHECK ((tipo = 'carteira') = (carteira IS NOT NULL)),
+    CHECK (local_padrao IS NULL OR tipo = 'convidado')
+  );
+  CREATE TABLE IF NOT EXISTS saves (
+    conta_id INTEGER PRIMARY KEY REFERENCES contas(id),
+    estado TEXT NOT NULL,
+    atualizado_em INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS desafios (
+    nonce TEXT PRIMARY KEY,
+    carteira TEXT NOT NULL,
+    mensagem TEXT NOT NULL,
+    vence_em INTEGER NOT NULL,
+    usado_em INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS desafios_vence ON desafios (vence_em);
+  CREATE TABLE IF NOT EXISTS sessoes (
+    hash TEXT PRIMARY KEY,
+    conta_id INTEGER NOT NULL REFERENCES contas(id),
+    vence_em INTEGER NOT NULL,
+    visto_em INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS sessoes_conta ON sessoes (conta_id);
+  `)
+  // O save que existia vira a conta 1 (convidada local padrão), com o texto do estado copiado sem passar por JSON.
+  const antigo = db.prepare('SELECT estado, atualizado_em FROM save WHERE id = 1').get()
+  if (antigo) {
+    const em = Math.floor(agora())
+    db.prepare(`INSERT OR IGNORE INTO contas (id, tipo, carteira, apelido, apelido_chave, local_padrao, criada_em, visto_em)
+      VALUES (1, 'convidado', NULL, NULL, NULL, 1, ?, ?)`).run(em, em)
+    db.prepare('INSERT OR IGNORE INTO saves (conta_id, estado, atualizado_em) SELECT 1, estado, atualizado_em FROM save WHERE id = 1').run()
+  }
+  for (const tabela of ['diario', 'pedidos']) {
+    if (!colunas(db, tabela).includes('conta_id')) db.exec(`ALTER TABLE ${tabela} ADD COLUMN conta_id INTEGER REFERENCES contas(id)`)
+    if (antigo) db.exec(`UPDATE ${tabela} SET conta_id = 1 WHERE conta_id IS NULL`)
+  }
+  // Diário é dinheiro do jogo: linha nova sem dono é recusada. Pedido sem conta é aceito, mas não é de ninguém
+  // (buscarPedido devolve contaId null; quem confere a conta recusa) e some na limpeza de 1 dia.
+  db.exec(`CREATE TRIGGER IF NOT EXISTS diario_exige_conta BEFORE INSERT ON diario WHEN NEW.conta_id IS NULL
+    BEGIN SELECT RAISE(ABORT, 'diario: linha sem conta'); END`)
+  db.exec('CREATE INDEX IF NOT EXISTS diario_conta ON diario (conta_id, id)')
+}
 
 export const MIGRACOES = [
   // v1 — tarefa 4: meta, save (1 linha), diário de caixa, pedidos.
@@ -48,6 +134,8 @@ export const MIGRACOES = [
     em INTEGER NOT NULL
   );
   `,
+  // v2 — abertura (20/11 18:17): contas, saves por conta, desafios, sessões; conta_id no diário e nos pedidos.
+  migracaoContas,
 ]
 
 const versaoAtual = db => db.prepare('PRAGMA user_version').get().user_version
@@ -90,9 +178,9 @@ function copiarAntes(db, caminho, versao, quando) {
 }
 
 /**
- * Abre (ou cria) o banco do porão e aplica migrações pendentes. Cria o save se não existir.
+ * Abre (ou cria) o banco do porão e aplica migrações pendentes. Garante a conta convidada local padrão.
  * caminho: arquivo ou ':memory:' (testes). opcoes: modo ('teste' | 'producao'), agora (função → ms),
- * semente (só para o save NOVO; padrão: 32 bytes aleatórios do servidor), migracoes (só testes do banco).
+ * semente (só para a conta local NOVA; padrão: 32 bytes aleatórios do servidor), migracoes (só testes do banco).
  */
 export function abrirBancoPorao(caminho = CAMINHO_PADRAO, { modo = 'teste', agora = Date.now, semente, migracoes = MIGRACOES } = {}) {
   if (modo !== 'teste' && modo !== 'producao') throw new Error('Modo do banco inválido.')
@@ -127,9 +215,14 @@ export function abrirBancoPorao(caminho = CAMINHO_PADRAO, { modo = 'teste', agor
       }
     }
     transacao(db, () => {
-      if (db.prepare('SELECT 1 FROM save WHERE id = 1').get()) return
-      const s = typeof semente === 'string' && semente.length > 0 ? semente : randomBytes(32).toString('hex')
-      gravarSave(db, estadoInicial({ semente: s, agora: agora() }), agora())
+      const local = contaConvidadaLocal(db, { agora, semente })
+      // PONTE até a tarefa 2: banco NOVO ganha a linha antiga `save` e a marca ESPELHO; nele, gravar o save da conta
+      // local também regrava a linha antiga (os testes de hoje ainda leem a tabela antiga). Banco que veio da v1 não
+      // tem a marca: a `save` dele fica intocada.
+      if (!db.prepare('SELECT 1 FROM save WHERE id = 1').get()) {
+        db.prepare('INSERT INTO save (id, estado, atualizado_em) SELECT 1, estado, atualizado_em FROM saves WHERE conta_id = ?').run(local.id)
+        db.prepare('INSERT OR REPLACE INTO meta (chave, valor) VALUES (?, ?)').run(ESPELHO, String(local.id))
+      }
     })
     transacao(db, () => { db.prepare('DELETE FROM pedidos WHERE em < ?').run(Math.floor(agora()) - PEDIDOS_GUARDADOS_MS) })
     return db
@@ -139,30 +232,143 @@ export function abrirBancoPorao(caminho = CAMINHO_PADRAO, { modo = 'teste', agor
   }
 }
 
-/** Estado completo do jogo (COM a semente: só para o servidor). */
-export function carregarSave(db) {
-  const linha = db.prepare('SELECT estado FROM save WHERE id = 1').get()
-  if (!linha) throw new Error('O porão ainda não tem save.')
+// ---------------------------------------------------------------------------------------------
+// Contas (v2)
+// ---------------------------------------------------------------------------------------------
+const emMs = agora => Math.floor(typeof agora === 'function' ? agora() : agora)
+
+/** Roda fn dentro da transação do chamador, se houver; senão abre uma. */
+function emTransacao(db, fn) {
+  return db.isTransaction ? fn() : transacao(db, fn)
+}
+
+function contaDaLinha(l) {
+  if (!l) return null
+  return {
+    id: l.id,
+    tipo: l.tipo,
+    carteira: l.carteira ?? null,
+    apelido: l.apelido ?? null,
+    localPadrao: l.local_padrao === 1,
+    criadaEm: l.criada_em,
+    vistoEm: l.visto_em,
+  }
+}
+
+/** Conta pelo id, ou null. */
+export function buscarConta(db, id) {
+  if (!Number.isSafeInteger(id)) return null
+  return contaDaLinha(db.prepare('SELECT * FROM contas WHERE id = ?').get(id))
+}
+
+function conferirCarteira(carteira) {
+  if (typeof carteira !== 'string' || !CARTEIRA_VALIDA.test(carteira)) throw new Error('Endereço de carteira inválido.')
+}
+
+/**
+ * Cria conta + save inicial (semente própria: 32 bytes aleatórios, ou `semente` dada pelos testes).
+ * tipo: 'carteira' (exige carteira válida, única) | 'convidado' (localPadrao: true só para a única local).
+ * agora: ms ou função → ms. Devolve a conta. Lança erro se recusar (nada fica gravado).
+ */
+export function criarConta(db, { tipo, carteira = null, localPadrao = false, agora, semente } = {}) {
+  if (!TIPOS_DE_CONTA.includes(tipo)) throw new Error('Tipo de conta inválido.')
+  if (tipo === 'carteira') conferirCarteira(carteira)
+  else if (carteira !== null) throw new Error('Conta de convidado não tem carteira.')
+  if (localPadrao && tipo !== 'convidado') throw new Error('Só a conta de convidado pode ser a local padrão.')
+  const em = emMs(agora)
+  if (!Number.isFinite(em)) throw new TypeError('agora precisa ser número (ms)')
+  const s = typeof semente === 'string' && semente.length > 0 ? semente : randomBytes(32).toString('hex')
+  return emTransacao(db, () => {
+    const { lastInsertRowid } = db.prepare(`INSERT INTO contas (tipo, carteira, apelido, apelido_chave, local_padrao, criada_em, visto_em)
+      VALUES (?, ?, NULL, NULL, ?, ?, ?)`).run(tipo, carteira, localPadrao ? 1 : null, em, em)
+    const id = Number(lastInsertRowid)
+    db.prepare('INSERT INTO saves (conta_id, estado, atualizado_em) VALUES (?, ?, ?)')
+      .run(id, JSON.stringify(estadoInicial({ semente: s, agora: em })), em)
+    return buscarConta(db, id)
+  })
+}
+
+/**
+ * Conta da carteira (endereço já conferido pela assinatura, tarefas 3/4). Acha e marca visto_em, ou cria.
+ * Devolve { ...conta, nova } — ou null se criar:false e não existir.
+ */
+export function contaDaCarteira(db, carteira, { agora, semente, criar = true } = {}) {
+  conferirCarteira(carteira)
+  const em = emMs(agora)
+  return emTransacao(db, () => {
+    const linha = db.prepare('SELECT id FROM contas WHERE carteira = ?').get(carteira)
+    if (linha) {
+      db.prepare('UPDATE contas SET visto_em = ? WHERE id = ?').run(em, linha.id)
+      return { ...buscarConta(db, linha.id), nova: false }
+    }
+    if (!criar) return null
+    return { ...criarConta(db, { tipo: 'carteira', carteira, agora: em, semente }), nova: true }
+  })
+}
+
+/** A conta convidada local padrão (127.0.0.1): acha ou cria. Não mexe em visto_em. */
+export function contaConvidadaLocal(db, { agora, semente } = {}) {
+  return emTransacao(db, () => {
+    const linha = db.prepare('SELECT id FROM contas WHERE local_padrao = 1').get()
+    if (linha) return buscarConta(db, linha.id)
+    return criarConta(db, { tipo: 'convidado', localPadrao: true, agora, semente })
+  })
+}
+
+function idLocalPadrao(db) {
+  const linha = db.prepare('SELECT id FROM contas WHERE local_padrao = 1').get()
+  if (!linha) throw new Error('O porão ainda não tem a conta convidada local.')
+  return linha.id
+}
+
+/** Estado completo do jogo da conta (COM a semente: só para o servidor). */
+export function carregarSaveDaConta(db, contaId) {
+  const linha = db.prepare('SELECT estado FROM saves WHERE conta_id = ?').get(contaId)
+  if (!linha) throw new Error('Esta conta ainda não tem save.')
   return JSON.parse(linha.estado)
 }
 
+export function gravarSaveDaConta(db, contaId, estado, em) {
+  if (!buscarConta(db, contaId)) throw new Error('Conta inexistente.')
+  const texto = JSON.stringify(estado)
+  db.prepare(`INSERT INTO saves (conta_id, estado, atualizado_em) VALUES (?, ?, ?)
+    ON CONFLICT(conta_id) DO UPDATE SET estado = excluded.estado, atualizado_em = excluded.atualizado_em`)
+    .run(contaId, texto, Math.floor(em))
+  // PONTE até a tarefa 2 (só banco nascido na v2 com a marca ESPELHO; ver abrirBancoPorao).
+  const espelho = db.prepare('SELECT valor FROM meta WHERE chave = ?').get(ESPELHO)?.valor
+  if (espelho === String(contaId)) db.prepare('UPDATE save SET estado = ?, atualizado_em = ? WHERE id = 1').run(texto, Math.floor(em))
+}
+
+/** Soma do diário da conta (deve ser igual ao caixa do save dela). */
+export function somaDoDiarioDaConta(db, contaId) {
+  return db.prepare('SELECT COALESCE(SUM(valor), 0) AS s FROM diario WHERE conta_id = ?').get(contaId).s
+}
+
+/** COMPATIBILIDADE (jogo.mjs até a tarefa 2): save da conta convidada local padrão. */
+export function carregarSave(db) {
+  return carregarSaveDaConta(db, idLocalPadrao(db))
+}
+
+/** COMPATIBILIDADE (jogo.mjs até a tarefa 2): grava o save da conta convidada local padrão. */
 export function gravarSave(db, estado, em) {
-  db.prepare(`INSERT INTO save (id, estado, atualizado_em) VALUES (1, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET estado = excluded.estado, atualizado_em = excluded.atualizado_em`)
-    .run(JSON.stringify(estado), Math.floor(em))
+  gravarSaveDaConta(db, idLocalPadrao(db), estado, em)
 }
 
-export function anotarDiario(db, { em, motivo, valor, caixaDepois, pedido = null }) {
+/** contaId omitido = conta convidada local padrão (compatibilidade até a tarefa 2). */
+export function anotarDiario(db, { em, motivo, valor, caixaDepois, pedido = null, contaId = idLocalPadrao(db) }) {
   if (!Number.isSafeInteger(valor) || valor === 0) throw new Error(`Valor inválido no diário: ${valor}`)
-  db.prepare('INSERT INTO diario (em, motivo, valor, caixa_depois, pedido) VALUES (?, ?, ?, ?, ?)')
-    .run(Math.floor(em), motivo, valor, caixaDepois, pedido)
+  db.prepare('INSERT INTO diario (em, motivo, valor, caixa_depois, pedido, conta_id) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(Math.floor(em), motivo, valor, caixaDepois, pedido, contaId)
 }
 
+/** Pedido pela chave: { acao, corpo, resposta, contaId } ou null. */
 export function buscarPedido(db, chave) {
-  return db.prepare('SELECT acao, corpo, resposta FROM pedidos WHERE chave = ?').get(chave) || null
+  const l = db.prepare('SELECT acao, corpo, resposta, conta_id FROM pedidos WHERE chave = ?').get(chave)
+  return l ? { acao: l.acao, corpo: l.corpo, resposta: l.resposta, contaId: l.conta_id } : null
 }
 
-export function gravarPedido(db, { chave, acao, corpo, resposta, em }) {
-  db.prepare('INSERT INTO pedidos (chave, acao, corpo, resposta, em) VALUES (?, ?, ?, ?, ?)')
-    .run(chave, acao, corpo, resposta, Math.floor(em))
+/** contaId omitido = conta convidada local padrão (compatibilidade até a tarefa 2). */
+export function gravarPedido(db, { chave, acao, corpo, resposta, em, contaId = idLocalPadrao(db) }) {
+  db.prepare('INSERT INTO pedidos (chave, acao, corpo, resposta, em, conta_id) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(chave, acao, corpo, resposta, Math.floor(em), contaId)
 }

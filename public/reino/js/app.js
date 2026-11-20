@@ -1,5 +1,6 @@
 // Keepmile — o jogo na tela, modo LOCAL (o motor roda no navegador). A tela não tem regra: lê `visao`/`opcoes` e só manda
-// comandos de `opcoes(estado).comandos`. A lista de comandos refaz a partida inteira (`reproduzir`).
+// comandos de `opcoes(estado).comandos`. A lista de comandos refaz a partida inteira (`reproduzir`) — é assim que a partida em curso
+// fica guardada e volta depois de recarregar.
 import * as CONFIG from '../../../shared/reino/config.js'
 import { aplicar, criarPartida, opcoes, reproduzir, resultado, visao } from '../../../shared/reino/partida.js'
 import { expandirHorda, montarExercito } from '../../../shared/reino/batalha.js'
@@ -7,9 +8,10 @@ import { Musica, Som } from '../som-reino.js'
 import * as Arte from './arte.js'
 import { criarBatalha } from './batalha-tela.js'
 import { criarCena } from './cena.js'
-import { baixarCartao, cartaoDoReino } from './fim.js'
+import { cartaoDoReino, compartilhar, linkDaEstrada } from './fim.js'
 import { Guarda } from './guarda.js'
 import { criarInterface } from './interface.js'
+import { ligaDe, mediaDasMelhores } from './ligas.js'
 import { criarTelas } from './telas.js'
 import { CHEFE_CONQUISTA, CONQUISTAS, T } from './textos.js'
 
@@ -17,7 +19,7 @@ const Q = new URLSearchParams(location.search)
 const TESTE = Q.get('teste') === '1'
 const canvas = document.getElementById('cena'), camada = document.getElementById('toques')
 const C = criarCena(canvas, CONFIG)
-const J = { familias: [], e: null, v: null, op: null, comandos: [], semente: null, liberadas: [], ouroAlvo: 0, pos: null, ultimaLuta: null, lutas: [], espolioI: -1, semSorteio: true, anunciado: '', avisado: '', erros: [] }
+const J = { familias: [], e: null, v: null, op: null, comandos: [], semente: null, liberadas: [], ouroAlvo: 0, pos: null, ultimaLuta: null, lutas: [], espolioI: -1, semSorteio: true, anunciado: '', avisado: '', erros: [], chefesVistos: new Set(), emLuta: false, link: '', postou: '', infoAte: 0 }
 let UI, M, Bat, Telas
 const timers = new Set()
 const depois = (ms, fn) => { const id = setTimeout(() => { timers.delete(id); fn() }, ms); timers.add(id); return id }
@@ -26,44 +28,79 @@ const agoraMs = () => performance.now()
 
 // ---------------------------------------------------------------- motor
 function ler() { J.v = visao(J.e); J.op = opcoes(J.e) }
+/** A partida em curso fica guardada a cada passo: semente + cartas liberadas + comandos (o motor refaz). */
+function salvar() { Guarda.salvarPartida(J.e && J.e.fase !== 'fim' && J.comandos.length ? { semente: J.semente, liberadas: J.liberadas, comandos: J.comandos, emLuta: J.emLuta } : null) }
 /** Manda um comando ao motor. Só aceita o que está em `opcoes(estado).comandos`. Devolve os eventos ou null. */
 function mandar(cmd) {
   const valido = J.op.comandos.some((c) => c.tipo === cmd.tipo && (c.carta ?? null) === (cmd.carta ?? null) && (c.terreno ?? null) === (cmd.terreno ?? null) && (c.indice ?? null) === (cmd.indice ?? null))
   const r = valido ? aplicar(J.e, cmd) : { ok: false }
   if (!r.ok) { Som.tocar('negado'); return null }
-  J.e = r.estado; J.comandos.push(cmd); ler()
+  J.e = r.estado; J.comandos.push(cmd); ler(); salvar()
   return r.eventos
 }
 function sementeNova() { const a = new Uint32Array(2); crypto.getRandomValues(a); return 'k' + a[0].toString(36) + a[1].toString(36) }
 
-// ---------------------------------------------------------------- festas pequenas
+// ---------------------------------------------------------------- FILA DE FESTAS
+// Uma festa por vez, 0,4 s entre elas, a maior por último. Nada por cima do anúncio do chefe (a fila espera) nem do HUD (a interface
+// desenha abaixo dele). `tam`: 1 pequena, 2 média, 3 grande. `tipo`: 'aviso' (letreiro) ou 'brinde' (placa). `fase`: só vale naquela fase.
+const F = { fila: [], atual: null, livreEm: 0, log: [], n: 0 }
+const VAO_FESTA = 400
+function festa(f) { f.n = F.n++; F.fila.push(f); F.fila.sort((a, b) => a.tam - b.tam || a.n - b.n) }
+function limparFestas() { F.fila.length = 0; if (F.atual) { M[F.atual.tipo] = null; F.atual = null } }
+function festasTique(agora) {
+  const a = F.atual
+  if (a) {
+    const fora = a.fase && a.fase !== M.fase
+    if (M.fase === 'chefe' && !fora) { M[a.tipo] = null; F.atual = null; a.log.fim = agora; a.log.adiada = true; F.fila.unshift(a); F.livreEm = agora + VAO_FESTA; return } // o chefe chegou: a festa espera ele sair
+    if (fora || agora >= a.t0 + a.ms) { M[a.tipo] = null; F.atual = null; a.log.fim = agora; F.livreEm = agora + VAO_FESTA }
+    return
+  }
+  if (!F.fila.length || agora < F.livreEm || M.fase === 'chefe') return
+  let f = F.fila.shift()
+  while (f && f.fase && f.fase !== M.fase) f = F.fila.shift()
+  if (!f) return
+  f.t0 = agora; if (F.fila.length >= 2) f.ms = Math.round(f.ms * 0.7) // fila comprida anda mais depressa
+  F.atual = f; M[f.tipo] = f; f.ao?.()
+  f.log = { texto: f.texto, tam: f.tam, tipo: f.tipo, ini: agora, fim: 0 }; F.log.push(f.log); if (F.log.length > 80) F.log.shift()
+}
+const kAviso = () => (C.tipo === 'celular' ? 1 : 2)
+
+// ---------------------------------------------------------------- festas pequenas e médias
 function conquista(id) {
   if (!Guarda.conquista(id)) return
   const c = CONQUISTAS.find((x) => x.id === id)
-  M.brinde = { t0: agoraMs(), ms: 2600, titulo: T.conquista, texto: c.nome }
-  Som.tocar('conquista'); C.efeito('confetti', C.VW / 2 + C.cam.x, 60)
+  festa({ tam: 2, tipo: 'brinde', ms: 2400, titulo: T.conquista, texto: c.nome, icone: { tipo: 'conquista', nome: c.nome }, ao: () => { Som.tocar('conquista'); C.efeito('confetti', C.VW / 2 + C.cam.x, 60) } })
 }
 function conferirReino() {
   const t = J.v.terrenos
   if (t.every(Boolean)) { conquista('house'); if (new Set(t.map((x) => CONFIG.CARTAS[x.carta].familia)).size === 1) conquista('family') }
   if (t.some((x) => x && x.nivel >= CONFIG.PARTIDA.nivelMax)) conquista('brass')
 }
-function festaNivel(k, nivel) {
+/** "Antes > depois" de um nível, só com números do config: a quantidade/valor; se não mudou, a força (vida e dano) em %. */
+function antesDepois(carta, nivel) {
+  const c = CONFIG.CARTAS[carta], a = Arte.forcaDaCarta(carta, nivel - 1), b = Arte.forcaDaCarta(carta, nivel)
+  if (a !== b) return T.deAte(a, b, Arte.legendaDaCarta(carta))
+  const m = c.multNivel || CONFIG.MULT_NIVEL
+  return c.tipo === 'tropa' ? T.poder(m[nivel - 2], m[nivel - 1]) : T.deAte(`${T.nivel} ${nivel - 1}`, String(nivel), '')
+}
+function festaNivel(k, nivel, carta) {
   const p = C.centroDoTerreno(k), max = nivel >= CONFIG.PARTIDA.nivelMax
   C.pulo[k] = C.relogio + 300
   C.efeito('level-ring', p.x + C.cam.x, p.y); C.efeito('confetti', p.x + C.cam.x, p.base - 12); C.efeito('level-stars', p.x + C.cam.x, p.base - 20)
-  M.selo = { terreno: k, t0: agoraMs(), ate: agoraMs() + 1300 }
+  M.selo = { terreno: k, t0: agoraMs(), ate: agoraMs() + 1900, linha: antesDepois(carta, nivel) }
   Som.tocar(max ? 'nivelGrande' : 'nivelPequeno')
-  if (max) { C.flash('#FFD248', 200); M.aviso = { texto: 'MAX LEVEL!', ouro: true, t0: agoraMs(), ms: 1400 } }
+  if (max) festa({ tam: 3, tipo: 'aviso', ms: 1400, texto: T.maximo, ouro: true, ao: () => C.flash('#FFD248', 200) })
 }
 function festaPosta(k) { const p = C.centroDoTerreno(k); C.efeito('dust', p.x + C.cam.x - 8, p.y + 4); C.efeito('dust', p.x + C.cam.x + 8, p.y + 6, true); Som.tocar('cartaPoe') }
 function eventosDeTerreno(evs) {
   for (const ev of evs) {
     if (ev.tipo === 'posta') festaPosta(ev.terreno)
-    if (ev.tipo === 'nivel') festaNivel(ev.terreno, ev.nivel)
-    if (ev.tipo === 'reliquia') { const r = CONFIG.RELIQUIAS[ev.reliquia]; M.aviso = { texto: r.nome, sub: r.texto, ouro: true, t0: agoraMs(), ms: 2400 }; Som.tocar('nivelPequeno') }
+    if (ev.tipo === 'nivel') festaNivel(ev.terreno, ev.nivel, ev.carta)
+    if (ev.tipo === 'reliquia') { const r = CONFIG.RELIQUIAS[ev.reliquia]; festa({ tam: 2, tipo: 'aviso', ms: 2400, texto: r.nome, sub: r.texto, ouro: true, k: kAviso(), ao: () => Som.tocar('nivelPequeno') }) }
   }
 }
+/** Mostra linhas de explicação (um toque no item explica em 1 linha). */
+function dizer(linhas, ms = 4500) { M.info = linhas; J.infoAte = agoraMs() + ms }
 
 // ---------------------------------------------------------------- o reino parado (fase de carta)
 /** Castelo: inteiro (3), rachado (2) ou muito rachado (1), pelas vidas perdidas. */
@@ -71,9 +108,9 @@ function estadoCastelo() { const perdidas = J.v.vidasMax - J.v.vidas; return per
 function montarReino(comHorda = true) {
   const v = J.v
   C.terrenos = v.terrenos.map((t) => (t ? { ...t } : null)); C.vidas = estadoCastelo(); C.magiaAnim = {}
-  C.limparBonecos(); C.tb = 0; C.noite = 0; C.cam.alvo = 0
+  C.limparBonecos(); C.tb = 0; C.noite = 0; C.cam.alvo = 0; C.marcha = false
   const ex = montarExercito(v.terrenos, v.reliquias)
-  for (const s of ex.soldados) for (let j = 0; j < s.qtd; j++) { const f = C.formacao(j, s.qtd); C.nascer(0, s.carta, s.terreno * 100 - 50, s.vida, f.lane, f.dxe) }
+  for (const s of ex.soldados) for (let j = 0; j < s.qtd; j++) { const f = C.formacao(j, s.qtd); C.nascer(0, s.carta, s.terreno * 100 - 50, s.vida, f.lane, f.dxe, 1, s.nivel, j === 0) }
   M.hordaN = 0; M.hordaChefe = null
   if (comHorda && v.horda) {
     M.hordaN = expandirHorda(v.horda).length; M.hordaChefe = v.horda.chefe
@@ -83,46 +120,99 @@ function montarReino(comHorda = true) {
   }
 }
 function nivelNaMao(carta) { let n = 0; for (const t of J.v.terrenos) if (t && t.carta === carta && t.nivel < CONFIG.PARTIDA.nivelMax) n = Math.max(n, t.nivel); return n }
+const precisaDe = (fam) => (J.v.reliquias.includes('banner') ? CONFIG.RELIQUIAS.banner.terrenos : CONFIG.FAMILIAS[fam].terrenos)
+const contaFamilias = () => { const cont = {}; for (const t of J.v.terrenos) if (t) { const f = CONFIG.CARTAS[t.carta].familia; cont[f] = (cont[f] || 0) + 1 } return cont }
+/** A faixa da família ao escolher a carta: "PIKEWALL 2/3 > 3/3 BONUS" (contagem dos terrenos; o bônus quem liga é o motor). */
+function linhaDaFamilia(carta) {
+  const fam = CONFIG.CARTAS[carta].familia, nome = CONFIG.FAMILIAS[fam].nome, n = contaFamilias()[fam] || 0, p = precisaDe(fam)
+  if (J.v.familias.includes(fam)) return T.familiaLigada(nome, n, p)
+  const ganha = J.op.comandos.some((c) => c.tipo === 'por' && c.carta === carta && (!J.v.terrenos[c.terreno - 1] || CONFIG.CARTAS[J.v.terrenos[c.terreno - 1].carta].familia !== fam))
+  return ganha ? T.familiaMais(nome, n, p, n + 1 >= p) : T.familia(nome, n, p)
+}
+function infoDaCarta(i) {
+  const m = M.mao[i], c = CONFIG.CARTAS[m.carta], rar = CONFIG.RARIDADES.find((r) => r.id === c.raridade).nome
+  const out = [`#${c.nome} - ${CONFIG.FAMILIAS[c.familia].nome} ${T.tipo[c.tipo]}`, c.texto]
+  if (m.sobe) out.push('#' + T.sobeLinha(antesDepois(m.carta, m.nivel)))
+  out.push(T.pinos(m.nivel, CONFIG.PARTIDA.nivelMax, rar), '#' + linhaDaFamilia(m.carta))
+  return out
+}
+function descreverEspolios(v) {
+  const ch = CONFIG.PARTIDA.bolsa.chanceReliquia, E = CONFIG.ESPOLIOS
+  return v.espolios.map((e) => e.tipo === 'carta' ? { titulo: CONFIG.CARTAS[e.carta].nome, texto: CONFIG.CARTAS[e.carta].texto }
+    : e.reliquia ? { titulo: CONFIG.RELIQUIAS[e.reliquia].nome, texto: CONFIG.RELIQUIAS[e.reliquia].texto + (e.tipo === 'bolsa' ? ' ' + T.bolsaSorte(ch) : '') }
+      : e.tipo === 'promocao' ? { titulo: E.promocao.nome, texto: E.promocao.texto } : { titulo: `${E.bolsa.nome} +${e.ouro} ${T.ouro}`, texto: T.bolsaChance(ch) })
+}
 function preencher() {
   const v = J.v, op = J.op
   M.vidas = v.vidas; M.vidasMax = v.vidasMax; M.rodada = v.rodada; M.proximoChefe = v.proximoChefe; M.cartaPosta = v.cartaPosta
   M.mao = v.oferta.map((o) => { const n = nivelNaMao(o.carta); return { carta: o.carta, nivel: n ? n + 1 : 1, sobe: n > 0 } })
-  M.sortear = op.sortear; M.consertar = { ...op.consertar, visivel: v.vidas < v.vidasMax && v.fase === 'carta' }
-  M.espolios = v.espolios; M.espolioPode = v.espolios.map((_, i) => op.comandos.some((c) => c.tipo === 'espolio' && c.indice === i))
-  M.mudo = Som.mudo(); M.vel = Bat.vel
+  const visivel = v.vidas < v.vidasMax && v.fase === 'carta'
+  M.sortear = op.sortear; M.consertar = { ...op.consertar, visivel, destaque: visivel && op.consertar.pode && v.rodada <= 2 } // rodadas 1–2: lembra o novato que o ouro parado conserta a vida
+  M.espolios = v.espolios; M.espolioPode = v.espolios.map((_, i) => op.comandos.some((c) => c.tipo === 'espolio' && c.indice === i)); M.espolioDesc = descreverEspolios(v)
+  M.mudo = Som.mudo(); M.vel = Bat.vel; M.reliquias = v.reliquias.slice()
+  M.chances = CONFIG.RARIDADES.map((r) => ({ id: r.id, nome: r.nome, chance: r.chance, cor: Arte.Cod.RARIDADE_COR[r.id].cor, claro: Arte.Cod.RARIDADE_COR[r.id].claro }))
   // famílias à vista: quantos terrenos de cada uma e quantos ligam o bônus (números do config)
-  const cont = {}; for (const t of v.terrenos) if (t) { const f = CONFIG.CARTAS[t.carta].familia; cont[f] = (cont[f] || 0) + 1 }
-  M.familias = Object.keys(cont).map((id) => ({ id, n: cont[id], precisa: v.reliquias.includes('banner') ? CONFIG.RELIQUIAS.banner.terrenos : CONFIG.FAMILIAS[id].terrenos, ligada: v.familias.includes(id) }))
-  for (const id of v.familias) if (!J.familias.includes(id)) { const f = CONFIG.FAMILIAS[id]; M.aviso = { texto: f.nome + ' BONUS', sub: f.texto, ouro: true, t0: agoraMs() + 500, ms: 2600, k: C.tipo === 'celular' ? 1 : 2 }; depois(500, () => Som.tocar('nivelPequeno')) }
+  const cont = contaFamilias()
+  M.familias = Object.keys(cont).map((id) => ({ id, n: cont[id], precisa: precisaDe(id), ligada: v.familias.includes(id) }))
+  for (const id of v.familias) if (!J.familias.includes(id)) { const f = CONFIG.FAMILIAS[id]; festa({ tam: 2, tipo: 'aviso', ms: 2600, texto: T.bonus(f.nome), sub: f.texto, ouro: true, k: kAviso(), ao: () => Som.tocar('nivelPequeno') }) }
   J.familias = v.familias.slice()
 }
 function abrirRodada() {
   ler(); preencher()
   const v = J.v
-  M.fase = 'carta'; M.sel = -1; M.armado = null; M.trocar = 0; M.info = null; M.vitoria = null; M.derrota = null; M.maoT0 = agoraMs() + 150; M.pulsaLutar = v.cartaPosta
+  M.fase = 'carta'; M.sel = -1; M.armado = null; M.trocar = 0; M.info = null; M.infoSel = null; M.vitoria = null; M.derrota = null; M.maoT0 = agoraMs() + 150; M.pulsaLutar = v.cartaPosta
   M.primeira = v.rodada === 1 && v.terrenos.every((t) => !t); C.destaque = null; J.ouroAlvo = v.ouro
   canvas.style.filter = ''
   C.mudarHora(Arte.horaDaRodada(v.rodada)); Musica.rodada(v.rodada)
   montarReino(); Som.tocar('cartaAparece')
   const chave = v.rodada + ':' + v.vidas
   if (v.horda.chefe && J.anunciado !== chave) {
-    J.anunciado = chave; M.fase = 'chefe'; M.chefe = { id: v.horda.chefe, t0: agoraMs() }
-    Som.tocar('chefeAnuncia'); Musica.momento('chefe')
-    depois(3200, () => { if (M.fase === 'chefe') seguir() })
+    // anúncio inteiro só na 1ª vez de cada chefe na partida; nas repetições, a versão curta (0,8 s)
+    const curto = J.chefesVistos.has(v.horda.chefe); J.chefesVistos.add(v.horda.chefe)
+    J.anunciado = chave; M.fase = 'chefe'; M.chefe = { id: v.horda.chefe, t0: agoraMs(), curto }
+    Som.tocar('chefeAnuncia', curto ? { forca: 0.6 } : {}); Musica.momento('chefe')
+    depois(curto ? 800 : 3200, () => { if (M.fase === 'chefe') seguir() })
   } else {
     Musica.momento(v.horda.chefe ? 'chefe' : v.vidas === 1 ? 'porUmFio' : 'construir')
-    if (v.proximoChefe.avisado && !v.horda.chefe && J.avisado !== chave) { J.avisado = chave; const c = CONFIG.CHEFES.find((x) => x.id === v.proximoChefe.chefe); M.aviso = { texto: T.emRodadas(v.proximoChefe.rodada - v.rodada), sub: `${c.nome}: ${c.texto}`, t0: agoraMs() + 300, ms: 3200, k: 1 } }
+    if (v.proximoChefe.avisado && !v.horda.chefe && J.avisado !== chave) { J.avisado = chave; const c = CONFIG.CHEFES.find((x) => x.id === v.proximoChefe.chefe); festa({ tam: 1, tipo: 'aviso', ms: 3200, texto: T.emRodadas(v.proximoChefe.rodada - v.rodada), sub: `${c.nome}: ${c.texto}`, k: 1, fase: 'carta' }) }
   }
   UI.mudou()
 }
-function novaPartida() {
-  semTimers(); Bat.parar()
-  J.semente = Q.get('semente') || sementeNova(); J.liberadas = Guarda.liberadas(CONFIG.ALBUM)
-  J.e = criarPartida({ semente: J.semente, cartasLiberadas: J.liberadas }); J.comandos = []; J.lutas = []; J.semSorteio = true; J.anunciado = ''; J.avisado = ''; J.ultimaLuta = null; J.familias = []
-  M.fim = null; M.aviso = null; M.brinde = null; M.selo = null
+function zerarPartida() {
+  semTimers(); Bat.parar(); limparFestas()
+  J.comandos = []; J.lutas = []; J.semSorteio = true; J.anunciado = ''; J.avisado = ''; J.ultimaLuta = null; J.familias = []; J.chefesVistos = new Set(); J.emLuta = false
+  M.fim = null; M.selo = null; M.resumo = null; M.info = null
   C.fimDeJogo = false
-  ler(); M.ouro = J.v.ouro
+}
+function novaPartida() {
+  zerarPartida()
+  J.semente = Q.get('semente') || sementeNova(); J.liberadas = Guarda.liberadas(CONFIG.ALBUM)
+  J.e = criarPartida({ semente: J.semente, cartasLiberadas: J.liberadas })
+  ler(); M.ouro = J.v.ouro; salvar()
   abrirRodada()
+}
+/** Retoma a partida guardada: o motor refaz tudo com os comandos. No meio de uma batalha, volta ao começo dela. */
+function retomar(p) {
+  let cmds = p.comandos
+  const lutando = !!p.emLuta && cmds.length > 0 && cmds[cmds.length - 1].tipo === 'batalhar'
+  if (lutando) cmds = cmds.slice(0, -1)
+  let r
+  try { r = reproduzir({ semente: p.semente, cartasLiberadas: p.liberadas, comandos: cmds }) } catch { return false }
+  if (!r.ok || r.estado.fase === 'fim') return false
+  zerarPartida()
+  J.semente = p.semente; J.liberadas = p.liberadas.slice(); J.e = r.estado; J.comandos = cmds.slice(); J.semSorteio = !cmds.some((c) => c.tipo === 'sortear')
+  ler(); M.ouro = J.v.ouro; J.familias = J.v.familias.slice(); salvar()
+  if (J.v.fase === 'espolio') mostrarEspolio()
+  else { abrirRodada(); if (lutando) { if (M.fase === 'chefe') seguir(); lutar() } }
+  if (cmds.length) festa({ tam: 1, tipo: 'brinde', ms: 2200, titulo: T.jogo, texto: T.continua(J.v.rodada), icone: { tipo: 'carta' } })
+  return true
+}
+/** Tela de espólio sem a batalha antes (partida retomada no meio da escolha). */
+function mostrarEspolio() {
+  preencher()
+  M.fase = 'vitoria'; M.sel = -1; M.vitoria = { t0: agoraMs() - 1000, ouro: 0, ouroMostra: 0, pronto: true, prontoT0: agoraMs(), chefe: null, selo: null, mvp: null }
+  C.mudarHora(Arte.horaDaRodada(J.v.rodada), true); J.ouroAlvo = J.v.ouro
+  montarReino(false); Musica.momento('vitoria'); UI.mudou()
 }
 
 // ---------------------------------------------------------------- escolher e pôr a carta
@@ -134,22 +224,27 @@ function destacar(carta, comandos) {
 function vizinhosDe(k) { const al = J.v.reliquias.includes('blueprints') ? CONFIG.RELIQUIAS.blueprints.alcance : 1, s = new Set(); for (let d = 1; d <= al; d++) for (const j of [k - d, k + d]) if (j >= 1 && j <= 6) s.add(j); return s }
 function selecionar(i) {
   if (M.fase !== 'carta' || M.cartaPosta) return
-  M.trocar = 0; M.armado = null; M.info = null
+  M.trocar = 0; M.armado = null; M.info = null; M.infoSel = null
   if (i < 0 || M.sel === i) { M.sel = -1; C.destaque = null; Som.tocar('toque'); return }
-  M.sel = i
+  M.sel = i; M.infoSel = infoDaCarta(i)
   const carta = M.mao[i].carta
   destacar(carta, J.op.comandos.filter((c) => c.tipo === 'por' && c.carta === carta))
   Som.tocar('cartaEscolhe'); if (M.mao[i].sobe) depois(180, () => Som.tocar('faltaUm'))
 }
+/** Trocar o que está no terreno pede confirmação: o 1º toque só arma ("REPLACE?"), o 2º troca. */
+function pedeTroca(k) { M.trocar = k; Som.tocar('toque'); dizer([T.trocarDica], 3000); depois(3000, () => { if (M.trocar === k) M.trocar = 0 }) }
 function por(k) {
   const carta = M.mao[M.sel]?.carta; if (!carta) return
   const atual = J.v.terrenos[k - 1]
-  if (atual && atual.carta !== carta && M.trocar !== k) { M.trocar = k; Som.tocar('toque'); depois(3000, () => { if (M.trocar === k) M.trocar = 0 }); return } // trocar pede confirmação: tocar de novo
+  if (atual && atual.carta !== carta && M.trocar !== k) { pedeTroca(k); return }
   const evs = mandar({ tipo: 'por', carta, terreno: k }); if (!evs) return
-  preencher(); M.sel = -1; M.trocar = 0; M.primeira = false; M.pulsaLutar = true
+  const novato = M.primeira && !Guarda.get('dica')
+  preencher(); M.sel = -1; M.infoSel = null; M.info = null; M.trocar = 0; M.primeira = false; M.pulsaLutar = true
   montarReino(); eventosDeTerreno(evs)
   C.destaque = CONFIG.CARTAS[carta].tipo === 'construcao' ? { vizinhos: vizinhosDe(k) } : null
   if (C.destaque) depois(1600, () => { if (M.fase === 'carta' && M.cartaPosta) C.destaque = null })
+  // dica única, na 1ª carta da 1ª partida: o que as vidas valem e quem luta
+  if (novato) { Guarda.set('dica', true); dizer(['#' + T.dica.vidas(J.v.vidasMax), T.dica.tropas], 7000) }
   conferirReino(); UI.mudou()
 }
 function armar(qual, fazer) {
@@ -158,7 +253,7 @@ function armar(qual, fazer) {
 }
 function sortear() {
   const evs = mandar({ tipo: 'sortear' }); if (!evs) return
-  J.semSorteio = false; preencher(); M.sel = -1; C.destaque = null; M.maoT0 = agoraMs(); J.ouroAlvo = J.v.ouro
+  J.semSorteio = false; preencher(); M.sel = -1; M.infoSel = null; C.destaque = null; M.maoT0 = agoraMs(); J.ouroAlvo = J.v.ouro
   Som.tocar('sortear'); UI.mudou()
 }
 function consertar() {
@@ -167,6 +262,13 @@ function consertar() {
   Som.tocar('consertar'); const c = C.geo.castelo; C.efeito('heal', C.ox + c[0], C.oy + c[1]); C.efeito('level-ring', C.ox + c[0], C.oy + c[1])
   if (J.v.vidas > 1 && !J.v.horda.chefe) Musica.momento('construir')
   UI.mudou()
+}
+function sobreAHorda() {
+  const h = J.v.horda, cont = {}, out = ['#' + T.dica.horda(M.hordaN)]
+  for (const t of h.ordem) if (t !== h.chefe) cont[t] = (cont[t] || 0) + 1
+  if (h.chefe) { const c = CONFIG.CHEFES.find((x) => x.id === h.chefe); out.push(`#${T.chefe}: ${c.nome}`, c.texto) }
+  for (const [t, n] of Object.entries(cont)) { const i = CONFIG.INVASORES[t]; out.push(`#${n} x ${i.nome}: ${i.texto}`) }
+  dizer(out.slice(0, 7), 6500)
 }
 
 // ---------------------------------------------------------------- batalha e depois
@@ -177,24 +279,30 @@ function lutar(rapido = false) {
   const bat = evs.find((x) => x.tipo === 'batalha')
   J.pos = { bat, ouro: evs.find((x) => x.tipo === 'ouro').valor, fim: evs.find((x) => x.tipo === 'fim') || null, pre }
   J.ultimaLuta = { motor: bat.vitoria, tela: null, rodada: pre.rodada, segundos: bat.segundos }
-  M.fase = 'luta'; M.sel = -1; M.armado = null; M.trocar = 0; M.info = null; M.aviso = null; C.destaque = null
+  J.emLuta = true; salvar()
+  M.fase = 'luta'; M.sel = -1; M.infoSel = null; M.armado = null; M.trocar = 0; M.info = null; C.destaque = null
   canvas.style.filter = C.menos ? '' : 'saturate(1.1)'
   Musica.momento(bat.horda.chefe ? 'chefe' : 'batalha'); if (!rapido) Som.tocar('invasorChega')
-  Bat.iniciar({ eventos: bat.eventos, horda: bat.horda, terrenos: pre.terrenos, exercito: montarExercito(pre.terrenos, pre.reliquias) }, aoFimDaLuta)
+  Bat.iniciar({ eventos: bat.eventos, horda: bat.horda, terrenos: pre.terrenos, exercito: montarExercito(pre.terrenos, pre.reliquias), segundos: bat.segundos, rodada: pre.rodada }, aoFimDaLuta)
   if (rapido) Bat.pular()
   UI.mudou()
 }
+const resumoDaLuta = () => ({ ...Bat.resumo(), cartas: [null, ...(J.pos?.pre.terrenos || C.terrenos).map((t) => (t ? t.carta : null))] })
 function aoFimDaLuta(res) {
-  const { bat, ouro, fim, pre } = J.pos
+  const { bat, ouro, pre } = J.pos
   J.ultimaLuta.tela = res.vitoria; J.lutas.push({ ...J.ultimaLuta })
   if (res.vitoria !== bat.vitoria) J.erros.push(`rodada ${pre.rodada}: a tela mostrou ${res.vitoria} e o motor decidiu ${bat.vitoria}`)
+  J.emLuta = false; salvar()
   canvas.style.filter = ''; C.noite = 0
+  const R = M.resumo = resumoDaLuta()
   if (bat.vitoria) {
-    const limpo = res.quedasDeSoldado === 0, um = res.aliados === 1
-    M.fase = 'vitoria'; M.vitoria = { t0: agoraMs(), ouro, ouroMostra: 0, pronto: false, chefe: bat.horda.chefe, selo: limpo ? T.limpo : um ? T.ultimo : null }
+    const limpo = res.quedasDeSoldado === 0, um = res.aliados === 1, chefe = bat.horda.chefe ? CONFIG.CHEFES.find((c) => c.id === bat.horda.chefe) : null
+    const nomeMvp = R.mvp > 0 ? CONFIG.CARTAS[R.cartas[R.mvp]]?.nome : R.mvp === 0 ? T.resumo.magia : null
+    M.fase = 'vitoria'; M.vitoria = { t0: agoraMs(), ouro, ouroMostra: 0, pronto: false, chefe: bat.horda.chefe, chefeNome: chefe ? chefe.nome.split(' the ')[0] : null, selo: limpo ? T.limpo : um ? T.ultimo : null, mvp: nomeMvp ? `${T.resumo.mvp}: ${nomeMvp} ${R.dano[R.mvp]}` : null }
     preencher(); M.vidas = J.v.vidas
     Som.tocar('vitoria'); Musica.momento('vitoria'); C.flash('#FFD9A0', 300)
     for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.3)
+    if (chefe) for (const dx of [-0.2, 0.2]) C.efeito('fireworks', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.22)
     // ouro contando, depois os 3 espólios viram cartas grandes
     const passos = Math.min(ouro, 12)
     for (let i = 1; i <= passos; i++) depois(350 + i * 70, () => { M.vitoria.ouroMostra = Math.round((ouro * i) / passos); Som.tocar('ouro', { tom: i }) })
@@ -203,17 +311,18 @@ function aoFimDaLuta(res) {
     if (bat.horda.chefe && CHEFE_CONQUISTA[bat.horda.chefe]) conquista(CHEFE_CONQUISTA[bat.horda.chefe])
     if (pre.rodada === 10 && J.semSorteio) conquista('penny')
     const nova = Guarda.rodadaVencida(CONFIG.ALBUM)
-    if (nova) depois(1500, () => { M.brinde = { t0: agoraMs(), ms: 2800, titulo: T.cartaNova, texto: CONFIG.CARTAS[nova].nome, carta: nova }; Som.tocar('cartaNova'); if (Guarda.quantas(CONFIG.ALBUM) >= CONFIG.ALBUM.ordem.length) conquista('librarian') })
+    if (nova) { festa({ tam: 2, tipo: 'brinde', ms: 2600, titulo: T.cartaNova, texto: CONFIG.CARTAS[nova].nome, icone: { tipo: 'carta', id: nova }, ao: () => Som.tocar('cartaNova') }); if (Guarda.quantas(CONFIG.ALBUM) >= CONFIG.ALBUM.ordem.length) conquista('librarian') }
   } else {
     const nome = res.quem ? (CONFIG.INVASORES[res.quem] || CONFIG.CHEFES.find((c) => c.id === res.quem))?.nome : null
-    M.fase = 'derrota'; M.derrota = { t0: agoraMs(), linha: nome ? (res.tocouCastelo ? T.chegou(nome) : T.varreu(nome)) : T.derrota }
+    // derrota como "quase": o quanto da horda caiu é o número do motor (`pctHorda`); a mesma rodada volta com mais uma carta
+    M.fase = 'derrota'; M.derrota = { t0: agoraMs(), linha: nome ? (res.tocouCastelo ? T.chegou(nome) : T.varreu(nome)) : T.derrota, pct: bat.pctHorda, deNovo: J.e.fase !== 'fim' }
     M.vidas = J.v.vidas; M.vidaSome = { i: J.v.vidas, ate: agoraMs() + 1200 }
     C.vidas = estadoCastelo(); C.casteloTreme = C.relogio + 600; C.tremer(6, 120)
     Som.tocar('casteloRacha'); depois(500, () => Som.tocar('vidaPerdida')); depois(900, () => Som.tocar('derrota'))
     Musica.momento('derrota'); if (!C.menos) canvas.style.filter = 'saturate(0.6)'
     J.ouroAlvo = J.v.ouro
     { const c = C.geo.castelo; C.estouro(C.ox + c[0], C.oy + c[1] - 40, 10, 8, 60) }
-    depois(3000, () => { if (M.fase === 'derrota') seguir() })
+    depois(4500, () => { if (M.fase === 'derrota') seguir() })
   }
   UI.mudou()
 }
@@ -225,10 +334,19 @@ function escolherEspolio(i) {
   const cmds = J.op.comandos.filter((c) => c.tipo === 'espolio' && c.indice === i)
   if (!cmds.length) { Som.tocar('negado'); return }
   if (cmds[0].terreno == null) { pegarEspolio({ tipo: 'espolio', indice: i }); return }
-  J.espolioI = i; M.fase = 'terreno'
+  J.espolioI = i; M.fase = 'terreno'; M.trocar = 0; M.info = null
+  montarReino(false) // os soldados de cada terreno ficam à vista para escolher onde pôr
   destacar(M.espolios[i].tipo === 'carta' ? M.espolios[i].carta : null, cmds)
   if (M.espolios[i].tipo === 'promocao') C.destaque.sobe = new Set(cmds.map((c) => c.terreno))
   Som.tocar('toque'); UI.mudou()
+}
+/** Terreno tocado na escolha do espólio. Carta em terreno ocupado por OUTRA carta troca o que está lá: pede "REPLACE?" como na mão. */
+function terrenoDoEspolio(k) {
+  const esp = M.espolios[J.espolioI], atual = J.v.terrenos[k - 1]
+  const valido = J.op.comandos.some((c) => c.tipo === 'espolio' && c.indice === J.espolioI && c.terreno === k)
+  if (valido && esp.tipo === 'carta' && atual && atual.carta !== esp.carta && M.trocar !== k) { pedeTroca(k); return }
+  M.trocar = 0
+  pegarEspolio({ tipo: 'espolio', indice: J.espolioI, terreno: k })
 }
 function pegarEspolio(cmd) {
   const evs = mandar(cmd); if (!evs) return
@@ -238,26 +356,38 @@ function pegarEspolio(cmd) {
   abrirRodada(); eventosDeTerreno(evs); conferirReino()
 }
 
-// ---------------------------------------------------------------- fim da partida (festa)
+// ---------------------------------------------------------------- fim da partida (festa de tela cheia)
 function fimDaPartida() {
   semTimers(); Bat.parar(); ler()
   const r = resultado(J.e), reg = Guarda.partida({ pontos: r.pontos, vencidas: r.vencidas, rodada: r.rodada, semente: J.semente })
-  M.fase = 'fim'; M.fim = { t0: agoraMs() + 900, mostra: 0, vencidas: r.vencidas, pontos: r.pontos, ouro: r.ouroGanho, recorde: reg.recorde, novoRecorde: reg.novoRecorde, contou: false }
-  M.vidas = r.vidas; M.aviso = null; C.destaque = null; canvas.style.filter = ''
+  const media = mediaDasMelhores(Guarda.get('melhores')), lg = ligaDe(media) // liga PROVISÓRIA do beta (js/ligas.js)
+  J.emLuta = false; Guarda.salvarPartida(null)
+  M.fase = 'fim'; M.fim = {
+    t0: agoraMs() + 900, mostra: 0, vencidas: r.vencidas, pontos: r.pontos, ouro: r.ouroGanho, recorde: reg.recorde, recordeAntes: reg.antes, novoRecorde: reg.novoRecorde, contou: false,
+    media, liga: { nome: lg.liga.nome, i: lg.i, pct: lg.pct, proxima: lg.proxima ? lg.proxima.nome : null, falta: lg.falta }, album: Guarda.proximaCarta(CONFIG.ALBUM), semente: J.semente,
+  }
+  M.vidas = r.vidas; M.info = null; C.destaque = null; canvas.style.filter = ''
+  // o reino final iluminado: tarde dourada, sem dessaturar
+  C.mudarHora('afternoon', C.menos)
   montarReino(false); C.vidas = 1; C.fimDeJogo = true
   Som.tocar('fimDePartida'); Musica.momento('fim')
   const n = r.vencidas, passos = Math.min(n, 20)
   for (let i = 1; i <= passos; i++) depois(300 + i * 60, () => { M.fim.mostra = Math.round((n * i) / passos); Som.tocar('rankingSobe', { tom: i % 12 }) })
   depois(400 + passos * 60, () => {
     M.fim.mostra = n; M.fim.contou = true
-    if (reg.novoRecorde) { Som.tocar('recorde'); C.flash('#FFD248', 250); for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx), C.VH * 0.35) }
+    if (reg.novoRecorde) { Som.tocar('recorde'); C.flash('#FFD248', 250); for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx), C.VH * 0.35); for (const dx of [-0.22, 0.24]) C.efeito('fireworks', C.VW * (0.5 + dx), C.VH * 0.2) }
   })
   UI.mudou()
 }
+/** SHARE: o cartão de dia com "BEAT MY N ROUNDS" + o link da mesma estrada (`?semente=`). */
 async function postar() {
   const f = M.fim; if (!f) return
   Som.tocar('toque')
-  baixarCartao(cartaoDoReino(C, { rodadas: f.vencidas, pontos: f.pontos, recorde: f.novoRecorde, titulo: T.jogo }))
+  const url = linkDaEstrada(f.semente), texto = T.postarTexto(f.vencidas, url)
+  J.link = url; J.postou = ''
+  const como = await compartilhar(cartaoDoReino(C, { rodadas: f.vencidas, pontos: f.pontos, recorde: f.novoRecorde, titulo: T.jogo }), { texto, url })
+  J.postou = como
+  if (como === 'baixou+link') festa({ tam: 1, tipo: 'brinde', ms: 2200, titulo: T.postar, texto: T.copiado, icone: { tipo: 'carta' } })
 }
 
 // ---------------------------------------------------------------- toques
@@ -268,12 +398,12 @@ function aoTocar(id, d, ev) {
   if (id.includes(':')) return
   if (id.startsWith('carta')) { selecionar(d.indice); UI.mudou(); return }
   if (id.startsWith('terreno')) {
-    if (M.fase === 'terreno') { pegarEspolio({ tipo: 'espolio', indice: J.espolioI, terreno: d.terreno }); return }
+    if (M.fase === 'terreno') { terrenoDoEspolio(d.terreno); return }
     if (M.fase !== 'carta') return
     if (M.sel >= 0 && !M.cartaPosta) { por(d.terreno); return }
     const t = J.v.terrenos[d.terreno - 1]; Som.tocar('toque')
-    M.info = t ? [`${CONFIG.CARTAS[t.carta].nome} - ${T.nivel} ${t.nivel}`, CONFIG.CARTAS[t.carta].texto] : null; if (M.info && M.info[1].length > 42) M.info = [M.info[0], M.info[1].slice(0, M.info[1].lastIndexOf(' ', 42)), M.info[1].slice(M.info[1].lastIndexOf(' ', 42) + 1)]
-    if (t) depois(4000, () => { M.info = null }); return
+    if (t) dizer([`#${CONFIG.CARTAS[t.carta].nome} - ${T.nivel} ${t.nivel}`, CONFIG.CARTAS[t.carta].texto], 4000); else M.info = null
+    return
   }
   if (id.startsWith('espolio')) { escolherEspolio(d.espolio); return }
   if (id === 'lutar' || id === 'lutar2') lutar()
@@ -282,14 +412,18 @@ function aoTocar(id, d, ev) {
   else if (id === 'vel') { Bat.vel = Bat.vel === 1 ? 2 : Bat.vel === 2 ? 4 : 1; M.vel = Bat.vel; Guarda.set('vel', Bat.vel); Som.tocar('toque'); UI.mudou() }
   else if (id === 'som') { M.mudo = Som.alternarMudo(); Som.tocar('toque') }
   else if (id === 'menu') { Som.tocar('toque'); Telas.menu() }
-  else if (id === 'voltar') { M.fase = 'vitoria'; C.destaque = null; Som.tocar('toque'); UI.mudou() }
+  else if (id === 'voltar') { M.fase = 'vitoria'; M.trocar = 0; M.info = null; C.destaque = null; Som.tocar('toque'); UI.mudou() }
   else if (id === 'seguir') seguir()
   else if (id === 'denovo') { Som.tocar('toque'); novaPartida() }
   else if (id === 'postar') postar()
+  else if (id === 'dica-vidas') { Som.tocar('toque'); dizer(['#' + T.dica.vidas(J.v.vidasMax)]) }
+  else if (id === 'dica-pinos') { Som.tocar('toque'); dizer(['#' + T.dica.chefe(CONFIG.HORDA.chefeACada)]) }
+  else if (id === 'dica-ganhe') { Som.tocar('toque'); dizer(['#' + T.dica.ganhe, ...M.espolioDesc.map((x) => `${x.titulo}: ${x.texto}`)], 6500) }
+  else if (id === 'horda') { Som.tocar('toque'); sobreAHorda() }
 }
 addEventListener('pointermove', (ev) => {
   if (!arrasto || ev.pointerId !== arrasto.id || M.fase !== 'carta' || M.cartaPosta) return
-  const e = C.e, r = canvas.getBoundingClientRect()
+  const e = C.css, r = canvas.getBoundingClientRect()
   if (!arrasto.moveu && Math.hypot(ev.clientX - arrasto.x0, ev.clientY - arrasto.y0) > 10) { arrasto.moveu = true; if (M.sel !== arrasto.indice) { M.sel = -1; selecionar(arrasto.indice) } }
   if (arrasto.moveu) {
     M.arrasto = { indice: arrasto.indice, moveu: true, x: (ev.clientX - r.left) / e, y: (ev.clientY - r.top) / e }
@@ -311,6 +445,16 @@ addEventListener('pointerup', soltar); addEventListener('pointercancel', soltar)
 addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { if (Telas.aberta()) Telas.fechar(); else if (M.sel >= 0) { selecionar(-1); UI.mudou() } } })
 // nada toca antes do primeiro toque ou tecla
 for (const tipo of ['pointerdown', 'keydown', 'touchend', 'click']) addEventListener(tipo, () => Som.destravar(), { capture: true })
+// "voltar" do navegador não sai do jogo: fecha o painel aberto; na partida, pergunta antes de sair
+let saindo = false
+function ligarVoltar() {
+  try { history.pushState({ keepmile: 1 }, '') } catch { return }
+  addEventListener('popstate', () => {
+    if (saindo) return
+    try { history.pushState({ keepmile: 1 }, '') } catch { /* ok */ }
+    if (Telas.aberta()) Telas.fechar(); else Telas.sair(() => { saindo = true; history.go(-2) })
+  })
+}
 
 // ---------------------------------------------------------------- "Reduced motion"
 function menos(v) { C.menos = !!v; Som.menosAnimacao(!!v); C.limite = (C.tipo === 'celular' ? 40 : 60) >> (v ? 1 : 0); document.documentElement.classList.toggle('km-menos', !!v); if (v) canvas.style.filter = '' }
@@ -324,14 +468,16 @@ function quadro(agora) {
   const t0 = performance.now()
   try {
     const dtAnim = Bat.avancar(dt, agora)
-    if (M.fase === 'luta') M.forca = { aliados: Bat.aliados, inimigos: Bat.inimigos }
+    if (M.fase === 'luta') { M.forca = { aliados: Bat.aliados, inimigos: Bat.inimigos }; M.resumo = resumoDaLuta() }
+    if (M.info && agora > J.infoAte) M.info = null
+    festasTique(agora)
     if (M.ouro !== J.ouroAlvo && agora - ouroEm > 55) { ouroEm = agora; const d = J.ouroAlvo - M.ouro; M.ouro += Math.sign(d) * Math.max(1, Math.floor(Math.abs(d) / 6)); if (d > 0 && M.fase !== 'vitoria') Som.tocar('ouro', { tom: M.ouro % 8 }) }
-    C.desenhar(agora, dt, dtAnim)
+    UI.novoQuadro(); C.desenhar(agora, dt, dtAnim)
     UI.desenhar(agora)
   } catch (err) { if (!J.erros.includes(String(err))) { J.erros.push(String(err)); console.error(err) } }
   CUSTO[nq % 600] = performance.now() - t0; nq++
 }
-function ajustar() { C.ajustar(innerWidth, innerHeight); if (UI) { UI.mudou(); if (J.e && (M.fase === 'carta' || M.fase === 'fim')) montarReino(M.fase === 'carta') } }
+function ajustar() { C.ajustar(innerWidth, innerHeight); if (UI) { UI.mudou(); if (J.e && (M.fase === 'carta' || M.fase === 'fim')) { montarReino(M.fase === 'carta'); if (M.fase === 'fim') C.vidas = 1 } } }
 
 // ---------------------------------------------------------------- começo
 async function comecar() {
@@ -341,18 +487,22 @@ async function comecar() {
   Bat = criarBatalha(C, CONFIG, Som, expandirHorda); Bat.vel = [1, 2, 4].includes(Guarda.get('vel')) ? Guarda.get('vel') : 1
   UI = criarInterface(C, CONFIG, camada, aoTocar); M = UI.M
   Bat.aoAviso = (tipo, dado) => {
-    if (tipo === 'noite') M.aviso = { texto: T.noite, t0: agoraMs(), ms: 1400 }
-    if (tipo === 'ultimo') M.aviso = { texto: T.ultimo, ouro: true, t0: agoraMs(), ms: 1500, k: C.tipo === 'celular' ? 1 : 2 }
-    if (tipo === 'chefe') { const c = CONFIG.CHEFES.find((x) => x.id === dado); M.aviso = { texto: c.nome, ouro: true, t0: agoraMs(), ms: 1600, k: C.tipo === 'celular' ? 1 : 2 } }
+    if (tipo === 'noite') festa({ tam: 1, tipo: 'aviso', ms: 1500, texto: T.noite, sub: T.noiteSub(CONFIG.BATALHA.multNoite / 100), fase: 'luta' }) // o texto diz o que o motor faz (multNoite do config)
+    if (tipo === 'ultimo') festa({ tam: 2, tipo: 'aviso', ms: 1500, texto: T.ultimo, ouro: true, k: kAviso(), fase: 'luta' })
+    if (tipo === 'chefe') { const c = CONFIG.CHEFES.find((x) => x.id === dado); festa({ tam: 2, tipo: 'aviso', ms: 1600, texto: c.nome, ouro: true, k: kAviso(), fase: 'luta' }) }
+    if (tipo === 'chefeCaiu') { const c = CONFIG.CHEFES.find((x) => x.id === dado); if (c) festa({ tam: 3, tipo: 'aviso', ms: 1100, texto: T.caiu(c.nome.split(' the ')[0]), ouro: true, k: kAviso(), fase: 'luta' }) }
   }
   Telas = criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos: (v) => { if (v !== undefined) { menos(v); Guarda.set('menos', !!v) } return C.menos }, novaPartida, emPartida: () => M.fase !== 'fim', aoFechar: () => { if (M.fase !== 'fim') Musica.momento(M.fase === 'luta' ? 'batalha' : J.v.vidas === 1 ? 'porUmFio' : 'construir'); else Musica.momento('fim') } })
   menos(guardado ?? matchMedia('(prefers-reduced-motion: reduce)').matches)
   addEventListener('resize', ajustar)
-  novaPartida()
+  // retoma a partida guardada (a não ser que o endereço peça outra estrada ou `nova=1`)
+  const salva = Q.get('nova') === '1' ? null : Guarda.partidaSalva()
+  if (!(salva && (!Q.get('semente') || Q.get('semente') === salva.semente) && retomar(salva))) novaPartida()
+  ligarVoltar()
   requestAnimationFrame(quadro)
   if (TESTE) {
     const { ligarGanchos } = await import('./teste.js')
-    await ligarGanchos({ J, M: () => M, C, Bat: () => Bat, UI: () => UI, Som, Musica, Guarda, Arte, CONFIG, QUADROS, CUSTO, nq: () => nq, lutar, novaPartida, abrirRodada, fimDaPartida, mandar, ler, preencher, aoFimDaLuta, semTimers, reproduzir, resultado, montarExercito, expandirHorda, cartaoDoReino, seguir, menos })
+    await ligarGanchos({ J, M: () => M, C, Bat: () => Bat, UI: () => UI, F, Som, Musica, Guarda, Arte, CONFIG, QUADROS, CUSTO, nq: () => nq, lutar, novaPartida, abrirRodada, fimDaPartida, mandar, ler, preencher, aoFimDaLuta, semTimers, limparFestas, festa, reproduzir, resultado, montarExercito, expandirHorda, cartaoDoReino, seguir, menos })
   }
   document.documentElement.dataset.pronto = '1'
 }

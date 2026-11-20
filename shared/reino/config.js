@@ -68,7 +68,7 @@ export const CARTAS = {
   T07: { nome: 'Frypan Cook', tipo: 'tropa', familia: 'potluck', raridade: 'C', piloto: true, qtd: [3, 4, 4, 5, 6], vida: 26, dano: 5, cad: 8, alcance: 30, texto: 'Many cooks, fast pans.' },
   T08: { nome: 'Soup Carrier', tipo: 'tropa', familia: 'potluck', raridade: 'U', qtd: [1, 1, 2, 2, 2], vida: 24, dano: 0, cura: 22, cad: 15, alcance: 150, alvo: 'aliadoFerido', texto: 'Heals the most hurt soldier nearby. Does not fight.' },
   T09: { nome: 'Pie Thrower', tipo: 'tropa', familia: 'potluck', raridade: 'R', qtd: [2, 2, 3, 3, 4], vida: 16, dano: 11, cad: 15, alcance: 200, lento: { pct: 40, tiques: 20 }, texto: 'Pies slow the target by 40% for 2 s.' },
-  T10: { nome: 'Squib Runner', tipo: 'tropa', familia: 'fizzwick', raridade: 'U', piloto: true, qtd: [2, 3, 3, 4, 5], vida: 10, dano: 24, cad: 10, alcance: 30, busca: 250, explode: { raio: 50 }, texto: 'Runs at invaders and goes boom.' },
+  T10: { nome: 'Fuse Runner', tipo: 'tropa', familia: 'fizzwick', raridade: 'U', piloto: true, qtd: [2, 3, 3, 4, 5], vida: 10, dano: 24, cad: 10, alcance: 30, busca: 250, explode: { raio: 50 }, texto: 'Runs at invaders and goes boom.' },
   T11: { nome: 'Clockwork Geese', tipo: 'tropa', familia: 'fizzwick', raridade: 'U', qtd: [4, 5, 6, 8, 10], vida: 10, dano: 3, cad: 6, alcance: 30, texto: 'A noisy flock of wind-up geese.' },
   T12: { nome: 'Sparkwright', tipo: 'tropa', familia: 'fizzwick', raridade: 'E', qtd: [1, 1, 1, 2, 2], vida: 18, dano: 8, cad: 16, alcance: 250, saltos: 2, saltoAlcance: 100, texto: 'Bolt jumps to 2 more invaders.' },
 
@@ -93,6 +93,12 @@ export const CARTAS = {
   M06: { nome: 'Bramble Snare', tipo: 'magia', familia: 'thornbow', raridade: 'C', piloto: true, efeito: 'laco', valores: [3, 4, 5, 6, 8], tiques: 25, texto: 'The first invaders to step here are stuck for 2.5 s.' },
   M07: { nome: 'Seconds!', tipo: 'magia', familia: 'potluck', raridade: 'E', efeito: 'levanta', valores: [2, 3, 4, 5, 6], texto: 'The first soldiers to fall get back up with half health.' },
   M08: { nome: 'Grand Finale', tipo: 'magia', familia: 'fizzwick', raridade: 'L', efeito: 'finale', valores: [12, 18, 24, 30, 36], texto: 'When invaders reach here, every invader loses part of its health.' },
+}
+
+// Legenda curta do número mostrado na carta de Construção e de Magia (só texto; o número vem de `valores`).
+export const LEGENDAS = {
+  dano: 'DMG', soldados: 'SOLDIERS', reducao: 'HIT TAKEN', torre: 'DMG', rapidez: 'SPEED', curaSeg: 'HP/SEC', ouro: 'GOLD', vida: 'HEALTH', bis: 'REPEAT', pavio: 'BURST',
+  barril: 'DMG', piche: 'SLOW', abelhas: 'DMG/SEC', corneta: 'SPEED', repeteco: 'HEAL', laco: 'STUCK', levanta: 'REVIVE', finale: 'HEALTH',
 }
 
 // ---------------------------------------------------------------- álbum
@@ -126,21 +132,21 @@ export const BATALHA = {
 // ---------------------------------------------------------------- invasores
 // pontos = custo na horda. desde = primeira rodada em que pode aparecer.
 export const INVASORES = {
-  muncher: { nome: 'Muncher', desde: 1, pontos: 2, vida: 20, dano: 4, cad: 10, vel: 100, alcance: 30 },
-  stilt: { nome: 'Stilt Runner', desde: 3, pontos: 2, vida: 12, dano: 3, cad: 8, vel: 200, alcance: 30 },
-  spud: { nome: 'Spud Slinger', desde: 4, pontos: 3, vida: 14, dano: 5, cad: 14, vel: 100, alcance: 250 },
-  brute: { nome: 'Potlid Brute', desde: 6, pontos: 5, vida: 90, dano: 9, cad: 15, vel: 70, alcance: 30, tiroMetade: true },
-  bloater: { nome: 'Bloater', desde: 7, pontos: 4, vida: 40, dano: 5, cad: 10, vel: 90, alcance: 30, explode: { dano: 15, raio: 75 } },
-  mole: { nome: 'Mole Raider', desde: 8, pontos: 4, vida: 24, dano: 6, cad: 10, vel: 100, alcance: 30, cava: { tiques: 15, sai: 300 } },
-  drum: { nome: 'Drum Bully', desde: 11, pontos: 4, vida: 30, dano: 2, cad: 10, vel: 90, alcance: 30, tambor: { pct: 25, raio: 100 } },
-  quack: { nome: 'Quack', desde: 12, pontos: 4, vida: 22, dano: 0, cura: 6, cad: 10, vel: 90, alcance: 150 },
+  muncher: { nome: 'Scoffer', texto: 'Plain raider. Comes in packs: bring numbers.', desde: 1, pontos: 2, vida: 20, dano: 4, cad: 10, vel: 100, alcance: 30 },
+  stilt: { nome: 'Stilt Runner', texto: 'Very fast. Slips past slow or thin lines.', desde: 3, pontos: 2, vida: 12, dano: 3, cad: 8, vel: 200, alcance: 30 },
+  spud: { nome: 'Spud Slinger', texto: 'Shoots from afar. Punishes soldiers who stand and wait.', desde: 4, pontos: 3, vida: 14, dano: 5, cad: 14, vel: 100, alcance: 250 },
+  brute: { nome: 'Potlid Brute', texto: 'Very tough. Shooters only do half damage to it.', desde: 6, pontos: 5, vida: 90, dano: 9, cad: 15, vel: 70, alcance: 30, tiroMetade: true },
+  bloater: { nome: 'Bloater', texto: 'Bursts when it falls. Punishes tight packs.', desde: 7, pontos: 4, vida: 40, dano: 5, cad: 10, vel: 90, alcance: 30, explode: { dano: 15, raio: 75 } },
+  mole: { nome: 'Mole Digger', texto: 'Digs under your first plots. Punishes an empty back.', desde: 8, pontos: 4, vida: 24, dano: 6, cad: 10, vel: 100, alcance: 30, cava: { tiques: 15, sai: 300 } },
+  drum: { nome: 'Drum Bully', texto: 'Its drum makes nearby invaders hit harder.', desde: 11, pontos: 4, vida: 30, dano: 2, cad: 10, vel: 90, alcance: 30, tambor: { pct: 25, raio: 100 } },
+  quack: { nome: 'Quack', texto: 'Heals other invaders. Punishes slow damage.', desde: 12, pontos: 4, vida: 22, dano: 0, cura: 6, cad: 10, vel: 90, alcance: 150 },
 }
 
 export const HORDA = {
-  pontosBase: 1, // rodada r: 1 + 3·r pontos (rodada 1 = 2 Munchers)
+  pontosBase: 1, // rodada r: 1 + 3·r pontos (rodada 1 = 2 Scoffers)
   pontosPorRodada: 3,
   escalaPorRodada: 14, // vida e dano × (1 + 0,14·(r−1))
-  partes: [60, 40], // 2 tipos sorteados levam 60% e 40% dos pontos; a sobra vira Munchers
+  partes: [60, 40], // 2 tipos sorteados levam 60% e 40% dos pontos; a sobra vira Scoffers
   chefeACada: 5,
   chefePontos: 50, // na rodada de chefe, os invasores comuns têm metade dos pontos
   avisoChefe: 2, // anunciado 2 rodadas antes
@@ -149,9 +155,9 @@ export const HORDA = {
 // Chefes (rodadas 5, 10, 15, 20; depois repetem a cada 5 com o dobro de vida e dano).
 export const CHEFES = [
   { id: 'gutbucket', nome: 'Gutbucket the Wide', rodada: 5, vida: 380, dano: 14, cad: 15, vel: 60, alcance: 30, golpeArea: 50, texto: 'Each swing hits every soldier within 0.5.' },
-  { id: 'niptuck', nome: 'Nip & Tuck', rodada: 10, vida: 300, dano: 16, cad: 10, vel: 60, alcance: 30, gemeos: 2, furia: 50, texto: 'When one twin falls, the other gets 50% faster and stronger.' },
+  { id: 'niptuck', nome: 'Tick & Tock', rodada: 10, vida: 300, dano: 16, cad: 10, vel: 60, alcance: 30, gemeos: 2, furia: 50, texto: 'When one twin falls, the other gets 50% faster and stronger.' },
   { id: 'moleworth', nome: 'Madame Moleworth', rodada: 15, vida: 1100, dano: 25, cad: 12, vel: 60, alcance: 30, cava: { tiques: 15, sai: 300 }, texto: 'Digs under the first three plots and comes up at plot 4.' },
-  { id: 'gobble', nome: 'King Gobble the Uninvited', rodada: 20, vida: 800, dano: 30, cad: 12, vel: 60, alcance: 30, chama: { quantos: 3, tiques: 50, teto: 9 }, imune: true, texto: 'Calls 3 Munchers every 5 s (9 at most); cannot be slowed or stuck.' },
+  { id: 'gobble', nome: 'King Gobble the Uninvited', rodada: 20, vida: 800, dano: 30, cad: 12, vel: 60, alcance: 30, chama: { quantos: 3, tiques: 50, teto: 9 }, imune: true, texto: 'Calls 3 Scoffers every 5 s (9 at most); cannot be slowed or stuck.' },
 ]
 
 // ---------------------------------------------------------------- espólios e relíquias

@@ -66,7 +66,7 @@ describe('reino: batalha — fim e eventos', () => {
     assert.equal(b.vitoria, false)
     assert.ok(b.eventos.some((e) => e[1] === 'k'))
   })
-  test('rodada 1: toda Tropa que luta vence os 2 Munchers em algum terreno; as Common vencem do terreno 1', () => {
+  test('rodada 1: toda Tropa que luta vence os 2 Scoffers em algum terreno; as Common vencem do terreno 1', () => {
     const h = criarPartida({ semente: 'r1' }).horda.ordem
     assert.deepEqual(h, ['muncher', 'muncher'])
     for (const id of IDS.filter((i) => CARTAS[i].tipo === 'tropa' && CARTAS[i].dano > 0)) {
@@ -156,7 +156,7 @@ describe('reino: batalha — regras das cartas', () => {
     const n5 = montarExercito([T('T03', 5), null, null, null, null, null]).soldados[0].vida
     assert.equal(n5, Math.floor(n1 * CARTAS.T03.multNivel[4] / 100 + 0.5))
   })
-  test('Squib Runner corre, explode e some; Bramble Snare prende; Boom Barrel estoura uma vez (duas com Tinker)', () => {
+  test('Fuse Runner corre, explode e some; Bramble Snare prende; Boom Barrel estoura uma vez (duas com Tinker)', () => {
     const sq = luta([T('T10'), null, null, null, null, null], ['muncher', 'muncher'])
     assert.ok(sq.eventos.some((e) => e[1] === 'x' && e[2] < 2))
     const laco = luta([T('M06'), T('T01'), null, null, null, null], Array(6).fill('stilt'), 3)
@@ -165,7 +165,7 @@ describe('reino: batalha — regras das cartas', () => {
     assert.equal(barril([T('M01'), null, T('T01', 5), null, null, null]), 1)
     assert.equal(barril([T('M01'), T('B09'), T('T01', 5), null, null, null]), 2)
   })
-  test('Mole Raider some no portão e sai no terreno 4', () => {
+  test('Mole Digger some no portão e sai no terreno 4', () => {
     const b = luta([T('T01'), null, null, T('T01'), null, null], ['mole'], 8)
     const sai = b.eventos.find((e) => e[1] === 'e' && e[3] >= 0)
     assert.ok(sai)
@@ -177,7 +177,7 @@ describe('reino: batalha — regras das cartas', () => {
     for (const e of b.eventos) if (e[1] === 'd' && e[2] === b.eventos.find((x) => x[1] === 'n' && x[4] === 'gutbucket')[2]) golpes.set(e[0], (golpes.get(e[0]) || 0) + 1)
     assert.ok(Math.max(...golpes.values()) >= 2)
   })
-  test('chefes: Nip & Tuck são 2; depois da rodada 20 voltam com o dobro', () => {
+  test('chefes: Tick & Tock são 2; depois da rodada 20 voltam com o dobro', () => {
     assert.equal(expandirHorda({ rodada: 10, ordem: ['niptuck'] }).length, 2)
     assert.equal(multChefe(20), 100)
     assert.equal(multChefe(25), 200)

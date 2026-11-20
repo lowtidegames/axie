@@ -43,6 +43,15 @@ Porão confortável e luxuoso; PC com 3 monitores, que são os menus do jogo:
 - Posts no chat (5 a 8 frases por influenciador) citando o golpe atual do jogador.
 - **Contrato por vídeo, com o preço que sobe (ideia do dono, 20/11 04:23):** o vídeo 1 sai barato; se trouxer muita gente, ele manda mensagem no celular da mesa pedindo mais pelo vídeo 2 ("agora que o jogo lançou, imagino que você possa melhorar a oferta"). Roteiro dos vídeos: 1 "conheçam esse jogo" → 2 "quanto rende por dia + teste de saque + gráfico" → 3 "por que eu saí (era só estudo)", que sai sozinho depois do tapete. Escolhas na negociação: pagar mais, chorar o preço ou recusar.
 
+## Referência do dono (20/11 04:30, 2 vídeos de um jogo de gerenciar estúdio de jogos)
+Pegamos a MECÂNICA do gênero, nunca a arte, os nomes ou o visual:
+- Sala em visão isométrica com gente trabalhando e bolinhas de pontos saindo das mesas → porão isométrico, Rugrigo e a equipe soltando pontos de "hype" e "código copiado".
+- Janela de conceito (nome, tamanho, tema, gênero, plataforma) → **montar o lançamento**: carta de ideia + tema (bicho fofo, fazenda, metaverso, IA) + tipo de golpe (farm, staking, terreno, mascote) + tamanho (pequeno, médio, grande).
+- "Análise de mercado: tal gênero está em alta" → **narrativa da moda** da semana; acertar a moda dá mais trouxas.
+- Notas da imprensa após o lançamento → **avaliações falsas** da comunidade ("10/10 confia", escritas por robôs).
+- Crescer de garagem para escritório → **porão da vó → porão de luxo → bunker → iate** (fases que viram prestígio).
+- Contratar e treinar equipe → v2: moderador do grupo, artista de NFT, dev que copia código.
+
 ## Versão 1 × versão 2
 - **V1:** porão + 3 monitores, cartas de ideia, ciclo do golpe, Calor + rebrand, multidão, luxos, álbum, prestígio simples, influenciadores (3 tamanhos, 1 vaga, carteirinha, posts, contrato por vídeo com preço que sobe).
 - **V2:** eventos aleatórios (auditoria falsa, bull run, "descobriram no X"), 5 tamanhos de influenciador, o influenciador que vende antes de você e o que te dedura na batida.

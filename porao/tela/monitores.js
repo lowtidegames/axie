@@ -53,8 +53,8 @@ const CSS = `
 .pm-app--projetos { --app: var(--app-azul); } .pm-app--ideias { --app: var(--app-roxo); }
 .pm-app--impressora { --app: var(--app-laranja); } .pm-app--porao { --app: var(--app-vinho); }
 .pm-dock { flex: none; display: flex; justify-content: center; gap: 6px; margin-top: 8px; padding: 6px; background: var(--noite-funda); border-top: 3px solid var(--pix-contorno); }
-.pm-icone { flex: 0 1 84px; min-width: 0; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  padding: 4px 2px; font: inherit; font-family: var(--fonte-gorda); font-weight: 900; font-size: 13px; color: var(--linho);
+.pm-icone { flex: 0 1 auto; min-width: 0; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: 4px 8px; font: inherit; font-family: var(--fonte-gorda); font-weight: 900; font-size: 13px; color: var(--linho);
   background: transparent; border: 3px solid transparent; border-radius: 8px; cursor: pointer; }
 .pm-icone canvas { width: 32px; height: 32px; image-rendering: pixelated; }
 .pm-icone span { white-space: nowrap; max-width: 100%; overflow: hidden; }
@@ -67,7 +67,7 @@ const CSS = `
   .pm-mesa .pm-jan[data-pos][data-total] { inset: 0; border-radius: 0; box-shadow: none; border-width: 0; }
   .pm-jan:not(.pm-jan--frente) { visibility: hidden; }
   .pm-dock { margin-top: 0; gap: 4px; padding: 4px; }
-  .pm-icone { flex: 1 1 0; }
+  .pm-icone { flex: 1 1 0; padding: 4px 2px; }
 }
 
 /* ---- Confiança dos trouxas: medidor em gomos ---- */
@@ -172,6 +172,8 @@ const CSS = `
 .pm-toasts { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 80; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
 .pm-toast { background: var(--linho); color: var(--acao-texto); border-radius: 8px; padding: 10px 14px; font-weight: 700; max-width: 520px; pointer-events: auto; overflow-wrap: anywhere; }
 .pm-batida-faixa { width: 100%; }
+.pm-batida-frase { margin: 0; font-family: var(--fonte-gorda); font-weight: 900; font-size: 1.05rem; color: var(--calor-fervendo); }
+.pm-btn__sub { display: block; font-size: 13px; font-weight: 800; opacity: 0.85; overflow-wrap: anywhere; }
 
 .cena--menos .pm-folha, .cena--menos .pm-folha__rar, .cena--menos .pm-folha__nome { transition: none !important; }
 @media (prefers-reduced-motion: reduce) { .pm-folha, .pm-folha__rar, .pm-folha__nome { transition: none !important; } }
@@ -524,12 +526,14 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
         const r = tela.getBoundingClientRect();
         const pulo = h('span', { class: 'pm-gigante__pulo' });
         gigante = h('div', { class: `pm-gigante${menos() ? ' pm-gigante--parado' : ''}`, 'data-pm': 'ganho-gigante', 'aria-hidden': 'true' }, pulo);
-        const cx = Math.min(window.innerWidth - 8, Math.max(8, r.left + r.width / 2));
-        gigante.style.left = `${Math.round(Math.min(Math.max(cx, window.innerWidth * 0.3), window.innerWidth * 0.7))}px`;
+        gigante.dataset.cx = String(r.left + r.width / 2);
         gigante.style.top = `${Math.round(r.top + r.height * 0.42)}px`;
         document.body.append(gigante);
       }
       gigante.firstChild.textContent = `+${din(valor)}`;
+      // centrado no monitor, mas sem passar da borda da janela do navegador
+      const meia = gigante.offsetWidth / 2, cx = Number(gigante.dataset.cx);
+      gigante.style.left = `${Math.round(Math.max(meia + 8, Math.min(window.innerWidth - meia - 8, cx)))}px`;
     };
     const tirarGigante = () => { clearTimeout(timerGigante); gigante?.remove(); gigante = null; };
 
@@ -688,11 +692,12 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
 
   /** "Confiança dos trouxas": é o hype do projeto (mesmo número do servidor), em 10 gomos. */
   function medidorConfianca(p) {
+    const rotulo = visao.rotulos?.confianca ?? visao.estado.rotulos?.confianca ?? T('ui.confianca', 'Confiança dos trouxas');
     const v = Math.max(0, Math.min(100, p.hype));
     const cheios = Math.round(v / 10);
     return h('div', { class: 'pm-confianca', 'data-pm': 'confianca', 'data-nivel': v < 34 ? 'baixa' : v < 67 ? 'media' : 'alta' },
-      h('div', { class: 'pm-confianca__topo' }, h('span', { class: 'pm-confianca__rot' }, T('ui.confianca', 'Confiança dos trouxas')), h('span', { class: 'pm-num' }, fmt(p.hype))),
-      h('div', { class: 'pm-confianca__gomos', role: 'meter', 'aria-label': `${T('ui.confianca', 'Confiança dos trouxas')} em ${nomeIdeia(p.ideia)}`, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(p.hype)) },
+      h('div', { class: 'pm-confianca__topo' }, h('span', { class: 'pm-confianca__rot' }, rotulo), h('span', { class: 'pm-num' }, fmt(p.hype))),
+      h('div', { class: 'pm-confianca__gomos', role: 'meter', 'aria-label': `${rotulo} em ${nomeIdeia(p.ideia)}`, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(p.hype)) },
         Array.from({ length: 10 }, (_, i) => h('span', { class: `pm-confianca__gomo${i < cheios ? ' pm-confianca__gomo--cheio' : ''}` }))));
   }
 
@@ -823,13 +828,20 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     const b = visao.previas.batida;
     const p = acharProjeto(b.projetoId);
     const nome = p ? nomeIdeia(p.ideia) : 'projeto';
+    // textos da batida: o servidor manda prontos (batida.frase, batida.nomeAposRebrand); no modo falso, mesma conta com nomes.js
+    const srv = typeof visao.estado.batida === 'object' && visao.estado.batida ? visao.estado.batida : (b.frase || b.nomeAposRebrand ? b : {});
+    const familia = (pre) => { let n = 0; while (typeof T(`${pre}.${n + 1}`, null) === 'string') n++; return n; };
+    const daFamilia = (pre, k) => { const n = familia(pre); return n ? T(`${pre}.${(((k % n) + n) % n) + 1}`) : ''; };
+    const frase = srv.frase ?? daFamilia('batida', Math.max(0, (visao.estado.contagem?.batidas ?? 1) - 1));
+    const novoNome = srv.nomeAposRebrand ?? (p ? daFamilia('rebrand', p.id - 1 + (p.rebrands || 0)).replaceAll('{nome}', nome) : '');
     return [
+      frase ? h('p', { class: 'pm-batida-frase', 'data-pm': 'batida-frase' }, frase) : null,
       h('p', {}, `O Calor chegou a ${CALOR.maximo}. A polícia quer saber de `, h('strong', {}, nome), '.'),
       h('div', { class: 'pm-opcao' },
         h('strong', {}, 'Fazer rebrand'),
         h('p', {}, `Custa ${din(b.custoRebrand)} de caixa. O Calor cai para ${b.calorDepoisDoRebrand}. ${nome} continua no ar com outro nome.`),
         b.podeRebrand ? null : h('p', { class: 'pm-aviso-texto' }, `Falta ${din(b.custoRebrand - visao.estado.caixa)} para pagar.`),
-        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'rebrand', disabled: !b.podeRebrand, onclick: () => resolverBatida('rebrand') }, `Pagar ${din(b.custoRebrand)} e fazer rebrand`)),
+        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'rebrand', disabled: !b.podeRebrand, onclick: () => resolverBatida('rebrand') }, `Pagar ${din(b.custoRebrand)} e fazer rebrand`, novoNome ? h('span', { class: 'pm-btn__sub', 'data-pm': 'rebrand-nome' }, `vira: ${novoNome}`) : null)),
       h('div', { class: 'pm-opcao' },
         h('strong', {}, 'Perder o projeto'),
         h('p', {}, `${nome} é apreendido e você não ganha mais nada com ele. O Calor cai para ${b.calorDepoisDePerder}.`),

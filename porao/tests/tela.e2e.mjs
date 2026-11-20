@@ -201,6 +201,7 @@ try {
     await q(page, '[data-pm="janela-batida"]').waitFor({ timeout: 5000 })
     await foto(page, 'pc-15-batida')
     confere(await q(page, '[data-pm="rebrand"]').isEnabled(), 'batida mostra a escolha de rebrand com o custo')
+    confere((await q(page, '[data-pm="batida-frase"]').textContent()).length > 3 && /^vira: ./.test(await q(page, '[data-pm="rebrand-nome"]').textContent()), 'batida mostra a frase e o nome novo depois do rebrand')
     await q(page, '[data-pm="rebrand"]').click()
     await q(page, '[data-pm="janela-batida"]').waitFor({ state: 'detached', timeout: 5000 })
     await foto(page, 'pc-16-depois-da-batida')

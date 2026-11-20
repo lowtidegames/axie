@@ -6,17 +6,19 @@ Regra: uma por vez, 400 ms entre elas, a maior por último; conquista e carta no
    esperando a vez: First Supper, Clean Plate
 
 == depois da escolha: as conquistas da vitória, uma por vez, e a festa de nível
-    1. brinde tam 2  fase carta       7842 →   10259  (2417 ms)  First Supper
-    2. brinde tam 2  fase carta      10659 →   13076  (2417 ms, 400 ms depois da anterior)  Clean Plate
+    1. brinde tam 2  fase carta       7896 →   10312  (2417 ms)  First Supper
+    2. brinde tam 2  fase carta      10729 →   13146  (2417 ms, 417 ms depois da anterior)  Clean Plate
 
 == queda do chefe (rodada 5)
-    1. aviso  tam 2  fase luta        3220 →    4820  (1600 ms)  Gutbucket the Wide
-    2. aviso  tam 3  fase luta       11653 → na tela  (ainda na tela, 6833 ms depois da anterior)  Gutbucket DOWN!
+    1. aviso  tam 2  fase luta        3247 →    4847  (1600 ms)  Gutbucket the Wide
+    2. aviso  tam 3  fase luta       11697 → na tela  (ainda na tela, 6850 ms depois da anterior)  Gutbucket DOWN!
 
 == fim com recorde
    (nenhuma festa nova passou pela fila)
    sequência do fim (não passa pela fila; ms depois de abrir a tela de fim): o número conta de 0 a 14 a partir de +450; faixa NEW RECORD com confete em +1680; a placa sobe em +2980; botões em +3430; fecho: Fuse Runner 638 DMG IN ROUND 14
 
 == fim sem recorde
-    1. brinde tam 1  fase fim         5160 →    5733  (573 ms)  LINK COPIED: SAME ROAD
-   sequência do fim (não passa pela fila; ms depois de abrir a tela de fim): o número conta de 0 a 1 a partir de +450; fecho sem recorde em +770; a placa sobe em +1770; botões em +2220; fecho: Doorman 48 DMG IN ROUND 1 / 13 ROUNDS TO YOUR BEST
+    1. brinde tam 1  fase fim         5061 →    5635  (574 ms)  LINK COPIED: SAME ROAD
+    2. aviso  tam 1  fase carta       9961 →   10010  (50 ms, 4326 ms depois da anterior)  BOSS IN 2 ROUNDS
+    3. aviso  tam 1  fase carta      10444 →   10510  (67 ms, 433 ms depois da anterior)  BOSS IN 2 ROUNDS
+   sequência do fim (não passa pela fila; ms depois de abrir a tela de fim): o número conta de 0 a 2 a partir de +450; fecho sem recorde em +840; a placa sobe em +1840; botões em +2290; fecho: Frypan Cook 85 DMG IN ROUND 2 / 12 ROUNDS TO YOUR BEST

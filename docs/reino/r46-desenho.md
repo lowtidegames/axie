@@ -1,6 +1,6 @@
 # R46 — revanche com troca grátis e dica (desenho do arquiteto, 20/11/2026)
 
-Decisão: `docs/decisions.md`, 20/11/2026 14:45. Medida: R45 parte 1 (`tools/medir-reino.mjs --variante rematch`; dica em `:122-133`, troca em `:322-333`, mesma horda em `:362-374`). Alvo medido: novato passa o 1º chefe em 53,4%, mediana de 9 rodadas vencidas.
+Decisão: `docs/decisions.md`, 20/11/2026 14:30. Medida: R45 parte 1 (`tools/medir-reino.mjs --variante rematch`; dica em `:122-133`, troca em `:322-333`, mesma horda em `:362-374`). Alvo medido: novato passa o 1º chefe em 53,4%, mediana de 9 rodadas vencidas.
 
 ## O que muda
 Quem perde uma rodada e continua na partida enfrenta a MESMA horda. Antes de lutar, pode trocar o conteúdo de 2 terrenos uma vez, de graça. Se alguma troca vence essa horda, o jogo avisa e aponta o par (opção escolhida pelo diretor: a dica aponta os dois terrenos, que é o que foi medido).
@@ -45,5 +45,5 @@ Quem perde uma rodada e continua na partida enfrenta a MESMA horda. Antes de lut
 
 Lição: partida terminada guarda só semente e comandos; regra nova de partida precisa de versão gravada fora do estado (coluna com DEFAULT = regra antiga) e o motor com a regra antiga como padrão.
 
-## Emenda (20/11 17:30, decisão do diretor)
+## Emenda (20/11 15:55, decisão do diretor)
 A dica é recalculada quando o reino muda (pôr carta); a troca continua valendo depois de pôr carta (só `batalhar` e a própria troca gastam). A tela mostra o par só no "SHOW ME". Texto: "SWAP TWO PLOTS ONCE". Festa "REVENGE!" ao vencer a revanche.

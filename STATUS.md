@@ -15,7 +15,7 @@ Projeto atual: Keepmile (nome provisório), jogo original de montar reino com ca
 - Baterias verdes no `main` (20/11 13:13 BRT): `npm test` 424; reino.e2e 1168; reino-servidor 377; reino-movimento 189; reino-som 154.
 - Notas: diversão 89 (conferência 5); guardião 80, aprovado sem veto (rodada 4).
 - R42 (vitória na rodada 15, Encore! na 17, último degrau 300), R43 (tiques da contagem) e R44 (18 medalhas, fogos, meta do HUD) no `main`, enviados.
-- R45: medidor de 3 regras novas no `main`; revanche com troca aprovada pelo diretor (20/11 14:45); parte 2 (troca de família, treino) medindo. R46: desenho da revanche com o arquiteto.
+- R45: medidor de 3 regras novas no `main`; revanche com troca aprovada pelo diretor (20/11 14:30); parte 2 (troca de família, treino) medindo. R46: desenho da revanche com o arquiteto.
 
 ## Decisões do dono
 - 19/11 18:30: autonomia total; o diretor decide e registra, sem perguntar.

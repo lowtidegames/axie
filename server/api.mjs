@@ -2,6 +2,7 @@
 // Todo corpo é conferido campo a campo: campo desconhecido, tipo errado ou id fora do formato = recusa (400).
 // Erros nunca levam pilha; logs nunca levam token nem cabeçalho.
 import { isIP } from 'node:net'
+import path from 'node:path'
 import { ErroDoJogo } from './jogo.mjs'
 import { lerArquivo, redirecionamento } from './estatico.mjs'
 import { apelidoPermitido, limparApelido } from './apelido.mjs'
@@ -449,7 +450,11 @@ export function criarTratador({ jogo, agora = Date.now, log = console.log, limit
       }
       // estáticos: o mesmo desenho de pastas do server/dev.mjs (`/` → `/public/`; só public/ e shared/)
       if (req.method !== 'GET' && req.method !== 'HEAD') { status = 405; res.writeHead(405, { ...CABECALHOS_DE_SEGURANCA, Allow: 'GET, HEAD' }); res.end(); return }
-      const fixo = fixos[url.pathname.replace(/\/{2,}/g, '/')]
+      // K4 (R16): decodifica (%72 → r) e normaliza (barras repetidas, `.` e `..`) ANTES de procurar nos fixos — o mesmo
+      // caminho que o leitor de arquivos usaria nunca chega ao arquivo parado que diz "local"
+      let caminho = null
+      try { caminho = path.posix.normalize(decodeURIComponent(url.pathname).replace(/\/{2,}/g, '/')) } catch { /* %xx quebrado: não é fixo */ }
+      const fixo = caminho !== null && Object.hasOwn(fixos, caminho) ? fixos[caminho] : null
       if (fixo) { status = 200; enviar(res, 200, fixo); return } // a ponte joga contra o servidor
       const destino = await redirecionamento(url.pathname)
       if (destino) { status = 302; res.writeHead(302, { ...CABECALHOS_DE_SEGURANCA, 'Cache-Control': 'no-store', Location: destino + url.search }); res.end(); return }

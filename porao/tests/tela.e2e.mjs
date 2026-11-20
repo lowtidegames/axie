@@ -18,7 +18,7 @@ const { chromium } = require('playwright')
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml' }
 const FOTOS = process.env.PORAO_FOTOS || ''
-const PAGINA = '/porao/tela/index.html?falso=1'
+const PAGINA = '/porao/tela/index.html?falso=1&pular=abertura'
 
 const falhas = []
 const falha = (m) => { falhas.push(m); console.log('FALHA: ' + m) }

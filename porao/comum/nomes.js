@@ -258,6 +258,13 @@ const ABERTURA = {
   'apelido.erro.curto': 'Curto demais: mínimo de 3. Até "rug" tem 3 letras.',
   'apelido.erro.usado': 'Já tem golpista com esse nome. Copiar ideia pode; apelido, não.',
   'apelido.erro.feio': 'Esse não passa. Só letras, números e _, sem palavrão: a vó lê tudo.',
+  'titulo.nome': 'Porão',
+  'aviso.botoes.continuar': 'Entendi, pode pedir',
+  'aviso.botoes.voltar': 'Voltar',
+  'carteira.escolher.titulo': 'Escolha sua carteira',
+  'carteira.assinando.texto': 'Confira na carteira: é só uma assinatura, sem valor nenhum.',
+  'carteira.nenhuma': 'Nenhuma carteira Solana por aqui. Instale uma (Phantom, Solflare, Backpack) ou jogue sem carteira.',
+  'hall.titulo': 'Hall da Vergonha',
   'hall.vazio': 'Ninguém passou vergonha ainda. A vaga de primeiro é sua.',
 };
 

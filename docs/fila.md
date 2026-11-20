@@ -116,5 +116,6 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | R50 | SONS da revanche (`troca`, `dica`) sintetizados em código, sem crédito | general-purpose (Fable, som) | som-reino.js, sons.html, reino-som.e2e | R47 | PRONTO (no main; ninguém ouviu) |
 | C6 | CONFERÊNCIA 6 de diversão (revanche) | conselheiro-de-diversao | (só lê) | R49 | PRONTO: jogo 90 (era 89), revanche 86. Pede: dica sem o par ("SHOW ME"), festa de vingança, celular com um aviso por vez; prefere vitória na 18 |
 | G5 | GUARDIÃO rodada 5 (revanche) | guardiao | (só lê) | R49 | PRONTO: 76, aprovado sem veto. Pede: dica não pode ficar acesa depois de pôr carta; "(FREE)" → "ONCE"; texto da derrota; KEEP AS IS não perder a troca |
-| R51 | REVANCHE: dica sempre verdadeira (recalcula quando o reino muda) | dev-servidor (Opus) | shared/reino/partida.js, testes r46 | G5 | RODANDO |
+| R51 | REVANCHE: dica sempre verdadeira (recalcula quando o reino muda) | dev-servidor (Opus) | shared/reino/partida.js, testes r46 | G5 | PRONTO no main local (446 testes); envio junto com a R52 |
 | R52 | REVANCHE polimento: SHOW ME, textos, etiqueta SWAP, festa REVENGE + som, celular um aviso por vez, setinhas | general-purpose (Fable, tela) | app.js, interface.js, cena.js, textos.js, teste.js, som-reino.js, e2e | C6, G5 | RODANDO |
+| R53 | IDIOMAS (ordem do dono 20/11 19:02): desenho da tradução em 12 idiomas — textos, letra em pixel com acentos/cirílico/tailandês/vietnamita, escolha do idioma, espaço nas telas | arquiteto | (só lê) | — | RODANDO |

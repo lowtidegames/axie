@@ -5,12 +5,12 @@
 
 | Nº | Gravidade | Estado |
 |---|---|---|
-| K1 seq antigo e replay refazem a partida | média | EM CONSERTO (R16): 14 ms e 19 ms/147 KB por pedido (partida de 88 comandos); só repetir o último seq + resposta guardada; limite do replay por IP |
-| K2 estrada do dia com conta descartável | média | EM CONSERTO (R16): 9/9 passos iguais; atinge só o placar do dia; placar só de conta criada antes do dia e com 1 ranking terminado. A estrada do dia serve para título, NUNCA para prêmio |
-| K3 fecho da temporada num pedido só | baixa | EM CONSERTO (R16): fechar em lotes |
-| K4 modo.json com %xx diz "local" | baixa | EM CONSERTO (R16): decodificar antes de procurar |
-| K5 segredo da estrada no banco e nas cópias | baixa | EM CONSERTO (R16): aviso no boot; exigir `REINO_SEGREDO` antes do lançamento |
-| K6 repetir partida terminada por tempo diz "aberta" | baixa | EM CONSERTO (R16) |
+| K1 seq antigo e replay refazem a partida | média | FECHADO (R16, rechecado com GO): repetir 1,9 ms sem motor; seq antigo 409; replay 120/min por IP. Fica: cache de replay ocupa ~6,7× o contado na memória (médio novo, conserto na R19) |
+| K2 estrada do dia com conta descartável | média | FECHADO (R16): replay da própria estrada de hoje 409; placar com `foraDoPlacar`. Fica: conta das 23:59 com 1 ranking desistido entra no placar (baixo, risco aceito; placar é só enfeite). A estrada do dia serve para título, NUNCA para prêmio |
+| K3 fecho da temporada num pedido só | baixa | FECHADO (R16): lotes de 20; corrida sem título repetido |
+| K4 modo.json com %xx diz "local" | baixa | FECHADO (R16): 8 variações dão "servidor" |
+| K5 segredo da estrada no banco e nas cópias | baixa | FECHADO (R16): aviso no boot; segredo curto recusado; valor fora do log. Exigir `REINO_SEGREDO` antes do lançamento |
+| K6 repetir partida terminada por tempo diz "aberta" | baixa | FECHADO (R16): diz "terminada", motivo "tempo" |
 
 Fechado: entrada hostil, partida e replay alheios, energia (2 servidores e relógio), virada e títulos, chaves de emergência, v1/v4→v5 com cópia, WAL.
 

@@ -311,7 +311,7 @@ function enviarErro(res, e, extra) {
 }
 
 /** Lê o corpo JSON com limite. Corpo vazio → undefined. Recusa: ErroDoJogo (413/415/400). */
-function lerCorpo(req) {
+export function lerCorpo(req) {
   return new Promise((ok, falha) => {
     const max = PARAMS_SERVIDOR.corpoMaxBytes
     const declarado = Number(req.headers['content-length'])
@@ -349,8 +349,10 @@ const TOKEN = /^Bearer ([A-Za-z0-9_-]{43})$/
  * Cria o tratador HTTP. jogo: criarJogo(...). agora: relógio (injetável nos testes). log: função de log (sem token).
  * banco: o banco (limites guardados nele; sem banco ou com SAVE_SO_LEITURA ligado, limites em memória).
  * proxies: IPs dos proxies confiáveis (lista ou Set); padrão = TRUST_PROXY=1 + TRUST_PROXY_IPS no arranque.
+ * extras: { rotas, estaticos } de outros jogos no mesmo servidor (Keepmile: server/reino/rotas.mjs) — rotas no mesmo
+ * formato da lista abaixo; estaticos = { '/public/.../modo.json': objeto } respondidos pelo servidor.
  */
-export function criarTratador({ jogo, agora = Date.now, log = console.log, limites = {}, banco = null, proxies }) {
+export function criarTratador({ jogo, agora = Date.now, log = console.log, limites = {}, banco = null, proxies, extras = {} }) {
   const P = { ...PARAMS_SERVIDOR, ...limites }
   const confiaveis = proxies === undefined ? proxiesDoAmbiente(process.env, log) : new Set([...proxies].map((p) => ipCanonico(p) ?? semMapeado(p)))
   const tipos = { nova: P.contasPorIp, nova48: P.contasPorBloco48, conta: P.pedidosPorConta, ip: P.pedidosPorIp, ip48: P.pedidosPorBloco48 }
@@ -417,7 +419,10 @@ export function criarTratador({ jogo, agora = Date.now, log = console.log, limit
       const r = jogo.costurarPar(conta.id, lerCorpoCostura(await lerCorpo(req)))
       return [r.status, r.corpo]
     }],
+    ...(extras.rotas ?? []),
   ]
+  // arquivos de modo respondidos pelo servidor (o arquivo parado diz "local"); barras repetidas não escapam (S5-2)
+  const fixos = { '/public/modo.json': MODO_SERVIDOR, ...(extras.estaticos ?? {}) }
 
   return async function tratar(req, res) {
     const inicio = agora()
@@ -444,7 +449,8 @@ export function criarTratador({ jogo, agora = Date.now, log = console.log, limit
       }
       // estáticos: o mesmo desenho de pastas do server/dev.mjs (`/` → `/public/`; só public/ e shared/)
       if (req.method !== 'GET' && req.method !== 'HEAD') { status = 405; res.writeHead(405, { ...CABECALHOS_DE_SEGURANCA, Allow: 'GET, HEAD' }); res.end(); return }
-      if (url.pathname === '/public/modo.json') { status = 200; enviar(res, 200, MODO_SERVIDOR); return } // a ponte joga contra o servidor
+      const fixo = fixos[url.pathname.replace(/\/{2,}/g, '/')]
+      if (fixo) { status = 200; enviar(res, 200, fixo); return } // a ponte joga contra o servidor
       const destino = await redirecionamento(url.pathname)
       if (destino) { status = 302; res.writeHead(302, { ...CABECALHOS_DE_SEGURANCA, 'Cache-Control': 'no-store', Location: destino + url.search }); res.end(); return }
       const arq = await lerArquivo(url.pathname)

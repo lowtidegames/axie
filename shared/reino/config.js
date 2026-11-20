@@ -178,3 +178,22 @@ export const RELIQUIAS = {
   banner: { nome: 'Twin Banner', texto: 'Family bonus needs 2 plots, not 3.', terrenos: 2 },
   blueprints: { nome: 'Blueprints', texto: 'Buildings reach 2 plots on each side.', alcance: 2 },
 }
+
+// ---------------------------------------------------------------- beta sem dinheiro (servidor) — PROVISÓRIO
+// Lido só pelo servidor (server/reino/). Energia das partidas de ranking: decidida por delegação em 19/11
+// (docs/decisions.md). Temporada, média das 3 melhores e ligas: docs/reino/biblia.md, seção 10.
+// No beta só se ganha título e enfeite: nada de prêmio, pote ou dinheiro.
+export const BETA = {
+  energia: { porDia: 3, teto: 9, porPartidaDeRanking: 1 }, // recarga às 00:00 UTC; o que sobra junta até o teto
+  temporadaDias: 7, // começa segunda-feira 00:00 UTC
+  melhoresQueContam: 3, // pontuação = soma das 3 melhores ÷ 3; faltando partida, a que falta conta 0
+  ligas: [ // por média (faixa fixa da bíblia); os primeiros da temporada viram a lenda
+    { id: 'gate', nome: 'Gate Sweeper', min: 0 },
+    { id: 'road', nome: 'Road Warden', min: 800 },
+    { id: 'keep', nome: 'Keep Captain', min: 1200 },
+    { id: 'lord', nome: 'Lord Steward', min: 1600 },
+    { id: 'crown', nome: 'Crown Guardian', min: 2000 },
+  ],
+  lenda: { id: 'legend', nome: 'Legend of the Mile', primeiros: 10 },
+  estradaDoDia: { tentativas: 1 }, // a mesma estrada para todos no dia UTC, com o álbum inicial (ninguém sai na frente)
+}

@@ -9,6 +9,7 @@ import { DatabaseSync } from 'node:sqlite'
 import fs from 'node:fs'
 import path from 'node:path'
 import { apelidoValido, chaveDoApelido, chaveDoApelidoV2, chaveDoApelidoV3, limparApelido } from './apelido.mjs'
+import { migracaoV5 } from './reino/banco.mjs'
 
 export const MIGRACOES = [
   // v1 — contas, bonecos (com dono), livro-razão dos bonecos, lutas, respostas de comandos (idempotência), pedidos.
@@ -169,6 +170,8 @@ export const MIGRACOES = [
     }
     db.exec('CREATE UNIQUE INDEX contas_apelido ON contas(apelido_norm)')
   },
+  // v5 — tarefa R14: tabelas do Keepmile (server/reino/banco.mjs). Só cria tabelas; nada do jogo antigo muda.
+  migracaoV5,
 ]
 
 export const VERSAO_DO_BANCO = MIGRACOES.length

@@ -1,3 +1,9 @@
+/* Fontes livres (OFL-1.1, créditos em CREDITOS.md; licenças em fontes/) */
+@font-face { font-family: 'Lilita One'; src: url('fontes/lilita-one-latin-400-normal.woff2') format('woff2'); font-weight: 400 900; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Lilita One'; src: url('fontes/lilita-one-latin-ext-400-normal.woff2') format('woff2'); font-weight: 400 900; font-display: swap; unicode-range: U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Nunito'; src: url('fontes/nunito-latin-600-normal.woff2') format('woff2'); font-weight: 400 600; font-display: swap; }
+@font-face { font-family: 'Nunito'; src: url('fontes/nunito-latin-800-normal.woff2') format('woff2'); font-weight: 700 900; font-display: swap; }
+
 /* Porão — estilo da tela. Cores só pelos tokens do :root (os --pix-* são lidos pelo canvas). */
 :root {
   --noite: #14111c;
@@ -12,10 +18,10 @@
   --acao-texto: #1d1622;
   --foco: #8fd0ff;
   --aviso: #5be08a;
-  --fonte: ui-rounded, "Trebuchet MS", system-ui, sans-serif;
+  --fonte: "Nunito", ui-rounded, "Trebuchet MS", system-ui, sans-serif;
   --fonte-num: ui-monospace, "Cascadia Mono", Consolas, monospace;
   /* letra gorda (fonte do sistema: o servidor do Porão só serve porao/tela) */
-  --fonte-gorda: "Arial Black", "Segoe UI Black", "Helvetica Neue", system-ui, sans-serif;
+  --fonte-gorda: "Lilita One", "Arial Black", "Segoe UI Black", "Helvetica Neue", system-ui, sans-serif;
   --ganho: #3dff6e;
   --calor-frio: #5be08a; --calor-morno: #ffd84a; --calor-quente: #ff8a3d; --calor-fervendo: #ff4b4b;
   /* papel de parede de cada monitor e cor da barra de título de cada aplicativo */

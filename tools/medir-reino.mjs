@@ -318,7 +318,7 @@ function valorDe(e, cmd, { K, semente, regras }) {
   }
   return vals
 }
-/** As opções da oferta: cada carta nos 3 melhores terrenos (pela nota do próprio planejador), sortear, consertar e guardar a mão. */
+/** As opções da oferta: cada carta nos 2 melhores terrenos (pela nota do próprio planejador), sortear, consertar e guardar a mão. */
 function opcoesDaOferta(e) {
   const v = visao(e), o = opcoes(e), alvo = hordaAlvo(v)
   const ops = []
@@ -326,7 +326,7 @@ function opcoesDaOferta(e) {
   for (const c of o.comandos.filter((x) => x.tipo === 'por')) (porCarta[c.carta] ||= []).push(c)
   for (const lista of Object.values(porCarta)) {
     const nota = (c) => { const t = comTerreno(v.terrenos, c.carta, c.terreno); return luta(t, v.reliquias, v.horda) * 10 + valorFuturo(t, v.reliquias, alvo) }
-    ops.push(...lista.map((c) => ({ c, n: nota(c) })).sort((a, b) => b.n - a.n).slice(0, 3).map((x) => x.c))
+    ops.push(...lista.map((c) => ({ c, n: nota(c) })).sort((a, b) => b.n - a.n).slice(0, 2).map((x) => x.c))
   }
   if (o.sortear.pode) ops.push({ tipo: 'sortear' })
   if (o.consertar.pode) ops.push({ tipo: 'consertar' })
@@ -403,7 +403,7 @@ function resumoB(lista) {
   for (const o of lista) for (const a of o.av) { const k = a.tipo; (opsVal[k] ||= []).push(a.media - Math.max(...o.av.map((x) => x.media))) }
   res.custoPorTipo = Object.fromEntries(Object.entries(opsVal).map(([k, v]) => [k, media(v)]))
   L.push('')
-  L.push(`Posição (a mesma carta nos seus 3 melhores terrenos): diferença mediana ${f1(res.difPosMediana)}% · p90 ${f1(res.difPosP90)}% da rodada final. Erro da média de cada opção (mediana): ±${res.erroMedia.toFixed(2)} rodada.`)
+  L.push(`Posição (a mesma carta nos seus 2 melhores terrenos): diferença mediana ${f1(res.difPosMediana)}% · p90 ${f1(res.difPosP90)}% da rodada final. Erro da média de cada opção (mediana): ±${res.erroMedia.toFixed(2)} rodada.`)
   L.push('Quanto cada tipo de opção perde para a melhor da oferta (rodadas, média): ' + Object.entries(res.custoPorTipo).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(' · '))
   return { linhas: L, res }
 }

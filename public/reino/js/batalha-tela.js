@@ -32,6 +32,13 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     B.inimigosTotal = B.inimigos = expandirHorda(horda).length
     nascidosInv = 0; lentoUsado = false; chocou = false; dano = {}; quedas = 0; quem = null; ultimoFundo = 0
     B.quedasDeSoldado = 0; B.rodadaChefe = horda.chefe
+    // R29 — ENQUADRE (decidido ANTES da luta, nunca durante): no celular, numa luta da partida com 1–2 terrenos ocupados, a interface
+    // troca o painel por uma tira curta — o mundo desce 34 px para ocupar a altura que sobrou. (Só na luta da PARTIDA: no replay e
+    // nas vitrines o painel inteiro continua lá e a cena não se mexe.)
+    const ocupados = terrenos.filter(Boolean).length
+    C.enquadre = C.tipo === 'celular' && aoFim?.name === 'aoFimDaLuta' && ocupados <= 2 ? 34 : 0
+    // CÂMERA DE DUELO: com ≤ 4 representantes no total (os dois lados), a câmera chega mais perto
+    { const reps = exercito.soldados.reduce((a, s) => a + Math.min(s.qtd, C.repMax), 0) + Math.min(B.inimigosTotal, C.tipo === 'pc' ? 6 : 4); C.duelo = !C.menos && C.tipo === 'pc' && reps <= 4 } // (só no PC: no celular a estrada inteira já cabe na tela e o zoom esconderia quem chega pelo portão)
     Som.tocar('marcha')
   }
   function comecarLuta() { B.preludioAte = 0; C.marcha = false; C.cam.vel = 0; B.mapa.fill(-1); C.limparBonecos(); C.tb = 0; C.magiaAnim = {} }
@@ -60,7 +67,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
         i = C.nascer(1, tipo, x, vida, chefe ? 0.2 : FILEIRAS[(id * 7919) % 4] + (((id * 13) % 5) - 2) * 0.03, chefe ? 0 : ((id * 31) % 29) - 14)
         nascidosInv++; if (nascidosInv > B.inimigosTotal) { B.inimigosTotal++; B.inimigos++ }
         if (chefe) chefesVivos++
-        if (chefe && !quieto) { Som.tocar('chefeEntra'); C.tremer(6, 120); B.aoAviso?.('chefe', tipo) }
+        if (chefe && !quieto) { Som.tocar('chefeEntra'); C.tremer(6, 120); C.entrarPesado(i); B.aoAviso?.('chefe', tipo) } // R29: entra com um passo pesado e poeira
       }
       if (i >= 0) { B.mapa[id] = i; C.t0[i] = t }
     } else if (cod === 'm') {
@@ -196,7 +203,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
   /** Avança o relógio da luta. Devolve quantos ms de animação passaram neste quadro. */
   B.avancar = (dtReal, agora) => {
     if (!B.ativa) return dtReal
-    if (B.fimEm) { if (agora >= B.fimEm) { B.ativa = false; C.emLuta = false; const r = B.resultado, f = B.aoFim; B.aoFim = null; f?.(r) } return dtReal }
+    if (B.fimEm) { if (agora >= B.fimEm) { B.ativa = false; C.emLuta = false; C.enquadre = 0; C.duelo = false; const r = B.resultado, f = B.aoFim; B.aoFim = null; f?.(r) } return dtReal }
     if (B.preludioAte) { if (agora < B.preludioAte - (B.vel > 1 ? 900 : 0)) return dtReal; comecarLuta() }
     if (agora < B.pausaAte) return 0 // pausa de impacto: o mundo inteiro segura
     B.lento = agora < B.lentoAte; if (B.lento) C.med.lentoMs += dtReal
@@ -219,6 +226,6 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     while (B.i < ev.length) { const e = ev[B.i++]; if (e[1] === 'n') tipos[e[2]] = e[4]; C.tb = e[0]; evento(e, performance.now()) }
     Som.fundoBatalha(0)
   }
-  B.parar = () => { B.preludioAte = 0; C.marcha = false; C.gritoT = -1e9; B.ativa = false; B.aoFim = null; C.emLuta = false; C.noite = 0; C.cam.alvo = 0; Som.fundoBatalha(0) }
+  B.parar = () => { C.enquadre = 0; C.duelo = false; B.preludioAte = 0; C.marcha = false; C.gritoT = -1e9; B.ativa = false; B.aoFim = null; C.emLuta = false; C.noite = 0; C.cam.alvo = 0; Som.fundoBatalha(0) }
   return B
 }

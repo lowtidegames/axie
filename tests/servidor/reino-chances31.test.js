@@ -2,6 +2,9 @@
 // Rodar: node --test tests/servidor/reino-chances31.test.js
 // O arquivo reino-chances31-antes.json foi gerado com o motor do origin/main (antes do R31) por:
 //   GERAR_ANTES=1 node --test tests/servidor/reino-chances31.test.js
+// R37 (20/11): regravado porque mudaram números de LUTA do config (1º chefe 320 e 4 cartas); o motor e o sorteio não
+//   mudaram (só shared/reino/config.js no diff). Pontos, rodada final e o caminho do robô dependem da luta; o sorteio da mesma
+//   situação é o mesmo. Com o config antigo, o arquivo antigo passa (main verde).
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'

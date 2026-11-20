@@ -8,3 +8,4 @@ node_modules/
 dados/
 porao/nomes.local.json
 porao/arte.local/
+.claude/worktrees/

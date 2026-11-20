@@ -58,13 +58,13 @@ export function agir(db, { acao, dados = {}, chave, agora, textos = TEXTOS } = {
         if (antigo.acao !== acao || antigo.corpo !== corpo) throw new Recusa('Essa chave de pedido já foi usada para outro pedido.', 'chave_reusada')
         return { ...JSON.parse(antigo.resposta), repetido: true }
       }
-      const inicio = carregarSave(db)
+      const inicio = R.atualizarEstado(carregarSave(db))
       const avanco = R.avancar(inicio, agora)
       const r = ACOES[acao](avanco.estado, dados)
       if (!r || r.ok !== true) throw new Recusa(r?.erro || ERRO_GENERICO, 'recusado')
       const fim = r.estado
-      anotarDiferenca(db, inicio.caixa, avanco.estado.caixa, 'rendimento', agora, chave)
-      anotarDiferenca(db, avanco.estado.caixa, fim.caixa, acao, agora, chave)
+      anotarComMulta(db, inicio.caixa, avanco.estado.caixa, avanco.eventos, 'rendimento', agora, chave)
+      anotarComMulta(db, avanco.estado.caixa, fim.caixa, r.eventos, acao, agora, chave)
       gravarSave(db, fim, agora)
       const resultado = limparResultado(r, fim, textos)
       resultado.eventosDoTempo = avanco.eventos
@@ -85,10 +85,10 @@ export function agir(db, { acao, dados = {}, chave, agora, textos = TEXTOS } = {
 export function verEstado(db, agora, { textos = TEXTOS, gravar = true } = {}) {
   if (!Number.isFinite(agora)) throw new TypeError('agora precisa ser número (ms)')
   return transacao(db, () => {
-    const inicio = carregarSave(db)
+    const inicio = R.atualizarEstado(carregarSave(db))
     const avanco = R.avancar(inicio, agora)
     if (gravar) {
-      anotarDiferenca(db, inicio.caixa, avanco.estado.caixa, 'rendimento', agora, null)
+      anotarComMulta(db, inicio.caixa, avanco.estado.caixa, avanco.eventos, 'rendimento', agora, null)
       gravarSave(db, avanco.estado, agora)
     }
     return {
@@ -118,6 +118,13 @@ function falha(erro, codigo) { return { ok: false, erro, codigo } }
 function anotarDiferenca(db, antes, depois, motivo, em, pedido) {
   const valor = depois - antes
   if (valor !== 0) anotarDiario(db, { em, motivo, valor, caixaDepois: depois, pedido })
+}
+
+/** Como anotarDiferenca, mas a multa da batida (eventos 'multa') vai numa linha própria com motivo 'multa'. */
+function anotarComMulta(db, antes, depois, eventos, motivo, em, pedido) {
+  const multa = R.multaDosEventos(eventos)
+  anotarDiferenca(db, antes, depois + multa, motivo, em, pedido)
+  anotarDiferenca(db, depois + multa, depois, 'multa', em, pedido)
 }
 
 /** Resultado de regras.js sem o estado (e sem nada do sorteio), com nomes resolvidos. */
@@ -184,18 +191,27 @@ const CHAVE_INFLU = (() => {
 })()
 
 /**
- * Luxo (id do config = nome do sprite) → chave em nomes.js. Provisório: a lista de nomes.js não bate 1-para-1 com
- * a de config.js; os parecidos foram ligados pelo sentido, os outros pelo bônus.
+ * Tabela única dos luxos: id do config (= nome do sprite na cena) → chave do texto em nomes.js.
+ * Cada texto combina com o que o luxo é e com o bônus que dá (20/11).
+ *   id               texto                              bônus            sprite
+ *   cadeira_gamer    luxo.2 Cadeira Gamer Trono          + rendimento     cadeira_gamer
+ *   aquario          luxo.1 Aquário de Peixe Caro        − gasto de hype  aquario
+ *   ar_condicionado  luxo.6 Ar-Condicionado Polar        − Calor (esfria) falta
+ *   letreiro_neon    luxo.5 Neon de Frase Motivacional   + rendimento     falta
+ *   maquina_bebida   luxo.3 Máquina de Bebida Infinita   − gasto de hype  maquina_bebida
+ *   tela_curva       luxo.7 Tela Curva Gigante           − Calor (vê a polícia chegando)  falta
+ *   garagem          luxo.4 Carro na Garagem             + rendimento     garagem
+ * Sobram sem par: texto luxo.8 (Estátua de Mim Mesmo) e sprite sofa.
  */
-const CHAVE_LUXO = {
-  cadeira_gamer: 'luxo.2', // Cadeira Gamer Trono
-  aquario: 'luxo.1', // Aquário de Peixe Caro
-  tapete_persa: 'luxo.6', // Ar-Condicionado Polar (menos Calor)
-  letreiro_neon: 'luxo.5', // Neon de Frase Motivacional
-  cafeteira_chique: 'luxo.3', // Máquina de Bebida Infinita
-  cofre: 'luxo.8', // Estátua de Mim Mesmo
-  carro_na_garagem: 'luxo.4', // Carro na Garagem
-}
+export const CHAVE_LUXO = Object.freeze({
+  cadeira_gamer: 'luxo.2',
+  aquario: 'luxo.1',
+  ar_condicionado: 'luxo.6',
+  letreiro_neon: 'luxo.5',
+  maquina_bebida: 'luxo.3',
+  tela_curva: 'luxo.7',
+  garagem: 'luxo.4',
+})
 
 function postsDe(textos, chaveInflu) {
   const lista = []

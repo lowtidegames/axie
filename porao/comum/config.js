@@ -102,15 +102,16 @@ export const TEMPO = { limiteOnlineSeg: 60, tetoForaHoras: 8 }
 // 8. Luxos do porão: compra única; bônus somados (rendimento = +%, hype = −% de gasto, calor = −% de subida).
 //    O id é também o nome do sprite na cena.
 // ---------------------------------------------------------------------------------------------
-// 20/11: escada para a 1ª hora (cadeira ~6 min, aquário ~18, … cofre ~50) e o carro como sonho do dia 2.
+// 20/11: escada para a 1ª hora (cadeira ~6 min, aquário ~18, … tela curva ~50) e o carro como sonho do dia 2.
+// 20/11 (núcleo): só os ids mudaram, para bater com os textos (nomes.js) e os sprites; nenhum número mudou.
 export const LUXOS = [
   { id: 'cadeira_gamer', custo: 100, bonus: { rendimento: 0.05 } },
   { id: 'aquario', custo: 250, bonus: { hype: 0.1 } },
-  { id: 'tapete_persa', custo: 500, bonus: { calor: 0.1 } },
+  { id: 'ar_condicionado', custo: 500, bonus: { calor: 0.1 } },
   { id: 'letreiro_neon', custo: 900, bonus: { rendimento: 0.1 } },
-  { id: 'cafeteira_chique', custo: 1500, bonus: { hype: 0.15 } },
-  { id: 'cofre', custo: 2200, bonus: { calor: 0.15 } },
-  { id: 'carro_na_garagem', custo: 30000, bonus: { rendimento: 0.2 } },
+  { id: 'maquina_bebida', custo: 1500, bonus: { hype: 0.15 } },
+  { id: 'tela_curva', custo: 2200, bonus: { calor: 0.15 } },
+  { id: 'garagem', custo: 30000, bonus: { rendimento: 0.2 } },
 ]
 export const LIMITES = { reducaoMaxima: 0.8 } // hype e calor somados não reduzem mais que isto
 

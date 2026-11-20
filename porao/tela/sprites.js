@@ -249,6 +249,7 @@ function gente(c, cor) {
 def('trouxa_1', 'gente', 14, 22, 7, 20, (c) => gente(c, P.trouxa_1));
 def('trouxa_2', 'gente', 14, 22, 7, 20, (c) => gente(c, P.trouxa_2));
 def('trouxa_3', 'gente', 14, 22, 7, 20, (c) => gente(c, P.trouxa_3));
+def('trouxa_4', 'gente', 14, 22, 7, 20, (c) => gente(c, P.trouxa_1));
 function rugrigo(c, quadro) {
   px(c, -4, -19, 8, 11, P.moletom); px(c, -4, -19, 8, 1, P.moletom_e); px(c, -4, -9, 8, 1, P.moletom_e);
   px(c, -3, -28, 7, 9, P.pele); px(c, -3, -29, 7, 4, P.cabelo); px(c, -4, -27, 1, 5, P.cabelo);
@@ -259,6 +260,8 @@ function rugrigo(c, quadro) {
 }
 def('rugrigo_a', 'gente', 22, 36, 9, 33, (c) => rugrigo(c, 0));
 def('rugrigo_b', 'gente', 22, 36, 9, 33, (c) => rugrigo(c, 1));
+def('rugrigo_rindo', 'gente', 22, 36, 9, 33, (c) => rugrigo(c, 0));
+def('rugrigo_batida', 'gente', 22, 36, 9, 33, (c) => rugrigo(c, 1));
 
 // ---------- efeitos e interface ----------
 def('bolinha_hype', 'efeito', 6, 6, 3, 3, (c) => { px(c, -1, -2, 3, 5, P.hype); px(c, -2, -1, 5, 3, P.hype); px(c, -1, -1, 1, 1, P.luz); }, { contorno: false });
@@ -328,6 +331,13 @@ export const arteCarta = (ideia) => ARTE_CARTAS.get('carta_' + ideia) || null;
 // com a lista de nomes (sem .png). Sem indice, nada é pedido e nada falha.
 export async function carregarArte() {
   const pastas = [new URL('./arte/', import.meta.url), new URL('../arte.local/', import.meta.url)];
+  // sala-âncora (fundo pintado do porão): fica fora do índice; sem ela a cena volta ao chão desenhado
+  const sala = new Promise((ok) => {
+    const img = new Image();
+    img.onload = () => { SALA.img = img; ok(); };
+    img.onerror = () => ok();
+    img.src = new URL('sala.png', pastas[0]).href;
+  });
   for (const pasta of pastas) {
     let nomes = [];
     try {
@@ -337,23 +347,46 @@ export async function carregarArte() {
     await Promise.all(nomes.filter((n) => typeof n === 'string' && (CATALOGO.has(n) || /^carta_[a-z]+_\d+$/.test(n))).map((n) => new Promise((ok) => {
       const img = new Image();
       img.onload = () => {
-        if (CATALOGO.has(n)) CATALOGO.get(n).img = img; else guardarCarta(n, img);
+        if (CATALOGO.has(n)) usarImagem(CATALOGO.get(n), img); else guardarCarta(n, img);
         ok();
       };
       img.onerror = () => ok();
       img.src = new URL(n + '.png', pasta).href;
     })));
   }
+  await sala;
 }
+
+// Tamanho e âncora da arte final (arte/porao/objetos/medidas.json): a imagem entra no tamanho dela, nunca esticada.
+const MEDIDAS = {
+  rugrigo_a: [36, 48, 18, 46], rugrigo_b: [36, 48, 18, 46], rugrigo_rindo: [36, 48, 18, 46], rugrigo_batida: [36, 48, 18, 46],
+  trouxa_1: [24, 44, 12, 42], trouxa_2: [24, 44, 12, 42], trouxa_3: [24, 44, 12, 42], trouxa_4: [24, 44, 12, 42],
+  cadeira_gamer: [29, 53, 14, 42], ar_condicionado: [24, 26, 3, 3], letreiro_neon: [27, 41, 24, 3],
+  maquina_bebida: [39, 59, 19, 48], tela_curva: [29, 33, 14, 26], garagem: [97, 61, 48, 36], aquario: [54, 61, 27, 45],
+};
+function usarImagem(s, img) {
+  s.img = img;
+  const m = MEDIDAS[s.nome];
+  const W = img.naturalWidth, H = img.naturalHeight;
+  if (m) { s.ax = Math.round(m[2] * W / m[0]); s.ay = Math.round(m[3] * H / m[1]); }
+  else if (W !== s.w || H !== s.h) { s.ax = Math.round(s.ax * W / s.w); s.ay = Math.round(s.ay * H / s.h); }
+  s.w = W; s.h = H;
+}
+const SALA = { img: null };
+/** Imagem da sala-âncora (248×176) ou null. */
+export const sala = () => SALA.img;
 
 export const tem = (nome) => CATALOGO.has(nome);
 export const listar = () => [...CATALOGO.values()].map(({ nome, camada, w, h, ax, ay }) => ({ nome, camada, w, h, ax, ay }));
 // Desenha o sprite com a âncora em (x,y). Devolve o retângulo usado (para clique).
-export function desenhar(ctx, nome, x, y) {
+// espelho = vira na horizontal (só gente; móvel de caixa não se espelha: troca o lado escuro).
+export function desenhar(ctx, nome, x, y, espelho = false) {
   const s = CATALOGO.get(nome);
   const fonte = s && (s.img || s.canvas);
   if (!fonte) return null;
-  const X = Math.round(x - s.ax), Y = Math.round(y - s.ay);
-  ctx.drawImage(fonte, X, Y, s.w, s.h);
+  const X = Math.round(x - (espelho ? s.w - s.ax : s.ax)), Y = Math.round(y - s.ay);
+  if (espelho) {
+    ctx.save(); ctx.translate(X + s.w, Y); ctx.scale(-1, 1); ctx.drawImage(fonte, 0, 0, s.w, s.h); ctx.restore();
+  } else ctx.drawImage(fonte, X, Y, s.w, s.h);
   return { x: X, y: Y, w: s.w, h: s.h };
 }

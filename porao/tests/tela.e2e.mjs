@@ -79,6 +79,12 @@ async function conferirStatus(page, onde) {
   const vis = await page.evaluate(() => ['caixa', 'calor', 'hora'].every((k) => { const r = document.querySelector(`[data-pm="status-${k}"]`).getBoundingClientRect(); return r.width > 0 && r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth }))
   confere(vis, `${onde}: caixa, Calor e hora à vista na barra de status`)
 }
+// arte nova: toda <img> da página carregou (sem 404 e sem imagem quebrada)
+const imagensOk = (page) => page.evaluate(() => [...document.images].filter((i) => !i.complete || i.naturalWidth === 0).map((i) => i.src))
+/** Fonte do border-image de um elemento (vazio se não houver). */
+const bordaImg = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); return e ? getComputedStyle(e).borderImageSource : '' }, sel)
+/** Retrato visível e carregado (data-quem começa com o prefixo). */
+const retratoVisivel = (page, prefixo) => page.evaluate((p) => [...document.querySelectorAll('[data-pm="retrato"]')].some((i) => i.dataset.quem.startsWith(p) && i.complete && i.naturalWidth > 0 && i.getBoundingClientRect().width >= 40), prefixo)
 const semRolagemLateral = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1 && document.body.scrollWidth <= window.innerWidth + 1)
 
 /** Imprime e lança a ideia (fluxo do jogador). Devolve quando o projeto está no ar. */
@@ -122,6 +128,7 @@ async function puxarEMedir(page, fotosNome) {
   confere(!!g && /^\+\$ [\d.]+$/.test(g.texto) && g.texto === g.resumo, `número gigante do ganho aparece no tapete (${g?.texto} = resumo ${g?.resumo})`)
   confere(!!g && g.alto >= 50 && g.dentro, `número gigante é grande e cabe na tela (altura ${g?.alto?.toFixed?.(0)} px)`)
   ultimaAnim = g?.anim
+  confere(await retratoVisivel(page, 'rugrigo.rindo'), 'resumo do tapete mostra o retrato do Rugrigo rindo')
   if (fotosNome) await foto(page, fotosNome + '-resumo')
   return max
 }
@@ -143,11 +150,26 @@ try {
   {
     const { ctx, page } = await nova({ largura: 1280, altura: 800 })
     const t0 = Date.now()
+    const salaResp = page.waitForResponse((r) => /\/arte\/sala\.png$/.test(r.url()), { timeout: 8000 }).catch(() => null)
     await page.goto(BASE + PAGINA)
     await foto(page, 'pc-00-porao')
+    const rs = await salaResp
+    confere(!!rs && rs.status() === 200 && await page.evaluate(() => window.poraoApp.cena.temSala), 'cena desenha a sala-âncora (arte/sala.png carregou)')
+    const salaNoCanvas = await page.evaluate(() => {
+      // o canto de cima da sala pintada (pedra) aparece no canvas: pixel opaco onde o chão de reserva seria vazio
+      const cv = document.querySelector('.cena__canvas'), d = cv.getContext('2d').getImageData(116, 6, 1, 1).data
+      return d[3] === 255
+    })
+    confere(salaNoCanvas, 'canvas mostra a sala pintada (pixel da parede de pedra)')
+    confere(/ui_btn_destaque\.png/.test(await bordaImg(page, '.cena__btn--primario')) && /ui_btn_normal\.png/.test(await bordaImg(page, '#menos')), 'botões do porão usam border-image do kit (destaque e normal)')
+    confere(/ui_status\.png/.test(await bordaImg(page, '[data-pm="status-caixa"]')), 'barra de status usa a placa ui_status')
     await q(page, '.cena__btn--primario').click()
     await q(page, '.cena__zoom--aberto').waitFor({ timeout: 5000 })
     await foto(page, 'pc-01-monitores-vazios')
+    confere(/ui_btn_destaque\.png/.test(await bordaImg(page, '.pm-btn--acao')), 'botão de ação dos monitores usa border-image do kit')
+    confere(/ui_janela\.png/.test(await bordaImg(page, '.pm-jan')) && /ui_dock\.png/.test(await bordaImg(page, '.pm-dock')), 'janelas e barra de ícones usam o kit (ui_janela, ui_dock)')
+    confere(await page.evaluate(() => [...document.querySelectorAll('.pm-dock .pm-icone img')].length === 8), 'barra de ícones mostra os ícones de arte (8 aplicativos)')
+    confere(await page.evaluate(() => ['grafico', 'comunidade', 'projeto'].every((m) => /papel_.*_claro\.png/.test(getComputedStyle(document.querySelector(`[data-pm-monitor="${m}"]`)).backgroundImage))), 'os 3 monitores usam o papel de parede clareado')
     await aba(page, 'projeto', 'impressora')
     await q(page, '[data-pm="imprimir"]').click()
     await q(page, '[data-pm="folha"][data-etapa="1"]').waitFor({ timeout: 5000 })
@@ -157,12 +179,14 @@ try {
     await foto(page, 'pc-03-revelacao-raridade')
     await q(page, '[data-pm="folha"][data-etapa="3"]').waitFor({ timeout: 5000 })
     await foto(page, 'pc-04-revelacao-nome')
+    confere(/moldura_carta_[a-z]+\.png/.test(await bordaImg(page, '[data-pm="folha"]')), 'revelação: a folha ganha a moldura da raridade')
     confere(await page.locator('[data-pm="arte-carta"]').count() === 0, 'sem arte.local: a carta continua desenhada por código (nenhuma imagem)')
     await q(page, '[data-pm="lancar-agora"]').click()
     await q(page, '[data-pm="projeto"]').waitFor({ timeout: 8000 })
     await esperarPuxar(page)
     await foto(page, 'pc-05-grafico-previa')
     const max = await puxarEMedir(page, 'pc-06-tapete')
+    confere(await page.evaluate(() => window.poraoApp.cena.obterEstado().pose) === 'rindo', 'depois do tapete o Rugrigo ri na cena')
     const gasto = Date.now() - t0
     confere(gasto < 60000, `1º tapete em ${(gasto / 1000).toFixed(1)} s desde abrir a página (limite 60 s)`)
     confere(max > 0 && max <= 8, `tremida leve na cena do tapete (maior deslocamento ${max.toFixed(1)} px, limite 8)`)
@@ -193,6 +217,8 @@ try {
     await page.evaluate(() => window.poraoApp.api.depurar((e) => { const c = e.projetos.find((p) => p.contrato)?.contrato; if (c) { c.trazidasV1 = 999; c.esperaRestante = 0.2 } }))
     await q(page, '[data-pm="proposta"]').waitFor({ timeout: 8000 })
     await foto(page, 'pc-09-celular-pede-mais')
+    confere(await retratoVisivel(page, 'influ.'), 'celular: mensagem mostra o retrato do influenciador')
+    confere(await retratoVisivel(page, 'rugrigo.malandro'), 'celular: topo mostra o Rugrigo malandro')
     await page.keyboard.press('Escape')
     confere(await q(page, '[data-pm="janela-celular"]').count() === 0, 'celular fecha com Esc')
     await q(page, '[data-pm="celular-btn"]').click()
@@ -247,11 +273,15 @@ try {
     await q(page, '[data-pm="tapete-fechar"]').click()
     await q(page, '[data-pm="janela-batida"]').waitFor({ timeout: 5000 })
     await foto(page, 'pc-15-batida')
+    confere(await retratoVisivel(page, 'rugrigo.assustado'), 'batida mostra o retrato do Rugrigo assustado')
+    confere(await page.evaluate(() => window.poraoApp.cena.obterEstado().pose) === 'batida', 'na batida o Rugrigo olha para trás na cena')
     confere(await q(page, '[data-pm="rebrand"]').isEnabled(), 'batida mostra a escolha de rebrand com o custo')
     confere((await q(page, '[data-pm="batida-frase"]').textContent()).length > 3 && /^vira: ./.test(await q(page, '[data-pm="rebrand-nome"]').textContent()), 'batida mostra a frase e o nome novo depois do rebrand')
     await q(page, '[data-pm="rebrand"]').click()
     await q(page, '[data-pm="janela-batida"]').waitFor({ state: 'detached', timeout: 5000 })
     await foto(page, 'pc-16-depois-da-batida')
+    const quebradasPc = await imagensOk(page)
+    confere(quebradasPc.length === 0, `PC: todas as imagens novas carregam${quebradasPc.length ? ': ' + quebradasPc.slice(0, 3).join(' ') : ''}`)
     await ctx.close()
   }
 
@@ -261,6 +291,12 @@ try {
     const { ctx, page } = await nova({ largura: 390, altura: 844, movel: true })
     await page.goto(BASE + PAGINA)
     await foto(page, 'cel-00-porao')
+    const cab = await page.evaluate(() => { const r = document.querySelector('.cena__canvas').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight && window.poraoApp.cena.temSala })
+    confere(cab, 'celular: a sala inteira cabe na tela')
+    await page.evaluate(() => window.poraoApp.cena.definirEstado({ luxos: ['cadeira_gamer', 'aquario', 'ar_condicionado', 'letreiro_neon', 'maquina_bebida', 'tela_curva', 'garagem'], trouxas: 400, hype: 60 }))
+    await page.waitForTimeout(300)
+    await foto(page, 'cel-00b-porao-luxos')
+    await page.evaluate(() => window.poraoApp.cena.definirEstado({ luxos: [], trouxas: 0, hype: 0 }))
     await q(page, '.cena__btn--primario').click()
     await q(page, '.cena__zoom--aberto').waitFor({ timeout: 5000 })
     const visiveis = () => page.evaluate(() => [...document.querySelectorAll('.cena__monitor')].filter((m) => { const r = m.getBoundingClientRect(); return r.left >= -2 && r.right <= window.innerWidth + 2 }).length)
@@ -330,6 +366,7 @@ try {
     await q(page, '[data-pm="tapete-fechar"]').click()
     await q(page, '[data-pm="janela-batida"]').waitFor({ timeout: 5000 })
     await foto(page, 'cel-14-batida')
+    confere(await retratoVisivel(page, 'rugrigo.assustado'), 'celular: batida mostra o retrato do Rugrigo assustado')
     const dentro = await page.evaluate(() => { const r = document.querySelector('.pm-janela__caixa').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight })
     confere(dentro, 'celular: a janela da batida cabe na tela')
     confere(await semRolagemLateral(page), 'celular: sem rolagem lateral (batida)')
@@ -339,6 +376,10 @@ try {
     await foto(page, 'cel-15-depois-da-batida')
     await q(page, '[data-pm="celular-btn"]').click()
     await foto(page, 'cel-16-celular')
+    confere(await retratoVisivel(page, 'rugrigo.malandro'), 'celular 390: topo do celular da mesa mostra o retrato do Rugrigo')
+    confere(/ui_aba_(ligada|desligada)\.png/.test(await bordaImg(page, '.pm-aba')), 'abas do celular usam o kit')
+    const quebradasCel = await imagensOk(page)
+    confere(quebradasCel.length === 0, `celular: todas as imagens novas carregam${quebradasCel.length ? ': ' + quebradasCel.slice(0, 3).join(' ') : ''}`)
     await ctx.close()
   }
 

@@ -192,6 +192,79 @@ const CSS = `
 
 .cena--menos .pm-folha__arte, .cena--menos .pm-folha, .cena--menos .pm-folha__rar, .cena--menos .pm-folha__nome { transition: none !important; }
 @media (prefers-reduced-motion: reduce) { .pm-folha, .pm-folha__arte, .pm-folha__rar, .pm-folha__nome { transition: none !important; } }
+
+/* ==== kit de interface (arte/ui/*.png, 9 fatias por border-image, escala fixa 2x, sem borrar) ==== */
+.pm-mesa, .pm-jan, .pm-dock, .pm-btn, .pm-aba, .pm-medidor, .pm-medidor__cheio, .pm-barra__trilho, .pm-confianca__gomo, .pm-moldura, .pm-retrato, .pm-icone img, .pm-jan__icone { image-rendering: pixelated; }
+/* papéis de parede clareados por código (o ladrilho 64×64 é o mesmo), mostrados a 2x */
+.pm-mesa--grafico { background: url('arte/ui/papel_grafico_claro.png') 0 0 / 128px 128px repeat, var(--mesa-1); }
+.pm-mesa--comunidade { background: url('arte/ui/papel_comunidade_claro.png') 0 0 / 128px 128px repeat, var(--mesa-2); }
+.pm-mesa--projeto { background: url('arte/ui/papel_projeto_claro.png') 0 0 / 128px 128px repeat, var(--mesa-3); }
+/* janela: moldura com o miolo; a barra de título é vazada e a cor do aplicativo vem por trás */
+.pm-jan { border: 2px solid transparent; border-radius: 0; border-image: url('arte/ui/ui_janela.png') 17 24 3 3 fill / 34px 48px 6px 6px;
+  background: linear-gradient(var(--app), var(--app)) 2px 2px / calc(100% - 4px) 28px no-repeat border-box; background-origin: border-box; }
+.pm-jan:not(.pm-jan--frente) { background-image: linear-gradient(color-mix(in srgb, var(--app) 45%, var(--painel)), color-mix(in srgb, var(--app) 45%, var(--painel))); }
+.pm-jan__barra { height: 28px; padding: 0 46px 0 4px; background: none; border-bottom: 0; }
+.pm-jan:not(.pm-jan--frente) .pm-jan__barra { filter: none; }
+.pm-jan__botoes { display: none; }
+.pm-jan__icone { width: 16px; height: 16px; image-rendering: auto; }
+.pm-jan__corpo { margin-top: 2px; }
+.pm-dock { background: none; border: 0; border-image: url('arte/ui/ui_dock.png') 4 fill / 8px; padding: 8px 8px 6px; }
+.pm-icone img, .pm-icone canvas { width: 32px; height: 32px; }
+.pm-icone[aria-pressed="true"] { border-radius: 0; }
+/* botões: normal, apertado, desligado e destaque */
+.pm-btn { background: none; border: 2px solid transparent; border-radius: 0; border-image: url('arte/ui/ui_btn_normal.png') 6 6 8 6 fill / 12px 12px 16px 12px; padding: 8px 12px 10px; }
+.pm-btn:hover:not(:disabled) { border-color: transparent; filter: brightness(1.12); }
+.pm-btn:active:not(:disabled), .pm-seletor .pm-btn[aria-pressed="true"] { border-image: url('arte/ui/ui_btn_apertado.png') 8 6 6 6 fill / 16px 12px 12px 12px; padding: 10px 12px 8px; }
+.pm-seletor .pm-btn[aria-pressed="true"] { background: none; color: var(--ouro); border-color: transparent; }
+.pm-btn--acao, .pm-btn--perigo { color: var(--acao-texto); background: none; border-color: transparent; border-image: url('arte/ui/ui_btn_destaque.png') 6 6 8 6 fill / 12px 12px 16px 12px; }
+.pm-btn--perigo { filter: hue-rotate(-30deg) saturate(1.3); }
+.pm-btn--perigo:hover:not(:disabled) { filter: hue-rotate(-30deg) saturate(1.3) brightness(1.12); }
+.pm-btn:disabled, .pm-btn--acao:disabled, .pm-btn--perigo:disabled { opacity: 1; color: var(--linho-apagado); filter: none; border-image: url('arte/ui/ui_btn_desligado.png') 6 6 8 6 fill / 12px 12px 16px 12px; }
+select.pm-btn { color: var(--linho); }
+select.pm-btn option { color: var(--acao-texto); }
+/* abas */
+.pm-abas { padding: 6px 4px 0; align-items: flex-end; }
+.pm-aba { background: none; border: 2px solid transparent; border-bottom-width: 0; border-radius: 0; border-image: url('arte/ui/ui_aba_desligada.png') 6 6 2 6 fill / 12px 12px 4px 12px; }
+.pm-aba[aria-selected="true"] { background: none; color: var(--acao-texto); border-image-source: url('arte/ui/ui_aba_ligada.png'); }
+/* barras: trilho vazio + recheio (Calor laranja, trouxas verde, Confiança azul); a raridade pinta o recheio com a cor dela */
+.pm-medidor, .pm-barra__trilho { height: 16px; background: none; border: 0; border-radius: 0; overflow: visible; border-image: url('arte/ui/ui_barra_vazia.png') 0 4 0 4 fill / 0 8px 0 8px; position: relative; }
+.pm-medidor__cheio { background: none; border-image: url('arte/ui/ui_barra_cheia.png') 0 4 0 4 fill / 0 8px 0 8px; }
+.pm-medidor--calor .pm-medidor__cheio { background: none; border-image-source: url('arte/ui/ui_barra_calor.png'); }
+.pm-medidor__previa { top: -2px; bottom: -2px; }
+.pm-barra__trilho { display: block; }
+.pm-barra__cheio { position: absolute; left: 2px; top: 2px; height: 12px; max-width: calc(100% - 4px); }
+.pm-confianca__gomos { gap: 2px; padding: 0; background: none; }
+.pm-confianca__gomo { height: 16px; border-radius: 0; background: none; border-image: url('arte/ui/ui_barra_vazia.png') 0 4 0 4 fill / 0 8px 0 8px; }
+.pm-confianca__gomo--cheio { background: none; border-image-source: url('arte/ui/ui_barra_confianca.png'); }
+.pm-confianca[data-nivel="baixa"] .pm-confianca__gomo--cheio { border-image-source: url('arte/ui/ui_barra_calor.png'); }
+/* moldura da carta (cor da raridade); a arte ou o desenho fica no miolo */
+.pm-moldura { border-style: solid; border-color: transparent; border-width: 6px; border-radius: 0; border-image-slice: 6; border-image-width: 6px; border-image-repeat: stretch; background-clip: padding-box; box-shadow: none; }
+.pm-moldura.pm-rar--comum { border-image-source: url('arte/moldura_carta_comum.png'); }
+.pm-moldura.pm-rar--incomum { border-image-source: url('arte/moldura_carta_incomum.png'); }
+.pm-moldura.pm-rar--raro { border-image-source: url('arte/moldura_carta_raro.png'); }
+.pm-moldura.pm-rar--epico { border-image-source: url('arte/moldura_carta_epico.png'); }
+.pm-moldura.pm-rar--lendario { border-image-source: url('arte/moldura_carta_lendario.png'); }
+.pm-moldura.pm-rar--mitico { border-image-source: url('arte/moldura_carta_mitico.png'); }
+.pm-folha.pm-moldura { border-width: 12px; border-image-width: 12px; border-radius: 0; }
+.pm-folha--arte.pm-moldura { padding: 0; }
+/* a moldura da raridade só aparece junto com a raridade (etapa 2): antes é folha lisa */
+.pm-folha.pm-moldura[data-etapa="0"], .pm-folha.pm-moldura[data-etapa="1"] { border-image-source: none; border-color: var(--linho); }
+.pm-card.pm-moldura { padding: 6px; }
+.pm-ideia.pm-moldura { padding: 4px; }
+.pm-ideia--arte.pm-moldura { padding: 0; }
+/* retratos grandes (96×96 a 1x; o pequeno é metade) */
+.pm-retrato { display: block; flex: none; width: 96px; height: 96px; background: var(--painel-claro); border: 3px solid var(--pix-contorno); border-radius: 8px; box-sizing: content-box; }
+.pm-retrato--p { width: 48px; height: 48px; border-width: 2px; border-radius: 6px; image-rendering: auto; }
+.pm-quem { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pm-quem__txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.pm-msg--infl { display: flex; gap: 8px; align-items: flex-start; }
+.pm-resumo .pm-retrato { align-self: center; }
+.pm-tapete { overflow-y: auto; }
+.pm-batida-topo { display: flex; align-items: center; gap: 10px; }
+.pm-janela__topo .pm-retrato--p { margin-left: -6px; }
+.pm-janela__topo h2 { flex: 1; min-width: 0; }
+.pm-cel-btn { display: inline-flex; align-items: center; gap: 6px; }
+.pm-cel-icone { width: 32px; height: 32px; margin: -6px 0; }
 `;
 
 function h(tag, props = {}, ...filhos) {
@@ -259,6 +332,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   let celularVistas = new Set();
   let celularNovo = false;
   let ultimoEstadoCena = '';
+  let rindoAte = 0; // o Rugrigo ri na cena logo depois de puxar o tapete (só enfeite: o ganho já veio do servidor)
   const revelada = { carta: null }; // última carta impressa (para a folha)
   const menos = () => cena.menosAnimacao;
 
@@ -271,7 +345,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   };
   const caixaArte = (ideia, raridade, tam, comNome) => {
     const im = imgCarta(ideia);
-    return im ? h('div', { class: `pm-arte-caixa pm-arte-caixa--${tam} pm-rar--${raridade}` }, im, comNome ? h('div', { class: 'pm-arte-nome' }, nomeIdeia(ideia)) : null) : null;
+    return im ? h('div', { class: `pm-arte-caixa pm-arte-caixa--${tam} pm-moldura pm-rar--${raridade}` }, im, comNome ? h('div', { class: 'pm-arte-nome' }, nomeIdeia(ideia)) : null) : null;
   };
   const nomeIdeia = (ideia) => { const [r, n] = String(ideia).split('_'); return T(`ideia.${r}.${n}.nome`, ideia); };
   const chaveInflu = (id) => {
@@ -290,6 +364,20 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     b.hype ? `−${Math.round(b.hype * 100)}% de gasto de hype` : '',
     b.calor ? `−${Math.round(b.calor * 100)}% de Calor` : '',
   ].filter(Boolean).join(' · ');
+  // retratos grandes (96×96): influenciador pela chave do servidor (tamanho.n) e o Rugrigo por humor
+  const RETRATOS_INFLU = ['nano.1', 'nano.2', 'nano.3', 'medio.1', 'medio.2', 'medio.3', 'mega.1', 'mega.2'];
+  // carrega os retratos uma vez no começo e guarda a imagem pronta: a batida e o celular abrem já com o rosto
+  const PRONTOS = new Map();
+  ['malandro', 'rindo', 'assustado'].map((x) => `retrato_rugrigo_${x}`).concat(RETRATOS_INFLU.map((k) => `retrato_influ_${k.replace('.', '_')}`)).forEach((n) => {
+    const im = new Image();
+    im.onload = () => {
+      try { const cv = document.createElement('canvas'); cv.width = im.naturalWidth; cv.height = im.naturalHeight; cv.getContext('2d').drawImage(im, 0, 0); PRONTOS.set(n, cv.toDataURL('image/png')); } catch { /* fica o endereço */ }
+    };
+    im.src = `arte/${n}.png`;
+  });
+  const retrato = (arquivo, quem, tam = 'g') => h('img', { class: `pm-retrato pm-retrato--${tam}`, src: PRONTOS.get(arquivo) || `arte/${arquivo}.png`, alt: '', 'aria-hidden': 'true', draggable: 'false', 'data-pm': 'retrato', 'data-quem': quem });
+  const retratoInflu = (id, tam) => { const k = chaveInflu(id); return k && RETRATOS_INFLU.includes(k) ? retrato(`retrato_influ_${k.replace('.', '_')}`, `influ.${k}`, tam) : null; };
+  const retratoRugrigo = (humor, tam) => retrato(`retrato_rugrigo_${humor}`, `rugrigo.${humor}`, tam);
   const chipRar = (r) => h('span', { class: `pm-chip pm-rar--${r}` }, ROTULO_RARIDADE[r] || r);
 
   const projetosNoAr = () => (visao ? visao.estado.projetos.filter((p) => NO_AR.includes(p.fase)) : []);
@@ -328,7 +416,13 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   }
 
   // ----- ícone em pixel art (canvas 16×16, ampliado pelo CSS sem borrar) -----
+  // ícone de arte (arte/ui/icone_<app>.png, 32×32); se a imagem faltar, volta ao desenho por código
   function icone(app, classe) {
+    const img = h('img', { class: classe || '', src: `arte/ui/icone_${app}.png`, alt: '', 'aria-hidden': 'true', draggable: 'false', 'data-pm': 'icone' });
+    img.addEventListener('error', () => img.replaceWith(iconeDesenhado(app, classe)), { once: true });
+    return img;
+  }
+  function iconeDesenhado(app, classe) {
     const cv = h('canvas', { class: classe || '', width: '16', height: '16', 'aria-hidden': 'true' });
     const c = cv.getContext('2d');
     const cores = {};
@@ -523,6 +617,8 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     render('grafico');
     const r = await api.tapete(p.id);
     if (!r.ok) { cenaAtiva.tapete = false; aplicar(r); render('grafico'); return; }
+    rindoAte = Date.now() + 8000;
+    setTimeout(pintarCena, 8100);
     aplicar(r, null, true);
     tocarTapete({ p, nome, fim, valores, res: r.resultado });
   }
@@ -571,6 +667,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
       timerGigante = setTimeout(tirarGigante, 2600);
       const calorAgora = visao.estado.calor;
       sobre.replaceChildren(h('div', { class: 'pm-resumo', 'data-pm': 'tapete-resumo' },
+        retratoRugrigo('rindo'),
         h('h3', { style: 'margin:0' }, `${nome}: tapete puxado`),
         h('div', { class: 'pm-grande' }, `+${din(ganho)}`),
         h('p', {}, `Calor +${fmt(res.calor, 1)} (agora ${fmt(calorAgora, 1)} de ${CALOR.maximo})`),
@@ -659,7 +756,9 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   function renderChat(t) {
     if (!projetosNoAr().length && !chat.length) { t.corpo.append(h('p', { class: 'pm-vazio' }, 'A comunidade só aparece quando tem golpe no ar.')); return; }
     t.corpo.append(h('div', { class: 'pm-chat', 'data-pm': 'chat' },
-      chat.slice(-40).map((m) => h('div', { class: `pm-msg${m.influ ? ' pm-msg--infl' : ''}` }, h('b', {}, m.autor), m.influ ? ' (influenciador): ' : ': ', m.texto))));
+      chat.slice(-40).map((m) => (m.influ
+        ? h('div', { class: 'pm-msg pm-msg--infl' }, m.influId ? retratoInflu(m.influId, 'p') : null, h('div', {}, h('b', {}, m.autor), ' (influenciador): ', m.texto))
+        : h('div', { class: 'pm-msg' }, h('b', {}, m.autor), ': ', m.texto)))));
     t.corpo.scrollTop = t.corpo.scrollHeight;
   }
 
@@ -676,7 +775,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
       const p = comParceiro[ticChat % comParceiro.length];
       const g = chaveInflu(p.contrato.influenciador);
       const n = (ticChat % 5) + 1;
-      chat.push({ autor: nomeInflu(p.contrato.influenciador), influ: true, texto: citar(T(`influ.${g}.post.${n}`), nomeIdeia(p.ideia)) });
+      chat.push({ autor: nomeInflu(p.contrato.influenciador), influ: true, influId: p.contrato.influenciador, texto: citar(T(`influ.${g}.post.${n}`), nomeIdeia(p.ideia)) });
       influ = true;
     }
     if (chat.length > 60) chat.splice(0, chat.length - 60);
@@ -741,7 +840,8 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     if (!g.length) t.corpo.append(h('p', { class: 'pm-vazio' }, 'Gaveta vazia. A impressora faz ideias novas.'));
     g.forEach((x) => {
       const maior = x.raridade === RARIDADES[RARIDADES.length - 1];
-      t.corpo.append(h('div', { class: `pm-card pm-rar--${x.raridade}`, style: 'border-color: var(--rc)', 'data-pm': 'carta' },
+      // com arte, a moldura fica só em volta da imagem; sem arte, em volta da carta inteira
+      t.corpo.append(h('div', { class: `pm-card${arteCarta(x.ideia) ? '' : ' pm-moldura'} pm-rar--${x.raridade}`, style: 'border-color: var(--rc)', 'data-pm': 'carta' },
         caixaArte(x.ideia, x.raridade, 'faixa', false),
         h('div', { class: 'pm-linha' }, h('strong', {}, `${x.ids.length}× ${nomeIdeia(x.ideia)}`), chipRar(x.raridade)),
         h('div', { class: 'pm-botoes' },
@@ -759,7 +859,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
           const arte = visao.estado.album[id] ? caixaArte(id, raridade, 'cheia', true) : null;
           return visao.estado.album[id]
             ? (arte ? h('div', { class: `pm-ideia pm-ideia--arte pm-rar--${raridade}`, 'data-pm': 'album-visto' }, arte)
-              : h('div', { class: `pm-ideia pm-rar--${raridade}`, 'data-pm': 'album-visto' }, nomeIdeia(id)))
+              : h('div', { class: `pm-ideia pm-moldura pm-rar--${raridade}`, 'data-pm': 'album-visto' }, nomeIdeia(id)))
             : h('div', { class: 'pm-ideia pm-ideia--oculta', 'aria-label': 'Ideia ainda não vista', 'data-pm': 'album-oculto' }, '?');
         }))));
     });
@@ -784,7 +884,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     folha.append(h('div', { style: 'opacity:.55;font-weight:700' }, revelada.carta ? '' : 'Folha em branco'), rar, nome);
     if (revelada.carta) {
       const c = revelada.carta;
-      folha.className = `pm-folha pm-rar--${c.raridade}`; folha.dataset.etapa = cenaAtiva.revelacao ? '0' : '3';
+      folha.className = `pm-folha pm-moldura pm-rar--${c.raridade}`; folha.dataset.etapa = cenaAtiva.revelacao ? '0' : '3';
       rar.append(chipRar(c.raridade)); nome.textContent = nomeIdeia(c.ideia);
       const arte = imgCarta(c.ideia, 'pm-arte pm-folha__arte');
       if (arte) { folha.classList.add('pm-folha--arte'); folha.prepend(arte); }
@@ -865,7 +965,8 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     const frase = srv.frase ?? daFamilia('batida', Math.max(0, (visao.estado.contagem?.batidas ?? 1) - 1));
     const novoNome = srv.nomeAposRebrand ?? (p ? daFamilia('rebrand', p.id - 1 + (p.rebrands || 0)).replaceAll('{nome}', nome) : '');
     return [
-      frase ? h('p', { class: 'pm-batida-frase', 'data-pm': 'batida-frase' }, frase) : null,
+      h('div', { class: 'pm-batida-topo' }, retratoRugrigo('assustado'),
+        frase ? h('p', { class: 'pm-batida-frase', 'data-pm': 'batida-frase' }, frase) : null),
       h('p', {}, `O Calor chegou a ${CALOR.maximo}. A polícia quer saber de `, h('strong', {}, nome), '.'),
       h('div', { class: 'pm-opcao' },
         h('strong', {}, 'Fazer rebrand'),
@@ -893,12 +994,12 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   // =============================================================================================
   // JANELA genérica (X, Esc, clique fora e botão fecham)
   // =============================================================================================
-  function janela({ titulo, classe = '', dado, corpo, aoFechar }) {
+  function janela({ titulo, classe = '', dado, corpo, aoFechar, retrato: foto = null }) {
     const antes = document.activeElement;
     const corpoEl = h('div', { class: 'pm-janela__corpo' }, corpo);
     const fechar = () => { document.removeEventListener('keydown', tecla, true); fundo.remove(); aoFechar?.(); antes?.focus?.({ preventScroll: true }); };
     const x = h('button', { type: 'button', class: 'pm-btn', 'aria-label': 'Fechar janela', 'data-pm': 'janela-x', onclick: fechar }, '✕');
-    const caixa = h('div', { class: 'pm-janela__caixa', role: 'dialog', 'aria-modal': 'true', 'aria-label': titulo }, h('div', { class: 'pm-janela__topo' }, h('h2', {}, titulo), x), corpoEl);
+    const caixa = h('div', { class: 'pm-janela__caixa', role: 'dialog', 'aria-modal': 'true', 'aria-label': titulo }, h('div', { class: 'pm-janela__topo' }, foto, h('h2', {}, titulo), x), corpoEl);
     const fundo = h('div', { class: `pm-janela ${classe}`, 'data-pm': `janela-${dado}`, onclick: (e) => { if (e.target === fundo) fechar(); } }, caixa);
     function tecla(e) { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); fechar(); } }
     document.addEventListener('keydown', tecla, true);
@@ -949,7 +1050,8 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
       else if (c.fase === 'V3_NO_AR') bal.push(h('div', { class: 'pm-balao' }, citar(T('video.3.roteiro'), nome)));
       else if (c.fase === 'ENCERRADO') bal.push(h('div', { class: 'pm-balao' }, c.motivo === 'sumiu' ? T('msg.sumir') : c.motivo === 'apreendido' ? 'O projeto foi apreendido: parceria encerrada.' : 'Você recusou. Ele visualizou e não respondeu.'));
       return h('div', { class: 'pm-card' },
-        h('div', { class: 'pm-linha' }, h('strong', {}, `${quem} · ${nome}`), inf?.reincidente ? h('span', { class: 'pm-selo' }, 'REINCIDENTE') : null),
+        h('div', { class: 'pm-quem' }, retratoInflu(c.influenciador),
+          h('div', { class: 'pm-quem__txt' }, h('strong', {}, quem), h('span', { class: 'pm-pequeno' }, nome), inf?.reincidente ? h('span', { class: 'pm-selo' }, 'REINCIDENTE') : null)),
         h('div', { class: 'pm-conversa' }, bal));
     }));
   }
@@ -968,7 +1070,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
         const g = chaveInflu(i.id), nome = T(`influ.${g}.nome`, i.id);
         const falta = i.p1 - visao.estado.caixa;
         return h('div', { class: 'pm-card', 'data-pm': 'influenciador' },
-          h('div', { class: 'pm-linha' }, h('strong', {}, nome), h('span', {}, h('span', { class: 'pm-chip' }, ROTULO_TAMANHO[i.tamanho]), i.reincidente ? ' ' : '', i.reincidente ? h('span', { class: 'pm-selo' }, 'REINCIDENTE') : '')),
+          h('div', { class: 'pm-linha' }, h('span', { class: 'pm-quem' }, retratoInflu(i.id, 'p'), h('strong', {}, nome)), h('span', {}, h('span', { class: 'pm-chip' }, ROTULO_TAMANHO[i.tamanho]), i.reincidente ? ' ' : '', i.reincidente ? h('span', { class: 'pm-selo' }, 'REINCIDENTE') : '')),
           h('p', { class: 'pm-pequeno' }, T(`influ.${g}.bio`)),
           i.liberado
             ? h('div', { class: 'pm-linha' }, h('span', {}, `Vídeo 1: `, h('span', { class: 'pm-num' }, din(i.p1)), i.carimbos ? ` · ${i.carimbos} carimbo(s)` : ''),
@@ -999,7 +1101,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     pendentes().forEach((p) => celularVistas.add(chaveProposta(p)));
     atualizarCelularNovo();
     if (janelaCelular) { janelaCelular.atualizar(conteudoCelular()); return; }
-    janelaCelular = janela({ titulo: 'Celular da mesa', dado: 'celular', corpo: conteudoCelular(), aoFechar: () => { janelaCelular = null; } });
+    janelaCelular = janela({ titulo: 'Celular da mesa', dado: 'celular', corpo: conteudoCelular(), retrato: retratoRugrigo('malandro', 'p'), aoFechar: () => { janelaCelular = null; } });
   }
 
   function atualizarCelularNovo() {
@@ -1010,7 +1112,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
 
   // botão do celular dentro da vista dos monitores
   const topoZoom = raiz.querySelector('.cena__zoom-topo');
-  const botaoCel = h('button', { type: 'button', class: 'cena__btn', 'data-pm': 'celular-btn', onclick: () => abrirCelular() }, h('span', { class: 'pm-cel-rot' }, 'Celular'));
+  const botaoCel = h('button', { type: 'button', class: 'cena__btn pm-cel-btn', 'data-pm': 'celular-btn', onclick: () => abrirCelular() }, icone('celular', 'pm-cel-icone'), h('span', { class: 'pm-cel-rot' }, 'Celular'));
   topoZoom?.append(botaoCel);
 
   // =============================================================================================
@@ -1051,17 +1153,24 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     else if (e.batida && janelaBatida) janelaBatida.atualizar(conteudoBatida());
     if (antes && !cenaAtiva.revelacao) { /* chat anda só nas atualizações de rotina */ }
     if (atualizarCelularNovo()) avisar(2);
-    // cena do porão
-    const luxos = [...e.luxos];
-    const trouxas = projetosNoAr().reduce((s, p) => s + Math.round(p.trouxas), 0);
-    const hype = Math.round(Math.max(0, ...projetosNoAr().map((p) => p.hype)));
-    const sig = JSON.stringify([trouxas, hype, luxos, celularNovo]);
-    if (sig !== ultimoEstadoCena) { ultimoEstadoCena = sig; cena.definirEstado({ trouxas, hype, luxos, celularNovo }); }
+    pintarCena();
     for (const id of Object.keys(MESAS)) render(id, false);
     if (janelaCelular) {
       const sc = JSON.stringify([e.projetos.map((p) => p.contrato), e.caixa, abaCelular, projetoContratar, e.contagem.tapetes]);
       if (sc !== sigCelular) { sigCelular = sc; janelaCelular.atualizar(conteudoCelular()); }
     }
+  }
+
+  /** Cena do porão: trouxas, hype, luxos, aviso do celular e a pose do Rugrigo. */
+  function pintarCena() {
+    if (!visao) return;
+    const e = visao.estado;
+    const luxos = [...e.luxos];
+    const trouxas = projetosNoAr().reduce((s, p) => s + Math.round(p.trouxas), 0);
+    const hype = Math.round(Math.max(0, ...projetosNoAr().map((p) => p.hype)));
+    const pose = e.batida ? 'batida' : Date.now() < rindoAte ? 'rindo' : 'normal';
+    const sig = JSON.stringify([trouxas, hype, luxos, celularNovo, pose]);
+    if (sig !== ultimoEstadoCena) { ultimoEstadoCena = sig; cena.definirEstado({ trouxas, hype, luxos, celularNovo, pose }); }
   }
 
   /** Chamado a cada atualização de rotina (não depois de ações). */

@@ -3,7 +3,7 @@
 //
 // API:
 //   const cena = await criarCena(elementoRaiz, { estado, aoClicar, aoMudarVista, menosAnimacao });
-//   cena.definirEstado({ trouxas, hype, luxos, celularNovo })   // redesenha
+//   cena.definirEstado({ trouxas, hype, luxos, celularNovo, pose })   // redesenha; pose: 'normal' | 'rindo' | 'batida'
 //   cena.definirMenosAnimacao(true|false)
 //   cena.abrirMonitores(indice = 0) / cena.voltar() / cena.irParaMonitor(i)
 //   cena.avisarMonitor(i, true|false)    // borda acesa (sem piscar) no monitor fora da vista
@@ -13,23 +13,32 @@
 //   aoMudarVista(vista)
 import * as sprites from './sprites.js';
 
-export const LARGURA = 272;
-export const ALTURA = 196;
-const OX = 136, OY = 58, LADO = 8;
+// A base é a sala-âncora pintada (arte/sala.png, 248×176, losango 32×16). Embaixo dela fica o anexo da garagem.
+export const LARGURA = 248;
+export const ALTURA = 212;
+const OX = 124, OY = 58, LADO = 8; // só para o chão desenhado de reserva (sem a imagem da sala)
 const iso = (gx, gy) => [OX + Math.round((gx - gy) * 16), OY + Math.round((gx + gy) * 8)];
 
 export const LUXOS = ['cadeira_gamer', 'aquario', 'ar_condicionado', 'letreiro_neon', 'maquina_bebida', 'tela_curva', 'garagem'];
+// ponto de âncora de cada luxo em pixels da sala (arte/porao/objetos/montar_objetos.py, POSICOES); garagem no anexo
 const LUGAR = {
-  aquario: [0.7, 4.6], cadeira_gamer: [6.6, 2.6], maquina_bebida: [7.3, 0.7], garagem: [6.4, 6.0],
-  // [gx, gy, altura]: dois na parede e um em cima da mesa
-  ar_condicionado: [6.3, 0, 40], letreiro_neon: [0, 3.3, 34], tela_curva: [3.2, 0.2, 12],
+  ar_condicionado: [196, 48], letreiro_neon: [78, 30], maquina_bebida: [52, 92], aquario: [76, 134],
+  tela_curva: [122, 74], cadeira_gamer: [168, 112], garagem: [190, 184],
 };
+const NA_PAREDE = ['ar_condicionado', 'letreiro_neon'];
+const RUGRIGO = [141, 104];
+const CELULAR = [181, 79];
+// áreas de clique da sala pintada: mesa com os 3 monitores e a escada
+const AREA_PC = { x: 124, y: 38, w: 62, h: 46 };
+const AREA_ESCADA = { x: 144, y: 100, w: 48, h: 64 };
+const PC_PONTO = [154, 50];
+// chão livre para os trouxas (pixels da sala, frente da sala e lados da escada)
+const ZONA_TROUXAS = [[94, 120], [200, 126], [120, 156], [66, 124], [108, 138], [128, 126], [214, 118], [52, 116], [80, 130], [116, 146]];
 const MONITORES = [
   { id: 'grafico', titulo: 'Gráfico', sprite: 'monitor_grafico', gx: 3.5 },
   { id: 'comunidade', titulo: 'Comunidade', sprite: 'monitor_comunidade', gx: 4.5 },
   { id: 'projeto', titulo: 'Projeto', sprite: 'monitor_projeto', gx: 5.5 },
 ];
-const ZONA_TROUXAS = [[2.6, 3.8], [3.6, 4.2], [4.5, 3.8], [3.0, 5.0], [4.0, 5.2], [2.4, 4.4], [4.9, 4.6], [3.4, 5.7], [4.6, 5.6], [2.6, 5.7], [3.9, 4.7], [3.2, 3.6]];
 export const MAX_PARTICULAS = 40;      // normal (teto do guia de estilo: 90)
 export const MAX_PARTICULAS_MENOS = 20; // metade, com "Menos animação"
 
@@ -44,7 +53,8 @@ export async function criarCena(raiz, opcoes = {}) {
   sprites.preparar();
   await sprites.carregarArte();
 
-  let estado = { trouxas: 0, hype: 0, luxos: [], celularNovo: false, ...(opcoes.estado || {}) };
+  let estado = { trouxas: 0, hype: 0, luxos: [], celularNovo: false, pose: 'normal', ...(opcoes.estado || {}) };
+  const imgSala = sprites.sala();
   const media = window.matchMedia('(prefers-reduced-motion: reduce)');
   let forcado = opcoes.menosAnimacao ?? (localStorage.getItem('menos_animacao') === '1');
   const menos = () => forcado || media.matches;
@@ -67,6 +77,8 @@ export async function criarCena(raiz, opcoes = {}) {
   const btnMon = el('button', 'cena__btn cena__btn--primario', 'Ver monitores');
   const btnCel = el('button', 'cena__btn', 'Celular');
   btnMon.type = btnCel.type = 'button';
+  const iconeCel = el('img', 'cena__btn-icone'); iconeCel.src = 'arte/ui/icone_celular.png'; iconeCel.alt = ''; iconeCel.setAttribute('aria-hidden', 'true');
+  btnCel.prepend(iconeCel);
   botoes.append(btnMon, btnCel); hud.append(cont, botoes);
 
   const zoom = el('section', 'cena__zoom'); zoom.hidden = true;
@@ -104,6 +116,7 @@ export async function criarCena(raiz, opcoes = {}) {
   const fctx = fundo.getContext('2d');
   function montarFundo() {
     fctx.clearRect(0, 0, LARGURA, ALTURA);
+    if (imgSala) { fctx.drawImage(imgSala, 0, 0); return; }
     for (let s = 0; s <= 2 * (LADO - 1); s++) {
       for (let gx = 0; gx < LADO; gx++) {
         const gy = s - gx; if (gy < 0 || gy >= LADO) continue;
@@ -126,32 +139,35 @@ export async function criarCena(raiz, opcoes = {}) {
   let particulas = [];
   let tempo = 0;
 
+  // objetos soltos por cima da sala: [nome, x, y] em pixels da sala (âncora = pé no chão)
   function objetos() {
     const o = [];
-    const add = (nome, gx, gy, extra = {}) => o.push({ nome, gx, gy, ordem: extra.ordem ?? gx + gy, z: 0, ...extra });
-    add('escada', 1.0, 1.6, { alvo: 'escada' });
-    add('mesa', 4.5, 0.5, { alvo: 'pc' });
-    MONITORES.forEach((m) => add(m.sprite, m.gx, 0.35, { z: 12, ordem: 7 + m.gx, alvo: 'pc' }));
-    add('celular', 5.55, 0.85, { z: 12, ordem: 9, alvo: 'celular' });
-    add('cadeira', 4.5, 2.0, { ordem: 6.4 });
-    add(menos() || Math.floor(tempo / 0.4) % 2 === 0 ? 'rugrigo_a' : 'rugrigo_b', 4.5, 2.0, { ordem: 6.6, alvo: 'rugrigo' });
-    add('sofa', 2.3, 7.0); // decoração fixa (não é compra)
+    const add = (nome, x, y, extra = {}) => o.push({ nome, x, y, ordem: extra.ordem ?? y, ...extra });
+    if (!imgSala) {
+      // reserva sem a imagem: móveis desenhados por código
+      const g = (gx, gy) => iso(gx, gy);
+      add('escada', ...g(1.0, 1.6), { alvo: 'escada' });
+      add('mesa', ...g(4.5, 0.5), { alvo: 'pc' });
+      MONITORES.forEach((m) => { const [x, y] = g(m.gx, 0.35); add(m.sprite, x, y - 12, { ordem: 0, alvo: 'pc' }); });
+    }
+    add('celular', CELULAR[0], CELULAR[1], { alvo: 'celular', ordem: 90 });
+    const pose = estado.pose === 'rindo' ? 'rugrigo_rindo' : estado.pose === 'batida' ? 'rugrigo_batida' : 'rugrigo_b';
+    add(pose, RUGRIGO[0], RUGRIGO[1], { alvo: 'rugrigo' });
     for (const id of estado.luxos) {
       if (!LUGAR[id]) continue;
-      const [gx, gy, z = 0] = LUGAR[id];
-      const naParede = id === 'ar_condicionado' || id === 'letreiro_neon';
-      add(id, gx, gy, { alvo: 'luxo', id, z, ordem: naParede ? -1 : id === 'tela_curva' ? 6.9 : gx + gy + (id === 'garagem' ? 0.01 : 0) });
+      const [x, y] = LUGAR[id];
+      add(id, x, y, { alvo: 'luxo', id, ordem: NA_PAREDE.includes(id) ? -1 : y + (id === 'cadeira_gamer' ? 1 : 0) });
     }
-    const n = Math.min(12, estado.trouxas > 0 ? Math.ceil(Math.sqrt(estado.trouxas) / 2) : 0);
+    const n = Math.min(ZONA_TROUXAS.length, estado.trouxas > 0 ? Math.ceil(Math.sqrt(estado.trouxas) / 2) : 0);
     for (let i = 0; i < n; i++) {
       const [bx, by] = ZONA_TROUXAS[i];
-      const f = menos() ? 0 : Math.sin(tempo * 0.6 + i * 1.7) * 0.35;
-      add('trouxa_' + (1 + (i % 3)), bx + f, by - f * 0.6, { alvo: 'trouxas' });
+      const f = menos() ? 0 : Math.sin(tempo * 0.6 + i * 1.7);
+      add('trouxa_' + (1 + (i % 4)), bx + Math.round(f * 5), by - Math.round(f * 2), { alvo: 'trouxas', espelho: i % 2 === 1, ordem: by });
     }
-    return o.sort((a, b) => a.ordem - b.ordem);
+    return o.sort((p, q) => p.ordem - q.ordem);
   }
 
-  function pcPonto() { const [x, y] = iso(4.5, 0.35); return [x, y - 30]; }
+  function pcPonto() { return PC_PONTO; }
 
   function atualizarParticulas(dt) {
     const max = menos() ? MAX_PARTICULAS_MENOS : MAX_PARTICULAS;
@@ -181,22 +197,20 @@ export async function criarCena(raiz, opcoes = {}) {
   function desenharQuadro() {
     ctx.clearRect(0, 0, LARGURA, ALTURA);
     ctx.drawImage(fundo, 0, 0);
-    regioes = [];
-    // lugares marcados dos luxos que ainda não existem
+    regioes = [{ ...AREA_ESCADA, alvo: 'escada' }, { ...AREA_PC, alvo: 'pc' }];
+    // lugares dos luxos que ainda não existem: contorno apagado, só para dar a ideia
+    ctx.globalAlpha = 0.35;
     for (const id of LUXOS) {
       if (estado.luxos.includes(id)) continue;
-      const [x, y] = iso(LUGAR[id][0], LUGAR[id][1]);
-      const r = sprites.desenhar(ctx, 'lugar_' + id, x, y - (LUGAR[id][2] || 0));
-      if (r) regioes.push({ ...r, alvo: 'luxo', id, livre: true, ordem: -1 });
+      const [x, y] = LUGAR[id];
+      const r = NA_PAREDE.includes(id) ? sprites.desenhar(ctx, 'lugar_' + id, x + (id === 'letreiro_neon' ? -10 : 10), y + 14) : sprites.desenhar(ctx, 'lugar_' + id, x, y);
+      if (r) regioes.push({ ...r, alvo: 'luxo', id, livre: true });
     }
+    ctx.globalAlpha = 1;
     for (const ob of objetos()) {
-      const [x, y] = iso(ob.gx, ob.gy);
-      const r = sprites.desenhar(ctx, ob.nome, x, y - ob.z);
+      const r = sprites.desenhar(ctx, ob.nome, ob.x, ob.y, ob.espelho);
       if (r) regioes.push({ ...r, alvo: ob.alvo, id: ob.id });
-      if (ob.nome === 'celular' && estado.celularNovo) {
-        const b = sprites.desenhar(ctx, 'celular_brilho', x, y - ob.z - 8);
-        void b;
-      }
+      if (ob.nome === 'celular' && estado.celularNovo) sprites.desenhar(ctx, 'celular_brilho', ob.x, ob.y - 8);
     }
     for (const p of particulas) sprites.desenhar(ctx, p.tipo, Math.round(p.x), Math.round(p.y));
   }
@@ -230,7 +244,10 @@ export async function criarCena(raiz, opcoes = {}) {
     const w = palco.clientWidth, h = palco.clientHeight;
     if (!w || !h) return;
     let e = Math.min(w / LARGURA, h / ALTURA);
+    // escala inteira; abaixo de 2x (celular) tenta inteira em pixels do aparelho, senão fracionária sem borrar (pixelated)
+    const dpr = window.devicePixelRatio || 1;
     if (e >= 2) e = Math.floor(e);
+    else if (Math.floor(e * dpr) >= 2) e = Math.floor(e * dpr) / dpr;
     escala = e;
     const cw = Math.round(LARGURA * e), ch = Math.round(ALTURA * e);
     canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
@@ -340,6 +357,7 @@ export async function criarCena(raiz, opcoes = {}) {
     get vista() { return vista; },
     get menosAnimacao() { return menos(); },
     get particulas() { return particulas.length; },
+    get temSala() { return !!imgSala; },
     obterEstado: () => ({ ...estado, luxos: [...estado.luxos] }),
     definirEstado(novo) { estado = { ...estado, ...novo, luxos: [...(novo.luxos ?? estado.luxos)] }; atualizarHud(); redesenhar(); },
     definirMenosAnimacao(v) {

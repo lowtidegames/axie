@@ -2,6 +2,10 @@
 // O desenho de texto roda aqui de verdade, sem navegador: uma tela de mentira (pixels RGBA na memória) recebe o MESMO código
 // do jogo (arte.js), com o atlas de verdade lido do disco (PNG aberto com o zlib do Node).
 //   · INGLÊS IDÊNTICO: cada frase de `reino-letras-antes.json` (tirada ANTES da mudança) sai pixel a pixel igual, em todas as fontes.
+//   · toda letra da lista (latim com acento, sinais, 33 do russo) tem desenho nos dois tamanhos e nas 8 variantes de cor, largura > 0
+//   · maiúscula certa (turco i→İ e ı→I; alemão ß→SS) · acento sobe e cedilha desce no máximo 2 px, sem mudar a altura da fonte
+//   · frase com tailandês/vietnamita vai INTEIRA para a letra do aparelho, na cor da variante, e fica em `Letras.faltas()`
+//   · quebrar (igual à quebra antiga quando cabe; hífen na palavra maior que a caixa) e caber (grande → pequena → reticências), com `Letras.estouros()`
 // Regravar a referência (só quando a regra mudar, dizendo qual):  REINO_LETRAS_GRAVAR=1 node tests/servidor/reino-letras.test.js
 // Rodar: node --test tests/servidor/reino-letras.test.js
 import { test, describe, before } from 'node:test'
@@ -102,6 +106,16 @@ globalThis.fetch = async (u, ...r) => {
 }
 
 const Arte = await import('../../public/reino/js/arte.js')
+const { Letras, LISTA, NOVAS, ALTURA, FOLGA, G3, G5, maiuscula, semGlifo, temGlifo, quebrarCom } = await import('../../public/reino/js/letras.js')
+const VARIANTES = ['reino', 'reino-contorno', 'reino-ouro', 'reino-verde', 'mini', 'mini-contorno', 'mini-ouro', 'mini-verde']
+const TINTA = { 'reino-contorno': '255,246,224', 'reino-ouro': '255,210,72', 'reino-verde': '150,240,130', 'mini-contorno': '255,246,224', 'mini-ouro': '255,210,72', 'mini-verde': '150,240,130', reino: '255,255,255', mini: '255,255,255' }
+/** Desenha e conta os pixels por cor ("r,g,b" → quantos) e as linhas usadas (topo e base, contando de y = 10). */
+function pintar(s, fonte, opc = {}) {
+  const [c, g] = nova(400, 40), w = Arte.texto(g, s, 6, 10, { fonte, ...opc }), d = c.dados(), cores = {}
+  let topo = 99, base = -99
+  for (let y = 0; y < 40; y++) for (let x = 0; x < 400; x++) { const i = (y * 400 + x) * 4; if (!d[i + 3]) continue; const k = d[i] + ',' + d[i + 1] + ',' + d[i + 2]; cores[k] = (cores[k] || 0) + 1; if (y - 10 < topo) topo = y - 10; if (y - 10 > base) base = y - 10 }
+  return { w, cores, topo, base, textos: g.textos }
+}
 const FONTES = ['reino', 'reino-contorno', 'reino-ouro', 'reino-verde', 'mini', 'mini-contorno', 'mini-ouro', 'dano-g', 'dano-g-ouro']
 const sha = (c) => crypto.createHash('sha1').update(c.dados()).digest('hex').slice(0, 10)
 const nova = (w, h) => { const c = new Tela(w, h); return [c, c.getContext('2d')] }
@@ -146,6 +160,155 @@ if (process.env.REINO_LETRAS_GRAVAR) {
 } else {
   const ref = JSON.parse(fs.readFileSync(ANTES, 'utf8'))
   before(async () => { await Arte.carregar(CONFIG) })
+
+  describe('R54 — as letras novas', () => {
+    test('as tabelas: cada glifo é um retângulo, sobe e desce no máximo a folga, e nenhuma letra de sempre foi mexida', () => {
+      for (const t of ['reino', 'mini']) for (const [ch, gl] of Object.entries(NOVAS[t])) {
+        assert.ok(gl.l.every((r) => r.length === gl.l[0].length && /^[.#]+$/.test(r)), `${t} ${ch}: linhas tortas`)
+        assert.ok(gl.l.some((r) => r.includes('#')), `${t} ${ch}: vazio`)
+        assert.ok(gl.c >= 0 && gl.c <= FOLGA && gl.l.length - gl.c >= ALTURA[t] && gl.l.length - gl.c - ALTURA[t] <= FOLGA, `${t} ${ch}: sobe ${gl.c}, ${gl.l.length} linhas`)
+        assert.ok(!(t === 'reino' ? G5 : G3)[ch], `${t} ${ch}: já existia na fonte de sempre`)
+      }
+      assert.equal(crypto.createHash('sha1').update(JSON.stringify([G5, G3])).digest('hex').slice(0, 12), 'ae4f45baca7b', 'G5/G3 (as fontes do inglês, conferidas contra o arquivo de antes) não mudam')
+    })
+    test('toda letra da lista tem glifo nos dois tamanhos, largura > 0, e sai na cor da variante (nunca numa reserva sem cor)', () => {
+      const todas = Object.values(LISTA).flat()
+      assert.equal(LISTA.cirilico.length, 33); assert.equal(new Set(LISTA.cirilico).size, 33)
+      for (const ch of 'ÁÀÂÃÄÅÇÉÈÊËÍÌÎÏÑÓÒÔÕÖÚÙÛÜÝŸŒÆĞŞİ¿¡«»ºª') assert.ok(LISTA.latim.includes(ch) || LISTA.sinais.includes(ch), 'a lista pedida tem ' + ch)
+      Letras.limpar()
+      for (const ch of todas) {
+        assert.ok(temGlifo(ch, 'reino') && temGlifo(ch, 'mini'), 'tabela: ' + ch)
+        for (const f of VARIANTES) {
+          assert.ok(Arte.temLetra(ch, f), `${f}: ${ch}`)
+          assert.ok(Arte.largura(ch, f) > 0, `${f}: largura de ${ch}`)
+          const p = pintar(ch, f), tinta = Object.keys(p.cores).filter((k) => k !== '43,30,58')
+          assert.deepEqual(tinta, [TINTA[f]], `${f}: ${ch} sai só na cor da variante`)
+          assert.ok(p.topo >= -FOLGA - 1 && p.base <= Arte.alturaDaFonte(f) + FOLGA, `${f}: ${ch} fica entre ${p.topo} e ${p.base}`)
+        }
+      }
+      assert.deepEqual(Letras.faltas(), [], 'nenhuma foi para a letra do aparelho')
+      // a cor pedida (fontes lisas) pinta também as letras novas
+      assert.deepEqual(Object.keys(pintar('AÇÃO ЩИТ', 'reino', { cor: '#FFD248' }).cores), ['255,210,72'])
+      assert.deepEqual(Object.keys(pintar('AÇÃO ЩИТ', 'mini', { cor: '#96F082' }).cores), ['150,240,130'])
+    })
+    test('letra do russo de mesma forma usa o desenho do latim; a que é só do russo tem desenho próprio', () => {
+      for (const f of VARIANTES) { assert.equal(umaFrase('АВЕКМНОРСТХ', f)[1], umaFrase('ABEKMHOPCTX', f)[1], f); assert.notEqual(umaFrase('У', f)[1], umaFrase('Y', f)[1], f) }
+      assert.notEqual(umaFrase('Ё', 'reino')[1], umaFrase('Е', 'reino')[1]); assert.notEqual(umaFrase('Й', 'mini')[1], umaFrase('И', 'mini')[1])
+    })
+    test('a altura da linha não muda: o acento usa até 2 px acima do topo e a cedilha até 2 px abaixo da base', () => {
+      const alt = { reino: 7, 'reino-contorno': 9, 'reino-ouro': 9, 'reino-verde': 9, mini: 5, 'mini-contorno': 7, 'mini-ouro': 7 }
+      for (const [f, h] of Object.entries(alt)) {
+        assert.equal(Arte.alturaDaFonte(f), h, f)
+        const liso = pintar('AEIOU', f), ac = pintar('ÁÊÏÕÙ', f), ce = pintar('ÇŞ', f)
+        assert.deepEqual([liso.topo, liso.base], [0, h - 1], f + ': sem acento, dentro da altura')
+        assert.deepEqual([ac.topo, ac.base], [-2, h - 1], f + ': acento 2 px acima, base no lugar')
+        assert.deepEqual([ce.topo, ce.base], [0, h + 1], f + ': cedilha 2 px abaixo')
+        assert.equal(pintar('Á', f).w, pintar('A', f).w, f + ': Á tem a largura de A')
+      }
+      // o título guardado (tela justa) não corta o acento nem a cedilha
+      const [c, g] = nova(200, 60); Arte.titulo(g, 'ÁÇ', 100, 20, 2, true)
+      const d = c.dados(); let topo = 99, base = -1
+      for (let y = 0; y < 60; y++) for (let x = 0; x < 200; x++) if (d[(y * 200 + x) * 4 + 3]) { if (y < topo) topo = y; if (y > base) base = y }
+      assert.deepEqual([topo, base], [20 - 4, 20 + 9 * 2 + 4 - 1], 'título ×2: acento 4 px acima, cedilha 4 px abaixo')
+    })
+  })
+
+  describe('R54 — maiúscula de cada idioma', () => {
+    test('turco: i→İ e ı→I · alemão: ß→SS · inglês como sempre · letra + acento solto se juntam', () => {
+      assert.equal(maiuscula('iyi şanslar ığ', 'tr'), 'İYİ ŞANSLAR IĞ')
+      assert.equal(maiuscula('iyi', 'en'), 'IYI')
+      assert.equal(maiuscula('Größe über Straße', 'de'), 'GRÖSSE ÜBER STRASSE')
+      assert.equal(maiuscula('GROẞ', 'de'), 'GROSS')
+      assert.equal(maiuscula('coração'), 'CORAÇÃO'); assert.equal(maiuscula('победа ёж', 'ru'), 'ПОБЕДА ЁЖ')
+      assert.equal(maiuscula('café'), 'CAFÉ')
+      for (const s of ['Round 12 - Level 3', "it's (1/2) <ok>", 'x3 +12%']) assert.equal(maiuscula(s), s.toUpperCase())
+    })
+    test('o desenho usa o idioma do módulo (Letras.idioma): em turco o "i" ganha o ponto', () => {
+      assert.equal(Letras.idioma, 'en')
+      const en = umaFrase('iyi', 'reino')
+      Letras.idioma = 'tr'
+      try { const tr = umaFrase('iyi', 'reino'); assert.notEqual(tr[1], en[1]); assert.equal(tr[1], umaFrase('İYİ', 'reino')[1]); assert.equal(umaFrase('ı', 'mini')[1], umaFrase('I', 'mini')[1]) } finally { Letras.idioma = 'en' }
+      assert.equal(umaFrase('iyi', 'reino')[1], en[1])
+      assert.equal(umaFrase('straße', 'reino-ouro')[1], umaFrase('STRASSE', 'reino-ouro')[1])
+    })
+  })
+
+  describe('R54 — reserva honesta: a letra do aparelho', () => {
+    test('frase com tailandês vai inteira para a letra do aparelho, na cor da variante, e entra em faltas()', () => {
+      Letras.limpar()
+      const th = 'ชนะรอบที่ 12 GOLD'
+      assert.deepEqual(semGlifo('ชนะ A'), ['ช', 'น', 'ะ'])
+      assert.equal(Arte.temLetra(th, 'reino-ouro'), false)
+      for (const [f, tinta] of [['reino-ouro', '#FFD248'], ['reino-verde', '#96F082'], ['mini-ouro', '#FFD248'], ['reino-contorno', '#FFF6E0'], ['mini', '#FFFFFF']]) {
+        const [c, g] = nova(300, 40); g.setTransform(3, 0, 0, 3, 0, 0)
+        const w = Arte.texto(g, th, 4, 4, { fonte: f })
+        assert.equal(w, Arte.largura(th, f), f + ': a largura devolvida é a medida')
+        assert.ok(w > 20, f + ': largura ' + w)
+        const cores = new Set(), d = c.dados()
+        for (let i = 0; i < d.length; i += 4) if (d[i + 3]) cores.add('#' + [d[i], d[i + 1], d[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('').toUpperCase())
+        assert.deepEqual([...cores], [tinta], f + ': a frase inteira na cor da variante (nenhuma letra em pixel misturada)')
+      }
+      assert.deepEqual(Object.keys(pintar(th, 'reino', { cor: '#CC3C3E' }).cores), ['204,60,62'], 'a cor pedida vale na letra do aparelho')
+      const fa = Letras.faltas()
+      assert.equal(fa.length, 6)
+      assert.ok(fa.every((f) => f.texto === th && f.idioma === 'en' && f.letras.includes('ช') && !f.letras.includes('G') && f.vezes >= 1))
+      assert.deepEqual(fa.map((f) => f.fonte).sort(), ['mini', 'reino', 'reino-contorno', 'reino-ouro', 'reino-verde', 'mini-ouro'].sort())
+      // vietnamita: as letras de dois acentos não têm desenho; o resto do latim tem
+      assert.equal(Arte.temLetra('Tiếng Việt', 'mini'), false); assert.equal(Arte.temLetra('Coração, ¿qué? Größe İyi победа', 'mini'), true)
+      // título grande com letra sem desenho: também vai para a letra do aparelho (não some)
+      const [c2, g2] = nova(300, 60); Arte.titulo(g2, 'ชนะ', 150, 10, 2, true)
+      assert.ok(c2.dados().some((v) => v), 'o título saiu')
+      Letras.limpar(); assert.deepEqual(Letras.faltas(), [])
+    })
+    test('letra que falta nunca mais vira espaço em silêncio', () => {
+      Letras.limpar()
+      const a = umaFrase('A☃B', 'reino'), b = umaFrase('A B', 'reino')
+      assert.notEqual(a[1], b[1])
+      assert.deepEqual(Letras.faltas().map((f) => [f.texto, f.letras]), [['A☃B', ['☃']]])
+      Letras.limpar()
+    })
+  })
+
+  describe('R54 — medir, quebrar e caber', () => {
+    const antiga = (s, larg, fonte) => { const pal = String(s).split(' '), out = []; let lin = ''; for (const p of pal) { const t = lin ? lin + ' ' + p : p; if (Arte.largura(t, fonte) > larg && lin) { out.push(lin); lin = p } else lin = t } if (lin) out.push(lin); return out }
+    test('quebrar: igual à quebra de hoje em todo texto cuja maior palavra cabe na caixa', () => {
+      let n = 0
+      for (const s of ref.frases) for (const [larg, fonte] of [[46, 'mini'], [90, 'mini'], [164, 'mini-contorno'], [86, 'reino-contorno'], [120, 'reino'], [172, 'reino-ouro']]) {
+        if (s.split(' ').some((p) => Arte.largura(p, fonte) > larg)) continue
+        assert.deepEqual(Arte.quebrar(s, larg, fonte), antiga(s, larg, fonte), `${fonte} ${larg}: ${s}`); n++
+      }
+      assert.ok(n > 1500, 'comparações: ' + n)
+    })
+    test('quebrar: palavra maior que a caixa é cortada com hífen, cada linha cabe, nada se perde, e fica em estouros()', () => {
+      Letras.limpar()
+      for (const [s, larg, fonte] of [['DONAUDAMPFSCHIFFFAHRTSGESELLSCHAFT ÜBER ALLES', 60, 'mini'], ['ДОСТОПРИМЕЧАТЕЛЬНОСТЬ ЖЁЛТАЯ', 64, 'reino'], ['A SUPERCALIFRAGILISTIC B', 40, 'reino-contorno']]) {
+        const lin = Arte.quebrar(s, larg, fonte)
+        assert.ok(lin.length >= 3, s)
+        for (const l of lin) assert.ok(Arte.largura(l, fonte) <= larg, `${l} cabe em ${larg}`)
+        assert.equal(lin.map((l) => (l.endsWith('-') ? l.slice(0, -1) : l + ' ')).join('').trim(), s)
+        assert.ok(lin.some((l) => l.endsWith('-')))
+      }
+      const e = Letras.estouros()
+      assert.equal(e.length, 3); assert.ok(e.every((x) => x.feito === 'hifen' && x.largura > 0 && x.fonte && x.idioma === 'en'))
+      assert.deepEqual(Arte.quebrar('CORAÇÃO VALENTE', 60, 'reino'), ['CORAÇÃO', 'VALENTE'])
+      assert.deepEqual(Arte.quebrar('OUI ! NON', 500, 'reino'), ['OUI ! NON'])
+      assert.deepEqual(quebrarCom((t) => t.length, 'ab cd ef', 5), ['ab cd', 'ef'], 'a conta pura mede com a régua que receber')
+      Letras.limpar()
+    })
+    test('caber: fonte grande → pequena da mesma cor → reticências, e diz o que fez', () => {
+      Letras.limpar()
+      const a = Arte.caber('PLAY AGAIN', 80, 'reino-ouro'); assert.deepEqual([a.texto, a.fonte, a.feito], ['PLAY AGAIN', 'reino-ouro', 'coube']); assert.equal(a.largura, Arte.largura('PLAY AGAIN', 'reino-ouro'))
+      const b = Arte.caber('JOGAR DE NOVO AGORA', 80, 'reino-ouro'); assert.deepEqual([b.texto, b.fonte, b.feito], ['JOGAR DE NOVO AGORA', 'mini-ouro', 'menor']); assert.ok(b.largura <= 80)
+      const c = Arte.caber('¡JUGAR OTRA VEZ AHORA MISMO YA!', 80, 'reino-ouro'); assert.equal(c.feito, 'reticencias'); assert.equal(c.fonte, 'mini-ouro'); assert.ok(c.texto.endsWith('...') && c.largura <= 80 && c.texto.length > 8, c.texto)
+      const d = Arte.caber('НАЧАТЬ ЗАНОВО ПРЯМО СЕЙЧАС', 80, 'reino-verde'); assert.equal(d.fonte, 'mini-verde'); assert.equal(d.feito, 'reticencias')
+      assert.deepEqual(Object.keys(pintar(d.texto, d.fonte).cores).sort(), ['150,240,130', '43,30,58'].sort(), 'a pequena da verde é verde')
+      assert.equal(pintar('...', 'mini-verde').cores['150,240,130'], 3, 'três pontos de verdade nas reticências')
+      assert.equal(Arte.caber('WEITERSPIELEN', 60, 'reino').fonte, 'mini'); assert.equal(Arte.caber('X', 3, 'mini').feito, 'coube')
+      assert.deepEqual(Letras.estouros().map((e) => e.feito).sort(), ['menor', 'menor', 'reticencias', 'reticencias'])
+      assert.equal(Arte.medir, Arte.largura, 'uma medida só')
+      Letras.limpar()
+    })
+  })
 
   describe('R54 — inglês idêntico (pixel a pixel) ao de antes da mudança', () => {
     test('a referência é grande e veio do atlas de verdade', () => {

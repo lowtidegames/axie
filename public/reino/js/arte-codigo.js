@@ -1,6 +1,8 @@
 // Keepmile — desenho POR CÓDIGO: a queda de cada peça que faltar no atlas (bonecos cabeçudos, prédios, cenário, ícones, fonte).
 // Paleta e regras de docs/reino/arte.md: contorno ameixa de 1 px, até 3 tons, luz de cima e da esquerda. Nada aqui conhece regra do jogo.
 
+import { ALTURA, FOLGA, G3, G5, NOVAS } from './letras.js'
+
 export const COR = {
   ameixa: '#2B1E3A', creme: '#FFF6E0', ouro: '#FFD248', painel: '#3A2A4E', filete: '#624C7C',
   grama: ['#7CC950', '#56A842', '#3A803C', '#285C3A'], estrada: ['#E8C48A', '#CDA068', '#A0724C', '#704C3E'],
@@ -324,31 +326,7 @@ export const GEOMETRIA = {
 }
 
 // ------------------------------------------------------------------ fonte "Reino 5×7" e mini 3×5 por código
-const G5 = {
-  A: '.###./#...#/#...#/#####/#...#/#...#/#...#', B: '####./#...#/#...#/####./#...#/#...#/####.', C: '.####/#..../#..../#..../#..../#..../.####', D: '####./#...#/#...#/#...#/#...#/#...#/####.',
-  E: '####/#.../#.../###./#.../#.../####', F: '####/#.../#.../###./#.../#.../#...', G: '.####/#..../#..../#..##/#...#/#...#/.####', H: '#...#/#...#/#...#/#####/#...#/#...#/#...#',
-  I: '###/.#./.#./.#./.#./.#./###', J: '..##/...#/...#/...#/...#/#..#/.##.', K: '#...#/#..#./#.#../##.../#.#../#..#./#...#', L: '#.../#.../#.../#.../#.../#.../####',
-  M: '#...#/##.##/#.#.#/#.#.#/#...#/#...#/#...#', N: '#...#/##..#/#.#.#/#.#.#/#..##/#...#/#...#', O: '.###./#...#/#...#/#...#/#...#/#...#/.###.', P: '####./#...#/#...#/####./#..../#..../#....',
-  Q: '.###./#...#/#...#/#...#/#.#.#/#..#./.##.#', R: '####./#...#/#...#/####./#.#../#..#./#...#', S: '.####/#..../#..../.###./....#/....#/####.', T: '#####/..#../..#../..#../..#../..#../..#..',
-  U: '#...#/#...#/#...#/#...#/#...#/#...#/.###.', V: '#...#/#...#/#...#/#...#/.#.#./.#.#./..#..', W: '#...#/#...#/#...#/#.#.#/#.#.#/##.##/#...#', X: '#...#/#...#/.#.#./..#../.#.#./#...#/#...#',
-  Y: '#...#/#...#/.#.#./..#../..#../..#../..#..', Z: '#####/....#/...#./..#../.#.../#..../#####',
-  0: '.###./#...#/#..##/#.#.#/##..#/#...#/.###.', 1: '.#./##./.#./.#./.#./.#./###', 2: '.###./#...#/....#/...#./..#../.#.../#####', 3: '####./....#/....#/.###./....#/....#/####.',
-  4: '...#./..##./.#.#./#..#./#####/...#./...#.', 5: '#####/#..../####./....#/....#/#...#/.###.', 6: '.###./#..../#..../####./#...#/#...#/.###.', 7: '#####/....#/...#./..#../..#../..#../..#..',
-  8: '.###./#...#/#...#/.###./#...#/#...#/.###.', 9: '.###./#...#/#...#/.####/....#/....#/.###.',
-  ' ': '.../.../.../.../.../.../...', '.': './././././#/#', ',': '../../../../../.#/#.', '!': '#/#/#/#/#/./#', '?': '.###./#...#/....#/...#./..#../...../..#..', ':': '././#/././#/.',
-  '-': '..../..../..../####/..../..../....', '+': '...../..#../..#../#####/..#../..#../.....', '/': '....#/....#/...#./..#../.#.../#..../#....', '%': '##..#/##..#/...#./..#../.#.../#..##/#..##',
-  x: '...../...../#...#/.#.#./..#../.#.#./#...#', '>': '#.../.#../..#./...#/..#./.#../#...', '<': '...#/..#./.#../#.../.#../..#./...#', '(': '.#/#./#./#./#./#./.#', ')': '#./.#/.#/.#/.#/.#/#.',
-  "'": '#/#/././././.', '=': '..../..../####/..../####/..../....', '*': '...../#.#.#/.###./#####/.###./#.#.#/.....', '&': '.##../#..#./#..#./.##../#.#.#/#..#./.##.#',
-}
-const G3 = {
-  A: '.#./#.#/###/#.#/#.#', B: '##./#.#/##./#.#/##.', C: '.##/#../#../#../.##', D: '##./#.#/#.#/#.#/##.', E: '###/#../##./#../###', F: '###/#../##./#../#..', G: '.##/#../#.#/#.#/.##', H: '#.#/#.#/###/#.#/#.#',
-  I: '#/#/#/#/#', J: '..#/..#/..#/#.#/.#.', K: '#.#/#.#/##./#.#/#.#', L: '#../#../#../#../###', M: '#...#/##.##/#.#.#/#...#/#...#', N: '#..#/##.#/#.##/#..#/#..#', O: '.#./#.#/#.#/#.#/.#.', P: '##./#.#/##./#../#..',
-  Q: '.#./#.#/#.#/.#./..#', R: '##./#.#/##./#.#/#.#', S: '.##/#../.#./..#/##.', T: '###/.#./.#./.#./.#.', U: '#.#/#.#/#.#/#.#/###', V: '#.#/#.#/#.#/#.#/.#.', W: '#...#/#...#/#.#.#/##.##/#...#', X: '#.#/#.#/.#./#.#/#.#',
-  Y: '#.#/#.#/.#./.#./.#.', Z: '###/..#/.#./#../###', 0: '###/#.#/#.#/#.#/###', 1: '.#/##/.#/.#/.#', 2: '##./..#/.#./#../###', 3: '##./..#/.#./..#/##.', 4: '#.#/#.#/###/..#/..#', 5: '###/#../##./..#/##.',
-  6: '.##/#../###/#.#/###', 7: '###/..#/.#./.#./.#.', 8: '###/#.#/###/#.#/###', 9: '###/#.#/###/..#/##.', ' ': '../../../../..', '!': '#/#/#/./#', '+': '.../.#./###/.#./...', '-': '.../.../###/.../...', x: '.../#.#/.#./#.#/...',
-  '.': './././././#'.slice(0, 9), ':': './#/./#/.', '/': '..#/..#/.#./#../#..', '%': '#.#/..#/.#./#../#.#', "'": '#/#/././.', '&': '.#./#.#/.#./#.#/.##', '?': '##./..#/.#./.../.#.',
-  '>': '#../.#./..#/.#./#..', '<': '..#/.#./#../.#./..#', '(': '.#/#./#./#./.#', ')': '#./.#/.#/.#/#.', '=': '.../###/.../###/...', '*': '.../#.#/.#./#.#/...',
-}
+// (as tabelas G5 e G3 moram em letras.js, junto das letras dos outros idiomas)
 function folhaFonte(tab, alt, cor, contorno) {
   const chaves = Object.keys(tab), borda = contorno ? 1 : 0
   let wTot = 0; const lin = chaves.map((k) => { const l = tab[k].split('/'); wTot += l[0].length + 1 + borda * 2; return l })
@@ -371,6 +349,32 @@ export function fontesPorCodigo() {
   return {
     reino: folhaFonte(G5, 7, COR.creme, false), 'reino-contorno': folhaFonte(G5, 7, COR.creme, true), 'reino-ouro': folhaFonte(G5, 7, COR.ouro, true),
     mini: folhaFonte(G3, 5, COR.creme, false), 'mini-contorno': folhaFonte(G3, 5, COR.creme, true),
+  }
+}
+export const VERDE_LETRA = '#96F082' // o verde da fonte reino-verde do atlas
+/** A mini com contorno numa cor (ex.: mini-verde, que o atlas não tem). Mesmo formato das fontes de sempre. */
+export const miniDeCor = (cor) => folhaFonte({ ...G3, '.': '././././#' }, 5, cor, true) // (o ponto da G3 por código sai vazio; aqui vai o ponto certo, igual ao do atlas)
+/** R54 — as letras NOVAS (acentos, sinais, cirílico: letras.js) em cada variante de cor das fontes do jogo.
+ *  Cada glifo mora numa casa com FOLGA linhas livres em cima e embaixo (o acento sobe, a cedilha desce) e é desenhado em y − cima.
+ *  Quadro: [x, y, largura, altura, sobe, desce] (sobe/desce = quantas linhas ele usa fora da altura da fonte). */
+function folhaNova(tam, cor, contorno) {
+  const tab = NOVAS[tam], alt = ALTURA[tam], chaves = Object.keys(tab), b = contorno ? 1 : 0, H = alt + 2 * FOLGA + 2 * b
+  const c = tela(chaves.reduce((a, k) => a + tab[k].l[0].length + 1 + 2 * b, 0), H), g = c.getContext('2d'), glifos = {}
+  let x = 0
+  g.fillStyle = cor
+  for (const k of chaves) {
+    const { l, c: sobe } = tab[k], w = l[0].length
+    for (let y = 0; y < l.length; y++) for (let i = 0; i < w; i++) if (l[y][i] === '#') g.fillRect(x + b + i, b + FOLGA - sobe + y, 1, 1)
+    glifos[k] = [x, 0, w + 2 * b, H, sobe, Math.max(0, l.length - sobe - alt)]
+    x += w + 1 + 2 * b
+  }
+  if (contorno) contornar(c)
+  return { img: c, glifos, altura: alt + 2 * b, espaco: contorno ? -1 : 1, cima: FOLGA }
+}
+export function fontesNovas(corLisa = COR.creme) {
+  return {
+    reino: folhaNova('reino', corLisa, false), 'reino-contorno': folhaNova('reino', COR.creme, true), 'reino-ouro': folhaNova('reino', COR.ouro, true), 'reino-verde': folhaNova('reino', VERDE_LETRA, true),
+    mini: folhaNova('mini', corLisa, false), 'mini-contorno': folhaNova('mini', COR.creme, true), 'mini-ouro': folhaNova('mini', COR.ouro, true), 'mini-verde': folhaNova('mini', VERDE_LETRA, true),
   }
 }
 

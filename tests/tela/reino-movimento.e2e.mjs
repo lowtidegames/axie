@@ -18,6 +18,9 @@
 // R29 (acabamento): teto de representantes da HORDA por faixa de choque (PC 6, celular 4) com silhuetas atrás; quem entra na vaga
 // chega andando (0 aparições de uma vez); riscos dos gestos em folhas de pixel (3 quadros, 2 tons + contorno); pisão de entrada do
 // chefe e chefe nunca cortado no portão; enquadre das rodadas 1–2 no celular (decidido antes da luta) e câmera de duelo.
+// R32 (último acabamento): multidão com ritmo (1 fileira atrás, espaçada, nunca na frente de um representante); chefe e bruto valem
+// vagas do teto e o chefe fica com ar em volta; riscos dos gestos um degrau maiores com 1 quadro de contraste; primeira fileira do
+// cenário na base do celular quando a cena desce; `painelCurto` explícito na batalha; duelo do celular com vão menor.
 // Só uma parte: MOV_SO=celular|pc (a bateria completa é sem a variável).
 // Rode pela trava:  node tools/trava-robos.mjs rodar "timeout 900 node tests/tela/reino-movimento.e2e.mjs"
 import { createRequire } from 'node:module'
@@ -81,7 +84,7 @@ const lutaDoMotor = (page, cartas, ordem, chefe = null, rodada = 9) => K(page, a
  *  que ele ainda não passou (ou atrás de um que já passou). `caixas`: as caixas do corpo de um invasor e de um defensor em repouso
  *  (sem bote, sem apanhar) se tocam na tela. `cortados`: com o choque no portão, um representante da horda cortado pela borda. */
 const gravarLinha = (page) => K(page, (k, C) => {
-  window.__linha = { quadros: 0, errado: 0, caixas: 0, cortados: 0, portao: 0, vaoMin: 999, aparicoes: 0, chefeCortado: 0, chefeNoPortao: 0, ant: new Uint8Array(400) }
+  window.__linha = { quadros: 0, errado: 0, caixas: 0, cortados: 0, portao: 0, vaoMin: 999, aparicoes: 0, silNaFrente: 0, silJuntas: 0, silQuadros: 0, chefeCortado: 0, chefeNoPortao: 0, ant: new Uint8Array(400) }
   if (C.__desenhar0) return
   const d0 = C.__desenhar0 = C.desenhar
   C.desenhar = (...a) => {
@@ -90,6 +93,13 @@ const gravarLinha = (page) => K(page, (k, C) => {
     let errado = 0, caixa = 0, cortado = 0, minDef = 1e9
     for (let j = 0; j < C.n; j++) if (C.lado[j] === 0 && C.est[j] === 1 && !C.oculto[j]) minDef = Math.min(minDef, C.xDe(j) + C.dxe[j])
     const portao = minDef < 130
+    // R32 — MULTIDÃO: quem espera fica ATRÁS (mais alto na tela) de qualquer representante que esteja no mesmo ponto, e espaçado dos outros
+    { let tem = 0, frente = 0, junta = 0
+      for (let i = 0; i < C.n; i++) { if (C.est[i] !== 1 || C.oculto[i] !== 2 || Math.abs(C.dxeT[i] - C.dxe[i]) >= 3 || Math.abs(C.laneT[i] - C.lane[i]) >= 0.1) continue; tem = 1 // (só quem já está no lugar: quem ainda anda para a fileira não conta)
+        for (let j = 0; j < C.n; j++) { if (j === i || C.est[j] !== 1 || C.tier[j] !== C.tier[i] || Math.abs(C.sx[j] - C.sx[i]) >= 5) continue
+          if (C.oculto[j] === 0 && C.peca[j].w <= 60 && !C.chega[j] && C.sy[i] > C.sy[j]) frente = 1 // (quem está saindo da multidão para a vaga não conta)
+          if (C.oculto[j] === 2 && j > i && Math.abs(C.dxeT[j] - C.dxe[j]) < 3) junta = 1 } }
+      L.silQuadros += tem; L.silNaFrente += frente; L.silJuntas += junta }
     // R29 — VAGA: ninguém aparece de uma vez no lugar (quem estava fora de vista e passa a ser desenhado tem de estar CHEGANDO, andando)
     for (let i = 0; i < C.n; i++) { const o = C.est[i] === 1 ? C.oculto[i] : 3; if (o === 0 && L.ant[i] === 1 && !C.chega[i] && L.quadros > 0) L.aparicoes++; L.ant[i] = o }
     for (let i = 0; i < C.n; i++) {
@@ -184,24 +194,32 @@ async function rodar(fmt) {
     confere(m.pisoes >= 1 && L.chefeNoPortao > 0 && L.chefeCortado === 0, `CHEFE: entra com ${m.pisoes} passo pesado (poeira e anel) e, enquanto está junto do portão, o corpo dele fica cortado pela borda em ${L.chefeCortado} de ${L.chefeNoPortao} quadros`)
     const fx = await K(page, async () => { const P = await import(new URL('./js/particulas.js', location.href)); const o = {}; for (const n of ['mordida', 'lasca', 'risco', 'rastro', 'onda']) { const f = P[n](), d = f.img.getContext('2d').getImageData(0, 0, f.img.width, f.img.height).data, cores = new Set(); for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 0) cores.add(d[i] + ',' + d[i + 1] + ',' + d[i + 2]); o[n] = { quadros: f.quadros.length, cores: cores.size, ms: f.anim.play.ms[0] } } return o })
     confere(m.riscos > 0 && Object.values(fx).every((f) => f.quadros === 3 && f.cores >= 3), `RISCOS DOS GESTOS em pixel: ${Object.entries(fx).map(([n, f]) => `${n} ${f.quadros} quadros/${f.cores} cores`).join(', ')} (2 tons + contorno, com ponta); ${m.riscos} desenhados na luta`) }
+  { const L = await linha(page), teto = pc ? 6 : 4, pct = (a, b) => (100 * a / Math.max(1, b)).toFixed(1) + '%' // R32
+    confere(L.silQuadros > 50 && L.silNaFrente === 0 && L.silJuntas / L.silQuadros <= 0.05, `MULTIDÃO COM RITMO: em ${L.silQuadros} quadros com gente esperando, ${L.silNaFrente} com alguém da multidão na frente de um representante e ${L.silJuntas} (${pct(L.silJuntas, L.silQuadros)}, ≤ 5%) com dois parados no mesmo ponto`)
+    confere(m.hordaComGrande > 0 && m.hordaComGrande <= Math.max(2, teto - 2), `o GRANDE vale vagas: com chefe ou bruto na faixa, no máximo ${m.hordaComGrande} representantes pequenos à vista (teto ${teto} menos 2 por bruto e 3 por chefe, nunca menos de 2)`)
+    confere(m.quadrosChefe > 50 && m.chefeColado / m.quadrosChefe <= 0.03, `CHEFE com ar em volta: alguém do lado dele parado em cima do corpo em ${m.chefeColado} de ${m.quadrosChefe} quadros (${pct(m.chefeColado, m.quadrosChefe)}, ≤ 3%)`)
+    confere(m.riscosFortes > 0 && m.riscoK > m.kRep, `riscos dos gestos legíveis a 1×: desenhados em escala ×${m.riscoK.toFixed(2)} (boneco ×${m.kRep.toFixed(2)}), com ${m.riscosFortes} quadros de contraste no ápice`) }
   // ENQUADRE das rodadas 1–2 no celular e CÂMERA DE DUELO: uma luta da PARTIDA com 1 terreno e 2 contra 2
-  { const ini = (nome) => K(page, async (k, C, nome) => {
+  { const ini = (nome, painelCurto) => K(page, async (k, C, [nome, painelCurto]) => {
       const { simularBatalha, montarExercito } = await import(new URL('../../shared/reino/batalha.js', location.href))
       const terrenos = [{ carta: 'T02', nivel: 1 }, null, null, null, null, null], horda = { rodada: 1, ordem: ['muncher', 'muncher'], chefe: null }
       C.batalha.parar(); const b = simularBatalha({ terrenos, reliquias: [], horda, eventos: true }); C.terrenos = terrenos; C.zerarMedidas()
       const fim = nome ? function aoFimDaLuta() {} : () => {}
-      C.batalha.iniciar({ eventos: b.eventos, horda, terrenos, exercito: montarExercito(terrenos, []), segundos: b.segundos, rodada: 1 }, fim)
-      return { enquadre: C.enquadre, duelo: C.duelo, camY: C.camY }
-    }, nome)
+      C.batalha.iniciar({ eventos: b.eventos, horda, terrenos, exercito: montarExercito(terrenos, []), segundos: b.segundos, rodada: 1, ...(painelCurto == null ? {} : { painelCurto }) }, fim)
+      return { enquadre: C.enquadre, duelo: C.duelo, curto: !!C.dueloCurto, camY: C.camY }
+    }, [nome, painelCurto ?? null])
     await page.waitForTimeout(700) // (a cena volta ao lugar depois da luta anterior)
     const v = await ini(false)
     confere(v.enquadre === 0, `fora da partida (vitrine, replay) a cena não se reenquadra: ${v.enquadre} px`)
+    { const s = await ini(false, true), n = await ini(true, false) // R32: parâmetro explícito `painelCurto` na batalha (sem ele, vale a regra antiga)
+      confere(s.enquadre === (pc ? 0 : 40) && n.enquadre === 0, `painelCurto explícito manda: true → ${s.enquadre} px (celular 40, PC 0) mesmo fora da partida; false → ${n.enquadre} px mesmo na luta da partida`) }
     const a = await ini(true)
-    confere(a.enquadre === (pc ? 0 : 34) && a.duelo === pc, `luta da partida com 1 terreno, 2 contra 2: enquadre de ${a.enquadre} px decidido ANTES da luta (celular 34: a tira curta deixa a cena descer; PC 0); câmera de duelo ${a.duelo ? 'ligada' : 'desligada'} (só no PC)`)
+    confere(a.enquadre === (pc ? 0 : 40) && a.duelo === pc && a.curto === !pc, `luta da partida com 1 terreno, 2 contra 2: enquadre de ${a.enquadre} px decidido ANTES da luta (celular 40 — a regra de desenho mudou na R32: eram 34, e a base ganhou a primeira fileira do cenário —: a tira curta deixa a cena descer; PC 0); câmera de duelo ${a.duelo ? 'ligada' : 'desligada'} (só no PC)`)
     confere(await espera(page, () => window.__kmCena.med.bote >= 1 && (window.__kmCena.tipo !== 'pc' || window.__kmCena.cam.zoom > 1.2), 20000), 'a luta chega ao choque (no PC, com a câmera de duelo já mais perto)')
     const c1 = await K(page, (k, C) => ({ camY: C.camY, zoom: C.cam.zoom })); await page.waitForTimeout(900); const c2 = await K(page, (k, C) => ({ camY: C.camY, zoom: C.cam.zoom, zoomMax: C.med.zoomMax, e: C.e, duelo: C.med.duelo }))
-    confere(c1.camY === (pc ? 0 : 34) && c2.camY === c1.camY, `o enquadre não muda DURANTE a luta: ${c1.camY} px no choque e ${c2.camY} px 0,9 s depois`)
+    confere(c1.camY === (pc ? 0 : 40) && c2.camY === c1.camY, `o enquadre não muda DURANTE a luta: ${c1.camY} px no choque e ${c2.camY} px 0,9 s depois`)
     confere(c2.zoomMax <= (c2.e + 1) / c2.e + 0.001 && (pc ? c2.zoomMax > 1.2 && c2.duelo > 20 : c2.duelo === 0), `câmera de duelo: até ×${c2.zoomMax.toFixed(2)} (PC: um degrau inteiro de pixel de tela; celular: sem câmera de duelo — só o zoom curto do último de pé), ${c2.duelo} quadros seguindo o meio do choque`)
+    { const d = await K(page, (k, C) => ({ fb: C.med.frenteBaixa, vao: C.med.vaoRepouso, k: C.kRep })); confere(pc ? d.fb === 0 : d.fb > 20 && d.vao < 46, `celular: a base da tela ganha a primeira fileira do cenário (${d.fb} quadros) e no duelo os dois lados ficam mais perto (vão de ${d.vao} px; fora do duelo 51+)`) }
     await K(page, (k, C) => C.batalha.parar())
     confere(await espera(page, () => window.__kmCena.camY === 0 && window.__kmCena.cam.zoom === 1, 6000), 'acabou a luta: a cena volta ao enquadre normal e o zoom a ×1, macio') }
   // números lado a lado: alturas alternadas e, se ainda colidir, o menor espera 120 ms (direto na cena, sem depender da sorte da luta)
@@ -259,7 +277,7 @@ async function rodar(fmt) {
     return { n: C.n }
   })
   await page.waitForTimeout(3200)
-  { const q = await K(page, (k, C) => { let ocultos = 0, vivos = 0; for (let i = 0; i < C.n; i++) { if (C.oculto[i]) ocultos++; if (C.est[i] === 1) vivos++ } clearInterval(window.__agito); return { ...k.quadros(), vivos, desenhados: vivos - ocultos, bote: C.med.bote, pico: C.picoParticulas, limite: C.limite } })
+  { const q = await K(page, (k, C) => { let ocultos = 0, vivos = 0; for (let i = 0; i < C.n; i++) { if (C.oculto[i] === 1) ocultos++; if (C.est[i] === 1) vivos++ } clearInterval(window.__agito); /* R32 — a regra de desenho mudou: o teto de representantes da horda é por faixa (R29) e o grande vale vagas; quem espera é desenhado como multidão (e conta como desenhado) */ return { ...k.quadros(), vivos, desenhados: vivos - ocultos, bote: C.med.bote, pico: C.picoParticulas, limite: C.limite } })
     // R25 — REGRA DE DESENHO MUDOU (decisão do diretor): o pelotão não é mais desenhado boneco a boneco; a medida passa a ser com 150+ bonecos
     // VIVOS na cena (todos atualizados) e os representantes deles desenhados grandes e animando
     const qps = 1000 / q.intervalo
@@ -302,7 +320,7 @@ async function rodar(fmt) {
   if (!pc) { const arq = path.join(TIRAS, '..', 'batalha-reduced-celular.png'); await pm.screenshot({ path: arq }); const kb = (await stat(arq)).size / 1024; confere(kb < 400, `foto batalha-reduced-celular.png (batalha com Reduced motion): ${kb.toFixed(0)} KB (< 400)`) }
   m = await med(pm)
   confere(m.tremidaMax === 0 && m.flashes.length === 0 && m.brancos.length === 0 && m.zoomMax === 1 && m.camX === 0 && m.empurrao === 0, `Reduced motion: sem tremida (${m.tremidaMax}), sem clarão (${m.flashes.length}), sem quadro branco (${m.brancos.length}), sem zoom (×${m.zoomMax}), câmera parada, sem empurrão`)
-  confere(m.duelo === 0 && m.zoomMax === 1, `Reduced motion: sem câmera de duelo (${m.duelo}) nem zoom`)
+  confere(m.duelo === 0 && m.zoomMax === 1 && m.riscosFortes === 0, `Reduced motion: sem câmera de duelo (${m.duelo}), sem zoom e sem quadro de contraste nos riscos (${m.riscosFortes})`)
   confere(m.brilhos === 0 && m.ladoErrado === 0 && m.quadrosLuta > 30, `Reduced motion: sem brilho de aço (${m.brilhos}) e a linha de frente vale igual (${m.ladoErrado} quadros com lado errado em ${m.quadrosLuta})`)
   confere(m.bote > 0 && m.fumacas > 0 && m.numeros > 0, `Reduced motion: o movimento essencial continua (${m.bote} botes, ${m.fumacas} quedas em fumaça, ${m.numeros} números de dano)`)
   confere(m.pico <= m.limite && m.limite <= 30, `Reduced motion: partículas pela metade (pico ${m.pico} de ${m.limite})`)

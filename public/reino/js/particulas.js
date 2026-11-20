@@ -261,4 +261,21 @@ export function onda(claro = '#FFF6E0', tom = '#C9C4DA') {
     for (let o = 0; o <= Math.min(1, f); o++) { const r = [4, 7, 9][f] - o * 4, cx = [1, 2, 3][f]; if (r < 2) continue; for (let a = -1.05; a <= 1.05; a += 0.12) { const x = cx + Math.cos(a) * r, y = 9 + Math.sin(a) * r * 0.85; px(g, x, y, o ? tom : claro, f === 2); if (!o && Math.abs(a) < 0.5) px(g, x - 1, y, tom, f === 2) } }
   })
 }
+/** PRIMEIRA FILEIRA do cenário (R32), para a base da tela quando a cena desce no celular: cerca viva em 2 tons com topo recortado,
+ *  flores, pedras e tufos de capim, por código (o mesmo desenho sempre). Uma tela de w × h. */
+export function frenteBaixa(w, h) {
+  const c = tela(w, h), g = c.getContext('2d'), R = (a, b, cw, ch, cor) => { g.fillStyle = cor; g.fillRect(a, b, cw, ch) }
+  for (let x = 0; x < w; x++) { // cerca viva: topo ondulado com folhas soltas
+    const topo = 5 + Math.round(Math.sin(x / 9) * 1.5 + Math.sin(x / 3.1) * 1)
+    R(x, topo, 1, 1, '#2B1E3A'); R(x, topo + 1, 1, 2, '#6FBF4E'); R(x, topo + 3, 1, h - topo - 3, '#3F8A44')
+    for (let y = topo + 4; y < h; y++) if (((x * 7 + y * 13) % 11) === 0) R(x, y, 1, 1, '#2F6E3C'); else if (((x * 5 + y * 3) % 17) === 0) R(x, y, 1, 1, '#6FBF4E')
+    if (rnd(x + 40) > 0.86) R(x, topo - 1, 1, 1, '#6FBF4E')
+  }
+  for (let k = 0; k < 9; k++) { // flores (miolo de ouro, pétalas creme ou rosa) e pedras com luz em cima
+    const x = 6 + Math.round(rnd(k + 3) * (w - 14)), y = 11 + Math.round(rnd(k + 9) * (h - 16))
+    if (k % 3 === 2) { R(x - 1, y, 5, 3, '#2B1E3A'); R(x, y, 3, 2, '#9E98B4'); R(x, y, 2, 1, '#CECAD8') }
+    else { const p = k & 1 ? '#FFF6E0' : '#F58CC4'; R(x, y + 1, 1, 3, '#2F6E3C'); R(x - 1, y, 3, 1, p); R(x, y - 1, 1, 3, p); R(x, y, 1, 1, '#FFD248') }
+  }
+  return c
+}
 export { tela, rnd }

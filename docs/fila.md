@@ -22,3 +22,16 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 
 ## Já subiu
 (nada publicado ainda)
+
+## Porão (jogo-sátira, uso pessoal) — desenho em docs/porao/desenho-v1.md
+
+| Nº | Tarefa | Agente (modelo) | Arquivos que mexe | Depende de | Estado |
+|---|---|---|---|---|---|
+| P1 | Regras puras e config (ciclo do golpe, Calor, impressora, fusão, luxos, prestígio, contrato) | dev-servidor (Opus) | porao/comum/regras.js, config.js, porao/tests/regras.test.js | — | RODANDO |
+| P2 | Nomes provisórios inventados + troca por nomes locais fora do git | dev-servidor (Sonnet) | porao/comum/nomes.js, porao/servidor/nomes-local.mjs, porao/tests/nomes.test.js | — | RODANDO |
+| P3 | Cena isométrica do porão + zoom nos 3 monitores (arte provisória trocável) | dev-tela | porao/tela/index.html, estilo.css, sprites.js, cena.js | — | RODANDO |
+| P4 | Banco e ações do jogo | dev-servidor (Opus) | porao/servidor/banco.mjs, jogo.mjs, porao/tests/jogo.test.js | P1, P2 | FILA |
+| P5 | Servidor HTTP local (127.0.0.1:4900) | dev-servidor | porao/servidor/index.mjs, porao/tests/api.test.js | P4 | FILA |
+| P6 | Conteúdo dos 3 monitores, celular da mesa, e2e | dev-tela | porao/tela/monitores.js, api.js, app.js, porao/tests/tela.e2e.mjs | P1, P3 | FILA |
+| P7 | Simulador e ritmo dos números | economista (Opus) | porao/ferramentas/simular.mjs, números de porao/comum/config.js | P1 | FILA |
+| PA | Piloto de arte lado a lado (PixelLab × pacote itch.io) | diretor-de-arte | arte/piloto-porao/ | — | ESPERA DONO |

@@ -1,6 +1,14 @@
 # PASSAGEM — Frayz
 
-## ⚑ 19/11/2026 17:21 BRT — ESTADO ATUAL (vale acima de tudo abaixo)
+## ⚑ 19/11/2026 21:07 BRT — ESTADO ATUAL (vale acima de tudo abaixo)
+- **JOGO ATUAL: "Keepmile"** (nome provisório): construir reino com cartas + batalha automática, partidas de 10–15 min. O dono abandonou os projetos anteriores (bonecos; monstros) e, em 19/11 18:30, deu AUTONOMIA TOTAL: o diretor decide tudo e registra em `docs/decisions.md` com nota e motivo; NÃO PERGUNTAR. Fora da autonomia: dinheiro de verdade, token, carteira, publicar fora da página de teste, apagar, e créditos pagos além dos tetos.
+- **Onde está:** desenho em `docs/reino/` (jogo.md 1 página, biblia.md, arte.md, som.md, motor-notas.md — a bíblia tem números desatualizados; vale `shared/reino/config.js`); motor em `shared/reino/` (275 testes no `npm test`); tela em `public/reino/`; arte em `public/reino/arte/` (atlas completo, 75 peças) e fontes em `arte/reino/`; som em `public/reino/som-reino.js` + `public/reino/sons/`. No ar: https://lowtidegames.github.io/axie/public/reino/ (jogo), /public/reino/sons.html (folha de sons), /public/reino/arte/galeria.html.
+- **Regra da casa (15/11): simples e divertido**, o básico muito bem feito; regras em 1–2 linhas; relatos curtos.
+- **Tetos de crédito:** PixelLab 147 de 150 gerações usadas (ACABOU: arte nova só por código até o dono dar teto novo; não pedir); ElevenLabs 1.614 de 5.000.
+- **Conferência 1 (19/11):** guardião 79 sem veto, diversão 68, jogador desconfiado "jogável, não-verde para lançar". **Rodando:** R13 polimento 1 (Fable) no worktree `.claude/worktrees/agent-ab75fbfc2f1f6c7c4`, ramo `reino-polimento1` (a máquina reiniciou uma vez no meio; mandar os agentes fazerem commits pequenos e frequentes). **Depois:** conferência 2 (alvo: trindade 90+), estrada do dia e ranking com servidor (R14), arte só por código (andar com braço, Sir Dent maior, gansos menores), bíblia alinhada ao config.
+- **Avisos práticos que continuam valendo:** testes de tela pela trava e com prazo; a trava do envio exige `npm test` verde na mesma árvore; arquivos soltos de fotos geradas atrapalham (mover para o rascunho); autor dos commits é o do CLAUDE.md (ignorar o aviso de fim de turno que pede para trocar); as chaves do PixelLab e do ElevenLabs são variáveis do ambiente (não pedir pelo formulário).
+
+## 19/11/2026 17:21 BRT — ESTADO ATUAL (vale acima de tudo abaixo)
 - **O DONO ABANDONOU O PROJETO EM CURSO** (monstros, ovo, cruzamento, piloto simples e o jogo de bonecos) e quer um projeto NOVO com mecânicas diferentes, sem relação com o gênero de criaturas de partes. Tudo abaixo é histórico. Nada foi apagado; nada está rodando.
 - **Falta saber:** o que é o projeto novo (o diretor perguntou; ver a conversa) e se ele vive neste repositório ou em outro (decisão do dono).
 - **Continua valendo:** regra da casa "simples e divertido" (15/11 15:38); jogo primeiro, dinheiro por último; dossiê do mercado em `docs/mercado/`; chaves do PixelLab e do ElevenLabs nas variáveis do ambiente; PixelLab: 70 de 150 gerações gastas no tema anterior.

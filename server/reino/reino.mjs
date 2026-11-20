@@ -9,7 +9,7 @@ import { transacao } from '../db.mjs'
 import { ErroDoJogo } from '../jogo.mjs'
 import { chaveDoApelido } from '../apelido.mjs'
 import { apelidoBarrado } from './apelidos-barrados.mjs'
-import { criarLimitesNoBanco, criarLimite } from '../api.mjs'
+import { PARAMS_SERVIDOR, criarLimitesNoBanco, criarLimite } from '../api.mjs'
 
 // Limites técnicos do servidor do Keepmile — PROVISÓRIOS (não são números de economia).
 export const PARAMS_REINO = {
@@ -94,7 +94,12 @@ function contarSoldados(eventos) {
  * opcoes: agora, soLeitura (função), log, segredo (texto; padrão: REINO_SEGREDO ou o guardado no banco),
  * params (sobrepõe PARAMS_REINO; só testes), energia (sobrepõe BETA.energia; só testes).
  */
-export function criarReino(db, { agora = Date.now, soLeitura = () => false, log = console.log, segredo, params = {}, energia: energiaOpc } = {}) {
+export function criarReino(db, {
+  agora = Date.now, soLeitura = () => false, log = console.log, segredo, params = {}, energia: energiaOpc,
+  validadeDaSessaoH = PARAMS_SERVIDOR.validadeDaSessaoH, // a MESMA que vence a sessão (server/index.mjs passa a do servidor); só para o Perfil
+} = {}) {
+  // Prazo da conta no Perfil (R33): sessão sem uso por tanto tempo vence e a conta se perde. Dias inteiros, arredondados para baixo.
+  const diasSemUsoAtePerder = Math.floor(validadeDaSessaoH / 24)
   const P = { ...PARAMS_REINO, ...params }
   const E = { ...BETA.energia, ...energiaOpc }
   const prazoMs = P.prazoParadaMin * 60_000
@@ -642,6 +647,7 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
       titulos: q.titulos.all(contaId).map((x) => ({ temporada: x.temporada, posicao: x.posicao, pontos: x.media, liga: x.liga })),
       familias: Object.keys(FAMILIAS),
       trocaDeApelido: { podeEm: podeEm === null ? null : new Date(podeEm).toISOString() },
+      conta: { diasSemUsoAtePerder },
     }
   }
 

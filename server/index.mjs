@@ -34,7 +34,7 @@ export async function iniciar({
     ...(limites.energiaPorDia === undefined ? {} : { energiaPorDia: limites.energiaPorDia }), // só testes; o número é de shared/config.js
   })
   // Keepmile (jogo de reino): rotas em /api/reino/... e /public/reino/modo.json respondido pelo servidor
-  const reino = criarReino(db, { agora, log, soLeitura, ...opcoesDoReino })
+  const reino = criarReino(db, { agora, log, soLeitura, validadeDaSessaoH: P.validadeDaSessaoH, ...opcoesDoReino })
   const extras = { rotas: rotasDoReino(reino, { lerCorpo, chaveDoIp }), estaticos: { '/public/reino/modo.json': MODO_REINO } }
   const tratar = criarTratador({ jogo, agora, log, limites, banco: db, extras, ...(proxies === undefined ? {} : { proxies }) })
   const servidor = createServer({ requestTimeout: 15_000, headersTimeout: 10_000 }, tratar)

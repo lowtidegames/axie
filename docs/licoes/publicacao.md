@@ -10,3 +10,4 @@
 - 20/11/2026: os pedidos desta nuvem saem por vários endereços. Prova de limite "por endereço" feita daqui engana (6 contas passaram por causa disso, não por falha). Prova que serve: repetir o MESMO endereço forjado com um apelido que já existe (não cria conta; conta no limite) e cruzar com `httpLogs` (`srcIp` de cada pedido).
 - 20/11/2026: prova no site no ar não deve criar conta: 12 contas vazias sobraram no banco de teste. Usar apelido já existente (resposta 409) sempre que der.
 - 20/11/2026: avisar o caçador de bugs antes de republicar (o site reinicia; queda de alguns segundos não é bug).
+- 20/11/2026: "não rola" medido na caixa errada: no Keepmile quem rola é o `#telaCorpo`, não a `#telaCaixa`. Teste de "dá para chegar" tem de rolar e conferir com `elementFromPoint`; e rolagem no celular se prova com dedo de verdade (CDP `Input.dispatchTouchEvent`), não só com `scrollTop`.

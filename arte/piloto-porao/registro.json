@@ -1,0 +1,202 @@
+[
+ {
+  "peca": "canto",
+  "tentativa": 1,
+  "ferramenta": "create-image-pixflux",
+  "tamanho": [
+   192,
+   192
+  ],
+  "extra": "",
+  "ok": false,
+  "status": 200,
+  "saldo_antes": 927.51,
+  "saldo_depois": 926.51,
+  "gasto": 1.0,
+  "segundos": null,
+  "hora_brt": null,
+  "arquivo": null,
+  "nota": "imagem perdida: pasta bruto/ ainda nao existia ao salvar (erro do script, nao do servico)"
+ },
+ {
+  "peca": "canto",
+  "tentativa": 2,
+  "ferramenta": "create-image-pixflux",
+  "tamanho": [
+   192,
+   192
+  ],
+  "extra": "",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 926.51,
+  "saldo_depois": 925.51,
+  "gasto": 1.0,
+  "segundos": 26,
+  "hora_brt": "05:18",
+  "arquivo": "bruto/canto-2.png"
+ },
+ {
+  "peca": "mesa",
+  "tentativa": 1,
+  "ferramenta": "create-image-pixflux",
+  "tamanho": [
+   128,
+   128
+  ],
+  "extra": "",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 925.51,
+  "saldo_depois": 924.51,
+  "gasto": 1.0,
+  "segundos": 19,
+  "hora_brt": "05:19",
+  "arquivo": "bruto/mesa-1.png"
+ },
+ {
+  "peca": "rugrigo",
+  "tentativa": 1,
+  "ferramenta": "create-image-pixflux",
+  "tamanho": [
+   96,
+   96
+  ],
+  "extra": "",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 924.51,
+  "saldo_depois": 923.51,
+  "gasto": 1.0,
+  "segundos": 28,
+  "hora_brt": "05:19",
+  "arquivo": "bruto/rugrigo-1.png"
+ },
+ {
+  "peca": "aquario",
+  "tentativa": 1,
+  "ferramenta": "create-image-pixflux",
+  "tamanho": [
+   96,
+   96
+  ],
+  "extra": "",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 923.51,
+  "saldo_depois": 922.51,
+  "gasto": 1.0,
+  "segundos": 24,
+  "hora_brt": "05:19",
+  "arquivo": "bruto/aquario-1.png"
+ },
+ {
+  "peca": "carta",
+  "tentativa": 1,
+  "ferramenta": "create-image-pixflux",
+  "tamanho": [
+   96,
+   128
+  ],
+  "extra": "",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 922.51,
+  "saldo_depois": 921.51,
+  "gasto": 1.0,
+  "segundos": 19,
+  "hora_brt": "05:20",
+  "arquivo": "bruto/carta-1.png"
+ },
+ {
+  "peca": "rugrigo",
+  "tentativa": 2,
+  "ferramenta": "create-image-pixflux",
+  "tamanho": [
+   96,
+   96
+  ],
+  "extra": "seen from the front-left so his face is visible, facing the bottom-left of the image, thick shiny gold chain necklace over the hoodie, half-closed scheming eyes, raised eyebrow",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 921.51,
+  "saldo_depois": 920.51,
+  "gasto": 1.0,
+  "segundos": 37,
+  "hora_brt": "05:21",
+  "arquivo": "bruto/rugrigo-2.png"
+ },
+ {
+  "peca": "canto",
+  "tentativa": 3,
+  "ferramenta": "create-image-pixflux",
+  "tamanho": [
+   192,
+   192
+  ],
+  "extra": "strong saturated palette: deep violet shadows, warm orange bulb light, teal-green baseboard, much higher contrast, thick 2-pixel dark outline on the outer edges",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 920.51,
+  "saldo_depois": 919.51,
+  "gasto": 1.0,
+  "segundos": 17,
+  "hora_brt": "05:21",
+  "arquivo": "bruto/canto-3.png"
+ },
+ {
+  "peca": "mesa",
+  "tentativa": 2,
+  "ferramenta": "create-image-pixflux",
+  "tamanho": [
+   128,
+   128
+  ],
+  "extra": "one long straight desk, the three monitors standing in one straight row along the desk edge, all at the same isometric angle, a small gold coin stack on the desk",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 919.51,
+  "saldo_depois": 918.51,
+  "gasto": 1.0,
+  "segundos": 20,
+  "hora_brt": "05:22",
+  "arquivo": "bruto/mesa-2.png"
+ },
+ {
+  "peca": "ladrilho",
+  "tentativa": 1,
+  "ferramenta": "create-isometric-tile",
+  "tamanho": [
+   32,
+   32
+  ],
+  "extra": "",
+  "ok": true,
+  "status": 202,
+  "saldo_antes": 918.51,
+  "saldo_depois": 917.51,
+  "gasto": 1.0,
+  "segundos": 24,
+  "hora_brt": "05:23",
+  "arquivo": "bruto/ladrilho-1.png",
+  "nota": "cobrado depois do fim do trabalho (saldo 918,5 -> 917,5 antes do canto 4); saiu laje de tijolo em vez de piso de madeira: descartado"
+ },
+ {
+  "peca": "canto",
+  "tentativa": 4,
+  "ferramenta": "create-image-pixflux",
+  "tamanho": [
+   192,
+   192
+  ],
+  "extra": "wide spacious room, walls are low compared to the floor size, small staircase in the far right corner, door small, floor of 8 by 8 small square wooden tiles, same warm brick color as before",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 917.51,
+  "saldo_depois": 916.51,
+  "gasto": 1.0,
+  "segundos": 14,
+  "hora_brt": "05:25",
+  "arquivo": "bruto/canto-4.png"
+ }
+]

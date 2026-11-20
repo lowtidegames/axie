@@ -1,0 +1,46 @@
+{
+ "id": "c947f589-06ce-461b-8899-c2f6fbb32878",
+ "name": "porao-regua",
+ "theme": "The basement of a grandmother's house used as a home office:...(256)",
+ "view": "isometric",
+ "status": "completed",
+ "stage": null,
+ "progress_percent": null,
+ "error": null,
+ "cells": [
+  "#######",
+  "#######",
+  "#######",
+  "#######",
+  "#######",
+  "#######"
+ ],
+ "doors": [
+  {
+   "side": "w",
+   "col": 0,
+   "row": 1,
+   "anchor": null,
+   "trigger": null,
+   "arrive": null
+  }
+ ],
+ "walkable": null,
+ "picture_size": {
+  "width": 248,
+  "height": 176
+ },
+ "tile_size": 32,
+ "image_url": "https://backblaze.pixellab.ai/file/pixellab-characters/rooms...(162)",
+ "pieces_status": "not_cut",
+ "pieces": null,
+ "pieces_error": null,
+ "building_kit": true,
+ "kit_tile_sizes": [],
+ "can_be_style_room": true,
+ "style_room": null,
+ "project_ids": [],
+ "filed_project_id": null,
+ "created_at": "2026-11-20T10:10:22.535378+00:00",
+ "updated_at": "2026-11-20T10:13:07.764525+00:00"
+}

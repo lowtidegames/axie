@@ -2,7 +2,7 @@
 // usado; no servidor, `modo.json` vem com { modo: "servidor", api } e a tela passa a PEDIR tudo a ele: conta, partida, comandos com
 // `seq`, ranking, perfil e replay. Aqui não há regra: só pedidos, repetição quando a rede cai (o MESMO pedido, o mesmo seq) e o
 // código de erro do contrato. Os textos ficam em textos.js (T.srv).
-const CHAVE = 'keepmile_sessao_v1'
+const CHAVE = 'keepmile_sessao_v1', CHAVE_FIM = 'keepmile_fim_servidor_v1'
 const ESPERA_MS = 12_000 // pedido parado mais que isto conta como queda de rede
 
 export class ErroS extends Error {
@@ -71,9 +71,11 @@ export const Srv = {
   /** Pedido com conta. Sessão que não vale mais (401): o aparelho ganha conta nova e o pedido se repete uma vez. */
   async pedir(metodo, caminho, corpo) {
     await Srv.entrar()
+    const usado = Srv.token
     try { return await Srv.bruto(metodo, caminho, corpo) } catch (e) {
       if (e.status !== 401) throw e
-      Srv.token = null; try { localStorage.removeItem(CHAVE) } catch { /* ok */ }
+      // dois pedidos juntos levando 401: só o 1º joga o token fora; o 2º já encontra o token novo e só repete (uma conta só)
+      if (Srv.token === usado) { Srv.token = null; try { localStorage.removeItem(CHAVE) } catch { /* ok */ } }
       await Srv.entrar()
       return Srv.bruto(metodo, caminho, corpo)
     }
@@ -100,6 +102,18 @@ export const Srv = {
   desistir: (partida) => Srv.pedir('POST', 'partida/desistir', { partida }),
   ranking: (cursor = '') => Srv.comRede(() => Srv.pedir('GET', 'ranking' + (cursor ? '?cursor=' + encodeURIComponent(cursor) : '')), 8000),
   perfil: () => Srv.comRede(() => Srv.pedir('GET', 'perfil'), 8000),
+  /** A última partida TERMINADA da conta (a tela de fim que sobrevive a recarregar). */
+  ultima: () => Srv.comRede(() => Srv.pedir('GET', 'partida/ultima'), 8000),
+  /** Troca o apelido (quem aceita ou recusa é o servidor). Deu certo: o nome novo vale na hora, também no que fica guardado no aparelho. */
+  async trocarApelido(apelido) {
+    const p = await Srv.pedir('POST', 'apelido', { apelido })
+    Srv.apelido = p.apelido
+    try { localStorage.setItem(CHAVE, JSON.stringify({ token: Srv.token, apelido: Srv.apelido })) } catch { /* vale só nesta visita */ }
+    return p
+  },
+  /** A tela de fim que está à vista (modo servidor): { id, visto, reg } fica no aparelho até o Play again. `null` apaga. */
+  guardarFim(f) { try { if (f) localStorage.setItem(CHAVE_FIM, JSON.stringify(f)); else localStorage.removeItem(CHAVE_FIM) } catch { /* sem armazenamento: recarregar abre um treino */ } },
+  fimGuardado() { try { const f = JSON.parse(localStorage.getItem(CHAVE_FIM) || 'null'); return f && typeof f.id === 'string' ? f : null } catch { return null } },
   /** Replay inteiro: junta as páginas (`?desde=`) até `proximo` vir null. */
   async replay(id) {
     let rep = null, desde = 0

@@ -3,38 +3,68 @@
 // Uma pose = { dx, dy, larg, alt, incl, fase }: desloca (px), engorda/estica (px a mais na largura/altura, pé parado) e inclina
 // (px de desvio no topo). `dx` e `incl` positivos = para onde o boneco OLHA.
 export const FASE = { nada: 0, antecipa: 1, bote: 2, volta: 3 }
-export const BOTE_MS = 70, SEGURA_MS = 60, VOLTA_MS = 190
+export const BOTE_MS = 60, SEGURA_MS = 45, VOLTA_MS = 160
 const sai = (f) => 1 - (1 - f) * (1 - f), entra = (f) => f * f
 export const pose = () => ({ dx: 0, dy: 0, larg: 0, alt: 0, incl: 0, fase: 0 })
 export function zerar(P) { P.dx = 0; P.dy = 0; P.larg = 0; P.alt = 0; P.incl = 0; P.fase = 0; return P }
 
-/** Quanto dura o golpe inteiro (antecipação + bote + segura + volta). */
+/** Quanto dura o golpe inteiro (antecipação + bote + parada + volta). */
 export const duracaoDoGolpe = (ant) => ant + BOTE_MS + SEGURA_MS + VOLTA_MS
 
-/** GOLPE: antecipa (encolhe e recua) → bote para a frente (estica) → segura no impacto → volta. `peso` 1 soldado, 1.5 bruto, 2 chefe.
- *  `tiro`: quem atira não avança — puxa para trás e leva o coice. Soma na pose e devolve a fase. */
-export function golpe(P, ms, ant, peso = 1, tiro = false) {
+/** GESTO de cada tipo (R26): o mesmo tempo, um corpo diferente — reconhecível de relance.
+ *  corte (espada, machado: avança e inclina) · estocada (lança: reto e comprido) · frigideira (de cima para baixo: cresce e esmaga) ·
+ *  bicada (ganso: o pescoço vai, o pé fica) · esmaga (bruto e chefe: sobe e desce com o corpo todo) · tiro (puxa e leva o coice). */
+export const GESTO = { corte: 0, estocada: 1, frigideira: 2, bicada: 3, esmaga: 4, tiro: 5 }
+
+/** GOLPE: antecipa (~90–120 ms: encolhe e recua) → bote (60 ms: cruza o vão até o alvo) → parada no impacto (45 ms) → volta (160 ms,
+ *  passa 1 px do ponto e assenta). `peso` 1 soldado, 1.5 bruto, 2 chefe. `alcance` = px até o alvo (o vão entre as frentes).
+ *  Soma na pose e devolve a fase. */
+export function golpe(P, ms, ant, peso = 1, gesto = 0, alcance = 6) {
   if (ms < 0) return 0
-  const rec = Math.round(3 * peso), av = Math.round((tiro ? -2 : 6) * peso)
-  if (ms < ant) { const f = sai(ms / ant); P.dx -= Math.round(rec * f); P.alt -= Math.round(2 * peso * f); P.larg += Math.round(2 * peso * f); P.incl -= Math.round(1.4 * f * peso); return (P.fase = FASE.antecipa) }
+  const tiro = gesto === GESTO.tiro, bic = gesto === GESTO.bicada, cima = gesto === GESTO.frigideira || gesto === GESTO.esmaga
+  const rec = Math.round((bic ? 1 : 3) * peso), av = tiro ? -Math.round(2 * peso) : bic ? Math.max(2, Math.round(alcance * 0.45)) : gesto === GESTO.estocada ? alcance + 1 : alcance
+  if (ms < ant) {
+    const f = sai(ms / ant); P.dx -= Math.round(rec * f)
+    if (cima) { P.alt += Math.round(3 * peso * f); P.larg -= Math.round(1 * f); P.incl -= Math.round(1 * f) } // levanta a frigideira: cresce
+    else if (bic) { P.incl -= Math.round(3 * f); P.alt += Math.round(1 * f) } // pescoço para trás
+    else if (gesto === GESTO.estocada) { P.larg -= Math.round(1 * f); P.incl -= Math.round(1 * f); P.alt -= Math.round(1 * f) }
+    else { P.alt -= Math.round(2 * peso * f); P.larg += Math.round(2 * peso * f); P.incl -= Math.round(1.4 * f * peso) }
+    return (P.fase = FASE.antecipa)
+  }
   ms -= ant
-  if (ms < BOTE_MS) { const f = sai(ms / BOTE_MS); P.dx += Math.round(-rec + (av + rec) * f); P.larg += tiro ? 0 : Math.round(2 * peso); P.alt -= tiro ? 0 : 1; P.incl += Math.round((tiro ? -1 : 2) * peso); return (P.fase = FASE.bote) }
-  ms -= BOTE_MS
-  if (ms < SEGURA_MS) { P.dx += av; P.incl += Math.round((tiro ? -1 : 2) * peso); P.alt += tiro ? 0 : 1; return (P.fase = FASE.bote) }
-  ms -= SEGURA_MS
-  if (ms < VOLTA_MS) { const f = sai(ms / VOLTA_MS); P.dx += Math.round(av * (1 - f)); P.incl += f < 0.4 ? Math.sign(av) : 0; return (P.fase = FASE.volta) }
+  if (ms < BOTE_MS + SEGURA_MS) {
+    const f = ms < BOTE_MS ? sai(ms / BOTE_MS) : 1
+    P.dx += Math.round(-rec + (av + rec) * f)
+    if (tiro) P.incl -= Math.round(peso)
+    else if (cima) { P.alt -= Math.round(4 * peso * f); P.larg += Math.round(3 * peso * f); P.incl += Math.round(2 * f) } // desce com tudo: esmaga
+    else if (bic) { P.incl += Math.round(5 * f); P.alt -= Math.round(2 * f); P.larg += 1 } // o pescoço estica até o alvo
+    else if (gesto === GESTO.estocada) { P.larg += Math.round(4 * f); P.alt -= 1; P.incl += 1 } // comprido e reto
+    else { P.larg += Math.round(2 * peso); P.alt -= 1; P.incl += Math.round(2 * peso) }
+    return (P.fase = FASE.bote)
+  }
+  ms -= BOTE_MS + SEGURA_MS
+  if (ms < VOLTA_MS) { // volta com passagem do ponto: 1 px além do repouso e assenta
+    const f = ms / VOLTA_MS, k = f < 0.7 ? 1 - sai(f / 0.7) : -Math.sin((f - 0.7) / 0.3 * Math.PI) * (1 / Math.max(1, Math.abs(av)))
+    P.dx += Math.round(av * k); if (f < 0.3 && !tiro) P.incl += 1
+    return (P.fase = FASE.volta)
+  }
   return 0
 }
 
-/** APANHOU: recua e amassa na hora, depois estica 1 px e assenta. `dir` = +1 se o golpe empurra para onde ele olha. */
+/** APANHOU: empurrado 2–3 px e amassado na hora; volta com MOLA (passa 1 px do ponto e assenta). `dir` = +1 se empurra para onde ele olha. */
 export function apanhou(P, ms, dir, forca = 1) {
-  if (ms < 0 || ms >= 240) return false
-  const rec = Math.round(3 * forca)
-  if (ms < 70) { P.dx += dir * rec; P.larg += 2; P.alt -= 2; P.incl += dir }
-  else if (ms < 150) { P.dx += dir * Math.round(rec * (1 - (ms - 70) / 80 * 0.6)); P.alt += 1; P.larg -= 1 }
-  else P.dx += dir * Math.round(rec * 0.4 * (1 - (ms - 150) / 90))
+  if (ms < 0 || ms >= 260) return false
+  const rec = Math.min(4, Math.round(2.4 * forca))
+  if (ms < 60) { P.dx += dir * rec; P.larg += 2; P.alt -= 2; P.incl += dir }
+  else if (ms < 150) { P.dx += dir * Math.round(rec * (1 - sai((ms - 60) / 90))); P.alt += 1; P.larg -= 1 }
+  else if (ms < 210) P.dx -= dir // passa do ponto
   return true
 }
+
+/** FESTA da vitória: dois pulos com a arma para o alto. */
+export function festa(P, ms) { if (ms < 0 || ms >= 640) return; grito(P, ms % 320) }
+/** RECUO na derrota: um passo para trás, encolhido. */
+export function recuo(P, ms) { if (ms < 0) return; const f = sai(Math.min(1, ms / 320)); P.dx -= Math.round(5 * f); P.alt -= Math.round(1 * f); P.incl -= Math.round(1 * f) }
 
 /** PASSO de marcha: pulinho de até 2 px a cada pisada (meio ciclo do andar) e 1 px amassado ao pousar. Devolve true no instante da pisada. */
 export function passo(P, ms, meioCiclo = 300, alto = 2) {

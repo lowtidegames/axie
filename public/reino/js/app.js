@@ -497,7 +497,7 @@ function fimDaPartida(direto = false) {
     contado: parado, contou: false,
     media, liga: sit ? sit.liga : { nome: lg.liga.nome, i: lg.i, pct: lg.pct, proxima: lg.proxima ? lg.proxima.nome : null, falta: lg.falta }, album: S.on ? albumDoServidor() : Guarda.proximaCarta(CONFIG.ALBUM), semente: J.semente,
     // o fecho: o melhor momento (do resumo das lutas), quanto faltou para a partida mais comprida e, na estrada de um amigo, quem levou
-    melhor: m ? T.melhorLinha(m.nome, m.dano, m.rodada) : null, faltaLinha: reg.novoRecorde ? null : n === 0 ? T.semRodadas : T.rodadasPara(falta),
+    melhor: m ? T.melhorLinha(m.nome, m.dano, m.rodada) : null, faltaLinha: reg.novoRecorde ? null : n === 0 ? T.semRodadas : falta > 0 ? null : T.rodadasPara(falta), // R31: "N ROUNDS TO YOUR BEST" repetia o recorde da placa
     amigo: S.on ? linhaDoModo(null) : am != null ? { texto: T.desafioFim(am, n), ganhou: n > am } : null,
   }
   if (S.on) { guardarFim(parado); depoisDoFim() }

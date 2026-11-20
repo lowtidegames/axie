@@ -1077,7 +1077,9 @@ async function r17(fmt) {
     await fimPronto(p); await p.waitForTimeout(300)
     m = await modelo(p)
     { const d = await viu(p)
-      confere(m.fim.novoRecorde === false && !d.includes('fimRecorde') && d.includes('fimFecho') && / DMG IN ROUND \d+$/.test(m.fim.melhor || '') && /TO YOUR BEST|LONGEST RUN/.test(m.fim.faltaLinha || '') && (await sons(p)).includes('nivelPequeno'), `D8: SEM recorde também há fecho — "BEST MOMENT: ${m.fim.melhor}" e "${m.fim.faltaLinha}"`) }
+      confere(m.fim.novoRecorde === false && !d.includes('fimRecorde') && d.includes('fimFecho') && / DMG IN ROUND \d+$/.test(m.fim.melhor || '') && (m.fim.faltaLinha === null || /LONGEST RUN/.test(m.fim.faltaLinha)) && !/BEST/.test(m.fim.faltaLinha || '') && (await sons(p)).includes('nivelPequeno'), `D8: SEM recorde também há fecho — "BEST MOMENT: ${m.fim.melhor}" e "${m.fim.faltaLinha}" (R31: sem "N ROUNDS TO YOUR BEST", que repetia o recorde da placa)`) }
+    { const L = m.fim.linhas || [], d = m.fim.pontos - m.fim.recordeAntes
+      confere(L.length === 2 && L.every((l) => (l.match(/BEST/g) || []).length <= 1) && (d === 0 || L[0].includes(String(m.fim.recorde))) && L[1] === T.mediaLinha(m.fim.media) && new Set(L).size === 2, `R31 item 4: um "best" só por linha — "${L.join('" / "')}" (recorde numa, média noutra)`) }
     await conferirLayout(p, 'fim sem recorde')
     await anotar(p, 'fim sem recorde')
     await p.close(); await ctx.close()

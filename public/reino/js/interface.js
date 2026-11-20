@@ -633,22 +633,18 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
         viu('fimFecho')
       }
     }
+    // R31 (clareza): o SCORE grande e, embaixo, um "best" só por linha — o recorde de pontos numa linha, a média das melhores noutra
+    // (no fim do ranking a média já vem no fecho como SEASON SCORE: não se repete aqui). Recorde: a faixa NEW RECORD ao lado do SCORE.
     const numeros = (x, y0, w) => {
-      if (f.novoRecorde) {
-        // recorde: o SCORE grande em ouro com a faixa NEW RECORD ao lado dele
-        const ws = Arte.largura(String(f.pontos), 'reino-ouro') * 2
-        Arte.titulo(g, String(f.pontos), x + 4 + ws / 2, y0, 2, true)
-        Arte.texto(g, T.pontos, x + 4, y0 + 20, { fonte: 'mini', cor: COR.creme })
-        f.faixaAlvo = { x: Math.min(x + 4 + ws + 6, x + w - 94), y: y0 + P.y }
-        const d = f.pontos - f.recordeAntes, s = f.recordeAntes === 0 ? T.primeira : T.recordeMais(d)
-        Arte.texto(g, quebrar(s, w - 6)[0], x + 4, y0 + 28, { fonte: 'mini', cor: COR.ouro })
-        Arte.texto(g, T.mediaLinha(f.media), x + 4, y0 + 35, { fonte: 'mini', cor: COR.creme })
-      } else {
-        const cols = [[T.pontos, f.pontos, true], [T.melhor, f.recorde, false], [T.media, f.media, false]]
-        cols.forEach(([rot, v, o], i) => { const c = x + Math.round((w * (i * 2 + 1)) / 6); Arte.texto(g, String(v), c, y0, { fonte: o ? 'reino-ouro' : 'reino-contorno', alinhar: 'centro' }); Arte.texto(g, rot, c, y0 + 11, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' }) })
-        const d = f.pontos - f.recordeAntes, s = d === 0 ? T.recordeIgual : T.recordeFalta(-d)
-        Arte.texto(g, quebrar(s, w - 4)[0], x + (w >> 1), y0 + 21, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' })
-      }
+      const ws = Arte.largura(String(f.pontos), 'reino-ouro') * 2
+      Arte.titulo(g, String(f.pontos), x + 4 + ws / 2, y0, 2, true)
+      Arte.texto(g, T.pontos, x + 4, y0 + 20, { fonte: 'mini', cor: COR.creme })
+      if (f.novoRecorde) f.faixaAlvo = { x: Math.min(x + 4 + ws + 6, x + w - 94), y: y0 + P.y }
+      const d = f.pontos - f.recordeAntes
+      const rec = f.novoRecorde ? (f.recordeAntes === 0 ? T.primeira : T.recordeMais(d)) : d === 0 ? T.recordeIgual : T.recordeFalta(-d, f.recorde)
+      f.linhas = [rec, f.ranking ? null : T.mediaLinha(f.media)].filter(Boolean)
+      Arte.texto(g, quebrar(rec, w - 6)[0], x + 4, y0 + 28, { fonte: 'mini', cor: f.novoRecorde ? COR.ouro : COR.creme })
+      if (f.linhas[1]) Arte.texto(g, f.linhas[1], x + 4, y0 + 35, { fonte: 'mini', cor: COR.creme })
       viu('fimNumeros')
     }
     const liga = (x, y0, w) => {

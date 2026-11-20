@@ -309,16 +309,32 @@ describe('abertura, tarefa 1 — migração v2 (contas)', () => {
     db.close()
   })
 
-  test('compatível com jogo.mjs de hoje: gravarSave sem conta grava na convidada local (ponte só em banco novo)', () => {
+  test('compatível com jogo.mjs: gravarSave sem conta grava na convidada local; a tabela save antiga nunca muda', () => {
+    // Regra mudou (tarefa 4, progresso por conta, 20/11 18:17): a PONTE (espelho do save na tabela antiga) saiu.
     const db = abrirBancoPorao(':memory:', { semente: SEMENTE, agora: () => T0 })
+    const fotoSave = () => db.prepare('SELECT * FROM save ORDER BY id').all()
+    const antes = fotoSave()
+    assert.deepEqual(antes, []) // banco novo: a tabela antiga existe, vazia, e fica assim
     const e = carregarSave(db)
     gravarSave(db, { ...e, caixa: 123 }, T0 + 1)
     assert.equal(carregarSaveDaConta(db, 1).caixa, 123)
-    // ponte: banco nascido na v2 espelha o save da conta local na tabela antiga; outras contas nunca
-    assert.equal(db.prepare('SELECT estado FROM save WHERE id = 1').get().estado, db.prepare('SELECT estado FROM saves WHERE conta_id = 1').get().estado)
     const outra = criarConta(db, { tipo: 'convidado', agora: T0 + 2 })
     gravarSaveDaConta(db, outra.id, { ...e, caixa: 999 }, T0 + 3)
-    assert.equal(JSON.parse(db.prepare('SELECT estado FROM save WHERE id = 1').get().estado).caixa, 123)
+    gravarSaveDaConta(db, 1, { ...e, caixa: 7 }, T0 + 4)
+    assert.deepEqual(fotoSave(), antes)
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM meta WHERE chave = 'save_antigo_espelho'").get().n, 0)
+    db.close()
+  })
+
+  test('banco que nasceu com a ponte (marca de espelho): a tabela save antiga também nunca muda', () => {
+    const db = abrirBancoPorao(':memory:', { semente: SEMENTE, agora: () => T0 })
+    // como a ponte deixava: linha antiga + marca apontando para a conta local
+    db.prepare('INSERT INTO save (id, estado, atualizado_em) SELECT 1, estado, atualizado_em FROM saves WHERE conta_id = 1').run()
+    db.prepare("INSERT INTO meta (chave, valor) VALUES ('save_antigo_espelho', '1')").run()
+    const antes = db.prepare('SELECT * FROM save ORDER BY id').all()
+    gravarSaveDaConta(db, 1, { ...carregarSave(db), caixa: 4242 }, T0 + 5)
+    assert.equal(carregarSaveDaConta(db, 1).caixa, 4242)
+    assert.deepEqual(db.prepare('SELECT * FROM save ORDER BY id').all(), antes)
     db.close()
   })
 })

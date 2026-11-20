@@ -23,11 +23,11 @@
 //   somaDoDiarioDaConta(db, contaId)
 //   anotarDiario / gravarPedido aceitam contaId; buscarPedido devolve contaId.
 //   conta = { id, tipo, carteira, apelido, localPadrao, criadaEm, vistoEm }
-// COMPATIBILIDADE até a tarefa 2 (jogo.mjs ainda não conhece contas): carregarSave(db), gravarSave(db, …),
-// anotarDiario e gravarPedido sem contaId usam a conta convidada local padrão.
-// PONTE até a tarefa 2: banco NOVO ainda ganha a linha antiga `save` (id 1) e, com a marca meta.save_antigo_espelho,
-// o save da conta local é espelhado nela, porque testes de hoje leem a tabela antiga (jogo.test.js foto e cópia,
-// api.test.js SAVE_SO_LEITURA). Banco migrado da v1 NÃO espelha (save antiga intocada). A tarefa 2 tira a ponte.
+// COMPATIBILIDADE: carregarSave(db), gravarSave(db, …), anotarDiario e gravarPedido sem contaId usam a conta
+// convidada local padrão.
+// A tabela `save` antiga NUNCA muda depois da v1 (tarefa 4 tirou a ponte que a espelhava): banco novo a deixa vazia;
+// banco migrado da v1 a guarda como estava (apagar é decisão do dono). Uma marca meta.save_antigo_espelho que tenha
+// ficado de antes é ignorada.
 import { DatabaseSync } from 'node:sqlite'
 import { randomBytes } from 'node:crypto'
 import fs from 'node:fs'
@@ -46,8 +46,6 @@ export const PEDIDOS_GUARDADOS_MS = 24 * 3600 * 1000
 /** Endereço de carteira Solana: base58, 32 a 44 letras (a chave em si é conferida na assinatura, tarefa 3). */
 export const CARTEIRA_VALIDA = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
 export const TIPOS_DE_CONTA = Object.freeze(['carteira', 'convidado'])
-/** meta: conta cujo save é espelhado na tabela antiga `save` (PONTE até a tarefa 2; só em banco nascido na v2). */
-const ESPELHO = 'save_antigo_espelho'
 
 const colunas = (db, tabela) => db.prepare(`PRAGMA table_info(${tabela})`).all().map(c => c.name)
 
@@ -214,16 +212,7 @@ export function abrirBancoPorao(caminho = CAMINHO_PADRAO, { modo = 'teste', agor
         })
       }
     }
-    transacao(db, () => {
-      const local = contaConvidadaLocal(db, { agora, semente })
-      // PONTE até a tarefa 2: banco NOVO ganha a linha antiga `save` e a marca ESPELHO; nele, gravar o save da conta
-      // local também regrava a linha antiga (os testes de hoje ainda leem a tabela antiga). Banco que veio da v1 não
-      // tem a marca: a `save` dele fica intocada.
-      if (!db.prepare('SELECT 1 FROM save WHERE id = 1').get()) {
-        db.prepare('INSERT INTO save (id, estado, atualizado_em) SELECT 1, estado, atualizado_em FROM saves WHERE conta_id = ?').run(local.id)
-        db.prepare('INSERT OR REPLACE INTO meta (chave, valor) VALUES (?, ?)').run(ESPELHO, String(local.id))
-      }
-    })
+    transacao(db, () => { contaConvidadaLocal(db, { agora, semente }) })
     transacao(db, () => { db.prepare('DELETE FROM pedidos WHERE em < ?').run(Math.floor(agora()) - PEDIDOS_GUARDADOS_MS) })
     return db
   } catch (e) {
@@ -330,13 +319,9 @@ export function carregarSaveDaConta(db, contaId) {
 
 export function gravarSaveDaConta(db, contaId, estado, em) {
   if (!buscarConta(db, contaId)) throw new Error('Conta inexistente.')
-  const texto = JSON.stringify(estado)
   db.prepare(`INSERT INTO saves (conta_id, estado, atualizado_em) VALUES (?, ?, ?)
     ON CONFLICT(conta_id) DO UPDATE SET estado = excluded.estado, atualizado_em = excluded.atualizado_em`)
-    .run(contaId, texto, Math.floor(em))
-  // PONTE até a tarefa 2 (só banco nascido na v2 com a marca ESPELHO; ver abrirBancoPorao).
-  const espelho = db.prepare('SELECT valor FROM meta WHERE chave = ?').get(ESPELHO)?.valor
-  if (espelho === String(contaId)) db.prepare('UPDATE save SET estado = ?, atualizado_em = ? WHERE id = 1').run(texto, Math.floor(em))
+    .run(contaId, JSON.stringify(estado), Math.floor(em))
 }
 
 /** Soma do diário da conta (deve ser igual ao caixa do save dela). */
@@ -344,17 +329,17 @@ export function somaDoDiarioDaConta(db, contaId) {
   return db.prepare('SELECT COALESCE(SUM(valor), 0) AS s FROM diario WHERE conta_id = ?').get(contaId).s
 }
 
-/** COMPATIBILIDADE (jogo.mjs até a tarefa 2): save da conta convidada local padrão. */
+/** COMPATIBILIDADE: save da conta convidada local padrão. */
 export function carregarSave(db) {
   return carregarSaveDaConta(db, idLocalPadrao(db))
 }
 
-/** COMPATIBILIDADE (jogo.mjs até a tarefa 2): grava o save da conta convidada local padrão. */
+/** COMPATIBILIDADE: grava o save da conta convidada local padrão. */
 export function gravarSave(db, estado, em) {
   gravarSaveDaConta(db, idLocalPadrao(db), estado, em)
 }
 
-/** contaId omitido = conta convidada local padrão (compatibilidade até a tarefa 2). */
+/** contaId omitido = conta convidada local padrão (compatibilidade). */
 export function anotarDiario(db, { em, motivo, valor, caixaDepois, pedido = null, contaId = idLocalPadrao(db) }) {
   if (!Number.isSafeInteger(valor) || valor === 0) throw new Error(`Valor inválido no diário: ${valor}`)
   db.prepare('INSERT INTO diario (em, motivo, valor, caixa_depois, pedido, conta_id) VALUES (?, ?, ?, ?, ?, ?)')
@@ -367,7 +352,7 @@ export function buscarPedido(db, chave) {
   return l ? { acao: l.acao, corpo: l.corpo, resposta: l.resposta, contaId: l.conta_id } : null
 }
 
-/** contaId omitido = conta convidada local padrão (compatibilidade até a tarefa 2). */
+/** contaId omitido = conta convidada local padrão (compatibilidade). */
 export function gravarPedido(db, { chave, acao, corpo, resposta, em, contaId = idLocalPadrao(db) }) {
   db.prepare('INSERT INTO pedidos (chave, acao, corpo, resposta, em, conta_id) VALUES (?, ?, ?, ?, ?, ?)')
     .run(chave, acao, corpo, resposta, Math.floor(em), contaId)

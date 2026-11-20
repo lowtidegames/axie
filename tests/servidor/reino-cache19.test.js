@@ -151,3 +151,26 @@ describe('R19 — placar do dia D só com ranking terminado antes do fim de D', 
     } finally { await fechar(s) }
   })
 })
+
+describe('R20 — foraDoPlacar da estrada usa o mesmo corte do placar do dia DA ESTRADA', () => {
+  test('estrada que atravessa a meia-noite com ranking em D+1 sai com foraDoPlacar SEM_RANKING', async () => {
+    const { s, api, conta, relogio } = await subir({ t: T0 - DIA })
+    try {
+      // D-1: a Tardia cria a conta (sem ranking); o Olho termina 1 ranking
+      const tardia = await conta('Tardia'), olho = await conta('Olho')
+      await desistir(api, olho.token, (await abrir(api, olho.token, 'ranking')).id)
+      // D 23:50: a Tardia abre a estrada de D, ainda sem ranking
+      relogio.t = (SEGUNDA + 1) * DIA - 10 * 60_000
+      const e = await abrir(api, tardia.token, 'estrada')
+      assert.equal(e.foraDoPlacar?.codigo, 'SEM_RANKING')
+      // D+1 00:05: termina 1 ranking e acaba a estrada de D
+      relogio.t = (SEGUNDA + 1) * DIA + 5 * 60_000
+      await desistir(api, tardia.token, (await abrir(api, tardia.token, 'ranking')).id)
+      const fim = await jogar(api, tardia.token, e)
+      assert.equal(fim.status, 'terminada')
+      assert.equal(fim.dia, e.dia)
+      assert.equal((await api('GET', `/api/reino/replay/${fim.id}`, olho.token)).status, 404, 'controle: o placar de D não conta a Tardia')
+      assert.equal(fim.foraDoPlacar?.codigo, 'SEM_RANKING', 'a resposta diz que a estrada está no placar de D, mas o placar não a conta')
+    } finally { await fechar(s) }
+  })
+})

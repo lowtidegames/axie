@@ -1,147 +1,147 @@
 // Textos do Porão por CHAVE estável (chaves em ASCII, textos em português com acento).
 // Tudo inventado e provisório (sátira leve).
 // Nomes reais ficam em porao/nomes.local.json (fora do git); ver servidor/nomes-local.mjs.
-// Marcador {projeto} = nome do golpe atual.
+// Marcadores: {projeto} = nome do golpe atual · {valor} = preço já formatado · {nome} = nome antes do rebrand.
 
-// [nome, lançamento, fim] por raridade
+// [nome, lançamento, fim] por raridade — do golpe mixuruca (Comum) ao cósmico absurdo (Mítico)
 const IDEIAS = {
   comum: [
-    ['Moeda do Vizinho', 'Lançamos a Moeda do Vizinho: toda compra rende um abraçinho!', 'A moeda sumiu junto com o vizinho. Mudou de bairro.'],
-    ['Pede Doação pro Servidor', 'Ajude o servidor a não chorar! Doe qualquer valor!', 'O servidor era o notebook do tio. Fechou a tampa.'],
-    ['Rifa do Pinguim', 'Rifa do Pinguim: o prêmio é um pinguim (de geladeira).', 'O pinguim foi sorteado para mim mesmo. Que sorte.'],
-    ['Token do Pastel', 'Token do Pastel: cada pastel vale 1 token, cada token vale um pastel.', 'A feira acabou e o pastel esfriou. Fim do token.'],
-    ['Cripto-Cafezinho', 'Cafezinho que rende juros! Quanto mais forte, mais rende.', 'O café esfriou, os juros evaporaram.'],
+    ['Moeda do Vizinho', 'Moeda do Vizinho: lastreada na palavra dele. Ele jurou.', 'O vizinho se mudou de madrugada. Levou a moeda e a minha escada.'],
+    ['Vaquinha do Servidor', 'Ajude o servidor a ficar de pé! Qualquer moedinha serve.', 'O servidor era o notebook do tio. Ele fechou a tampa.'],
+    ['Rifa do Pinguim', 'Rifa do Pinguim: o prêmio é um pinguim (de geladeira).', 'Sorteio feito: ganhei eu. Que sorte a minha.'],
+    ['Token do Pastel', 'Cada token vale um pastel. O vento vai de brinde.', 'A feira acabou. O token esfriou junto com o pastel.'],
+    ['Cafezinho que Rende', 'Deixe seu café com a gente: rende juros até esfriar.', 'O café esfriou. Os juros evaporaram antes.'],
   ],
   incomum: [
-    ['Jogue e Ganhe Troco', 'Jogue e ganhe troco! Até 3 centavos por dia!', 'O troco acabou. Ninguém tinha moeda miúda.'],
-    ['Bichinho NFT de Papel', 'Bichinhos de papel dobrado, raros e dobráveis!', 'Choveu. Os bichinhos viraram papa.'],
-    ['Staking de Feijão', 'Plante feijão no cofre e colha rendimento em 7 dias!', 'O feijão não brotou. O cofre nunca existiu.'],
-    ['Clube do Hype Barato', 'Clube exclusivo com 4 mil membros (3 mil são robôs).', 'Os robôs pediram demissão em massa.'],
-    ['Sorvete Descentralizado', 'Sorvete que ninguém controla! Derrete sozinho!', 'Derreteu. Como avisado no site, em letra miudinha.'],
+    ['Jogue e Ganhe Troco', 'Jogue 8 horas por dia e ganhe até 3 centavos!', 'Faltou troco. Pagamos todo mundo em bala.'],
+    ['Bichinho de Papel Raro', 'Bichinhos de papel dobrado: únicos, raros e inflamáveis.', 'Choveu. A coleção inteira virou papa.'],
+    ['Poupança de Feijão', 'Plante 1 feijão no algodão e colha 2 em 7 dias. É ciência!', 'O feijão brotou. Eu jantei o rendimento.'],
+    ['Clube do Hype Barato', 'Clube exclusivo: 4 mil membros (3.900 são robôs).', 'Os robôs pediram demissão. Sobramos você e eu.'],
+    ['Sorvete Sem Dono', 'O sorvete que ninguém controla. Nem o freezer.', 'Derreteu. Estava avisado na letra miudinha.'],
   ],
   raro: [
-    ['Metaverso do Quintal', 'Compre um terreno virtual no meu quintal digital!', 'O quintal foi vendido de verdade. Virou estacionamento.'],
-    ['Jogo que Ainda Vai Sair', 'O jogo mais esperado do ano! (o ano não foi definido)', 'O jogo saiu: era uma tela preta com música.'],
-    ['Fundo Tigre Dourado', 'O Tigre Dourado rende 300% ao mês. O tigre garante.', 'O tigre fugiu do zoológico e levou o cofre.'],
-    ['Plataforma Zen Cripto', 'Invista com paz interior e lucro exterior.', 'A paz interior era minha. O lucro também.'],
-    ['Aluguel de Nuvem', 'Alugue nuvens premium, as mais fofas da internet!', 'Veio vento. Nuvem nenhuma sobrou.'],
+    ['Metaverso do Quintal', 'Terrenos virtuais no meu quintal. Vista para o varal.', 'A vó vendeu o quintal de verdade. Virou estacionamento.'],
+    ['Jogo que Ainda Vai Sair', 'O jogo mais esperado do ano! (o ano a gente avisa)', 'O jogo saiu: uma tela preta com música. Os robôs deram 10.'],
+    ['Fundo Galo de Ouro', 'O Galo de Ouro rende 300% ao mês. O galo garante.', 'O galo cantou às 5h e voou com o cofre.'],
+    ['Lucro Zen', 'Invista com paz interior e lucro exterior.', 'A paz interior era minha. O lucro também.'],
+    ['Aluguel de Nuvem', 'Alugue uma nuvem de verdade. Olhe pra cima: é aquela ali.', 'Ventou. Sua nuvem agora é de outro município.'],
   ],
   epico: [
-    ['Banco do Futuro Agora', 'O banco que já nasce do futuro. Você só depositou cedo demais.', 'O futuro foi adiado por tempo indeterminado.'],
-    ['Império da Moeda Cometa', 'A Moeda Cometa passa só uma vez. Embarque!', 'O cometa passou. Eu também.'],
-    ['Fábrica de Sonhos Líquidos', 'Engarrafamos sonhos! Cada garrafa é um ativo!', 'Os sonhos evaporaram. Garrafas vazias à venda.'],
-    ['Cassino do Bem', 'Aposte pelo bem! A casa sempre ganha (para doar).', 'A casa ganhou. Doou para si mesma.'],
-    ['Torre de Marfim Digital', 'Torre exclusiva de 100 andares, todos em construção.', 'A torre era uma imagem. Ninguém avisou o elevador.'],
+    ['Banco do Futuro Agora', 'O banco do futuro: deposite hoje, saque em 2090.', 'O futuro foi adiado. O saque também.'],
+    ['Moeda Cometa', 'A Moeda Cometa passa só uma vez. Embarque!', 'O cometa passou. Eu fui na cauda.'],
+    ['Sonho Engarrafado S.A.', 'Engarrafamos sonhos. Cada garrafa vazia é um ativo.', 'Os sonhos evaporaram. Devolvemos os cascos.'],
+    ['Cassino do Bem', 'Aposte pelo bem! A casa sempre ganha (e doa).', 'A casa ganhou. Doou tudo para a casa.'],
+    ['Torre de 100 Andares', 'Torre de luxo com 100 andares. Só falta o primeiro.', 'A torre era um desenho. O elevador ainda não sabe.'],
   ],
   lendario: [
-    ['Ouro de Marte Ltda.', 'Ouro extraído de Marte. Frete grátis (em teoria).', 'A nave atrasou. Marte não atende telefone.'],
-    ['Super Rede Infinita', 'A rede que nunca cai! Quem cair, não é culpa nossa.', 'A rede caiu. Ficou só o fio.'],
-    ['Cripto Vaticínio', 'Previmos o futuro e ele é lucrativo. Garantido pelo futuro.', 'O futuro chegou e não gostou da gente.'],
-    ['Cofre dos Dragões', 'Dragões guardam seu dinheiro. Nunca falharam (nunca foram testados).', 'Os dragões eram lagartixas de aluguel.'],
-    ['Aliança Global do Sim', 'Uma aliança de 40 países imaginários. Todos disseram sim.', 'Os países pediram independência da aliança.'],
+    ['Ouro de Marte Ltda.', 'Ouro extraído de Marte. Frete grátis (só de ida).', 'A nave atrasou. Marte não atende telefone.'],
+    ['Rede que Nunca Cai', 'A rede que nunca cai. Se cair, foi você.', 'A rede caiu. Sobrou o fio e um boleto.'],
+    ['Oráculo do Lucro Certo', 'O oráculo viu o futuro: você lucra. Ele cobra antes.', 'O oráculo previu o tapete. Só não avisou.'],
+    ['Cofre dos Dragões', 'Dragões guardam seu dinheiro. Nunca foram roubados (nem vistos).', 'Os dragões eram lagartixas de aluguel.'],
+    ['Aliança Global do Sim', '40 países imaginários já disseram sim. Só falta você.', 'Os 40 países pediram asilo em outro golpe.'],
   ],
   mitico: [
-    ['O Golpe do Século', 'Chegou O Golpe do Século: ninguém vai acreditar como é simples!', 'Ninguém acreditou. Mas todo mundo comprou.'],
-    ['Moeda Universal do Cosmos', 'A moeda de todos os planetas. Aceita até onde não tem gente.', 'O cosmos fechou para balanço. Eterno.'],
-    ['Fundação Infinito Mais Um', 'Retorno infinito mais um por cento. Matemática avançada.', 'Infinito mais um dividido por zero. Deu ruim.'],
-    ['Templo do Lucro Eterno', 'Templo onde o lucro é eterno e o templo é portátil.', 'Dobrei o templo e fui embora de van.'],
-    ['Império do Puxa-Tapete', 'Um tapete tão grande que cabe o mercado inteiro em cima.', 'Puxei. O mercado inteiro escorregou junto.'],
+    ['O Golpe do Século', 'O Golpe do Século: está no nome e você entra assim mesmo.', 'Estava no nome. Todo mundo comprou mesmo assim.'],
+    ['Cotas do Sol', 'Vendo cotas do Sol. Quem não pagar fica no escuro.', 'O Sol se pôs. Jurei que voltava amanhã e fui embora.'],
+    ['Loteamento Universo 2', 'Lotes na planta do próximo universo. Entrega após o Big Bang.', 'O universo novo atrasou. O antigo não aceita devolução.'],
+    ['Templo do Lucro Eterno', 'O lucro é eterno. O templo é dobrável.', 'Dobrei o templo e fui embora de van.'],
+    ['Império do Puxa-Tapete', 'Um tapete tão grande que o mercado inteiro cabe em cima.', 'Puxei. A galáxia inteira escorregou junto.'],
   ],
 };
 
 // grupos: nano.1..3, medio.1..3, mega.1..2
 const INFLU = {
   'nano.1': {
-    nome: 'Biel do Zap',
-    bio: 'Sete seguidores fiéis, dois deles são minha mãe.',
+    nome: 'Biel do Grupo',
+    bio: 'Sete seguidores fiéis. Dois são a minha mãe.',
     posts: [
-      'Gente, olha {projeto}! Ainda é pequeno, entra antes de ficar grande!',
-      'Hoje acordei com {projeto} na cabeça. Sinal do destino.',
-      'Meus 7 seguidores já entraram em {projeto}. Você vai ficar de fora?',
-      'Não é recomendação, mas {projeto} é o futuro (e eu não tenho dinheiro).',
-      '{projeto}: porque sonhar custa pouco e o resto custa pouco também.',
+      'Gente, olha {projeto}! Entra antes que meus 7 seguidores esgotem!',
+      'Sonhei com {projeto}. No sonho eu pagava o aluguel.',
+      'Meus 7 seguidores já entraram em {projeto}. Oi, mãe! Oi, mãe de novo!',
+      'Não é recomendação, mas {projeto} é o futuro (me emprestam 20?).',
+      'Gravei um vídeo de {projeto}. Minha mãe curtiu das duas contas.',
     ],
   },
   'nano.2': {
     nome: 'Dona Cripta',
-    bio: 'Tia do grupo da família que descobriu o gráfico.',
+    bio: 'Tia do grupo da família. Descobriu o gráfico ontem.',
     posts: [
-      'Bom dia família! {projeto} está subindo, igual minha pressão.',
-      'Mandei {projeto} para o grupo todo. Só o Zé respondeu: "quem é?"',
-      'Fé em {projeto} é um bom café. O resto é detalhe.',
-      '{projeto} me deu mais alegria que a novela das nove.',
-      'Segura firme em {projeto}, que a tia já tá de olho!',
+      'Bom dia, família! {projeto} está subindo igual à minha pressão.',
+      'Mandei {projeto} no grupo da família. O Zé respondeu: "quem é?"',
+      'Bom dia com {projeto} e uma rosa que pisca. Repasse para 10 contatos.',
+      '{projeto} me deu mais emoção que a novela das nove.',
+      'Imprimi o gráfico de {projeto} e colei na geladeira. Lindo!',
     ],
   },
   'nano.3': {
-    nome: 'Pedrinho Lambo',
-    bio: 'Vai comprar uma lambo. Hoje está de ônibus.',
+    nome: 'Pedrinho Carrão',
+    bio: 'Vai comprar um carrão. Hoje está de ônibus.',
     posts: [
-      'Em breve lambo! Tudo graças a {projeto}.',
+      'Em breve, carrão! Graças a {projeto}. Por enquanto, graças ao cobrador.',
       'Pesquisei {projeto} por 4 minutos. Conclusão: foguete.',
       '{projeto} não dorme. Eu durmo, mas {projeto} não.',
-      'Quem entrou em {projeto} cedo já está comigo no ônibus, com esperança.',
-      'Papai disse que {projeto} é furada. Papai não tem lambo.',
+      'Quem entrou cedo em {projeto} já está comigo: no ônibus, com esperança.',
+      'Papai disse que {projeto} é furada. Papai também não tem carrão.',
     ],
   },
   'medio.1': {
     nome: 'Tio Gema',
-    bio: 'O tiozão das gemas raras (e das dicas duvidosas).',
+    bio: 'O tiozão das gemas raras e das dicas duvidosas.',
     posts: [
       'Atenção, sobrinhada: {projeto} é a gema do mês. Anotem.',
-      'Eu avisei sobre {projeto}. Quem não ouviu, ouviu depois.',
-      'Joias eu entendo. {projeto} é joia bruta, só falta lapidar o seu bolso.',
-      'Gema não se explica. {projeto}, sim, se explica no meu curso.',
-      '{projeto} a esse preço? Vou repetir: a esse preço!',
-      'Mandem {projeto} pra quem diz que cripto é bolha!',
+      'Eu avisei sobre {projeto}. Quem não ouviu, ouve no meu curso.',
+      '{projeto} é joia bruta. Só falta lapidar o seu bolso.',
+      'Gema não se explica. {projeto} eu explico no módulo 7 (pago à parte).',
+      '{projeto} a esse preço? Vou repetir mais alto: A ESSE PREÇO?',
+      'Mandem {projeto} pra quem diz que isso é bolha. Bolha também sobe!',
     ],
   },
   'medio.2': {
-    nome: 'Lambo Lucas',
-    bio: 'Alugou uma lambo uma vez. Foi suficiente para a bio.',
+    nome: 'Lucas Conversível',
+    bio: 'Alugou um conversível por 20 minutos. Rendeu 400 fotos.',
     posts: [
-      'Comprei {projeto} dentro da lambo (alugada, por 20 minutos).',
-      'Rotina de sucesso: acordar, café, {projeto}, repetir.',
-      '{projeto} é para quem pensa grande. Eu penso enorme.',
-      'Vou revelar o segredo de {projeto}: tem que entrar. Só isso.',
-      'Fiquei rico com {projeto}! (no sonho de ontem, mas valeu).',
+      'Comprei {projeto} dentro do conversível (devolvo às 15h).',
+      'Rotina de sucesso: acordar, café, {projeto}, devolver o carro.',
+      '{projeto} é para quem pensa grande. Eu penso enorme e parcelo.',
+      'O segredo de {projeto}? Tem que entrar. Pronto, era isso.',
+      'Fiquei rico com {projeto}! Foi num sonho, mas eu conto igual.',
       'Corre pra {projeto} antes que eu conte para mais gente!',
     ],
   },
   'medio.3': {
     nome: 'Dra. Foguete',
-    bio: 'Doutora em nada, especialista em foguete emoji.',
+    bio: 'Doutora em nada. Pós em emoji de foguete.',
     posts: [
-      '{projeto} já decolou. Quem está na plataforma?',
+      '{projeto} já decolou. Destino: a gente vê no caminho.',
       'Foguete, foguete, foguete! Ah, e {projeto}.',
-      'Doutora aqui: {projeto} faz bem à saúde financeira (não é conselho médico).',
-      'Meu gráfico de {projeto} só aponta para cima. Giro a tela se precisar.',
-      'Gratidão a {projeto}. Gratidão também a quem comprou depois de mim.',
-      '{projeto} é o remédio. Efeitos colaterais: euforia.',
+      'Receito {projeto} de 8 em 8 horas (não é conselho médico).',
+      'Meu gráfico de {projeto} só aponta para cima. Se precisar, eu viro a tela.',
+      'Gratidão a {projeto}. E a quem comprou depois de mim.',
+      '{projeto} é o remédio. Efeito colateral: euforia e sumiço do saldo.',
     ],
   },
   'mega.1': {
     nome: 'Mestre do Airdrop',
-    bio: 'Mil mil seguidores, todos esperando um airdrop que nunca chega.',
+    bio: 'Cinco milhões de seguidores esperando um airdrop que nunca chega.',
     posts: [
-      'Meus 5 milhões de amigos: {projeto} é a nova era. Entrem.',
-      'Airdrop de {projeto}! (só para quem já comprou {projeto}).',
-      'Eu nunca indico nada. Exceto {projeto}. Exceto {projeto} de novo.',
-      'Vou sortear 10 mil em {projeto}. Enviem 5 mil para participar.',
-      '{projeto} mudou minha vida. Vou mudar a sua também (taxa do curso).',
-      'Aviso aos haters: {projeto} não ouve vocês, só ouve o meu jato.',
-      'Já mostrei {projeto} para meus pets. Eles entraram.',
+      'Meus 5 milhões de amigos: {projeto} é a nova era. Entrem em fila.',
+      'Airdrop de {projeto}! (só para quem já comprou {projeto})',
+      'Eu nunca indico nada. Exceto {projeto}. E {projeto} de novo.',
+      'Vou sortear 10 mil em {projeto}. Para participar, envie 5 mil.',
+      '{projeto} mudou a minha vida. Mudo a sua também (taxa do curso).',
+      'Aos críticos de {projeto}: não escuto vocês. O jato faz barulho.',
+      'Mostrei {projeto} para o meu cachorro. Ele entrou com tudo.',
     ],
   },
   'mega.2': {
     nome: 'Baronesa Hype',
-    bio: 'Celebridade de tudo e de nada. Nome em neon.',
+    bio: 'Famosa por ser famosa. Nome em neon.',
     posts: [
-      'Como celebridade responsável, eu apoio {projeto} desde ontem à noite.',
+      'Como celebridade responsável, apoio {projeto} desde ontem à noite.',
       '{projeto}: luxo, glamour e nenhum balanço publicado.',
-      'Meus fãs amam {projeto}. Meus advogados também (me orientaram a dizer isso).',
+      'Eu amo {projeto}. Meus advogados pediram para eu parar por aqui.',
       'Entrei em {projeto} só pela vibe. A vibe está linda.',
-      '{projeto} é arte, é ciência, é tendência. E um pouco de risco.',
+      '{projeto} é arte, é ciência, é tendência. O resto está no contrato.',
       'Quem não curtir {projeto} será bloqueado com carinho.',
       'Se {projeto} subir mais, compro um planeta pequeno.',
     ],
@@ -149,44 +149,46 @@ const INFLU = {
 };
 
 const LUXOS = [
-  ['Aquário de Peixe Caro', 'Peixes que custam mais que o porão inteiro.'],
+  ['Aquário de Peixe Caro', 'Cada peixe custa mais que o porão. Eles sabem disso.'],
   ['Cadeira Gamer Trono', 'Reclina, vibra e julga você em silêncio.'],
-  ['Máquina de Bebida Infinita', 'Só tem refrigerante de uva. Infinito.'],
-  ['Carro na Garagem', 'Está na garagem do vizinho, mas aparece na foto.'],
+  ['Máquina de Bebida Infinita', 'Só sai refrigerante de uva. Para sempre.'],
+  ['Carro na Garagem', 'A garagem é do vizinho, mas a foto é minha.'],
   ['Neon de Frase Motivacional', '"Trabalhe enquanto eles dormem" (eu também durmo).'],
-  ['Ar-Condicionado Polar', 'Congela as ideias e os trouxas ao mesmo tempo.'],
-  ['Tela Curva Gigante', 'Tão curva que dá pra ver o próprio futuro.'],
+  ['Ar-Condicionado Polar', 'Tão gelado que a vó desce de casaco para reclamar.'],
+  ['Tela Curva Gigante', 'Tão curva que dá pra ver a polícia chegando por trás.'],
   ['Estátua de Mim Mesmo', 'Dourada, discreta e com 3 metros.'],
 ];
 
+// exatamente 7 (o servidor escolhe pelo resto de 7)
 const TAPETE = [
   'O projeto saiu para comprar pão e nunca mais voltou.',
   'Atualização importante: o site agora é uma tela azul.',
-  'Foi um prazer. Quem reclamar será tratado como inimigo da inovação.',
+  'Foi um prazer. Quem reclamar é inimigo da inovação.',
   'O time inteiro entrou de férias. Férias eternas.',
-  '"Isso era só estudo", disse o dono, em outra cidade.',
-  'A equipe foi para a lua. Lua sem sinal de internet.',
-  'A comunidade foi muito importante. Agora é passado.',
+  '"Era só estudo", disse o dono, já em outra cidade.',
+  'A equipe foi para a Lua. Lá não pega sinal.',
+  'Obrigado, comunidade! Vocês foram a minha porta de saída.',
 ];
 
+// exatamente 8 (o servidor escolhe pelo resto de 8)
 const CHAT = [
-  'quando lambo?',
-  'alguém sabe se o saque funciona?',
-  'confia que sobe, tô dentro com tudo',
+  'quando carrão?',
+  'alguém já conseguiu sacar? pergunto por um amigo (eu)',
+  'confia que sobe, vendi a moto pra entrar',
   'o dev disse que vem novidade amanhã (disse isso ontem tb)',
-  'meu primo já ficou rico com isso, ele disse',
-  'por que o gráfico só desce, é normal?',
-  'fica ligado: hoje é o dia do pump (não é dica)',
-  'chega de fud, só vem coisa boa, abraço',
+  'meu primo ficou rico com isso. quem contou foi ele',
+  'o gráfico só desce, mas desce bonito né',
+  'hoje é o dia do pump, vi num sonho (não é dica)',
+  'o dev tá online mas não responde. deve ser timidez',
 ];
 
 const AVALIACAO = [
   ['Joaozinho123', 'Melhor investimento da minha vida! Nota 5. Não testei o saque.'],
-  ['Marilu Fiel', 'Mudou minha vida, agora acordo cedo para ver o gráfico.'],
-  ['Robô Confiável 42', 'Excelente. Recomendo. Excelente. Recomendo.'],
-  ['Carlão do Pix', 'Ainda não saquei, mas a fé é grande. 5 estrelas.'],
-  ['Anônimo Feliz', 'Entrei com R$ 10, hoje tenho R$ 10. Estável!'],
-  ['Bia Moedinha', 'Equipe muito atenciosa. Responderam meu chamado com um emoji.'],
+  ['Marilu Fiel', 'Mudou minha vida: agora acordo às 4h para ver o gráfico.'],
+  ['Robô Confiável 42', 'Excelente. Recomendo. Excelente. Recomendo. Bip.'],
+  ['Carlão do Boleto', 'Ainda não saquei, mas a fé é grande. 5 estrelas.'],
+  ['Anônimo Feliz', 'Entrei com 10, hoje tenho 10. Estável!'],
+  ['Bia Moedinha', 'Suporte nota 10: responderam meu chamado com um joinha.'],
 ];
 
 const PRESTIGIO = [
@@ -199,21 +201,44 @@ const PRESTIGIO = [
 ];
 
 const MSG = {
-  'msg.video1.oferta': 'Oi! Vi seu vídeo de {projeto}. Quero fechar uma parceria: 5 mil pra gravar um vídeo sobre você.',
-  'msg.melhorar.oferta': 'Agora que o jogo lançou, imagino que você possa melhorar a oferta, né? A audiência tá alta.',
-  'msg.choro.resposta': 'Entendo que é caro, mas meu preço é justo: cada seguidor me ama e custa caro. Posso fazer 10% de desconto.',
-  'msg.sumir': 'Visualizado. Última vez visto: nunca. Esta pessoa ficou indisponível.',
+  'msg.video1.oferta': 'Oi, sumido! Vi {projeto} e senti cheiro de sucesso. Por {valor} eu gravo um vídeo jurando que uso há anos.',
+  'msg.melhorar.oferta': 'Agora que o jogo lançou, imagino que você possa melhorar a oferta, né? Minha sinceridade encareceu.',
+  'msg.choro.resposta': 'Caro? Meus seguidores me amam, e amor custa caro. Faço 10% de desconto e não se fala mais nisso.',
+  'msg.sumir': 'Visualizado. Visto por último: nunca. O influenciador agora mora em outro fuso.',
+  'msg.video2.mesmo_preco': 'O vídeo de {projeto} flopou: 12 views, 9 foram minhas. Faço o segundo pelo mesmo preço e a gente finge que não viu.',
 };
 
 const VIDEO = {
-  'video.1.roteiro': 'Conheçam esse jogo! É {projeto}: simples, bonito e prestes a explodir. Link na bio, não esquece de curtir.',
-  'video.2.roteiro': 'Quanto {projeto} rende por dia? Olha o teste de saque: caiu na hora (um centavo). Agora o gráfico: só sobe, sempre.',
-  'video.3.roteiro': 'Por que eu saí de {projeto}? Era só estudo, pessoal. Tudo educativo. Qualquer coisa, falem com o meu advogado.',
+  'video.1.roteiro': 'Conheçam esse jogo! É {projeto}: simples, bonito e prestes a explodir. Link na bio. Não fui pago para dizer isso (fui).',
+  'video.2.roteiro': 'Quanto {projeto} rende por dia? Olha o teste de saque: caiu na hora (um centavo). E o gráfico: só sobe, eu cortei o resto.',
+  'video.3.roteiro': 'Por que eu saí de {projeto}? Era só estudo, pessoal. Conteúdo educativo. Dúvidas, falem com o meu advogado.',
 };
 
 const PERSONAGEM = {
   'personagem.rugrigo.nome': 'Rugrigo',
-  'personagem.rugrigo.bio': 'Dono do porão. Mora lá desde que a ideia era boa.',
+  'personagem.rugrigo.bio': 'Dono do porão (o porão é da vó). Ex-suporte, atual problema.',
+};
+
+// jeitos de renomear o golpe no rebrand; {nome} = nome de antes
+const REBRAND = [
+  '{nome} 2.0',
+  'Novo {nome}',
+  '{nome} Agora Vai',
+  '{nome} do Bem',
+  '{nome} Sob Nova Direção',
+];
+
+// a polícia bate na porta do porão
+const BATIDA = [
+  'TOC TOC. Não é o entregador.',
+  'Polícia! Larga o tapete devagar.',
+  'Abre! A gente sabe que esse porão tem Wi-Fi.',
+  'A vó abriu a porta e ofereceu café para a polícia.',
+  'Sirene lá fora. Você jura que é o carro do ovo.',
+];
+
+const UI = {
+  'ui.confianca': 'Confiança dos trouxas',
 };
 
 function montar() {
@@ -231,12 +256,14 @@ function montar() {
     t[`influ.${g}.bio`] = d.bio;
     d.posts.forEach((p, i) => { t[`influ.${g}.post.${i + 1}`] = p; });
   }
-  Object.assign(t, MSG, VIDEO, PERSONAGEM);
+  Object.assign(t, MSG, VIDEO, PERSONAGEM, UI);
   LUXOS.forEach(([n, d], i) => { t[`luxo.${i + 1}.nome`] = n; t[`luxo.${i + 1}.descricao`] = d; });
   TAPETE.forEach((s, i) => { t[`tapete.${i + 1}`] = s; });
   CHAT.forEach((s, i) => { t[`chat.${i + 1}`] = s; });
   AVALIACAO.forEach(([a, s], i) => { t[`avaliacao.${i + 1}.autor`] = a; t[`avaliacao.${i + 1}.texto`] = s; });
   PRESTIGIO.forEach((s, i) => { t[`prestigio.${i + 1}`] = s; });
+  REBRAND.forEach((s, i) => { t[`rebrand.${i + 1}`] = s; });
+  BATIDA.forEach((s, i) => { t[`batida.${i + 1}`] = s; });
   return t;
 }
 

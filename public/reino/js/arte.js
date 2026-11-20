@@ -396,6 +396,34 @@ export function conquista(g, nome, x, y, ganha = true) {
   g.drawImage(img, m[0], m[1], m[2], m[3], x, y, m[2], m[3]); g.globalAlpha = 0.45; g.drawImage(img, q[0], q[1], q[2], q[3], x + c.icone_em[0], y + c.icone_em[1], q[2], q[3]); g.globalAlpha = 1
   return true
 }
+/** R44 — MEDALHA DE QUALQUER CONQUISTA (19×21), `c` = { id, nome, meta? }. As 12 antigas vêm do atlas; as 18 novas são desenhadas por
+ *  código (`arte-codigo.js`) no MESMO troféu (o do atlas; sem atlas, o de código): ouro quando ganha; por fazer, troféu de pedra fria
+ *  com o desenho apagado. Os degraus são um marco de estrada com o número da meta (`c.meta`, que vem do config). Devolve de onde saiu. */
+const DEGRAUS = ['tally25', 'tally50', 'tally100', 'tally200', 'tally400'], MEDALHA_PRONTA = new Map()
+function desenhoDaMedalha(c) {
+  const chave = `${c.id}|${c.meta ?? ''}|${A.fontes.mini ? 1 : 0}`
+  if (MEDALHA_PRONTA.has(chave)) return MEDALHA_PRONTA.get(chave)
+  let d = null
+  const i = DEGRAUS.indexOf(c.id)
+  if (i >= 0) {
+    d = Cod.marcoPorCodigo(i)
+    const s = String(c.meta ?? ''), w = largura(s, 'mini')
+    texto(d.getContext('2d'), s, (13 - w) >> 1, Cod.MARCO_NUMERO_Y + (i === 4 ? 1 : 0), { fonte: 'mini', cor: i === 4 ? '#684030' : COR.ameixa })
+  } else d = Cod.medalhaPorCodigo(c.id)
+  MEDALHA_PRONTA.set(chave, d)
+  return d
+}
+export function medalha(g, c, x, y, ganha = true) {
+  if (conquista(g, c.nome, x, y, ganha)) return 'atlas'
+  const at = A.atlas?.conquistas, img = at && A.folhas[at.folha], m = img && at.molduras?.[ganha ? 'gold' : 'locked']
+  if (m) g.drawImage(img, m[0], m[1], m[2], m[3], x, y, m[2], m[3])
+  else { const k = ganha ? 'gold' : 'locked'; if (!MEDALHA_PRONTA.has(k)) MEDALHA_PRONTA.set(k, Cod.trofeuPorCodigo(k)); g.drawImage(MEDALHA_PRONTA.get(k), x, y) }
+  const d = desenhoDaMedalha(c)
+  g.globalAlpha = ganha ? 1 : 0.45
+  if (d) g.drawImage(d, x + 4 - ((d.width - 11) >> 1), y + 4 - ((d.height - 11) >> 1)); else icone(g, ganha ? 'pudding' : 'pin-off', x + 4, y + 5) // (sem atlas, as 12 antigas: o ícone do pudim)
+  g.globalAlpha = 1
+  return d ? 'codigo' : 'reserva'
+}
 /** Emblema da liga (27×30) pelo nome. Devolve false sem atlas. */
 export function liga(g, nome, x, y) {
   const l = A.atlas?.ligas, img = l && A.folhas[l.folha], q = img && l.emblemas?.[lesma(nome)]?.quadro
@@ -410,6 +438,8 @@ export function logo(g, tam, cx, y, ms = -1) {
   if (ms >= 0 && l.brilho) { const t = ms % 3000, i = Math.floor(t / 60); if (i < l.brilho.quadros.length) q = l.brilho.quadros[i] }
   g.drawImage(img, q[0], q[1], q[2], q[3], Math.round(cx - q[2] / 2), y, q[2], q[3]); return q[3]
 }
+/** Tamanho do logo ({ w, h } em px de arte; zeros sem atlas). */
+export const logoTam = (tam) => { const q = A.atlas?.logo?.[tam]?.quadro; return q ? { w: q[2], h: q[3] } : { w: 0, h: 0 } }
 /** Peça de `fim` do atlas (faixa_recorde, selo_chefe: animadas; pergaminho). Devolve o retângulo ou false. */
 export function fimPeca(g, nome, x, y, ms = 0, w = 0, h = 0) {
   const f = A.atlas?.fim, img = f && A.folhas[f.folha], p = img && f[nome]

@@ -11,20 +11,9 @@ const CINZA = '#CECAD8'
 /** "Common 50% · Uncommon 50%": só as raridades com chance (as de 0% não podem sair e não aparecem). */
 const textoDasChances = (l) => l.filter((r) => r.chance > 0).map((r) => `${r.nome} ${r.chance}%`).join(' · ')
 
-// R39: as 18 conquistas novas ainda não têm medalha no atlas — a medalha sai por código, no mesmo formato (19×21), com um ícone do
-// jogo; os degraus de rodadas mostram o próprio número. (R41: a mesma medalha vai no aviso de conquista da interface.)
-const ICONE_MEDALHA = { nopatch: 'life', scratch: 'shield', thread: 'life', seconds: 'reroll', encore: 'round', shields: 'shield', bows: 'troop', dish: 'pudding', sparks: 'magic', mason: 'building', spicy: 'magic', pockets: 'loot', grand: 'up' }
-export function desenharMedalha(Arte, g, c, ganha, x = 0, y = 0) {
-  if (Arte.conquista(g, c.nome, x, y, ganha)) return
-  const COR = Arte.COR
-  g.fillStyle = '#1C1230'; g.fillRect(x + 1, y, 17, 21); g.fillRect(x, y + 1, 19, 19)
-  g.fillStyle = ganha ? COR.ouro : '#4E3A66'; g.fillRect(x + 1, y + 1, 17, 19); g.fillStyle = ganha ? '#FFF096' : '#624C7C'; g.fillRect(x + 1, y + 1, 17, 1); g.fillRect(x + 1, y + 1, 1, 19)
-  g.fillStyle = ganha ? '#3A2A4E' : '#2B1E3A'; g.fillRect(x + 3, y + 3, 13, 15)
-  g.globalAlpha = ganha ? 1 : 0.45
-  if (c.id.startsWith('tally')) Arte.texto(g, String(c.meta), x + 10, y + 8, { fonte: 'mini', cor: ganha ? COR.ouro : COR.creme, alinhar: 'centro' })
-  else Arte.icone(g, ICONE_MEDALHA[c.id] || (ganha ? 'pudding' : 'pin-off'), x + 4, y + 5)
-  g.globalAlpha = 1
-}
+// R44: cada uma das 30 conquistas tem a sua medalha (19×21) — as 12 antigas no atlas, as 18 novas desenhadas por código no mesmo
+// troféu (`Arte.medalha`); os degraus de rodadas são um marco de estrada com o número da meta. A mesma medalha vai na lista e no aviso.
+export function desenharMedalha(Arte, g, c, ganha, x = 0, y = 0) { return Arte.medalha(g, c, x, y, ganha) }
 
 export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaPartida, emPartida, aoFechar, servidor = null }) {
   const fundo = document.getElementById('tela'), caixa = document.getElementById('telaCaixa'), COR = Arte.COR

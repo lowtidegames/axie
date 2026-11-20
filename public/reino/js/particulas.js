@@ -278,4 +278,43 @@ export function frenteBaixa(w, h) {
   }
   return c
 }
+/** FOGO DE ARTIFÍCIO da festa (R44): um estouro GRANDE em pixel, 14 quadros de 60 ms (840 ms). Sobe um risco, estala um miolo claro,
+ *  ABRE em 12 pétalas grossas (risco de 2 px, cabeça de 3×3 com luz) com 6 por dentro (2ª cor), segura aberto, e depois as faíscas
+ *  PESAM e CAEM com rastro, sumindo aos poucos (metade, depois um terço). Tudo com sombra ameixa (lê-se no céu claro e no escurecido).
+ *  `cores` = [miolo, fora, dentro]; `R` = raio do anel aberto; centro em (ax, ay). `faiscas` = partículas do estouro no pico (18). */
+export const FOGO_FAISCAS = 18
+export function fogo(cores, R = 28) {
+  const [miolo, fora, dentro] = cores, N = 14, Q = Math.round(R * 0.6), W = R * 2 + 14, H = R * 2 + 14 + Q, c = tela(W * N, H), g = c.getContext('2d'), SOMBRA = '#2B1E3A'
+  for (let f = 0; f < N; f++) {
+    const cx = f * W + (W >> 1), cy = R + 7
+    g.save(); g.beginPath(); g.rect(f * W, 0, W, H); g.clip()
+    for (const som of [1, 0]) { // 1ª passada: a sombra (1 px para baixo e para a direita); 2ª: a cor
+      const P = (x, y, s, cor) => { g.fillStyle = som ? SOMBRA : cor; g.fillRect(Math.round(x - s / 2) + som, Math.round(y - s / 2) + som, s, s) }
+      const risco = (x0, y0, x1, y1, s, cor) => { const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0))); for (let k = 0; k <= n; k++) P(x0 + ((x1 - x0) * k) / n, y0 + ((y1 - y0) * k) / n, s, cor) }
+      if (f === 0) { risco(cx, cy + 16, cx, cy + 6, 1, fora); P(cx, cy + 4, 2, miolo); continue } // o risco que sobe
+      const t = Math.min(1, (f - 1) / 6), r = R * (1 - (1 - t) ** 2.2), cai = f > 7 ? (f - 7) * (f - 7) * (Q / 36) : 0
+      if (f <= 3) { const rm = [0, 5, 4, 2][f]; if (som) bola(g, cx + 1, cy + 1, rm, SOMBRA); else { bola(g, cx, cy, rm, f === 1 ? miolo : fora, f === 3 ? 1 : 0, f); if (f < 3) bola(g, cx, cy, rm - 2, '#FFFFFF') } if (f === 1) { risco(cx - 8, cy, cx + 8, cy, 1, miolo); risco(cx, cy - 8, cx, cy + 8, 1, miolo) } } // o estalo do miolo
+      for (let i = 0; i < 6; i++) { // pétalas de dentro: mais curtas, somem antes
+        if (f < 2 || f > 10 || (f >= 9 && (i & 1))) continue
+        const a = (i / 6) * 6.2832 + 0.3, dx = Math.cos(a), dy = Math.sin(a), ri = r * 0.5, x = cx + dx * ri, y = cy + dy * ri + cai * 0.7
+        if (f < 7) risco(cx + dx * ri * 0.55, cy + dy * ri * 0.55, x, y, 1, dentro)
+        P(x, y, 2, dentro)
+      }
+      for (let i = 0; i < 12; i++) { // pétalas de fora: abrem, seguram, pesam e caem deixando rastro
+        if (f < 2 || (f === 12 && i % 2) || (f === 13 && i % 3)) continue
+        const a = (i / 12) * 6.2832 + 0.13, dx = Math.cos(a), dy = Math.sin(a), x = cx + dx * r, y = cy + dy * r + cai
+        if (f < 9) { const de = r * (f < 4 ? 0.35 : f < 6 ? 0.55 : f < 8 ? 0.72 : 0.86); risco(cx + dx * de, cy + dy * de + cai, x, y, f < 8 ? 2 : 1, f < 6 ? fora : dentro) } // a pétala (encurta quando o anel já abriu)
+        else risco(x - dx * 1.5, y - (f < 12 ? 7 : 4), x, y, 1, f < 11 ? fora : dentro) // caindo: o rastro fica para cima
+        P(x, y, f < 11 ? 3 : 2, fora)
+        if (!som && f < 12) { g.fillStyle = miolo; g.fillRect(Math.round(x - 1.5), Math.round(y - 1.5), f < 8 ? 2 : 1, f < 8 ? 2 : 1) } // a luz na cabeça
+      }
+      if (!som && f >= 4 && f <= 11) for (let k = 0; k < 3; k++) { // brilhos que piscam dentro do anel
+        const a = rnd(f * 7 + k + R) * 6.2832, d = R * (0.2 + rnd(f * 3 + k) * 0.6), x = Math.round(cx + Math.cos(a) * d), y = Math.round(cy + Math.sin(a) * d + cai * 0.5)
+        g.fillStyle = miolo; g.fillRect(x - 1, y, 3, 1); g.fillRect(x, y - 1, 1, 3)
+      }
+    }
+    g.restore()
+  }
+  return { ...peca(c, W, H, N, 60, W >> 1, R + 7), raio: R, faiscas: FOGO_FAISCAS }
+}
 export { tela, rnd }

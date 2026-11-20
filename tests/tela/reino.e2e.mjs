@@ -20,7 +20,7 @@
 // a festa do reino dispara UMA vez, na passagem (faixa, fogos, confete, música), segura 1,5–2,5 s, pula com um toque e, com Reduced
 // motion, é só a faixa; fim "THE KINGDOM HELD" × "RUN OVER"; cartão com faixa; selo nas melhores partidas — e as 30 CONQUISTAS em 4
 // grupos pela regra comum (as 12 antigas do aparelho ficam, os degraus ligam pelas rodadas guardadas, barra "123 / 200").
-// Só uma parte: REINO_SO=celular|pc|r17celular|r17pc|desenho|r30|r31|r39|r41 (a bateria completa é sem a variável).
+// Só uma parte: REINO_SO=celular|pc|r17celular|r17pc|desenho|r30|r31|r39|r41|r44 (a bateria completa é sem a variável).
 // Fotos em tests/tela/fotos/reino/.
 // Rode pela trava:  node tools/trava-robos.mjs rodar "timeout 800 node tests/tela/reino.e2e.mjs"
 import { createRequire } from 'node:module'
@@ -1622,7 +1622,198 @@ async function r41(fmt) {
   confere(erros.length === 0 && ruins.length === 0, `R41 ${fmt.nome}: zero erro e zero 404` + (erros.length + ruins.length ? ' → ' + [...erros, ...ruins].slice(0, 4).join(' | ') : ''))
 }
 
-const SO = process.env.REINO_SO || '' // para rodar só uma parte enquanto se trabalha nela (a bateria completa é sem isto)
+// ================================================================= R44: medalhas das 18 conquistas novas, fogos grandes, meta com respiro
+const NOVAS44 = ['tally25', 'tally50', 'tally100', 'tally200', 'tally400', 'shields', 'bows', 'dish', 'sparks', 'mason', 'spicy', 'encore', 'thread', 'seconds', 'nopatch', 'scratch', 'pockets', 'grand']
+for (const n of ['r44-medalhas', 'r44-conquistas-celular', 'r44-conquistas-pc', 'r44-marcos-celular', 'r44-marcos-pc', 'r44-aviso-celular', 'r44-aviso-pc', 'r44-festa-1-celular', 'r44-festa-1-pc', 'r44-festa-2-celular', 'r44-festa-2-pc',
+  'r44-hud-320x568', 'r44-hud-360x740', 'r44-hud-390x844', 'r44-hud-1280x720', 'r44-hud-1920x1080', 'r44-hud-cheio-320x568', 'r44-hud-cheio-390x844', 'r44-hud-selo-320x568']) GUARDAR.add(n)
+/** (R44) As medalhas da lista de conquistas aberta: { id: { w, h, feita, px } } (px = RGBA do canvas de 19×21). */
+const medalhasDaLista = (page) => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#listaConquistas li')].map((li) => { const c = li.querySelector('canvas[data-icone]'); return [li.dataset.id, { w: c.width, h: c.height, feita: li.classList.contains('km-feita'), px: [...c.getContext('2d').getImageData(0, 0, c.width, c.height).data] }] })))
+const pxIgual = (a, b, i) => a[i] === b[i] && a[i + 1] === b[i + 1] && a[i + 2] === b[i + 2] && a[i + 3] === b[i + 3]
+/** Quantos pixels diferem entre duas medalhas (só a janela do desenho: 13×13 a partir de 3,3; ou a medalha inteira). */
+function difere(a, b, janela = true) { let n = 0; for (let y = janela ? 3 : 0; y < (janela ? 16 : a.h); y++) for (let x = janela ? 3 : 0; x < (janela ? 16 : a.w); x++) if (!pxIgual(a.px, b.px, (y * a.w + x) * 4)) n++; return n }
+const luz = (m) => { let s = 0; for (let y = 3; y < 16; y++) for (let x = 3; x < 16; x++) { const i = (y * m.w + x) * 4; s += m.px[i] * 0.3 + m.px[i + 1] * 0.59 + m.px[i + 2] * 0.11 } return s / 169 }
+
+async function r44(fmt) {
+  console.log(`\n=== R44: medalhas das conquistas novas e fogos da festa (${fmt.nome} ${fmt.w}×${fmt.h}) ===`)
+  const erros = [], ruins = [], META = CFG.PARTIDA.rodadaDaVitoria, D = CFG.CONQUISTAS.rodadasSomadas, IDS = LISTA.map((c) => c.id)
+  const novoCtx = (extra = {}) => browser.newContext({ viewport: { width: fmt.w, height: fmt.h }, hasTouch: fmt.toque, isMobile: fmt.toque, deviceScaleFactor: 1, reducedMotion: 'no-preference', ...extra })
+  const abrir = async (page, q) => { await page.goto(base + q); await page.waitForFunction(() => window.__keepmile?.pronto, null, { timeout: 20000 }); await page.waitForTimeout(250) }
+  const toca = async (page, id) => { const l = page.locator('#bt-' + id); if (fmt.toque) await l.tap(); else await l.click() }
+  const apertarLutar = async (page) => { await toca(page, (await page.locator('#bt-lutar2').count()) ? 'lutar2' : 'lutar'); await fase(page, 'luta'); await page.waitForTimeout(120) }
+  const ctx = await novoCtx(), page = await ctx.newPage(); vigiar(page, erros, ruins)
+  await abrir(page, `?teste=1&nova=1&semente=${SEM}`)
+  const abrirLista = async () => { await toca(page, 'menu'); await page.waitForSelector('#tela:not([hidden])', { timeout: 5000 }); await page.getByRole('button', { name: 'Achievements' }).click(); await page.waitForSelector('#listaConquistas', { timeout: 5000 }) }
+
+  // ================= 1. AS 30 MEDALHAS: por fazer (aparelho novo) e feitas (todas marcadas)
+  await abrirLista()
+  const apagadas = await medalhasDaLista(page)
+  await page.keyboard.press('Escape')
+  // fotos da lista com as duas versões lado a lado: uma sim, uma não (o que o aparelho guarda só cresce: primeiro a metade, depois todas)
+  { const metade = IDS.filter((_, i) => i % 2 === 0)
+    await K(page, (k, ids) => { k.guardaSet('conquistas', ids); k.guardaSet('conquistasVistas', ids) }, metade)
+    await abrirLista()
+    await page.evaluate(() => document.querySelector('#listaConquistas [data-grupo="reino"]').scrollIntoView({ block: 'start' })); await page.waitForTimeout(200)
+    await foto(page, `r44-conquistas-${fmt.nome}`)
+    await page.evaluate(() => document.querySelector('#listaConquistas [data-grupo="marcos"]').scrollIntoView({ block: 'start' })); await page.waitForTimeout(200)
+    await foto(page, `r44-marcos-${fmt.nome}`)
+    await page.keyboard.press('Escape') }
+  await K(page, (k, ids) => { k.guardaSet('conquistas', ids); k.guardaSet('conquistasVistas', ids) }, IDS)
+  await abrirLista()
+  const feitas = await medalhasDaLista(page)
+  confere(IDS.every((id) => apagadas[id] && !apagadas[id].feita && feitas[id]?.feita && feitas[id].w === 19 && feitas[id].h === 21), 'R44 medalhas: as 30 têm medalha de 19×21 na lista, por fazer e feita')
+  { // cada uma é só dela: nenhuma das 18 novas repete o desenho de outra das 30
+    const pares = []; let menor = 1e9
+    for (const a of NOVAS44) for (const b of IDS) { if (a === b || (NOVAS44.includes(b) && b < a)) continue; const n = difere(feitas[a], feitas[b]); menor = Math.min(menor, n); if (n < 12) pares.push(`${a}=${b} (${n})`) }
+    confere(pares.length === 0, `R44 medalhas: as 18 novas são distintas entre si e das 12 antigas (o par mais parecido difere em ${menor} pixels da janela; mínimo 12)` + (pares.length ? ' → ' + pares.slice(0, 6).join(', ') : ''))
+    // nenhuma usa mais o ícone genérico do HUD (os que a R39 punha no lugar) nem é só um número solto: tem desenho próprio
+    const gen = await page.evaluate(async () => { const Arte = await import('./js/arte.js'), out = {}; for (const n of ['life', 'shield', 'reroll', 'round', 'troop', 'pudding', 'magic', 'building', 'loot', 'up', 'pin-off']) { const c = document.createElement('canvas'); c.width = 11; c.height = 11; const g = c.getContext('2d'); Arte.icone(g, n, 0, 0); out[n] = [...g.getImageData(0, 0, 11, 11).data] } return out })
+    const usa = (m, ic) => { let tot = 0, ok = 0; for (let y = 0; y < 11; y++) for (let x = 0; x < 11; x++) { const i = (y * 11 + x) * 4; if (ic[i + 3] < 200) continue; tot++; const j = ((y + 5) * m.w + x + 4) * 4; if (m.px[j] === ic[i] && m.px[j + 1] === ic[i + 1] && m.px[j + 2] === ic[i + 2]) ok++ } return tot ? ok / tot : 0 }
+    const genericas = NOVAS44.filter((id) => Object.values(gen).some((ic) => usa(feitas[id], ic) >= 0.85))
+    confere(genericas.length === 0, 'R44 medalhas: nenhuma das 18 novas usa o ícone genérico do HUD' + (genericas.length ? ' → ' + genericas.join(', ') : ''))
+    const fundo = (m) => { const i = (5 * m.w + 5) * 4, cont = {}; for (let y = 4; y < 15; y++) for (let x = 4; x < 15; x++) { const j = (y * m.w + x) * 4, k = `${m.px[j]},${m.px[j + 1]},${m.px[j + 2]}`; cont[k] = (cont[k] || 0) + 1 } return { i, cores: Object.keys(cont).length, cont } }
+    const vazio = `${feitas.grand.px[(4 * 19 + 4) * 4]},${feitas.grand.px[(4 * 19 + 4) * 4 + 1]},${feitas.grand.px[(4 * 19 + 4) * 4 + 2]}` // a cor do fundo da janela (o canto vazio da coroa)
+    const pobres = NOVAS44.filter((id) => { const f = fundo(feitas[id]), cheio = 121 - (f.cont[vazio] || 0); return f.cores < 4 || cheio < 24 || (id.startsWith('tally') && (f.cores < 5 || cheio < 100)) })
+    confere(pobres.length === 0, 'R44 medalhas: cada uma das 18 tem desenho próprio (4 cores ou mais e 24 px ou mais na janela; os degraus, 5 cores e 100 px: marco + número, não um número solto)' + (pobres.length ? ' → ' + pobres.join(', ') : ''))
+  }
+  { // "por fazer" × "feita": bem distintas, nas 30
+    const iguais = IDS.filter((id) => difere(apagadas[id], feitas[id], false) < 200 || luz(apagadas[id]) > luz(feitas[id]) * 0.8)
+    confere(iguais.length === 0, `R44 medalhas: por fazer × feita bem distintas nas 30 (mais da metade dos pixels muda e a apagada é mais escura; ex.: grand ${difere(apagadas.grand, feitas.grand, false)} de 399 px, luz ${luz(apagadas.grand).toFixed(0)} × ${luz(feitas.grand).toFixed(0)})` + (iguais.length ? ' → ' + iguais.join(', ') : ''))
+  }
+  { // os degraus: marco de estrada com o número da META DO CONFIG escrito (procura a letra miúda do jogo na medalha)
+    const r = await page.evaluate(async ([metas, feitas]) => {
+      const Arte = await import('./js/arte.js')
+      const acha = (m, s) => { const w = Arte.largura(s, 'mini'), c = document.createElement('canvas'); c.width = w; c.height = 5; const g = c.getContext('2d'); Arte.texto(g, s, 0, 0, { fonte: 'mini', cor: '#000000' }); const k = g.getImageData(0, 0, w, 5).data
+        for (let oy = 0; oy + 5 <= m.h; oy++) for (let ox = 0; ox + w <= m.w; ox++) { let cor = null, ok = true
+          for (let y = 0; y < 5 && ok; y++) for (let x = 0; x < w && ok; x++) { const j = ((oy + y) * m.w + ox + x) * 4, v = `${m.px[j]},${m.px[j + 1]},${m.px[j + 2]}`; if (k[(y * w + x) * 4 + 3] > 128) { if (cor === null) cor = v; else if (cor !== v) ok = false } }
+          for (let y = 0; y < 5 && ok; y++) for (let x = 0; x < w && ok; x++) { const j = ((oy + y) * m.w + ox + x) * 4; if (k[(y * w + x) * 4 + 3] <= 128 && `${m.px[j]},${m.px[j + 1]},${m.px[j + 2]}` === cor) ok = false }
+          if (ok) return true }
+        return false }
+      return Object.entries(metas).map(([id, meta]) => ({ id, meta, tem: acha(feitas[id], String(meta)), outro: acha(feitas[id], String(meta + 1)) }))
+    }, [D, Object.fromEntries(Object.keys(D).map((id) => [id, feitas[id]]))])
+    confere(r.length === 5 && r.every((x) => x.tem && !x.outro), `R44 medalhas: cada degrau mostra a meta do config (${r.map((x) => `${x.id}→${x.meta}${x.tem ? '' : ' NÃO ACHEI'}`).join(', ')})`)
+    confere(D.tally400 === Math.max(...Object.values(D)) && r.find((x) => x.id === 'tally400')?.tem, `R44 medalhas: o último degrau mostra ${D.tally400} (o número do config, não o do nome antigo)`)
+  }
+  await page.keyboard.press('Escape')
+  if (fmt.nome === 'pc') { // a folha das 30, ampliadas ×6: em cima a feita, embaixo a por fazer
+    await page.evaluate(async () => {
+      const Arte = await import('./js/arte.js'), { CONQUISTAS } = await import('./js/textos.js')
+      const K = 6, cols = 10, cw = 19 * K + 10, ch = 21 * K * 2 + 30
+      const c = document.createElement('canvas'); c.id = 'folha44'; c.width = cols * cw + 10; c.height = 3 * ch + 8; c.style.cssText = 'position:fixed;left:0;top:0;z-index:99999;image-rendering:pixelated'
+      const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.fillStyle = '#3A2452'; g.fillRect(0, 0, c.width, c.height)
+      CONQUISTAS.forEach((q, i) => {
+        const x = 10 + (i % cols) * cw, y = 8 + ((i / cols) | 0) * ch
+        for (const [j, ganha] of [[0, true], [1, false]]) { const m = document.createElement('canvas'); m.width = 19; m.height = 21; Arte.medalha(m.getContext('2d'), q, 0, 0, ganha); g.drawImage(m, 0, 0, 19, 21, x, y + j * (21 * K + 4), 19 * K, 21 * K) }
+        Arte.texto(g, q.id, x + ((19 * K) >> 1), y + 2 * 21 * K + 10, { fonte: 'reino', cor: '#FFF6E0', alinhar: 'centro', k: 2 })
+      })
+      document.body.appendChild(c)
+    })
+    await page.setViewportSize({ width: 1260, height: 860 })
+    await page.locator('#folha44').screenshot({ path: path.join(FOTOS, 'r44-medalhas.png') })
+    { const kb = (await stat(path.join(FOTOS, 'r44-medalhas.png'))).size / 1024; confere(kb < 400, `foto r44-medalhas.png com ${kb.toFixed(0)} KB (< 400)`) }
+    await page.evaluate(() => document.getElementById('folha44').remove()); await page.setViewportSize({ width: fmt.w, height: fmt.h }); await page.waitForTimeout(200)
+  }
+  await ctx.close()
+
+  // ================= 1b. O AVISO DE CONQUISTA leva a MESMA medalha (lida do canvas do jogo)
+  { const ctxA = await novoCtx(), pa = await ctxA.newPage(); vigiar(pa, erros, ruins)
+    await abrir(pa, `?teste=1&nova=1&semente=${SEM}`)
+    await K(pa, (k) => k.conquistar(['grand']))
+    confere(await viuJa(pa, 'avisoConquista'), 'R44 aviso: a conquista nova avisa com a medalha na placa')
+    await pa.waitForTimeout(360)
+    const b = await K(pa, (k) => k.brinde())
+    const px = b?.ret ? await pa.evaluate((r) => { const C = window.__kmCena, cv = document.getElementById('cena'), f = cv.width / C.VW, t = document.createElement('canvas'); t.width = 19; t.height = 21; const g = t.getContext('2d'); g.imageSmoothingEnabled = false
+      g.drawImage(cv, (r.x + 4) * f, (r.y + 4) * f, 19 * f, 21 * f, 0, 0, 19, 21); return { f, px: [...g.getImageData(0, 0, 19, 21).data] } }, b.ret) : null
+    let iguais = 0; if (px) for (let y = 3; y < 16; y++) for (let x = 3; x < 16; x++) if (pxIgual(px.px, feitas.grand.px, (y * 19 + x) * 4)) iguais++
+    confere(!!px && iguais >= 160, `R44 aviso: a placa "${b?.texto}" mostra a medalha da coroa, a mesma da lista (${iguais} de 169 px da janela iguais)`)
+    await foto(pa, `r44-aviso-${fmt.nome}`)
+    await ctxA.close() }
+
+  // ================= 2. FOGOS DA FESTA: estouros grandes em pixel, dentro dos limites
+  { const ctxF = await novoCtx(), pf = await ctxF.newPage(); vigiar(pf, erros, ruins)
+    await abrir(pf, `?teste=1&nova=1&semente=${SEM39}`)
+    // o desenho do estouro, medido na folha (pixels de verdade): tamanho, cores, anel que abre e cai
+    const fo = await pf.evaluate(async (raio) => {
+      const P = await import('./js/particulas.js'); if (!P.fogo) return null
+      const p = P.fogo(['#FFF096', '#FFD248', '#EC6054'], raio), g = p.img.getContext('2d'), q = []
+      const d = g.getImageData(0, 0, p.img.width, p.h).data
+      for (let f = 0; f < p.quadros.length; f++) { let x0 = 1e9, x1 = -1, y0 = 1e9, y1 = -1, n = 0, sy = 0; const cores = new Set()
+        for (let y = 0; y < p.h; y++) for (let x = 0; x < p.w; x++) { const i = (y * p.img.width + f * p.w + x) * 4; if (d[i + 3] < 128) continue; const c = `${d[i]},${d[i + 1]},${d[i + 2]}`; if (c === '43,30,58') continue; cores.add(c); n++; sy += y; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y) }
+        q.push({ larg: n ? x1 - x0 + 1 : 0, alt: n ? y1 - y0 + 1 : 0, n, cy: n ? sy / n : 0, cores: cores.size }) }
+      return { n: p.quadros.length, ms: p.anim.play.ms.reduce((a, b) => a + b, 0), raio: p.raio, faiscas: p.faiscas, q }
+    }, fmt.toque ? 28 : 38)
+    const MIN = fmt.toque ? 48 : 64
+    confere(!!fo && Math.max(...fo.q.map((x) => x.larg)) >= MIN && Math.max(...fo.q.map((x) => x.cores)) >= 3, `R44 fogos: o estouro abre até ${fo ? Math.max(...fo.q.map((x) => x.larg)) : '?'} px de arte de largura (mínimo ${MIN}; antes ~31 de pontos soltos), em ${fo ? Math.max(...fo.q.map((x) => x.cores)) : '?'} cores`)
+    { const larg = fo ? fo.q.map((x) => x.larg) : [], pico = larg.indexOf(Math.max(...larg))
+      confere(!!fo && fo.q[1].larg < fo.q[3].larg && fo.q[3].larg < fo.q[6].larg && fo.q.at(-1).cy > fo.q[pico > 6 ? 6 : pico].cy + 4 && fo.q.at(-1).n < fo.q[6].n && fo.ms >= 500 && fo.ms <= 900, `R44 fogos: o anel ABRE (${larg.slice(1, 7).join(' → ')} px) e CAI (o centro desce ${fo ? (fo.q.at(-1).cy - fo.q[6].cy).toFixed(0) : '?'} px e some aos poucos), em ${fo?.ms} ms`) }
+    await K(pf, (k, r) => k.jogarSozinho({ robo: r[0], ateRodada: r[1] }), [ROBO39, META39])
+    await K(pf, (k, r) => k.roboAteLutar(r), ROBO39); await pf.waitForTimeout(200)
+    await apertarLutar(pf)
+    await pf.waitForFunction(() => window.__keepmile.med().chefeBarraRet, null, { timeout: 8000 }).catch(() => {})
+    await K(pf, (k) => k.zerarMedidas())
+    await pf.evaluate(() => { const k = window.__keepmile, A = (window.__amostras = []); const f = () => { const v = k.vitoria(); if (v.reino && v.reino.ret) A.push({ ha: v.reino.ha, fogos: v.reino.fogos, faiscas: v.reino.ret.faiscas, raio: v.reino.ret.fogoRaio, pico: window.__kmCena.picoParticulas, pronto: v.pronto }); if (!v.pronto) requestAnimationFrame(f) }; requestAnimationFrame(f) })
+    await K(pf, (k) => k.avancarBatalha()); await fase(pf, 'vitoria', 10000)
+    const bate = await pf.waitForFunction(() => { const v = window.__keepmile.vitoria(); return v.reino && v.reino.ret ? v.reino.bate : null }, null, { timeout: 5000, polling: 'raf' }).then((h) => h.jsonValue())
+    await pf.waitForFunction((t) => { const v = window.__keepmile.vitoria(); return v.reino && v.reino.ha >= t }, bate + 370, { timeout: 5000, polling: 'raf' })
+    await foto(pf, `r44-festa-1-${fmt.nome}`)
+    await pf.waitForFunction((t) => { const v = window.__keepmile.vitoria(); return v.reino && v.reino.ha >= t }, bate + 840, { timeout: 5000, polling: 'raf' })
+    await foto(pf, `r44-festa-2-${fmt.nome}`)
+    await pf.waitForFunction(() => window.__keepmile.vitoria().pronto, null, { timeout: 5000 })
+    const A = await pf.evaluate(() => window.__amostras), v = await K(pf, (k) => k.vitoria()), c = await K(pf, (k) => k.cena()), co = v.reino.ret.fogosComecos || []
+    const LIM = fmt.toque ? 40 : 60 // docs/reino/arte.md: 60 partículas na tela (40 no celular); o guia de estilo: 90
+    confere(v.reino.ret.fogoRaio >= (fmt.toque ? 24 : 32) && A.some((a) => a.fogos >= 1), `R44 fogos: na festa os estouros têm raio de ${v.reino.ret.fogoRaio} px de arte (mínimo ${fmt.toque ? 24 : 32}), por cima do escurecido (${v.reino.fogosVistos} quadros)`)
+    confere(A.every((a) => a.fogos <= 2 && a.faiscas <= LIM) && v.reino.ret.faiscasMax <= LIM && v.reino.ret.faiscasMax > 0, `R44 fogos: no máximo ${Math.max(...A.map((a) => a.fogos))} estouros de uma vez = ${v.reino.ret.faiscasMax} faíscas (limite ${LIM}); pico de partículas da cena no mesmo trecho: ${c.picoParticulas}`)
+    confere(co.length >= 3 && co.every((t, i) => i + 3 >= co.length || co[i + 3] - t > 1000) && c.flashes.length <= 3, `R44 fogos: ${co.length} estouros, nunca mais de 3 começando em 1 segundo (começos aos ${co.join(', ')} ms), e ${c.flashes.length} clarão de tela`)
+    await ctxF.close() }
+  { const ctxR = await novoCtx({ reducedMotion: 'reduce' }), pr = await ctxR.newPage(); vigiar(pr, erros, ruins)
+    await abrir(pr, `?teste=1&nova=1&semente=${SEM39}`)
+    await K(pr, (k, r) => k.jogarSozinho({ robo: r[0], ateRodada: r[1] }), [ROBO39, META39])
+    await K(pr, (k, r) => k.roboAteLutar(r), ROBO39); await pr.waitForTimeout(200)
+    await apertarLutar(pr); await K(pr, (k) => k.avancarBatalha()); await fase(pr, 'vitoria', 10000); await viuJa(pr, 'festaReino')
+    await pr.waitForTimeout(900)
+    const v = await K(pr, (k) => k.vitoria()), d = await viu(pr)
+    confere(v.reino.fogosVistos === 0 && v.reino.ret.faiscasMax === 0 && !d.includes('fogosDoReino'), 'R44 fogos com Reduced motion: nenhum estouro')
+    await ctxR.close() }
+  confere(erros.length === 0 && ruins.length === 0, `R44 ${fmt.nome}: zero erro e zero 404` + (erros.length + ruins.length ? ' → ' + [...erros, ...ruins].slice(0, 4).join(' | ') : ''))
+}
+
+/** R44 (item 3) — a META no HUD com respiro: não toca a linha das chances (nem botão nenhum) em cada tela; o selo "HELD" continua. */
+async function r44hud(w, h, toque) {
+  console.log(`\n=== R44: a meta no HUD com respiro (${w}×${h}) ===`)
+  const erros = [], ruins = [], META = CFG.PARTIDA.rodadaDaVitoria, cel = h > w, BAIXA = cel && w <= 360, FOLGA = BAIXA ? 3 : 4, FOLGA_SELO = BAIXA ? 2 : 4 // (telas de 370 px de arte de altura — 320×568, 360×740: o céu entre as famílias e as chances tem 13 a 16 px; a letra tem 7 e o selo 12)
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: toque, isMobile: toque, deviceScaleFactor: 1, reducedMotion: 'reduce' })
+  const page = await ctx.newPage(); vigiar(page, erros, ruins)
+  const abrir = async (q) => { await page.goto(base + q); await page.waitForFunction(() => window.__keepmile?.pronto, null, { timeout: 20000 }); await page.waitForTimeout(350) }
+  /** A meta (px de arte) × as linhas das chances, os botões de toque e as relíquias do HUD, no último quadro desenhado. */
+  const medir = () => page.evaluate(() => {
+    const k = window.__keepmile, C = window.__kmCena, m = k.vitoria().metaRet, z = C.zonaChances, e = C.css
+    if (!m) return null
+    const vao = (a, b) => Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w), b.y - (a.y + a.h), a.y - (b.y + b.h))
+    const linhas = z ? z.linhas.map((l) => ({ ...l })) : [], bts = [...document.querySelectorAll('#toques button')].filter((b) => !/^bt-terreno|^bt-horda$|^bt-dica-|^bt-carta/.test(b.id)).map((b) => { const q = b.getBoundingClientRect(); return { id: b.id, x: q.x / e, y: q.y / e, w: q.width / e, h: q.height / e } })
+    return { texto: m.texto, ret: m, n: linhas.length, chances: linhas.length ? Math.min(...linhas.map((l) => vao(m, l))) : 999, botoes: bts.filter((b) => vao(m, b) < 0).map((b) => b.id), dentro: m.x >= 0 && m.y >= 0 && m.x + m.w <= C.VW && m.y + m.h <= C.VH, viu: k.desenhou(), fase: k.fase(), rodada: k.visao().rodada }
+  })
+  const conferir = async (onde, texto, foto44, minimo = FOLGA) => {
+    const r = await medir()
+    confere(!!r && r.texto === texto && r.fase === 'carta', `R44 meta ${w}×${h} ${onde}: "${r?.texto}" à vista na rodada ${r?.rodada}`)
+    confere(!!r && r.dentro && r.botoes.length === 0, `R44 meta ${w}×${h} ${onde}: inteira na tela e fora de todos os botões` + (r?.botoes.length ? ' → ' + r.botoes.join(', ') : ''))
+    confere(!!r && (cel ? r.n >= 1 : true) && r.chances >= minimo, `R44 meta ${w}×${h} ${onde}: ${r?.chances >= 999 ? 'sem linha de chances por perto' : `${r?.chances} px de arte de folga até a linha das chances (${r?.n} linha(s))`} (mínimo ${minimo}; antes 1: encostada)`)
+    if (foto44) await foto(page, foto44)
+    return r
+  }
+  await abrir(`?teste=1&nova=1&semente=${SEM}`)
+  await conferirLayout(page, `R44 ${w}×${h} abertura`)
+  await conferir('na abertura', T.meta(META), `r44-hud-${w}x${h}`)
+  // HUD cheio: algumas rodadas depois (famílias, relíquias, conserto à vista se perdeu coração)
+  await K(page, (k) => k.jogarSozinho({ ateRodada: 9 })); await page.waitForTimeout(350)
+  if ((await K(page, (k) => k.fase())) === 'carta') { const r = await conferir('com o HUD cheio', T.meta(META), w === 320 || w === 390 ? `r44-hud-cheio-${w}x${h}` : null); await conferirLayout(page, `R44 ${w}×${h} HUD cheio (rodada ${r?.rodada})`) } else falha(`R44 meta ${w}×${h}: o robô não chegou à rodada 9 com a semente fixa`)
+  // depois da vitória: o selo "HELD" no lugar da meta
+  await abrir(`?teste=1&nova=1&semente=${SEM39}`)
+  await K(page, (k, r) => k.jogarSozinho({ robo: r[0], ateRodada: r[1] }), [ROBO39, META39 + 1]); await page.waitForTimeout(350)
+  { const r = await conferir('depois da vitória', T.resistiu, w === 320 ? `r44-hud-selo-${w}x${h}` : null, FOLGA_SELO); confere(!!r && r.viu.includes('resistiu') && !r.viu.includes('meta'), `R44 meta ${w}×${h}: depois da vitória o selo "HELD" continua (no lugar da meta)`) }
+  confere(erros.length === 0 && ruins.length === 0, `R44 ${w}×${h}: zero erro e zero 404` + (erros.length + ruins.length ? ' → ' + [...erros, ...ruins].slice(0, 4).join(' | ') : ''))
+  await ctx.close()
+}
+
+const SO =process.env.REINO_SO || '' // para rodar só uma parte enquanto se trabalha nela (a bateria completa é sem isto)
 try {
   if (!SO || SO === 'base' || SO === 'celular') await rodar({ nome: 'celular', w: 360, h: 740, toque: true })
   if (!SO || SO === 'base' || SO === 'pc') await rodar({ nome: 'pc', w: 1280, h: 720, toque: false })
@@ -1639,6 +1830,10 @@ try {
   if (!SO || SO === 'r31') await r31()
   if (!SO || SO === 'r39') { await r39({ nome: 'celular', w: 390, h: 844, toque: true }); await r39({ nome: 'pc', w: 1280, h: 720, toque: false }); await r39({ nome: 'pc-grande', w: 1920, h: 1080, toque: false }) }
   if (!SO || SO === 'r41') { await r41({ nome: 'celular', w: 390, h: 844, toque: true }); await r41({ nome: 'pc', w: 1280, h: 720, toque: false }) }
+  if (!SO || SO === 'r44') {
+    await r44({ nome: 'celular', w: 390, h: 844, toque: true }); await r44({ nome: 'pc', w: 1280, h: 720, toque: false })
+    for (const [w, h, toque] of [[320, 568, true], [360, 740, true], [390, 844, true], [1280, 720, false], [1920, 1080, false]]) await r44hud(w, h, toque)
+  }
 } catch (e) { falha('exceção: ' + (e?.stack || e)) }
 await browser.close()
 servidor.close()

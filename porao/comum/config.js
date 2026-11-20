@@ -17,7 +17,7 @@ export const RARIDADES = ['comum', 'incomum', 'raro', 'epico', 'lendario', 'miti
 export const CHANCES = { comum: 55, incomum: 25, raro: 12, epico: 6, lendario: 1.8, mitico: 0.2 }
 
 // Quantas ideias diferentes existem em cada raridade (chaves "<raridade>_<n>", n a partir de 1).
-export const IDEIAS_POR_RARIDADE = { comum: 6, incomum: 5, raro: 4, epico: 3, lendario: 2, mitico: 1 }
+export const IDEIAS_POR_RARIDADE = { comum: 5, incomum: 5, raro: 5, epico: 5, lendario: 5, mitico: 5 }
 
 export const IMPRESSORA = {
   custo: 40, // caixa por impressão

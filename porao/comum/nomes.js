@@ -45,6 +45,7 @@ const IDEIAS = {
     ['Moeda Universal do Cosmos', 'A moeda de todos os planetas. Aceita até onde não tem gente.', 'O cosmos fechou para balanço. Eterno.'],
     ['Fundação Infinito Mais Um', 'Retorno infinito mais um por cento. Matemática avançada.', 'Infinito mais um dividido por zero. Deu ruim.'],
     ['Templo do Lucro Eterno', 'Templo onde o lucro é eterno e o templo é portátil.', 'Dobrei o templo e fui embora de van.'],
+    ['Império do Puxa-Tapete', 'Um tapete tão grande que cabe o mercado inteiro em cima.', 'Puxei. O mercado inteiro escorregou junto.'],
   ],
 };
 

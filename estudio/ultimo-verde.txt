@@ -1,0 +1,4 @@
+094f6fe7b152377fd9cd129c3f5fc85db3afd039
+# Último commit com a bateria completa verde E publicado no site de teste. Só o diretor escreve (docs/orquestra.md, seção 2).
+# 20/11/2026 18:47 BRT · publicação 50344f32-1e66-42f2-9c6d-433276041e70 (Railway, site de teste)
+# npm test 459 · travas 20 · reino 1423 · reino-servidor 377 · reino-movimento 189 · reino-som 181 · reino-letras 31 · 0 falha

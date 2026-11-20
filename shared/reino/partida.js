@@ -275,7 +275,8 @@ function trocado(terrenos, a, b) {
 /**
  * R46: a DICA da revanche — a 1ª troca (na ordem a < b, sem dois vazios) que vence a horda com o reino como está (sem a carta
  * nova da mão); null se nenhuma vence. A luta não tem dado: isto só olha o que já está na tela. Fonte única (motor, servidor,
- * modo local e medidor); o motor a calcula na derrota e a guarda no estado.
+ * modo local e medidor); o motor a calcula na derrota e a guarda no estado; R51: e de novo a cada comando que muda o reino
+ * enquanto a troca vale (a dica guardada é sempre a do reino de agora).
  */
 export function dicaDaTroca(e) {
   if (!e || !e.horda || !Array.isArray(e.terrenos)) return null
@@ -449,8 +450,15 @@ function aplicarComando(estado, comando, eventos, comDica) {
     default:
       return erro('comando', 'Comando desconhecido.')
   }
+  // R51: a dica vale para o reino de AGORA. Enquanto a troca vale, comando que muda o que entra na luta (terrenos ou
+  // relíquias; hoje só `por`) recalcula a dica. Sortear e consertar não mudam a luta (a horda é a mesma): a dica fica.
+  if (comDica && trocaLiberada(e) && mudouALuta(estado, e)) e.revanche.dica = dicaDaTroca(e)
   return { ok: true, estado: e, eventos: evs }
 }
+
+/** R51: mudou alguma coisa que entra na luta (simularBatalha lê terrenos, relíquias e horda)? */
+const mudouALuta = (a, b) => JSON.stringify(a.terrenos) !== JSON.stringify(b.terrenos) || JSON.stringify(a.reliquias) !== JSON.stringify(b.reliquias)
+  || JSON.stringify(a.horda) !== JSON.stringify(b.horda)
 
 // ---------------------------------------------------------------- leitura
 /**
@@ -546,15 +554,13 @@ export function reproduzir({ semente, cartasLiberadas, comandos, regra }) {
   if (!Array.isArray(comandos) || comandos.length > P.tetoComandos) return { ok: false, erro: 'comandos', indice: -1 }
   let e
   try { e = criarPartida({ semente, cartasLiberadas, regra }) } catch (err) { return { ok: false, erro: 'criar', motivo: err.message, indice: -1 } }
-  // R46: a dica (até 15 lutas por derrota) só é calculada para a revanche que ainda vale no FIM, com o reino da hora da derrota:
-  // nenhum comando depende dela e ela some na troca e na luta, então o estado final sai igual ao do jogo, só que mais rápido.
-  let daDerrota = null
+  // R46/R51: a dica (até 15 lutas) só é calculada para a revanche que ainda vale no FIM. Nenhum comando depende dela, ela
+  // some na troca e na luta, e enquanto a troca vale ela é sempre a do reino de agora (R51): calcular só no fim dá o mesmo.
   for (let i = 0; i < comandos.length; i++) {
     const r = aplicarComando(e, comandos[i], false, false)
     if (!r.ok) return { ok: false, erro: r.erro, motivo: r.motivo, indice: i }
     e = r.estado
-    if (comandos[i].tipo === 'batalhar') daDerrota = e.revanche && e.revanche.troca ? e : null
   }
-  if (daDerrota && e.revanche.troca) e.revanche.dica = dicaDaTroca(daDerrota)
+  if (trocaLiberada(e)) e.revanche.dica = dicaDaTroca(e)
   return { ok: true, estado: e, resultado: resultado(e) }
 }

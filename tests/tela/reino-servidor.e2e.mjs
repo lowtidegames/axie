@@ -173,6 +173,11 @@ async function celular() {
   confere((await modelo(page)).modoRot === T.srv.modo.treino, 'o HUD diz o modo (TRAINING)')
   confere(pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/api/conta').length === 1, 'uma conta só foi criada')
   await igualAoServidor('começo')
+  // R31 (veto do guardião: chance sempre verdadeira): as chances da mão são as que o SERVIDOR mandou (visao.chances do motor dele) — álbum
+  // inicial: só Common 50% e Uncommon 50%; as de 0% não aparecem; a tela não lê a tabela fixa do config
+  { const lado = (await doServidor('treino')).partida.visao.chances, m = await modelo(page), L = await K(page, () => window.__keepmile.layout()), txt = L.odds.linhas.flat().join(' ')
+    confere(JSON.stringify(m.chances.map((c) => [c.id, c.chance])) === JSON.stringify(lado.filter((c) => c.chance > 0).map((c) => [c.id, c.chance])) && JSON.stringify(lado.filter((c) => c.chance > 0).map((c) => [c.id, c.chance])) === JSON.stringify([['C', 50], ['U', 50]]), `R31: a mão mostra as chances que o servidor mandou (${m.chances.map((c) => c.nome + ' ' + c.chance + '%').join(', ')})`)
+    confere(txt.includes('Common 50%') && txt.includes('Uncommon 50%') && !/Rare|Epic|Legendary/.test(txt) && m.chances.reduce((a, c) => a + c.chance, 0) === 100, `R31: na tela "${txt}" (soma 100)`) }
 
   // ---- 2. treino por toque, comando a comando
   const k1 = await porCartaPorToque()

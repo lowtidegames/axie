@@ -10,7 +10,7 @@ export const T = {
   trocarDica: 'TAP AGAIN TO REPLACE WHAT IS THERE', trocarQue: (nome, n) => ['REPLACE', `${nome} LV${n}?`],
   chegou: (n) => `${n} reached the castle`, varreu: (n) => `${n} broke your line`, emRodadas: (n) => (n === 1 ? 'BOSS NEXT ROUND' : `BOSS IN ${n} ROUNDS`),
   quase: (p) => `HORDE HEALTH DOWN ${p}%`, deNovoMais: 'SAME ROUND AGAIN: +1 CARD', semVidas: 'NO HEARTS LEFT',
-  chances: 'ODDS', bolsaChance: (n) => `RELIC CHANCE ${n}%`, bolsaSorte: (n) => `LUCKY PURSE: ${n}% CHANCE`,
+  chances: 'ODDS', bolsaSo: 'GOLD ONLY. NO RELIC THIS TIME.' /* R31: a bolsa já veio sorteada; sem relíquia, a chance dela é 0 */, bolsaSorte: (n) => `LUCKY PURSE: ${n}% CHANCE`,
   poder: (a, b) => `POWER ${a}% > ${b}%`, deAte: (a, b, leg) => `${a} > ${b}${leg ? ' ' + leg : ''}`, sobeLinha: (s) => `LEVEL UP: ${s}`,
   pinos: (n, max, rar) => `PINS: LEVEL ${n} OF ${max} - FRAME: ${rar}`,
   familia: (nome, n, p) => `${nome} ${n}/${p}`, familiaMais: (nome, n, p, liga) => `${nome} ${n}/${p} > ${n + 1}/${p}${liga ? ' BONUS' : ''}`, familiaLigada: (nome, n, p) => `${nome} ${n}/${p} BONUS ON`,
@@ -21,7 +21,7 @@ export const T = {
   resumo: { dano: 'DAMAGE BY PLOT', mvp: 'MVP', magia: 'MAGIC', ajuda: 'EACH BAR IS THE DAMAGE OF ONE PLOT' },
   ganheAjuda: 'WIN, THEN PICK 1',
   fim: 'RUN OVER', aguentou: (n) => (n === 1 ? 'ROUND HELD' : 'ROUNDS HELD'), recorde: 'NEW RECORD!', melhor: 'BEST SCORE', pontos: 'SCORE', ouroGanho: 'GOLD', deNovo: 'PLAY AGAIN', postar: 'SHARE',
-  media: 'AVG BEST 3', recordeMais: (d) => `NEW BEST SCORE: +${d} OVER YOUR OLD BEST`, recordeFalta: (d) => `${d} SHORT OF YOUR BEST SCORE`, primeira: 'YOUR FIRST SCORE ON THE BOARD', recordeIgual: 'TIED WITH YOUR BEST SCORE',
+  media: 'AVG BEST 3', recordeMais: (d) => `+${d} OVER YOUR OLD BEST SCORE`, recordeFalta: (d, r) => `BEST SCORE ${r}: ${d} SHORT`, primeira: 'YOUR FIRST SCORE ON THE BOARD', recordeIgual: 'TIED WITH YOUR BEST SCORE',
   ligaProxima: (nome, n) => `${nome} IN ${n}`, ligaTopo: 'TOP TITLE OF THE BETA', provisorio: 'PROVISIONAL', beta: 'BETA', proximaCarta: (n) => (n === 1 ? '1 ROUND TO UNLOCK' : `${n} ROUNDS TO UNLOCK`), todasCartas: 'EVERY CARD UNLOCKED',
   desafio: (n) => (n === 1 ? 'BEAT MY 1 ROUND' : `BEAT MY ${n} ROUNDS`), desafioA: 'BEAT MY', desafioB: (n) => (n === 1 ? '1 ROUND' : `${n} ROUNDS`), copiado: 'LINK COPIED: SAME ROAD',
   postarTexto: (n, url) => `Keepmile: beat my ${n} round${n === 1 ? '' : 's'} on the same road ${url}`,
@@ -47,7 +47,7 @@ export const T = {
     efeitos: 'Effects', musica: 'Music', menosVol: (q) => `${q} quieter`, maisVol: (q) => `${q} louder`, data: (d) => `Earned ${d}`, enfeite: 'Title and medal', voltar: 'Back to menu',
     ajustes: 'Settings', faixa: (de, ate) => (ate ? `${de} to ${ate}` : `${de} or more`), nenhuma: 'No runs yet', rodadas: (n) => `${n} round${n === 1 ? '' : 's'}`,
   },
-  album: { titulo: 'Album', chances: 'Draw chances', proxima: (n) => (n === 1 ? 'Next card: 1 more round won' : `Next card: ${n} more rounds won`), todas: 'Every card unlocked', somadas: (n) => (n === 1 ? '1 round won so far' : `${n} rounds won so far`), bloqueada: 'Locked card' },
+  album: { titulo: 'Album', chances: 'Your draw chances now', chancesTodas: 'With every card unlocked', proxima: (n) => (n === 1 ? 'Next card: 1 more round won' : `Next card: ${n} more rounds won`), todas: 'Every card unlocked', somadas: (n) => (n === 1 ? '1 round won so far' : `${n} rounds won so far`), bloqueada: 'Locked card' },
   tipo: { tropa: 'Troop', construcao: 'Building', magia: 'Magic' },
   // MODO SERVIDOR (docs/reino/servidor.md): avisos curtos, modos de partida, temporada, placar do dia, perfil e replay. Todo número vem do servidor.
   srv: {

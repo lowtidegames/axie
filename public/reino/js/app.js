@@ -203,10 +203,11 @@ function infoDaCarta(i) {
   return out
 }
 function descreverEspolios(v) {
-  const ch = CONFIG.PARTIDA.bolsa.chanceReliquia, E = CONFIG.ESPOLIOS
+  // R31: a chance da bolsa é a do motor (`visao.chanceReliquia`); a bolsa já sorteada SEM relíquia dá só o ouro (chance dela = 0: não se mostra %)
+  const ch = v.chanceReliquia, E = CONFIG.ESPOLIOS
   return v.espolios.map((e) => e.tipo === 'carta' ? { titulo: CONFIG.CARTAS[e.carta].nome, texto: CONFIG.CARTAS[e.carta].texto }
-    : e.reliquia ? { titulo: CONFIG.RELIQUIAS[e.reliquia].nome, texto: CONFIG.RELIQUIAS[e.reliquia].texto + (e.tipo === 'bolsa' ? ' ' + T.bolsaSorte(ch) : '') }
-      : e.tipo === 'promocao' ? { titulo: E.promocao.nome, texto: E.promocao.texto } : { titulo: `${E.bolsa.nome} +${e.ouro} ${T.ouro}`, texto: T.bolsaChance(ch) })
+    : e.reliquia ? { titulo: CONFIG.RELIQUIAS[e.reliquia].nome, texto: CONFIG.RELIQUIAS[e.reliquia].texto + (e.tipo === 'bolsa' && ch ? ' ' + T.bolsaSorte(ch) : '') }
+      : e.tipo === 'promocao' ? { titulo: E.promocao.nome, texto: E.promocao.texto } : { titulo: `${E.bolsa.nome} +${e.ouro} ${T.ouro}`, texto: T.bolsaSo })
 }
 function preencher() {
   const v = J.v, op = J.op
@@ -217,7 +218,8 @@ function preencher() {
   M.sortear = op.sortear; M.consertar = { ...op.consertar, visivel, destaque: visivel && op.consertar.pode, forte: visivel && op.consertar.pode && v.vidas === 1 }
   M.espolios = v.espolios; M.espolioPode = v.espolios.map((_, i) => op.comandos.some((c) => c.tipo === 'espolio' && c.indice === i)); M.espolioDesc = descreverEspolios(v)
   M.mudo = Som.mudo(); M.vel = Bat.vel; M.reliquias = v.reliquias.slice()
-  M.chances = CONFIG.RARIDADES.map((r) => ({ id: r.id, nome: r.nome, chance: r.chance, cor: Arte.Cod.RARIDADE_COR[r.id].cor, claro: Arte.Cod.RARIDADE_COR[r.id].claro }))
+  // R31: as chances da mão são as do motor (modo local) ou as que o servidor mandou — só as raridades que podem sair agora (chance > 0)
+  M.chances = (v.chances || []).filter((r) => r.chance > 0).map((r) => ({ id: r.id, nome: r.nome, chance: r.chance, cor: Arte.Cod.RARIDADE_COR[r.id].cor, claro: Arte.Cod.RARIDADE_COR[r.id].claro }))
   // famílias à vista: quantos terrenos de cada uma e quantos ligam o bônus (números do config)
   const cont = contaFamilias()
   M.familias = Object.keys(cont).map((id) => ({ id, n: cont[id], precisa: precisaDe(id), ligada: v.familias.includes(id) }))
@@ -495,7 +497,7 @@ function fimDaPartida(direto = false) {
     contado: parado, contou: false,
     media, liga: sit ? sit.liga : { nome: lg.liga.nome, i: lg.i, pct: lg.pct, proxima: lg.proxima ? lg.proxima.nome : null, falta: lg.falta }, album: S.on ? albumDoServidor() : Guarda.proximaCarta(CONFIG.ALBUM), semente: J.semente,
     // o fecho: o melhor momento (do resumo das lutas), quanto faltou para a partida mais comprida e, na estrada de um amigo, quem levou
-    melhor: m ? T.melhorLinha(m.nome, m.dano, m.rodada) : null, faltaLinha: reg.novoRecorde ? null : n === 0 ? T.semRodadas : T.rodadasPara(falta),
+    melhor: m ? T.melhorLinha(m.nome, m.dano, m.rodada) : null, faltaLinha: reg.novoRecorde ? null : n === 0 ? T.semRodadas : falta > 0 ? null : T.rodadasPara(falta), // R31: "N ROUNDS TO YOUR BEST" repetia o recorde da placa
     amigo: S.on ? linhaDoModo(null) : am != null ? { texto: T.desafioFim(am, n), ganhou: n > am } : null,
   }
   if (S.on) { guardarFim(parado); depoisDoFim() }

@@ -204,7 +204,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       const nome = e.tipo === 'promocao' ? 'Promotion' : 'Purse'
       if (e.reliquia) { moldura(x, y, 56, 78); g.fillStyle = COR.ameixa; g.fillRect(x + 12, y + 7, 32, 32); g.fillStyle = '#4E3A66'; g.fillRect(x + 13, y + 8, 30, 30); Arte.reliquia(g, e.reliquia, x + 15, y + 10, 2) } else if (!Arte.ui(g, 'loot.' + nome, x + 6, y + 4)) Arte.icone(g, e.tipo === 'promocao' ? 'up' : 'gold', x + 22, y + 20)
       g.fillStyle = COR.painel; g.fillRect(x + 4, y + 44, 48, 30)
-      const lin = e.reliquia ? quebrar(CONFIG.RELIQUIAS[e.reliquia].nome, 46) : e.tipo === 'promocao' ? [T.maisNivel] : [`+${e.ouro} ${T.ouro}`, ...quebrar(T.bolsaChance(CONFIG.PARTIDA.bolsa.chanceReliquia), 46)]
+      const lin = e.reliquia ? quebrar(CONFIG.RELIQUIAS[e.reliquia].nome, 46) : e.tipo === 'promocao' ? [T.maisNivel] : [`+${e.ouro} ${T.ouro}`] // R31: bolsa sem relíquia = só o ouro (a chance já foi sorteada)
       lin.slice(0, 3).forEach((s, i) => Arte.texto(g, s, x + 28, y + 50 + i * 7 + (lin.length === 1 ? 6 : lin.length === 2 ? 3 : 0), { fonte: 'mini', cor: e.reliquia || (e.tipo === 'bolsa' && i === 0) ? COR.ouro : COR.creme, alinhar: 'centro' }))
     }
     g.globalAlpha = 1
@@ -292,7 +292,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     }
     g.restore()
   }
-  /** As chances de raridade do sorteio junto do botão de sortear: quadradinho da cor + NOME + % (números do config). */
+  /** As chances de raridade do sorteio junto do botão de sortear: quadradinho da cor + NOME + % (números do motor/servidor; só as que podem sair). */
   function chances() {
     const o = UI.L.odds; if (!M.chances.length || !o.linhas) return
     if (UI.L.cel) { g.fillStyle = COR.ameixa; g.globalAlpha = 0.5; g.fillRect(0, o.y - 1, C.VW, o.h + 1); g.globalAlpha = 1 }
@@ -394,7 +394,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
         Arte.carta(g, c.carta, c.nivel, r.x, y)
         if (c.sobe && larg === 1) { const q = C.menos ? 0 : (agora / 120) | 0; if (!Arte.ui(g, 'level-up', r.x + 5, y - 9, q)) Arte.texto(g, T.sobe, r.x + 28, y - 8, { fonte: 'reino-ouro', alinhar: 'centro' }) }
       } else {
-        const rar = CONFIG.CARTAS[c.carta].raridade, iR = CONFIG.RARIDADES.findIndex((x) => x.id === rar), rara = iR >= 2 ? M.chances.find((x) => x.id === rar) : null
+        const rar = CONFIG.CARTAS[c.carta].raridade, iR = CONFIG.RARIDADES.findIndex((x) => x.id === rar), rara = iR >= 2 ? { id: rar, ...Arte.Cod.RARIDADE_COR[rar] } : null
         verso(r.x, y, rara, agora); if (rara) viu('maoRara')
       }
       if (larg < 1) g.restore()
@@ -633,22 +633,18 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
         viu('fimFecho')
       }
     }
+    // R31 (clareza): o SCORE grande e, embaixo, um "best" só por linha — o recorde de pontos numa linha, a média das melhores noutra
+    // (no fim do ranking a média já vem no fecho como SEASON SCORE: não se repete aqui). Recorde: a faixa NEW RECORD ao lado do SCORE.
     const numeros = (x, y0, w) => {
-      if (f.novoRecorde) {
-        // recorde: o SCORE grande em ouro com a faixa NEW RECORD ao lado dele
-        const ws = Arte.largura(String(f.pontos), 'reino-ouro') * 2
-        Arte.titulo(g, String(f.pontos), x + 4 + ws / 2, y0, 2, true)
-        Arte.texto(g, T.pontos, x + 4, y0 + 20, { fonte: 'mini', cor: COR.creme })
-        f.faixaAlvo = { x: Math.min(x + 4 + ws + 6, x + w - 94), y: y0 + P.y }
-        const d = f.pontos - f.recordeAntes, s = f.recordeAntes === 0 ? T.primeira : T.recordeMais(d)
-        Arte.texto(g, quebrar(s, w - 6)[0], x + 4, y0 + 28, { fonte: 'mini', cor: COR.ouro })
-        Arte.texto(g, T.mediaLinha(f.media), x + 4, y0 + 35, { fonte: 'mini', cor: COR.creme })
-      } else {
-        const cols = [[T.pontos, f.pontos, true], [T.melhor, f.recorde, false], [T.media, f.media, false]]
-        cols.forEach(([rot, v, o], i) => { const c = x + Math.round((w * (i * 2 + 1)) / 6); Arte.texto(g, String(v), c, y0, { fonte: o ? 'reino-ouro' : 'reino-contorno', alinhar: 'centro' }); Arte.texto(g, rot, c, y0 + 11, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' }) })
-        const d = f.pontos - f.recordeAntes, s = d === 0 ? T.recordeIgual : T.recordeFalta(-d)
-        Arte.texto(g, quebrar(s, w - 4)[0], x + (w >> 1), y0 + 21, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' })
-      }
+      const ws = Arte.largura(String(f.pontos), 'reino-ouro') * 2
+      Arte.titulo(g, String(f.pontos), x + 4 + ws / 2, y0, 2, true)
+      Arte.texto(g, T.pontos, x + 4, y0 + 20, { fonte: 'mini', cor: COR.creme })
+      if (f.novoRecorde) f.faixaAlvo = { x: Math.min(x + 4 + ws + 6, x + w - 94), y: y0 + P.y }
+      const d = f.pontos - f.recordeAntes
+      const rec = f.novoRecorde ? (f.recordeAntes === 0 ? T.primeira : T.recordeMais(d)) : d === 0 ? T.recordeIgual : T.recordeFalta(-d, f.recorde)
+      f.linhas = [rec, f.ranking ? null : T.mediaLinha(f.media)].filter(Boolean)
+      Arte.texto(g, quebrar(rec, w - 6)[0], x + 4, y0 + 28, { fonte: 'mini', cor: f.novoRecorde ? COR.ouro : COR.creme })
+      if (f.linhas[1]) Arte.texto(g, f.linhas[1], x + 4, y0 + 35, { fonte: 'mini', cor: COR.creme })
       viu('fimNumeros')
     }
     const liga = (x, y0, w) => {

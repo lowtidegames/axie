@@ -91,27 +91,34 @@ function lerCorpo(req, max) {
 }
 
 /** Caminho do pedido → arquivo dentro das pastas liberadas, ou null. Nunca sai das pastas. */
-export function arquivoDoCaminho(urlPath) {
+export function arquivoDoCaminho(urlPath, pastas = PASTAS) {
   let p
   try { p = decodeURIComponent(urlPath) } catch { return null }
   if (p.includes('\0') || p.includes('\\') || !p.startsWith('/')) return null
   const partes = p.split('/').slice(1)
   if (partes.some(s => s === '..' || s === '.' || s.startsWith('.') && s !== '.')) return null
-  let base = PASTAS.tela
-  if (partes[0] === 'comum') { base = PASTAS.comum; partes.shift() }
-  else if (partes[0] === 'arte.local') { base = PASTAS.arte; partes.shift() }
-  if (partes.length === 0 || partes.at(-1) === '') { if (base !== PASTAS.tela) return null; partes[partes.length - 1] = 'index.html'; if (partes.length > 1 && partes[0] === '') partes.shift() }
+  let base = pastas.tela
+  if (partes[0] === 'comum') { base = pastas.comum; partes.shift() }
+  else if (partes[0] === 'arte.local') { base = pastas.arte; partes.shift() }
+  if (partes.length === 0 || partes.at(-1) === '') { if (base !== pastas.tela) return null; partes[partes.length - 1] = 'index.html'; if (partes.length > 1 && partes[0] === '') partes.shift() }
   const arq = path.resolve(base, ...partes)
   if (!arq.startsWith(base + path.sep)) return null
   const tipo = TIPOS[path.extname(arq).toLowerCase()]
   if (!tipo) return null
-  return { arq, tipo }
+  return { arq, tipo, base }
 }
 
-function servirEstatico(req, res, urlPath) {
-  const alvo = arquivoDoCaminho(urlPath)
+async function servirEstatico(req, res, urlPath, pastas) {
+  const alvo = arquivoDoCaminho(urlPath, pastas)
   if (!alvo) return erro(res, 404, 'Não achei esse arquivo.', 'nao_achado')
-  fs.readFile(alvo.arq, (e, dados) => {
+  // Link simbólico não leva para fora da pasta: o caminho REAL tem de ficar dentro da pasta base real.
+  let real
+  try {
+    real = await fs.promises.realpath(alvo.arq)
+    const baseReal = await fs.promises.realpath(alvo.base)
+    if (!real.startsWith(baseReal + path.sep)) return erro(res, 404, 'Não achei esse arquivo.', 'nao_achado')
+  } catch { return erro(res, 404, 'Não achei esse arquivo.', 'nao_achado') }
+  fs.readFile(real, (e, dados) => {
     if (e) return erro(res, 404, 'Não achei esse arquivo.', 'nao_achado')
     res.writeHead(200, { ...CABECALHOS_DE_SEGURANCA, 'Cache-Control': 'no-cache', 'Content-Type': alvo.tipo, 'Content-Length': dados.length })
     res.end(req.method === 'HEAD' ? undefined : dados)
@@ -124,12 +131,12 @@ function servirEstatico(req, res, urlPath) {
  */
 export async function iniciarServidor({
   porta = PORTA_PADRAO, host = HOST_UNICO, caminhoBanco = CAMINHO_PADRAO, caminhoNomes = 'porao/nomes.local.json',
-  limitePedidos = LIMITES.pedidos, agora = Date.now, log = () => {},
+  limitePedidos = LIMITES.pedidos, agora = Date.now, log = () => {}, pastas = PASTAS,
 } = {}) {
   if (host !== HOST_UNICO) throw new Error(`O porão só liga em ${HOST_UNICO} (pedido: "${host}"). Recusado.`)
   if (!Number.isInteger(porta) || porta < 0 || porta > 65535) throw new Error('Porta inválida.')
   const textos = carregarNomes(caminhoNomes)
-  const db = abrirBancoPorao(caminhoBanco, { modo: 'teste' })
+  const db = abrirBancoPorao(caminhoBanco, { modo: 'teste', agora })
   const contar = criarLimite(limitePedidos, agora)
   let portaReal = porta
 
@@ -146,14 +153,16 @@ export async function iniciarServidor({
 
     if (!url.pathname.startsWith('/api/')) {
       if (metodo !== 'GET' && metodo !== 'HEAD') return erro(res, 405, 'Método não permitido.', 'metodo_invalido')
-      return servirEstatico(req, res, url.pathname)
+      return servirEstatico(req, res, url.pathname, pastas)
     }
+    // Cabeçalho próprio em TODA rota /api: uma página de fora não consegue mandá-lo sem pedir permissão (CORS).
+    if (req.headers['x-porao'] !== '1') return erro(res, 403, 'Pedido sem a marca do jogo. Abra o jogo pela tela do porão.', 'sem_marca')
     if (emManutencao()) return erro(res, 503, 'O porão está em manutenção. Volte daqui a pouco.', 'manutencao')
     if (!contar(req.socket.remoteAddress || 'x')) return erro(res, 429, 'Calma: pedidos demais. Espere um pouco.', 'limite')
 
     if (url.pathname === '/api/estado') {
       if (metodo !== 'GET') return erro(res, 405, 'Método não permitido.', 'metodo_invalido')
-      return enviar(res, 200, verEstado(db, agora(), { textos }))
+      return enviar(res, 200, verEstado(db, agora(), { textos, gravar: !soLeitura() }))
     }
     let achada = null
     for (const r of ROTAS_POST) { const m = r.re.exec(url.pathname); if (m) { achada = { r, m }; break } }

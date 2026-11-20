@@ -245,15 +245,32 @@ export function avancar(estado, agora, opcoes = {}) {
   const eventos = []
   const bruto = Math.max(0, (agora - e.ultimoTempo) / 1000)
   e.ultimoTempo = Math.max(e.ultimoTempo, agora)
-  const online = typeof opcoes.online === 'boolean' ? opcoes.online : bruto <= TEMPO.limiteOnlineSeg
-  const segundos = online ? bruto : Math.min(bruto, TEMPO.tetoForaHoras * 3600)
+  // Pedidos "quase contínuos" (intervalo até JANELA_CONTINUA_SEG): os primeiros limiteOnlineSeg contam como conectado
+  // (Calor sobe, batida possível) e só o resto conta como fora (com o teto). Acima disso: sumiu, tudo fora.
+  // JANELA_CONTINUA_SEG é constante local derivada do limite que já existe (não é número novo de jogo).
+  const JANELA_CONTINUA_SEG = TEMPO.limiteOnlineSeg * 10
+  let segOnline, segFora
+  if (typeof opcoes.online === 'boolean') {
+    segOnline = opcoes.online ? bruto : 0
+    segFora = opcoes.online ? 0 : Math.min(bruto, TEMPO.tetoForaHoras * 3600)
+  } else if (bruto <= TEMPO.limiteOnlineSeg) {
+    segOnline = bruto; segFora = 0
+  } else if (bruto <= JANELA_CONTINUA_SEG) {
+    segOnline = TEMPO.limiteOnlineSeg
+    segFora = Math.min(bruto - segOnline, TEMPO.tetoForaHoras * 3600)
+  } else {
+    segOnline = 0
+    segFora = Math.min(bruto, TEMPO.tetoForaHoras * 3600)
+  }
+  const online = segOnline > 0
+  const segundos = segOnline + segFora
   if (segundos <= 0) return { estado: e, segundos: 0, online, rendeu: 0, eventos }
   const b = bonus(e)
-  // Calor: taxa fixa no intervalo (o conjunto de projetos no ar não muda dentro do avanço)
+  // Calor: taxa fixa no trecho conectado (o conjunto de projetos no ar não muda dentro do avanço)
   let deltaCalor = 0
   if (online) {
     const sobe = e.projetos.filter(noAr).reduce((s, p) => s + CALOR.projetoNoArPorMin[p.raridade], 0)
-    deltaCalor = (sobe * (1 - b.calor) - CALOR.quedaPorMin) / 60 * segundos
+    deltaCalor = (sobe * (1 - b.calor) - CALOR.quedaPorMin) / 60 * segOnline
   }
   let ganho = 0
   for (const p of e.projetos) if (noAr(p)) ganho += avancarProjeto(p, segundos, b, eventos)

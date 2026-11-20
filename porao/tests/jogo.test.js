@@ -276,3 +276,32 @@ describe('tarefa 4 — banco e ações do porão', () => {
     db.close()
   })
 })
+
+describe('P8 — SAVE_SO_LEITURA e limpeza de pedidos', () => {
+  test('SAVE_SO_LEITURA: GET /api/estado não muda o save', () => {
+    const db = bancoNovo()
+    agir(db, { acao: 'imprimir', dados: {}, chave: 'chave-p8-0001', agora: T0 })
+    const antes = foto(db)
+    const r = verEstado(db, T0 + 30_000, { gravar: false })
+    assert.equal(r.ok, true)
+    assert.deepEqual(foto(db), antes)
+    verEstado(db, T0 + 30_000)
+    assert.notDeepEqual(foto(db).save, antes.save)
+  })
+
+  test('boot apaga pedidos com mais de 1 dia e guarda os novos', () => {
+    const pasta = pastaTemp()
+    const arq = path.join(pasta, 'p.db')
+    try {
+      const db = abrirBancoPorao(arq, { semente: SEMENTE, agora: () => T0 })
+      const ins = db.prepare('INSERT INTO pedidos (chave, acao, corpo, resposta, em) VALUES (?, ?, ?, ?, ?)')
+      ins.run('velho-0001', 'imprimir', '{}', '{}', T0 - 25 * 3600 * 1000)
+      ins.run('novo-0001', 'imprimir', '{}', '{}', T0 - 3600 * 1000)
+      db.close()
+      const db2 = abrirBancoPorao(arq, { semente: SEMENTE, agora: () => T0 })
+      const chaves = db2.prepare('SELECT chave FROM pedidos').all().map(x => x.chave)
+      assert.deepEqual(chaves, ['novo-0001'])
+      db2.close()
+    } finally { fs.rmSync(pasta, { recursive: true, force: true }) }
+  })
+})

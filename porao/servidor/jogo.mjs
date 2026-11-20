@@ -80,15 +80,17 @@ export function agir(db, { acao, dados = {}, chave, agora, textos = TEXTOS } = {
 
 /**
  * verEstado(db, agora, { textos }) → { ok: true, estado: <estadoParaTela>, segundos, online, rendeu, eventos }.
- * Adianta o relógio e grava (com a linha de rendimento no diário). Sem chave de pedido: repetir só adianta o relógio.
+ * Adianta o relógio e grava (com a linha de rendimento no diário); com gravar:false só calcula (SAVE_SO_LEITURA). Sem chave de pedido: repetir só adianta o relógio.
  */
-export function verEstado(db, agora, { textos = TEXTOS } = {}) {
+export function verEstado(db, agora, { textos = TEXTOS, gravar = true } = {}) {
   if (!Number.isFinite(agora)) throw new TypeError('agora precisa ser número (ms)')
   return transacao(db, () => {
     const inicio = carregarSave(db)
     const avanco = R.avancar(inicio, agora)
-    anotarDiferenca(db, inicio.caixa, avanco.estado.caixa, 'rendimento', agora, null)
-    gravarSave(db, avanco.estado, agora)
+    if (gravar) {
+      anotarDiferenca(db, inicio.caixa, avanco.estado.caixa, 'rendimento', agora, null)
+      gravarSave(db, avanco.estado, agora)
+    }
     return {
       ok: true,
       estado: estadoParaTela(avanco.estado, { textos }),

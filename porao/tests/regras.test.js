@@ -404,3 +404,29 @@ describe('contrato de influenciador', () => {
     assert.equal(R.ehReincidente(r, 'infl_1'), true)
   })
 })
+
+describe('P8 — relógio: pedir a cada 61 s', () => {
+  test('pedir a cada 61 s não escapa do Calor nem do teto', () => {
+    const passo = (TEMPO.limiteOnlineSeg + 1) * 1000
+    const base = noAr(novo(), 'mitico').estado
+    base.calor = 10
+    // sumir: um pedido só depois de 1 h (fora do jogo, Calor parado)
+    const sumiu = R.avancar(base, base.ultimoTempo + 3600 * 1000)
+    assert.equal(sumiu.estado.calor, 10)
+    // pedir a cada 61 s durante 1 h: o Calor tem de subir (primeiros 60 s de cada pedido contam como conectado)
+    let e = base
+    const fim = base.ultimoTempo + 3600 * 1000
+    let visto = false
+    while (e.ultimoTempo < fim) {
+      const r = R.avancar(e, Math.min(fim, e.ultimoTempo + passo))
+      if (r.segundos > TEMPO.limiteOnlineSeg) assert.equal(r.online, true)
+      if (r.estado.batida) visto = true
+      e = r.estado
+    }
+    assert.ok(e.calor > 10 || visto, `Calor ficou em ${e.calor}`)
+    // o intervalo de 61 s rende o intervalo inteiro (61 s), não só 60
+    const um = R.avancar(base, base.ultimoTempo + passo)
+    assert.equal(um.segundos, TEMPO.limiteOnlineSeg + 1)
+    assert.equal(um.online, true)
+  })
+})

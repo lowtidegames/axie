@@ -617,12 +617,11 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     if (ja) {
       replaysGuardados.delete(linha.id)
       replaysGuardados.set(linha.id, ja)
-      return ja.dados
+      return ja
     }
-    const liberadas = JSON.parse(linha.liberadas)
     const cmds = comandosDe(linha)
-    let e = criarPartida({ semente: linha.semente, cartasLiberadas: liberadas })
-    const inicio = visaoDoMotor(e)
+    let e = criarPartida({ semente: linha.semente, cartasLiberadas: JSON.parse(linha.liberadas) })
+    const inicio = json(visaoDoMotor(e))
     const passos = []
     for (let i = 0; i < cmds.length; i++) {
       const r = aplicar(e, cmds[i])
@@ -631,12 +630,15 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
         throw erro(500, 'PARTIDA_ILEGIVEL', 'Não consegui remontar esta partida. Ela ficou guardada; avise a equipe.')
       }
       e = r.estado
-      passos.push({ comando: cmds[i], eventos: r.eventos, visao: visaoDoMotor(e) })
+      passos.push(json({ comando: cmds[i], eventos: r.eventos, visao: visaoDoMotor(e) }))
     }
-    const dados = { liberadas, inicio, passos }
-    const bytes = json(dados).length
+    // R19: guardado já como TEXTO JSON (objetos montados ocupavam ~6,7x o tamanho do texto na memória); a página
+    // pedida é lida do texto na hora. bytes = soma dos tamanhos dos textos guardados.
+    const dados = { liberadas: linha.liberadas, inicio, passos }
+    const bytes = dados.liberadas.length + inicio.length + passos.reduce((n, t) => n + t.length, 0)
+    dados.bytes = bytes
     if (bytes <= P.replayCacheBytes) {
-      replaysGuardados.set(linha.id, { dados, bytes })
+      replaysGuardados.set(linha.id, dados)
       bytesGuardados += bytes
       for (const [k, v] of replaysGuardados) {
         if (bytesGuardados <= P.replayCacheBytes) break
@@ -671,13 +673,16 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     if (!propria && !noTopo(linha)) throw naoAchou()
     const total = linha.seq
     if (!Number.isSafeInteger(desde) || desde < 0 || desde > total) throw erro(400, 'CAMPO_INVALIDO', 'Campo inválido: desde.')
-    const { liberadas, inicio, passos } = replayMontado(linha)
+    const montado = replayMontado(linha)
     const ate = Math.min(total, desde + P.replayPassosPorPagina)
+    const liberadas = JSON.parse(montado.liberadas)
+    const inicio = JSON.parse(montado.inicio)
+    const passos = montado.passos.slice(desde, ate).map((t) => JSON.parse(t))
     return {
       id: linha.id, modo: linha.modo, dia: new Date(linha.dia * DIA_MS).toISOString().slice(0, 10), temporada: linha.temporada,
       apelido: q.apelido.get(linha.conta_id)?.apelido ?? null, propria,
       cartasLiberadas: liberadas, semente: linha.semente,
-      inicio, passos: passos.slice(desde, ate), totalPassos: total, desde, proximo: ate < total ? ate : null,
+      inicio, passos, totalPassos: total, desde, proximo: ate < total ? ate : null,
       resultado: resultadoGravado(linha),
     }
   }
@@ -686,6 +691,7 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
   const _interno = {
     sementeDaEstrada, energiaAgora: (contaId) => energiaAgora(contaDoReino(contaId)), fecharTemporadas, hash: (x) => createHash('sha256').update(x).digest('hex'),
     motor: () => ({ ...contagem }), replaysGuardados: () => ({ partidas: replaysGuardados.size, bytes: bytesGuardados }),
+    replaysGuardadosValores: () => [...replaysGuardados.values()],
   }
 
   return { abrir, comando, desistir, verAberta, ranking, perfil, replay, _interno }

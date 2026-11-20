@@ -25,3 +25,22 @@ data_brt,servico,chamada,o_que,segundos,creditos,resultado
 19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,recorde tomada 2,1.5,17,200 ok
 19/11/2026 19:01,ElevenLabs,POST /v1/sound-generation,recorde tomada 3,1.5,17,200 ok
 TOTAL,,,,29.4,330,24 tomadas de 8 efeitos (character-cost de cada resposta); teto da tarefa 400; saldo nao legivel pela chave (401)
+20/11/2026,ElevenLabs,POST /v1/sound-generation,golpeFrigideira tomada 1,0.9,10,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,golpeFrigideira tomada 2,0.9,10,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,golpeFrigideira tomada 3,0.9,10,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,golpeBicada tomada 1,0.8,9,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,golpeBicada tomada 2,0.8,9,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,golpeBicada tomada 3,0.8,9,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,golpeMordida tomada 1,0.7,8,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,golpeMordida tomada 2,0.7,8,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,golpeMordida tomada 3,0.7,8,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,golpePortada tomada 1,0.8,9,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,golpePortada tomada 2,0.8,9,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,golpePortada tomada 3,0.8,9,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,chefeTomba tomada 1,1.5,17,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,chefeTomba tomada 2,1.5,17,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,chefeTomba tomada 3,1.5,17,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,pisao tomada 1,1.0,11,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,pisao tomada 2,1.0,11,200 ok
+20/11/2026,ElevenLabs,POST /v1/sound-generation,pisao tomada 3,1.0,11,200 ok
+TOTAL R35,,,,17.1,192,18 tomadas de 6 efeitos (character-cost de cada resposta); 16 escolhidas por medicao; teto da tarefa 600; saldo nao legivel pela chave (401 em /v1/user/subscription)

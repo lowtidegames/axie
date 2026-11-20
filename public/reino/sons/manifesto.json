@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "nota": "Amostras do Reino (ElevenLabs, 19/11/2026), medidas e nao ouvidas. Sem amostra = som por codigo. Formato: \"evento\": [{ \"arquivo\": \"nome-1.mp3\" }]",
+  "nota": "Amostras do Reino (ElevenLabs, 19/11 e 20/11/2026), medidas e nao ouvidas. Sem amostra = som por codigo. Formato: \"evento\": [{ \"arquivo\": \"nome-1.mp3\" }]",
   "efeitos": {
     "choque": [
       {
@@ -82,6 +82,66 @@
       },
       {
         "arquivo": "recorde-3.mp3"
+      }
+    ],
+    "golpeBicada": [
+      {
+        "arquivo": "golpeBicada-1.mp3"
+      },
+      {
+        "arquivo": "golpeBicada-2.mp3"
+      }
+    ],
+    "golpeFrigideira": [
+      {
+        "arquivo": "golpeFrigideira-1.mp3"
+      },
+      {
+        "arquivo": "golpeFrigideira-2.mp3"
+      }
+    ],
+    "golpeMordida": [
+      {
+        "arquivo": "golpeMordida-1.mp3"
+      },
+      {
+        "arquivo": "golpeMordida-2.mp3"
+      },
+      {
+        "arquivo": "golpeMordida-3.mp3"
+      }
+    ],
+    "golpePortada": [
+      {
+        "arquivo": "golpePortada-1.mp3"
+      },
+      {
+        "arquivo": "golpePortada-2.mp3"
+      },
+      {
+        "arquivo": "golpePortada-3.mp3"
+      }
+    ],
+    "chefeTomba": [
+      {
+        "arquivo": "chefeTomba-1.mp3"
+      },
+      {
+        "arquivo": "chefeTomba-2.mp3"
+      },
+      {
+        "arquivo": "chefeTomba-3.mp3"
+      }
+    ],
+    "pisao": [
+      {
+        "arquivo": "pisao-1.mp3"
+      },
+      {
+        "arquivo": "pisao-2.mp3"
+      },
+      {
+        "arquivo": "pisao-3.mp3"
       }
     ]
   }

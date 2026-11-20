@@ -24,25 +24,42 @@ function hora (nome, v) {
   return new Date(v).toISOString()
 }
 
+// Formato SIWS (Sign In With Solana, CAIP-122; mesma ordem de campos do padrão público das carteiras):
+//   <domínio> wants you to sign in with your Solana account:\n<carteira>\n\n<frase>\n\nURI: ...\nVersion: 1\n
+//   Chain ID: mainnet\nNonce: ...\nIssued At: <ISO>\nExpiration Time: <ISO>
+// A carteira (Phantom, Solflare, Backpack) reconhece esse texto e compara o <domínio> com a origem do site que pediu
+// a assinatura: é ela que barra o revezamento (site falso mostrando a nossa mensagem). O servidor não tem como saber
+// quem mostrou o texto. Login NÃO toca a rede: "Chain ID" é só o rótulo que o padrão pede.
+export const FRASE_SIWS = 'Entrar no Porao. Isto nao e uma transacao e nao gasta nada.'
+const DOMINIO_VALIDO = /^[a-z0-9.-]{1,100}(:[0-9]{1,5})?$/ // host[:porta], sem esquema, sem caminho
+const NONCE_SIWS = /^[A-Za-z0-9]{8,128}$/ // padrão: alfanumérico, no mínimo 8
+
 // Texto fixo, em ASCII, linhas separadas por \n. emitida e vence em ms (relógio do servidor).
-export function montarMensagem ({ site, carteira, nonce, emitida, vence } = {}) {
-  campo('site', site)
+// dominio e uri vêm SÓ do servidor (nunca do pedido nem do cabeçalho Host); uri = http(s)://<dominio>.
+export function montarMensagem ({ dominio, uri, carteira, nonce, emitida, vence } = {}) {
+  campo('dominio', dominio)
+  if (!DOMINIO_VALIDO.test(dominio)) throw new TypeError('montarMensagem: dominio inválido')
+  campo('uri', uri)
+  if (uri !== `https://${dominio}` && uri !== `http://${dominio}`) throw new TypeError('montarMensagem: uri inválida')
   campo('carteira', carteira)
   if (!chavePublicaDe(carteira)) throw new TypeError('montarMensagem: carteira inválida')
   campo('nonce', nonce)
+  if (!NONCE_SIWS.test(nonce)) throw new TypeError('montarMensagem: nonce inválido')
   const e = hora('emitida', emitida)
   const v = hora('vence', vence)
   if (!(vence > emitida)) throw new TypeError('montarMensagem: vence precisa ser depois de emitida')
   return [
-    'Entrar no Porao',
+    `${dominio} wants you to sign in with your Solana account:`,
+    carteira,
     '',
-    `Site: ${site}`,
-    `Carteira: ${carteira}`,
-    `Numero de uso unico: ${nonce}`,
-    `Emitida em: ${e}`,
-    `Vence em: ${v}`,
+    FRASE_SIWS,
     '',
-    'Isto nao e uma transacao e nao gasta nada.',
+    `URI: ${uri}`,
+    'Version: 1',
+    'Chain ID: mainnet',
+    `Nonce: ${nonce}`,
+    `Issued At: ${e}`,
+    `Expiration Time: ${v}`,
   ].join('\n')
 }
 

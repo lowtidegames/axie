@@ -82,7 +82,7 @@ describe('assinatura de mensagem (Ed25519)', () => {
 
   test('par gerado na hora confere com a mensagem do login', () => {
     const { carteira, privateKey } = parGerado()
-    const msg = montarMensagem({ site: '127.0.0.1:4900', carteira, nonce: 'a1b2c3d4e5f60718293a4b5c6d7e8f90', emitida: 1_763_673_420_000, vence: 1_763_673_720_000 })
+    const msg = montarMensagem({ dominio: '127.0.0.1:4900', uri: 'http://127.0.0.1:4900', carteira, nonce: 'a1b2c3d4e5f60718293a4b5c6d7e8f90', emitida: 1_763_673_420_000, vence: 1_763_673_720_000 })
     assert.equal(conferirAssinatura(msg, carteira, assinar(msg, privateKey)), true)
   })
 
@@ -139,32 +139,33 @@ describe('assinatura de mensagem (Ed25519)', () => {
 })
 
 describe('mensagem do login', () => {
-  const base = { site: '127.0.0.1:4900', carteira: codificar(hex(RFC_PUB)), nonce: 'a1b2c3d4e5f60718293a4b5c6d7e8f90', emitida: Date.UTC(2026, 10, 20, 21, 17, 0), vence: Date.UTC(2026, 10, 20, 21, 22, 0) }
+  const base = { dominio: '127.0.0.1:4900', uri: 'http://127.0.0.1:4900', carteira: codificar(hex(RFC_PUB)), nonce: 'a1b2c3d4e5f60718293a4b5c6d7e8f90', emitida: Date.UTC(2026, 10, 20, 21, 17, 0), vence: Date.UTC(2026, 10, 20, 21, 22, 0) }
 
+  // Regra mudou (parecer v4, M1): o texto agora é SIWS — 1ª linha "<domínio> wants you to sign in...", frase na 4ª.
   test('texto fixo e sério, linhas com \\n, com site, carteira, nonce e horas', () => {
     const m = montarMensagem(base)
     const linhas = m.split('\n')
-    assert.equal(linhas[0], 'Entrar no Porao')
+    assert.equal(linhas[0], '127.0.0.1:4900 wants you to sign in with your Solana account:')
     assert.ok(!m.includes('\r'))
     assert.ok(m.includes('127.0.0.1:4900'))
     assert.ok(m.includes(base.carteira))
     assert.ok(m.includes(base.nonce))
     assert.ok(m.includes('2026-11-20T21:17:00.000Z'))
     assert.ok(m.includes('2026-11-20T21:22:00.000Z'))
-    assert.equal(linhas.at(-1), 'Isto nao e uma transacao e nao gasta nada.')
+    assert.equal(linhas[3], 'Entrar no Porao. Isto nao e uma transacao e nao gasta nada.')
     assert.equal(montarMensagem(base), m) // mesma entrada, mesmo texto
   })
 
   test('mensagem toda em ASCII imprimível + \\n (carteira física com visor pequeno)', () => {
     const m = montarMensagem(base)
     assert.match(m, /^[\x20-\x7e\n]+$/)
-    assert.throws(() => montarMensagem({ ...base, site: 'porão.local' }), TypeError)
+    assert.throws(() => montarMensagem({ ...base, dominio: 'porão.local', uri: 'http://porão.local' }), TypeError)
     assert.throws(() => montarMensagem({ ...base, nonce: 'ação' }), TypeError)
   })
 
   test('recusa campo vazio, com quebra de linha ou carteira inválida (não monta mensagem torta)', () => {
     for (const ruim of [
-      { site: '' }, { site: 'a\nb' }, { site: 'a b' },
+      { dominio: '' }, { dominio: 'a\nb' }, { dominio: 'a b' },
       { carteira: 'abc' }, { carteira: '0OIl' }, { carteira: base.carteira + '\nx' },
       { nonce: '' }, { nonce: 'a\nb' }, { nonce: 'x'.repeat(200) },
       { emitida: 'ontem' }, { vence: NaN }, { vence: base.emitida }, { vence: base.emitida - 1 },
@@ -229,6 +230,66 @@ describe('chave de ordem pequena (assinatura forjável)', () => {
       assert.equal(chavePublicaDe(c), null, h)
       for (const m of ['oi', '', 'Entrar no Porao', 'a', 'b', 'c', 'd']) assert.equal(conferirAssinatura(m, c, zeros64), false, h + ' ' + m)
     }
-    assert.throws(() => montarMensagem({ site: 'x', carteira: '1'.repeat(32), nonce: 'n', emitida: 1, vence: 2 }), TypeError)
+    assert.throws(() => montarMensagem({ dominio: 'x', uri: 'http://x', carteira: '1'.repeat(32), nonce: 'n1234567', emitida: 1, vence: 2 }), TypeError)
+  })
+})
+
+// Consertos do parecer de segurança v4 (login do Porão), M1: mensagem no formato SIWS (Sign In With Solana,
+// CAIP-122). As carteiras (Phantom, Solflare, Backpack) reconhecem esse texto e comparam o <domínio> da 1ª linha com
+// a origem do site que pediu a assinatura: é ISSO que barra o revezamento (site falso pedindo para assinar a nossa).
+describe('consertos v4 — mensagem SIWS', () => {
+  const carteira = codificar(hex(RFC_PUB))
+  const nonce = 'a1b2c3d4e5f60718293a4b5c6d7e8f90'
+  const emitida = Date.UTC(2026, 10, 20, 21, 17, 0)
+  const vence = Date.UTC(2026, 10, 20, 21, 22, 0)
+  // Mesma gramática do leitor público de mensagens SIWS (wallet-standard, parseSignInMessageText), reescrita aqui.
+  const LEITOR_SIWS = new RegExp('^(?<domain>[^\\n]+?) wants you to sign in with your Solana account:\\n(?<address>[^\\n]+)(?:\\n|$)' +
+    '(?:\\n(?<statement>[\\S\\s]*?)(?:\\n|$))??(?:\\nURI: (?<uri>[^\\n]+))?(?:\\nVersion: (?<version>[^\\n]+))?' +
+    '(?:\\nChain ID: (?<chainId>[^\\n]+))?(?:\\nNonce: (?<nonce>[^\\n]+))?(?:\\nIssued At: (?<issuedAt>[^\\n]+))?' +
+    '(?:\\nExpiration Time: (?<expirationTime>[^\\n]+))?\\n*$')
+
+  test('mensagem_no_formato_siws_com_dominio_do_servidor', () => {
+    const m = montarMensagem({ dominio: 'porao.exemplo.test', uri: 'https://porao.exemplo.test', carteira, nonce, emitida, vence })
+    assert.equal(m, [
+      'porao.exemplo.test wants you to sign in with your Solana account:',
+      carteira,
+      '',
+      'Entrar no Porao. Isto nao e uma transacao e nao gasta nada.',
+      '',
+      'URI: https://porao.exemplo.test',
+      'Version: 1',
+      'Chain ID: mainnet',
+      `Nonce: ${nonce}`,
+      'Issued At: 2026-11-20T21:17:00.000Z',
+      'Expiration Time: 2026-11-20T21:22:00.000Z',
+    ].join('\n'))
+    const g = LEITOR_SIWS.exec(m)?.groups
+    assert.ok(g, 'o leitor SIWS reconhece a mensagem')
+    assert.equal(g.domain, 'porao.exemplo.test')
+    assert.equal(g.address, carteira)
+    assert.equal(g.statement, 'Entrar no Porao. Isto nao e uma transacao e nao gasta nada.')
+    assert.equal(g.uri, 'https://porao.exemplo.test')
+    assert.equal(g.version, '1')
+    assert.equal(g.chainId, 'mainnet')
+    assert.equal(g.nonce, nonce)
+    assert.equal(g.expirationTime, '2026-11-20T21:22:00.000Z')
+    assert.match(m, /^[\x20-\x7e\n]+$/) // só ASCII
+    // local: domínio com porta, URI http
+    const local = montarMensagem({ dominio: '127.0.0.1:4900', uri: 'http://127.0.0.1:4900', carteira, nonce, emitida, vence })
+    assert.equal(LEITOR_SIWS.exec(local)?.groups.domain, '127.0.0.1:4900')
+  })
+
+  test('SIWS: nonce alfanumérico com 8 ou mais; domínio sem esquema; URI = esquema + o mesmo domínio', () => {
+    const base = { dominio: 'porao.exemplo.test', uri: 'https://porao.exemplo.test', carteira, nonce, emitida, vence }
+    for (const ruim of [
+      { nonce: 'abc1234' }, { nonce: 'a1b2-c3d4e5' }, { nonce: 'a1b2c3d4 ' },
+      { dominio: 'https://porao.exemplo.test' }, { dominio: 'porao.exemplo.test/x' }, { dominio: '' },
+      { dominio: 'porao.exemplo.test wants you' },
+      { uri: 'https://outro.exemplo.test' }, { uri: 'ftp://porao.exemplo.test' }, { uri: 'https://porao.exemplo.test/x' },
+      { site: 'porao.exemplo.test', dominio: undefined },
+    ]) {
+      assert.throws(() => montarMensagem({ ...base, ...ruim }), TypeError, JSON.stringify(ruim))
+    }
+    assert.doesNotThrow(() => montarMensagem({ ...base, nonce: 'abcd1234' }))
   })
 })

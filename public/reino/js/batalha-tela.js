@@ -16,7 +16,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
   const danoT = new Int32Array(7) // dano causado aos invasores por terreno (1..6); 0 = magia e estouros
 
   /** `segundos` (duração que o motor deu) e `rodada` só acertam o RITMO do desenho: nas rodadas 1–4 a luta curta toca mais devagar no 1×. */
-  B.iniciar = ({ eventos, horda, terrenos, exercito, segundos = 0, rodada = 99 }, aoFim) => {
+  B.iniciar = ({ eventos, horda, terrenos, exercito, segundos = 0, rodada = 99, painelCurto }, aoFim) => {
     B.ev = eventos; B.i = 0; B.ativa = true; B.resultado = null; B.aoFim = aoFim; B.fimEm = 0; B.pausaAte = 0; B.lentoAte = 0; B.silencio = false
     B.ritmo = rodada <= 4 && segundos > 0 ? Math.max(0.4, Math.min(1, segundos / 7)) : 1
     B.chefeCaiuEm = 0; B.lento = false; B.gruposCaidos = 0; vivosT = {}; B.pausouNaQueda = false; danoT.fill(0); terrenoDe = {}; chefesVivos = 0
@@ -36,9 +36,12 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     // troca o painel por uma tira curta — o mundo desce 34 px para ocupar a altura que sobrou. (Só na luta da PARTIDA: no replay e
     // nas vitrines o painel inteiro continua lá e a cena não se mexe.)
     const ocupados = terrenos.filter(Boolean).length
-    C.enquadre = C.tipo === 'celular' && aoFim?.name === 'aoFimDaLuta' && ocupados <= 2 ? 34 : 0
+    // R32: quem chama diz com `painelCurto` (true = a interface vai mostrar a tira curta no lugar do painel; false = painel inteiro).
+    // Sem o parâmetro vale o comportamento antigo: adivinha pela luta da partida (nome do callback) com 1–2 terrenos ocupados.
+    const curto = painelCurto === undefined ? aoFim?.name === 'aoFimDaLuta' && ocupados <= 2 : !!painelCurto
+    C.enquadre = C.tipo === 'celular' && curto ? 40 : 0
     // CÂMERA DE DUELO: com ≤ 4 representantes no total (os dois lados), a câmera chega mais perto
-    { const reps = exercito.soldados.reduce((a, s) => a + Math.min(s.qtd, C.repMax), 0) + Math.min(B.inimigosTotal, C.tipo === 'pc' ? 6 : 4); C.duelo = !C.menos && C.tipo === 'pc' && reps <= 4 } // (só no PC: no celular a estrada inteira já cabe na tela e o zoom esconderia quem chega pelo portão)
+    { const reps = exercito.soldados.reduce((a, s) => a + Math.min(s.qtd, C.repMax), 0) + Math.min(B.inimigosTotal, C.tipo === 'pc' ? 6 : 4); C.duelo = !C.menos && C.tipo === 'pc' && reps <= 4; C.dueloCurto = C.tipo === 'celular' && reps <= 4 } // (só no PC: no celular a estrada inteira já cabe na tela e o zoom esconderia quem chega pelo portão)
     Som.tocar('marcha')
   }
   function comecarLuta() { B.preludioAte = 0; C.marcha = false; C.cam.vel = 0; B.mapa.fill(-1); C.limparBonecos(); C.tb = 0; C.magiaAnim = {} }
@@ -49,6 +52,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
   /** Parada de impacto (hit-stop): 45 ms no golpe forte, 60 ms no do chefe e no estouro; nunca em golpe comum, nunca em rajada. */
   function pausa(agora, ms, tremida) {
     if (B.silencio || C.menos || agora - B.ultimaPausa < (ms >= 60 ? 380 : 650)) return
+    if (C.dueloCurto) ms += 15 // R32: no duelo do celular o impacto segura 15 ms a mais
     B.ultimaPausa = agora; B.pausaAte = agora + ms / Math.max(1, B.vel / 2); C.tremer(tremida, ms + 40)
   }
 
@@ -203,7 +207,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
   /** Avança o relógio da luta. Devolve quantos ms de animação passaram neste quadro. */
   B.avancar = (dtReal, agora) => {
     if (!B.ativa) return dtReal
-    if (B.fimEm) { if (agora >= B.fimEm) { B.ativa = false; C.emLuta = false; C.enquadre = 0; C.duelo = false; const r = B.resultado, f = B.aoFim; B.aoFim = null; f?.(r) } return dtReal }
+    if (B.fimEm) { if (agora >= B.fimEm) { B.ativa = false; C.emLuta = false; C.enquadre = 0; C.duelo = false; C.dueloCurto = false; const r = B.resultado, f = B.aoFim; B.aoFim = null; f?.(r) } return dtReal }
     if (B.preludioAte) { if (agora < B.preludioAte - (B.vel > 1 ? 900 : 0)) return dtReal; comecarLuta() }
     if (agora < B.pausaAte) return 0 // pausa de impacto: o mundo inteiro segura
     B.lento = agora < B.lentoAte; if (B.lento) C.med.lentoMs += dtReal
@@ -226,6 +230,6 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     while (B.i < ev.length) { const e = ev[B.i++]; if (e[1] === 'n') tipos[e[2]] = e[4]; C.tb = e[0]; evento(e, performance.now()) }
     Som.fundoBatalha(0)
   }
-  B.parar = () => { C.enquadre = 0; C.duelo = false; B.preludioAte = 0; C.marcha = false; C.gritoT = -1e9; B.ativa = false; B.aoFim = null; C.emLuta = false; C.noite = 0; C.cam.alvo = 0; Som.fundoBatalha(0) }
+  B.parar = () => { C.enquadre = 0; C.duelo = false; C.dueloCurto = false; B.preludioAte = 0; C.marcha = false; C.gritoT = -1e9; B.ativa = false; B.aoFim = null; C.emLuta = false; C.noite = 0; C.cam.alvo = 0; Som.fundoBatalha(0) }
   return B
 }

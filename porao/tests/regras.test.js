@@ -485,3 +485,10 @@ describe('P8 — relógio: pedir a cada 61 s', () => {
     assert.equal(um.online, true)
   })
 })
+
+test('save mexido à mão com nomes internos do JS em luxos não vira objeto (Object.hasOwn)', () => {
+  const e = R.estadoInicial({ semente: 'x', agora: 0 })
+  e.luxos = ['__proto__', 'constructor', 'cofre']
+  const novo = R.atualizarEstado(e)
+  assert.deepEqual(novo.luxos, ['__proto__', 'constructor', 'tela_curva'])
+})

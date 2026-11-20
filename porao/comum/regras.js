@@ -96,7 +96,7 @@ export const LUXOS_RENOMEADOS = Object.freeze({
 /** Save antigo → formato atual (ids de luxo renomeados). Devolve cópia; o estado recebido não muda. */
 export function atualizarEstado(estado) {
   const e = copiar(estado)
-  e.luxos = [...new Set(e.luxos.map(id => LUXOS_RENOMEADOS[id] || id))]
+  e.luxos = [...new Set(e.luxos.map(id => (Object.hasOwn(LUXOS_RENOMEADOS, id) ? LUXOS_RENOMEADOS[id] : id)))]
   return e
 }
 

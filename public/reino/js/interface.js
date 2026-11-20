@@ -610,6 +610,14 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
         if (sb.liga) { const t = T.srv.subiu.liga(sb.liga); lin.push([t, cabe(t, 'reino-ouro', 'mini-ouro')]) }
         sb.mostra = vai; viu('fimSubiu')
       }
+      // (R30) fim de RANKING: "RUN SCORE 100" e "SEASON SCORE 33 (AVG OF YOUR BEST 3)" junto da posição — números do servidor, a tela só escreve
+      let nRk = 0
+      if (f.ranking) {
+        const a = T.srv.fimRanking.partida(f.ranking.pontos), b = T.srv.fimRanking.temporada(f.ranking.temporada, f.ranking.melhores)
+        f.rankingLinhas = [a, b]
+        lin.push([a, cabe(a, 'reino-ouro', 'mini-ouro'), 'rk']); for (const q of quebrar(b, larg, 'mini-contorno')) lin.push([q, 'mini-contorno', 'rk'])
+        nRk = lin.filter((l) => l[2] === 'rk').length
+      }
       if (f.amigo) for (const q of quebrar(f.amigo.texto, larg, 'mini')) lin.push([q, cabe(q, 'reino-ouro', 'mini-ouro')])
       if (f.melhor) { const junto = `${T.melhorMomento}: ${f.melhor}`; if (Arte.largura(junto, 'mini-contorno') <= larg && !cel) lin.push([junto, 'mini-ouro']); else { lin.push([T.melhorMomento, 'mini-ouro']); for (const q of quebrar(f.melhor, larg, 'mini-contorno')) lin.push([q, 'mini-contorno']) } }
       if (f.faltaLinha) lin.push([f.faltaLinha, cabe(f.faltaLinha, 'reino-contorno', 'mini-contorno')])
@@ -620,6 +628,8 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
         g.fillStyle = COR.ameixa; g.globalAlpha = 0.78; g.fillRect(cx - (w >> 1), y - 2, w, h); g.globalAlpha = 1
         let yy = y
         for (const [t, fo] of lin) { Arte.texto(g, t, cx, yy, { fonte: Arte.temFonte(fo) || fo !== 'mini-ouro' ? fo : 'mini-contorno', alinhar: 'centro' }); yy += alt(fo) }
+        f.fechoRet = { x: cx - (w >> 1), y: y - 2, w, h }
+        if (nRk && lin.filter((l) => l[2] === 'rk').length === nRk) viu('fimPontosRanking')
         viu('fimFecho')
       }
     }

@@ -780,6 +780,8 @@ async function depoisDoFim() {
     S.perfil = p; S.energia = p.energia
     if (M.fase !== 'fim' || !M.fim || S.id !== id || J.replay) return
     const sit = situacaoDoServidor()
+    // (R30) fim de RANKING: os pontos desta partida e a conta da temporada, com os números do servidor (resultado, perfil e a regra do ranking)
+    M.fim.ranking = S.modo === 'ranking' && S.resultado && S.resultado.conta !== false && p.temporada?.voce ? { pontos: S.resultado.pontos, temporada: p.temporada.voce.pontos, melhores: rk.temporada.melhoresQueContam } : null
     M.fim.media = sit.media; M.fim.liga = sit.liga; M.fim.album = albumDoServidor(); M.fim.amigo = linhaDoModo(S.modo === 'estrada' ? rk.estradaDoDia.voce : null)
     M.fim.gancho = ganchoDaEstrada(rk.estradaDoDia)
     // RANKING COM FESTA: só no fim de uma partida de ranking que contou, e só se o servidor diz posição melhor ou liga maior que antes

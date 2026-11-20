@@ -348,6 +348,8 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     return im ? h('div', { class: `pm-arte-caixa pm-arte-caixa--${tam} pm-moldura pm-rar--${raridade}` }, im, comNome ? h('div', { class: 'pm-arte-nome' }, nomeIdeia(ideia)) : null) : null;
   };
   const nomeIdeia = (ideia) => { const [r, n] = String(ideia).split('_'); return T(`ideia.${r}.${n}.nome`, ideia); };
+  // nome do projeto: o servidor manda `nome` (já com o rebrand); sem ele, cai no nome da ideia
+  const nomeProj = (p) => p?.nome || nomeIdeia(p.ideia);
   const chaveInflu = (id) => {
     const inf = visao.influenciadores.find((i) => i.id === id);
     if (!inf) return null;
@@ -559,12 +561,12 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     }
     if (lista.length > 1) {
       t.corpo.append(h('div', { class: 'pm-seletor', role: 'group', 'aria-label': 'Projeto do gráfico' },
-        lista.map((q) => h('button', { type: 'button', class: 'pm-btn', 'data-k': `sel-${q.id}`, 'aria-pressed': String(q.id === p.id), onclick: () => { ativoId = q.id; render('grafico'); } }, nomeIdeia(q.ideia)))));
+        lista.map((q) => h('button', { type: 'button', class: 'pm-btn', 'data-k': `sel-${q.id}`, 'aria-pressed': String(q.id === p.id), onclick: () => { ativoId = q.id; render('grafico'); } }, nomeProj(q)))));
     }
     const previa = visao.previas.tapete[p.id];
     t.corpo.append(h('div', { class: 'pm-linha' },
-      h('strong', {}, nomeIdeia(p.ideia)), h('span', {}, chipRar(p.raridade), ' ', ROTULO_FASE[p.fase])));
-    const cv = h('canvas', { class: 'pm-canvas', 'data-pm': 'grafico-canvas', role: 'img', 'aria-label': `Gráfico de ${nomeIdeia(p.ideia)}: quanto o tapete pagaria agora${previa ? `, ${din(previa.ganho)}` : ''}` });
+      h('strong', {}, nomeProj(p)), h('span', {}, chipRar(p.raridade), ' ', ROTULO_FASE[p.fase])));
+    const cv = h('canvas', { class: 'pm-canvas', 'data-pm': 'grafico-canvas', role: 'img', 'aria-label': `Gráfico de ${nomeProj(p)}: quanto o tapete pagaria agora${previa ? `, ${din(previa.ganho)}` : ''}` });
     const caixaCv = h('div', { class: 'pm-grafico' }, cv);
     t.corpo.append(caixaCv);
     const desenhar = () => pintarCurva(cv, historico[p.id] || [0, 0]);
@@ -594,7 +596,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     );
     const lista = projetosNoAr();
     t.corpo.append(h('div', { class: 'pm-card' }, h('h3', {}, 'Quem rende'),
-      lista.length ? lista.map((p) => h('div', { class: 'pm-linha' }, h('span', {}, nomeIdeia(p.ideia)), h('span', { class: 'pm-num' }, `${din(visao.rendimentos[p.id] || 0)}/h`)))
+      lista.length ? lista.map((p) => h('div', { class: 'pm-linha' }, h('span', {}, nomeProj(p)), h('span', { class: 'pm-num' }, `${din(visao.rendimentos[p.id] || 0)}/h`)))
         : h('p', { class: 'pm-pequeno' }, 'Nenhum projeto rendendo agora.')));
     const pr = visao.prestigio;
     t.corpo.append(h('div', { class: 'pm-card' }, h('h3', {}, 'Ir preso (recomeçar com bônus)'),
@@ -611,7 +613,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   // ----- a cena do tapete -----
   async function puxar(p) {
     if (cenaAtiva.tapete) return;
-    const nome = nomeIdeia(p.ideia), fim = T(`ideia.${p.ideia.split('_')[0]}.${p.ideia.split('_')[1]}.fim`);
+    const nome = nomeProj(p), fim = T(`ideia.${p.ideia.split('_')[0]}.${p.ideia.split('_')[1]}.fim`);
     const valores = [...(historico[p.id] || [])];
     cenaAtiva.tapete = true;
     render('grafico');
@@ -740,14 +742,14 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     t.corpo.append(h('div', { class: 'pm-card' }, h('p', { class: 'pm-pequeno' }, 'Trouxas entrando'), numEl));
     tweenTrouxas(numEl, total);
     t.corpo.append(h('div', { class: 'pm-card' }, h('h3', {}, 'O que esquenta'),
-      lista.length ? lista.map((p) => h('div', { class: 'pm-linha' }, h('span', {}, `${nomeIdeia(p.ideia)} no ar`), chipRar(p.raridade)))
+      lista.length ? lista.map((p) => h('div', { class: 'pm-linha' }, h('span', {}, `${nomeProj(p)} no ar`), chipRar(p.raridade)))
         : h('p', { class: 'pm-pequeno' }, 'Nada no ar: o Calor só cai.'),
       lista.some((p) => p.contrato && ['V1_NO_AR', 'PEDE_MAIS', 'V2_NO_AR'].includes(p.contrato.fase)) ? h('p', { class: 'pm-pequeno' }, 'Vídeo de influenciador no ar também esquenta.') : null,
       h('p', { class: 'pm-pequeno' }, 'Puxar o tapete é o que mais esquenta.')));
     lista.forEach((p) => {
       const max = TROUXAS.maximo[p.raridade];
       t.corpo.append(h('div', { class: 'pm-card' },
-        h('div', { class: 'pm-linha' }, h('strong', {}, nomeIdeia(p.ideia)), h('span', { class: 'pm-num' }, `${fmt(p.trouxas)} / ${fmt(max)}`)),
+        h('div', { class: 'pm-linha' }, h('strong', {}, nomeProj(p)), h('span', { class: 'pm-num' }, `${fmt(p.trouxas)} / ${fmt(max)}`)),
         h('div', { class: 'pm-medidor', role: 'meter', 'aria-label': 'Trouxas', 'aria-valuemin': '0', 'aria-valuemax': String(max), 'aria-valuenow': String(Math.round(p.trouxas)) },
           h('div', { class: 'pm-medidor__cheio', style: `width:${Math.min(100, (p.trouxas / max) * 100)}%` }))));
     });
@@ -775,7 +777,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
       const p = comParceiro[ticChat % comParceiro.length];
       const g = chaveInflu(p.contrato.influenciador);
       const n = (ticChat % 5) + 1;
-      chat.push({ autor: nomeInflu(p.contrato.influenciador), influ: true, influId: p.contrato.influenciador, texto: citar(T(`influ.${g}.post.${n}`), nomeIdeia(p.ideia)) });
+      chat.push({ autor: nomeInflu(p.contrato.influenciador), influ: true, influId: p.contrato.influenciador, texto: citar(T(`influ.${g}.post.${n}`), nomeProj(p)) });
       influ = true;
     }
     if (chat.length > 60) chat.splice(0, chat.length - 60);
@@ -801,7 +803,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
       const previa = visao.previas.tapete[p.id];
       t.corpo.append(h('div', { class: 'pm-card', 'data-pm': 'projeto', 'data-projeto': String(p.id) },
         caixaArte(p.ideia, p.raridade, 'mini', false),
-        h('div', { class: 'pm-linha' }, h('strong', {}, nomeIdeia(p.ideia)), chipRar(p.raridade)),
+        h('div', { class: 'pm-linha' }, h('strong', {}, nomeProj(p)), chipRar(p.raridade)),
         h('p', { class: 'pm-pequeno' }, `${ROTULO_FASE[p.fase]} · ${fmt(p.trouxas)} trouxas · rende ${din(visao.rendimentos[p.id] || 0)}/h`),
         medidorConfianca(p),
         p.contrato ? h('p', { class: 'pm-pequeno' }, nomeContrato(p)) : null,
@@ -811,7 +813,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
       ));
     });
     const fim = visao.estado.projetos.filter((p) => !NO_AR.includes(p.fase));
-    if (fim.length) t.corpo.append(h('p', { class: 'pm-pequeno' }, `Encerrados: ${fim.map((p) => `${nomeIdeia(p.ideia)} (${ROTULO_FASE[p.fase].toLowerCase()})`).join(', ')}`));
+    if (fim.length) t.corpo.append(h('p', { class: 'pm-pequeno' }, `Encerrados: ${fim.map((p) => `${nomeProj(p)} (${ROTULO_FASE[p.fase].toLowerCase()})`).join(', ')}`));
   }
 
   /** "Confiança dos trouxas": é o hype do projeto (mesmo número do servidor), em 10 gomos. */
@@ -821,7 +823,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     const cheios = Math.round(v / 10);
     return h('div', { class: 'pm-confianca', 'data-pm': 'confianca', 'data-nivel': v < 34 ? 'baixa' : v < 67 ? 'media' : 'alta' },
       h('div', { class: 'pm-confianca__topo' }, h('span', { class: 'pm-confianca__rot' }, rotulo), h('span', { class: 'pm-num' }, fmt(p.hype))),
-      h('div', { class: 'pm-confianca__gomos', role: 'meter', 'aria-label': `${rotulo} em ${nomeIdeia(p.ideia)}`, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(p.hype)) },
+      h('div', { class: 'pm-confianca__gomos', role: 'meter', 'aria-label': `${rotulo} em ${nomeProj(p)}`, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(p.hype)) },
         Array.from({ length: 10 }, (_, i) => h('span', { class: `pm-confianca__gomo${i < cheios ? ' pm-confianca__gomo--cheio' : ''}` }))));
   }
 
@@ -957,7 +959,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   function conteudoBatida() {
     const b = visao.previas.batida;
     const p = acharProjeto(b.projetoId);
-    const nome = p ? nomeIdeia(p.ideia) : 'projeto';
+    const nome = p ? nomeProj(p) : 'projeto';
     // textos da batida: o servidor manda prontos (batida.frase, batida.nomeAposRebrand); no modo falso, mesma conta com nomes.js
     const srv = typeof visao.estado.batida === 'object' && visao.estado.batida ? visao.estado.batida : (b.frase || b.nomeAposRebrand ? b : {});
     const familia = (pre) => { let n = 0; while (typeof T(`${pre}.${n + 1}`, null) === 'string') n++; return n; };
@@ -1025,13 +1027,13 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     const com = visao.estado.projetos.filter((p) => p.contrato);
     if (!com.length) return h('p', { class: 'pm-vazio' }, 'Nenhuma mensagem ainda. Contrate um influenciador para um projeto.');
     return h('div', { class: 'pm-chat', 'data-pm': 'mensagens' }, com.map((p) => {
-      const c = p.contrato, nome = nomeIdeia(p.ideia), quem = nomeInflu(c.influenciador);
+      const c = p.contrato, nome = nomeProj(p), quem = nomeInflu(c.influenciador);
       const inf = visao.influenciadores.find((i) => i.id === c.influenciador);
       const oferta = citar(T('msg.video1.oferta'), nome).replaceAll('{valor}', din(c.p1));
       const bal = [
         h('div', { class: 'pm-balao' }, oferta),
         h('div', { class: 'pm-balao pm-balao--eu' }, `Fechado: ${din(c.p1)} pelo vídeo 1.`),
-        // o servidor (estadoParaTela) não manda trazidasV1: sem o número, a frase não inventa um
+        // o servidor manda contrato.trazidasV1; se faltar, a frase sai sem o número (não inventa)
         Number.isFinite(c.trazidasV1) ? h('div', { class: 'pm-balao' }, `Vídeo 1 no ar: trouxe ${fmt(c.trazidasV1)} trouxas.`) : h('div', { class: 'pm-balao' }, 'Vídeo 1 no ar.'),
       ];
       if (c.fase === 'PEDE_MAIS' || (c.proposta !== null && c.proposta !== c.p1) || c.chorou) bal.push(h('div', { class: 'pm-balao' }, T('msg.melhorar.oferta')));
@@ -1062,7 +1064,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     if (!projetoContratar || !livres.some((p) => p.id === projetoContratar)) projetoContratar = livres[0]?.id ?? null;
     const sel = h('select', { class: 'pm-btn', 'data-pm': 'contratar-projeto', 'aria-label': 'Projeto que vai receber o vídeo', style: 'width:100%',
       onchange: (e) => { projetoContratar = Number(e.target.value); janelaCelular.atualizar(conteudoCelular()); } },
-      livres.map((p) => h('option', { value: String(p.id), selected: p.id === projetoContratar }, nomeIdeia(p.ideia))));
+      livres.map((p) => h('option', { value: String(p.id), selected: p.id === projetoContratar }, nomeProj(p))));
     const alvo = livres.find((p) => p.id === projetoContratar);
     return h('div', { class: 'pm-chat' },
       livres.length ? h('div', {}, h('p', { class: 'pm-pequeno' }, 'Projeto que ganha o vídeo (1 parceiro por projeto):'), sel)

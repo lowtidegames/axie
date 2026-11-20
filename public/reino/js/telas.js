@@ -175,6 +175,8 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
 
   // ---------------------------------------------------------------- MODO SERVIDOR: as telas com o que o servidor manda
   const falta = (iso) => T.srv.em(Date.parse(iso) - sv.agora()) // o tempo que falta é o do servidor (relógio dele), escrito uma vez: sem contagem na tela
+  /** Quanto falta para a estrada virar: é sempre menos de 1 dia. Se a conta der outra coisa (relógio fora do lugar), a tela não escreve número. */
+  const faltaDoDia = (iso) => { const ms = Date.parse(iso) - sv.agora(); return ms > 0 && ms <= 86_400_000 ? T.srv.em(ms) : null }
   const nomeDaLiga = (id) => (id === CONFIG.BETA.lenda.id ? CONFIG.BETA.lenda.nome : CONFIG.BETA.ligas.find((l) => l.id === id)?.nome || String(id))
   const erroTexto = (codigo) => T.srv.erro[codigo] || T.srv.erro.PADRAO
   /** Tela que depende do servidor: "Loading...", depois o conteúdo; erro vira 1 linha + "Try again" (nunca fica travada). */
@@ -254,13 +256,15 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
       const ver = { aviso: h('div', { id: 'rankAviso', role: 'status' }), volta: () => ranking() }
       // "X more for <liga>" só quando essa liga é MAIOR que a atual (a ordem é a da lista de títulos do servidor): nada de frase contraditória
       const ordem = rk.ligas.map((l) => l.id), sobe = !!v && !!v.faltaParaProxima && ordem.indexOf(v.faltaParaProxima.liga) > ordem.indexOf(v.liga)
+      // "N points to pass <nome>": a diferença entre dois números que o servidor mandou (quem está logo acima e a conta), mais 1 para passar
+      const acima = v && v.posicao > 1 ? rk.lista.find((l) => l.posicao === v.posicao - 1 && l.apelido !== eu) : null, passar = acima && acima.pontos >= v.pontos ? R.passar(acima.pontos - v.pontos + 1, acima.apelido) : null
       const lista = h('ol', { class: 'km-lista km-topo', id: 'listaTopo' }, rk.lista.length ? rk.lista.map((l) => itemDoTopo(l, !!v && l.posicao === v.posicao && l.apelido === eu, ver)) : [h('li', {}, [letra(R.vazio, { fonte: 'mini', cor: CINZA })])])
       let cursor = rk.proximo
       const mais = bt(R.mais, async () => { try { const pg = await sv.ranking(cursor); for (const l of pg.lista) lista.appendChild(itemDoTopo(l, !!v && l.posicao === v.posicao && l.apelido === eu, ver)); cursor = pg.proximo; if (!cursor) mais.remove() } catch (e) { mais.replaceWith(linha(erroTexto(e.codigo), { cor: COR.ouro })) } }, 'km-bt--fraco'); mais.id = 'rankMais'
       const nomeV = v ? nomeDaLiga(v.liga) : T.srv.semLiga, e = sv.energia()
       return [
         linha(t.fechada ? R.fechada(t.numero) : R.temporada(t.numero, falta(t.termina)), { pid: 'rankTemporada', fonte: 'reino' }),
-        h('div', { class: 'km-liga-topo', id: 'rankLiga', 'data-liga': v ? v.liga : '' }, [emblema(nomeV, 2), h('span', {}, [letra(nomeV, { fonte: 'reino-ouro', larg: w }), letra(v ? R.voce(v.posicao, v.pontos) : R.semVoce, { fonte: 'mini', larg: w, id: 'rankVoce' }), sobe ? letra(R.proxima(nomeDaLiga(v.faltaParaProxima.liga), v.faltaParaProxima.pontos), { fonte: 'mini', cor: CINZA, larg: w, id: 'rankProxima' }) : null])]),
+        h('div', { class: 'km-liga-topo', id: 'rankLiga', 'data-liga': v ? v.liga : '' }, [emblema(nomeV, 2), h('span', {}, [letra(nomeV, { fonte: 'reino-ouro', larg: w }), letra(v ? R.voce(v.posicao, v.pontos) : R.semVoce, { fonte: 'mini', larg: w, id: 'rankVoce' }), sobe ? letra(R.proxima(nomeDaLiga(v.faltaParaProxima.liga), v.faltaParaProxima.pontos), { fonte: 'mini', cor: CINZA, larg: w, id: 'rankProxima' }) : null, passar ? letra(passar, { fonte: 'mini', cor: COR.ouro, larg: w, id: 'rankPassar' }) : null])]),
         linha(R.regra(t.melhoresQueContam), { pid: 'rankRegra', cor: CINZA }),
         e ? linhaDaEnergia(e) : null,
         h('h3', {}, [letra(R.topo, { fonte: 'reino-ouro' })]), ver.aviso, lista, cursor ? mais : null,
@@ -288,7 +292,7 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
       const sua = !v ? P.naoJogou : v.status === 'aberta' ? P.aberta : v.posicao != null ? P.voce(v.posicao, v.pontos) : P.fora(v.pontos)
       const podeJogar = !ed.jogou || v?.status === 'aberta'
       return [
-        linha(P.dia(ed.dia, falta(virada)), { pid: 'placarDia', fonte: 'reino' }),
+        linha(P.dia(ed.dia, faltaDoDia(virada)), { pid: 'placarDia', fonte: 'reino' }),
         linha(sua, { pid: 'placarVoce', fonte: 'reino', cor: COR.ouro }),
         motivo && !(v && v.posicao != null) ? linha(motivo, { pid: 'placarFora', cor: CINZA }) : null,
         h('ol', { class: 'km-lista km-topo', id: 'listaPlacar' }, ed.lista.length ? ed.lista.map((l) => itemDoTopo(l, !!v && v.posicao != null && l.posicao === v.posicao && l.apelido === eu)) : [h('li', {}, [letra(P.vazio, { fonte: 'mini', cor: CINZA })])]),
@@ -337,6 +341,10 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
     const erro = h('div', { id: 'apelidoErro', role: 'alert' })
     const campo = h('input', { id: 'apelidoCampo', class: 'km-campo', type: 'text', maxlength: '16', autocomplete: 'off', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', enterkeyhint: 'done', 'aria-label': A.rotulo, 'aria-describedby': 'apelidoRegra' })
     campo.value = atual
+    // o campo usa a letra do aparelho (o cursor e a seleção dependem dela); logo acima, AO VIVO, o nome como o jogo vai mostrar (letra em pixel)
+    const previa = h('p', { class: 'km-linha', id: 'apelidoPrevia', 'aria-hidden': 'true' })
+    const pintar = () => previa.replaceChildren(letra(A.novo(campo.value.trim() || '...'), { fonte: 'reino', larg: LARG() }))
+    campo.addEventListener('input', pintar); pintar()
     let ocupado = false
     const enviar = async () => {
       if (ocupado) return
@@ -352,7 +360,7 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
     }
     const salvar = Object.assign(bt(A.salvar, enviar), { id: 'apelidoSalvar' })
     campo.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); enviar() } })
-    abrir('apelido', A.titulo, [h('p', { class: 'km-linha', id: 'apelidoAtual' }, [agoraE]), campo, linha(A.regra, { pid: 'apelidoRegra', cor: CINZA }), erro, salvar], null, volta)
+    abrir('apelido', A.titulo, [h('p', { class: 'km-linha', id: 'apelidoAtual' }, [agoraE]), previa, campo, linha(A.regra, { pid: 'apelidoRegra', cor: CINZA }), erro, salvar], null, volta)
   }
   return { menu, album, conquistas, ranking, sair, amigo, fechar, aberta: () => aberta, jogar, placar, perfil, falha }
 }

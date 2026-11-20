@@ -24,6 +24,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as CFG from '../../shared/reino/config.js'
 import { LIGAS, ligaDe, mediaDasMelhores } from '../../public/reino/js/ligas.js'
+import { T } from '../../public/reino/js/textos.js'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require('playwright')
@@ -31,7 +32,7 @@ const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const FOTOS = path.join(RAIZ, 'tests', 'tela', 'fotos', 'reino')
 const SUB = '/algum-nome/'
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg' }
-const GUARDAR = new Set(['abertura-celular', 'mao-celular', 'batalha-celular', 'batalha-pc', 'chefe-pc', 'nivel-celular', 'espolio-celular', 'derrota-celular', 'fim-celular', 'fim-pc', 'album-celular', 'share-card',
+const GUARDAR = new Set(['mao-revelacao-1-celular', 'mao-revelacao-2-celular', 'rodada1-celular', 'abertura-celular', 'mao-celular', 'batalha-celular', 'batalha-pc', 'chefe-pc', 'nivel-celular', 'espolio-celular', 'derrota-celular', 'fim-celular', 'fim-pc', 'album-celular', 'share-card',
   'fila-festas-celular', 'espolio-reliquia-celular', 'derrota-quase-celular', 'chefe-cai-pc', 'resumo-celular', 'fim-festa-celular', 'fim-festa-pc', 'share-card-dia',
   // R17: as festas em dupla (antes e pico) e as provas dos itens novos
   'festa-nivel-antes-celular', 'festa-nivel-pico-celular', 'festa-vitoria-antes-celular', 'festa-vitoria-pico-celular', 'festa-chefe-antes-celular', 'festa-chefe-pico-celular',
@@ -151,6 +152,45 @@ async function rodar(fmt) {
   await foto(page, nome('abertura'))
   await conferirLayout(page, 'abertura')
 
+  // ---------------------------------------------------------------- R27, item 6: as 3 cartas chegam VIRADAS e viram em cascata
+  {
+    await page.keyboard.press('Shift')
+    const toques = async () => (await sons(page)).filter((n) => n === 'toque').length, s0 = await toques(), R = await K(page, (k) => k.revela())
+    await K(page, (k) => k.maoNova())
+    const viradas = await page.waitForFunction(() => window.__keepmile.modelo().maoViradas === 3, null, { timeout: 1500, polling: 10 }).then(() => true, () => false)
+    confere(viradas && (await viuJa(page, 'maoVirada')), 'R27: a mão chega com as 3 cartas viradas')
+    const abriu = await page.waitForFunction(() => { const m = window.__keepmile.modelo(); return m.maoViradas === 0 && m.maoRevelada }, null, { timeout: 3000, polling: 10 }).then(() => true, () => false)
+    const log = (await modelo(page)).maoLog, d1 = log[1] - log[0], d2 = log[2] - log[1]
+    confere(abriu && log.length === 3 && d1 >= R.passo - 50 && d1 <= R.passo + 110 && d2 >= R.passo - 50 && d2 <= R.passo + 110 && R.passo === 120, `R27: viram em cascata, uma depois da outra (${d1} e ${d2} ms entre elas; passo de ${R.passo} ms)`)
+    await page.waitForTimeout(150)
+    confere((await toques()) - s0 === 3, `R27: um som para cada carta que vira (${(await toques()) - s0})`)
+    // toque no meio da revelação: as três aparecem na hora e a carta tocada é escolhida (nunca se escolhe carta virada)
+    await K(page, (k) => k.maoNova())
+    await toca(page, 'carta0')
+    { const m2 = await modelo(page); await page.waitForTimeout(60); confere(m2.sel === 0 && m2.maoRevelada && (await modelo(page)).maoViradas === 0, 'R27: tocar numa carta no meio da revelação abre as três e escolhe a tocada') }
+    await toca(page, 'carta0')
+    if (fmt.toque) {
+      // 2 quadros da revelação (o relógio dela parado): todas viradas; a 1ª aberta, a 2ª no meio da virada, a 3ª ainda virada
+      const mao = (await modelo(page)).mao, rara = mao.some((c) => CFG.RARIDADES.findIndex((r) => r.id === CFG.CARTAS[c.carta].raridade) >= 2)
+      await K(page, (k) => k.maoFixar(240)); await page.waitForTimeout(120)
+      confere((await modelo(page)).maoViradas === 3 && (!rara || (await viuJa(page, 'maoRara'))), `R27: quadro 1 — as 3 viradas${rara ? ', a rara com o brilho da raridade antes de virar' : ' (nenhuma rara nesta mão)'}`)
+      await foto(page, 'mao-revelacao-1-celular')
+      await K(page, (k, R) => k.maoFixar(R.espera + R.passo + R.vira * 0.75), R); await page.waitForTimeout(120)
+      confere((await modelo(page)).maoViradas === 1, 'R27: quadro 2 — a 1ª aberta, a 2ª abrindo, a 3ª ainda virada')
+      await foto(page, 'mao-revelacao-2-celular')
+      await K(page, (k) => k.maoFixar(null)); await page.waitForTimeout(80)
+    }
+    // Reduced motion: aparecem já viradas para a frente, sem som de virada
+    const ctxR = await novoCtx({ reducedMotion: 'reduce' }), pr = await abrir(ctxR, `?teste=1&nova=1&semente=${SEM}`)
+    await pr.keyboard.press('Shift')
+    const t0 = (await sons(pr)).filter((n) => n === 'toque').length
+    await K(pr, (k) => k.maoNova())
+    let nunca = true
+    for (let i = 0; i < 8; i++) { const mr = await modelo(pr), d = await viu(pr); if (mr.maoViradas !== 0 || d.includes('maoVirada')) nunca = false; await pr.waitForTimeout(60) }
+    confere(nunca && (await modelo(pr)).maoLog.length === 0 && (await sons(pr)).filter((n) => n === 'toque').length === t0, 'R27: com Reduced motion as cartas aparecem já abertas (sem virada e sem som de virada)')
+    await pr.close(); await ctxR.close()
+  }
+
   // ---------------------------------------------------------------- 2. escolher e pôr a carta
   const qual = Math.max(0, ['T02', 'T01', 'T07', 'T04'].map((c) => m.mao.findIndex((x) => x.carta === c)).find((i) => i >= 0) ?? 0) // uma tropa de luta comprida, para dar tempo de ver e ouvir
   await toca(page, 'carta' + qual)
@@ -191,9 +231,15 @@ async function rodar(fmt) {
   await toca(page, 'vel') // de volta a 1×
   await conferirLayout(page, 'batalha')
   // R13 itens 10, 15 e 16: resumo ao vivo na base (celular: na mesa; PC: painel embaixo, sem área morta), com a contagem dos dois lados
-  { const lay = await K(page, (k) => k.layout()), mr = (await modelo(page)).resumo
-    confere((await viuJa(page, 'resumo')) && mr && mr.aliadosTotal > 0 && mr.inimigosTotal === m.hordaN && lay.resumo.y + lay.resumo.h >= lay.VH - 8 && lay.resumo.h >= 60 && lay.camY === 0, `resumo ao vivo ocupa a base da tela na batalha (${mr?.aliados}/${mr?.aliadosTotal} × ${mr?.inimigos}/${mr?.inimigosTotal})`) }
-  if (fmt.toque) { await page.waitForTimeout(1900); await foto(page, 'resumo-celular') }
+  // (a regra mudou na R27, item 5: no CELULAR, com 1–2 terrenos ocupados, o painel "damage by plot" sai e fica uma tira curta com a
+  //  contagem dos dois lados — a cena fica com o espaço. No PC continua o painel embaixo.)
+  { const lay = await K(page, (k) => k.layout()), m2 = await modelo(page), mr = m2.resumo
+    if (fmt.toque) {
+      const curto = await viuJa(page, 'resumoCurto'), d = await viu(page), t = (await modelo(page)).resumoCurtoRet
+      confere(curto && !d.includes('resumo') && mr && mr.aliadosTotal > 0 && mr.inimigosTotal === m.hordaN && lay.camY === 0, `R27: rodada 1 no celular: sem o painel "damage by plot" (1 terreno ocupado); fica a contagem dos dois lados (${mr?.aliados}/${mr?.aliadosTotal} × ${mr?.inimigos}/${mr?.inimigosTotal})`)
+      confere(!!t && t.h <= 24 && t.y + t.h >= lay.VH - 1 && t.h < lay.mesa.h / 3, `R27: a tira da base tem ${t?.h} px de arte (a mesa tinha ${lay.mesa.h}): a cena fica com o espaço`)
+    } else confere((await viuJa(page, 'resumo')) && mr && mr.aliadosTotal > 0 && mr.inimigosTotal === m.hordaN && lay.resumo.y + lay.resumo.h >= lay.VH - 8 && lay.resumo.h >= 60 && lay.camY === 0, `resumo ao vivo ocupa a base da tela na batalha (${mr?.aliados}/${mr?.aliadosTotal} × ${mr?.inimigos}/${mr?.inimigosTotal})`) }
+  if (fmt.toque) { await page.waitForTimeout(1900); await foto(page, 'resumo-celular'); await foto(page, 'rodada1-celular') }
   await fase(page, 'vitoria', 45000)
   confere(Date.now() - lutaT0 >= 4500, `ritmo: a luta da rodada 1 ocupa ${((Date.now() - lutaT0) / 1000).toFixed(1)} s na tela (≥ 4,5 s com entrada e fecho; o motor decidiu em ${(await K(page, (k) => k.ultimaLuta())).segundos} s)`)
   const luta = await K(page, (k) => k.ultimaLuta())
@@ -432,6 +478,7 @@ async function rodar(fmt) {
   await page.waitForFunction(() => window.__keepmile.cena().vivos >= 60, null, { timeout: 20000 })
   await K(page, (k) => k.zerarMedidas())
   await page.waitForTimeout(1500)
+  if (fmt.toque) { const mr = (await modelo(page)).resumo, n = mr.cartas.filter(Boolean).length; confere(n >= 3 && (await viuJa(page, 'resumo')) && !(await viu(page)).includes('resumoCurto') && (await K(page, (k) => k.resumoColunas())) >= 3, `R27: com ${n} terrenos ocupados o painel "damage by plot" continua inteiro no celular`) }
   await foto(page, nome('batalha'))
   await page.waitForTimeout(3500)
   const q = await K(page, (k) => ({ ...k.quadros(), ...k.cena() }))
@@ -816,8 +863,12 @@ async function r17(fmt) {
     await toca(p, 'carta' + qual); await toca(p, 'terreno1')
     if (fmt.toque) { const lay = await K(p, (k) => k.layout()); confere(lay.lutar2.w >= lay.VW - 10 && lay.lutar2.y + lay.lutar2.h >= lay.VH - 6 && lay.premios.w >= lay.VW - 6 && lay.premios.y <= lay.mesa.y + 2 && (await viuJa(p, 'ganhe')), `D10: depois de pôr a carta a base do celular fica cheia — os 3 espólios em ladrilhos de lado a lado e o FIGHT da largura da tela (${lay.lutar2.w} de ${lay.VW})`) }
     await toca(p, 'lutar2'); await fase(p, 'luta')
+    // R27, item 7: no PC o painel WIN e o resumo do começo da 1ª luta não ficam vazios (uma linha de ajuda em cada)
+    if (!fmt.toque) confere((await viuJa(p, 'resumoAjuda')) && (await viuJa(p, 'ganheAjuda')) && T.resumo.ajuda.length <= 40 && T.ganheAjuda.length <= 20, `R27: PC, começo da 1ª luta: o resumo explica o painel ("${T.resumo.ajuda}") e o painel WIN diz o que fazer ("${T.ganheAjuda}")`)
     await p.waitForTimeout(2300)
-    confere((await K(p, (k) => k.resumoColunas())) === (fmt.toque ? 1 : 7) && (await viuJa(p, 'resumo')), fmt.toque ? 'D5: no celular o painel da batalha mostra só o terreno ocupado (1 linha, com o nome da carta), sem colunas vazias' : 'D5: no PC o resumo continua com as 7 colunas')
+    // (a regra mudou na R27, item 5: no celular, com 1 terreno ocupado, fica a tira curta em vez do painel de 1 linha)
+    if (fmt.toque) confere((await viuJa(p, 'resumoCurto')) && !(await viu(p)).includes('resumo') && (await modelo(p)).baseCurta === true, 'D5 (R27): no celular, com 1 terreno ocupado, a batalha não mostra o painel "damage by plot": só a tira curta da base')
+    else confere((await K(p, (k) => k.resumoColunas())) === 7 && (await viuJa(p, 'resumo')), 'D5: no PC o resumo continua com as 7 colunas')
     if (fmt.toque) await foto(p, 'festa-vitoria-antes-celular')
     await toca(p, 'vel'); await toca(p, 'vel') // 4×
     await fase(p, 'vitoria', 45000)
@@ -972,6 +1023,14 @@ async function r17(fmt) {
       confere(/ \d+ DMG IN ROUND \d+$/.test(m.fim.melhor || ''), `D8: o melhor momento da partida, tirado do resumo das lutas: "BEST MOMENT: ${m.fim.melhor}"`)
       let maxFl = 0; for (const t of cn.flashes) maxFl = Math.max(maxFl, cn.flashes.filter((x) => x >= t && x < t + 1000).length)
       confere(s.filter((x) => x === 'rankingSobe').length >= 2 && s.includes('recorde') && cn.tremidaMax <= 6 && maxFl <= 3 && cn.picoParticulas <= cn.limite, `D8: a contagem tem som e a festa fica nos limites (${maxFl} clarões/s, tremida ${cn.tremidaMax}, partículas ${cn.picoParticulas} de ${cn.limite})`) }
+    // R27, itens 1 e 3: no celular uma placa escura atrás do bloco do número; a silhueta da próxima carta com "N ROUNDS TO UNLOCK"
+    { const f = (await modelo(p)).fim, d = await viu(p), lay = await K(p, (k) => k.layout()), nr = f.numeroRet, v = f.veuRet
+      if (fmt.toque) confere(d.includes('fimVeu') && !!v && v.x <= nr.x && v.x + v.w >= nr.x + nr.w && v.y <= nr.y && v.y + v.h >= nr.y + nr.h && v.x >= 0 && v.x + v.w <= lay.VW && v.y + v.h <= lay.fimPainel.y, `R27: fim no celular: placa escura atrás de "RUN OVER", do número e de "${T.aguentou(f.vencidas)}" (${v?.w}×${v?.h} px de arte), acima da placa de pontos`)
+      else confere(!d.includes('fimVeu'), 'R27: no PC o número do fim continua sem placa (não cobre soldados)')
+      const sr = f.silhuetaRet, bs = lay.fimBotoes, fora = (r) => sr.x + sr.w <= r.x || sr.x >= r.x + r.w || lay.fimPainel.y + sr.y + sr.h <= r.y || lay.fimPainel.y + sr.y >= r.y + r.h
+      confere(!!f.album && d.includes('fimSilhueta') && !!sr && sr.y >= 0 && sr.y + sr.h <= lay.fimPainel.h && sr.x >= lay.fimPainel.x && sr.x + sr.w <= lay.fimPainel.x + lay.fimPainel.w && bs.every(fora), `R27: o fim mostra a silhueta da próxima carta do álbum (${f.album?.carta}) dentro da placa, sem encostar nos botões`)
+      confere(f.album.carta === CFG.ALBUM.ordem[CFG.ALBUM.ordem.indexOf(f.album.carta)] && !f.gancho && /^(1 ROUND|\d+ ROUNDS) TO UNLOCK$/.test(T.proximaCarta(f.album.falta)), `R27: e diz quanto falta: "${T.proximaCarta(f.album.falta)}" (número do álbum; no modo local não há estrada do dia)`) }
+    confere(T.aguentou(1) === 'ROUND HELD' && T.aguentou(2) === 'ROUNDS HELD' && T.album.somadas(1) === '1 round won so far' && T.proximaCarta(1) === '1 ROUND TO UNLOCK' && T.srv.replay.fim(1, 100) === 'RUN OVER: 1 ROUND - SCORE 100' && T.dica.horda(1) === '1 INVADER THIS ROUND' && ![T.aguentou(1), T.album.somadas(1), T.proximaCarta(1), T.album.proxima(1), T.rodadasPara(1), T.desafio(1), T.menu.rodadas(1), T.srv.replay.fim(1, 1), T.emRodadas(1)].some((t) => /\b1 ROUNDS\b/i.test(t)), 'R27: "1 ROUND" no singular em todo texto com contagem (fim, álbum, replay, horda)')
     await conferirLayout(p, 'fim em sequência')
     await anotar(p, 'fim com recorde')
     // D1: cartão de compartilhar
@@ -1069,6 +1128,9 @@ async function soLayout(w, h, toque) {
   await K(page, (k) => k.jogarSozinho())
   await page.waitForFunction(() => window.__keepmile.modelo().fim?.contou, null, { timeout: 15000 })
   await conferirLayout(page, `${w}×${h} fim`)
+  { const f = (await K(page, (k) => k.modelo())).fim, lay = await K(page, (k) => k.layout()), v = f.veuRet, sr = f.silhuetaRet, nr = f.numeroRet
+    if (h > w) confere(!!v && v.x >= 0 && v.x + v.w <= lay.VW && v.y >= 0 && v.y <= nr.y && v.y + v.h >= nr.y + nr.h && v.y + v.h <= lay.fimPainel.y, `R27: ${w}×${h} fim: o bloco do número tem a placa escura atrás, inteira na tela e acima da placa de pontos`)
+    confere(!f.album || (!!sr && sr.y >= 0 && sr.y + sr.h <= lay.fimPainel.h && lay.fimPainel.y + sr.y + sr.h <= lay.VH && lay.fimBotoes.every((r) => sr.x + sr.w <= r.x || sr.x >= r.x + r.w || lay.fimPainel.y + sr.y + sr.h <= r.y)), `R27: ${w}×${h} fim: a silhueta da próxima carta cabe na placa, acima dos botões`) }
   await foto(page, `fim-${w}x${h}`)
   confere(erros.length === 0 && ruins.length === 0, `${w}×${h}: zero erro e zero 404` + (erros.length + ruins.length ? ' → ' + [...erros, ...ruins].slice(0, 4).join(' | ') : ''))
   await ctx.close()

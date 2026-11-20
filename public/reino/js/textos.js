@@ -16,12 +16,13 @@ export const T = {
   familia: (nome, n, p) => `${nome} ${n}/${p}`, familiaMais: (nome, n, p, liga) => `${nome} ${n}/${p} > ${n + 1}/${p}${liga ? ' BONUS' : ''}`, familiaLigada: (nome, n, p) => `${nome} ${n}/${p} BONUS ON`,
   dica: {
     vidas: (n) => `LOSE ALL ${n} HEARTS AND THE RUN ENDS`, tropas: 'TROOPS FIGHT. BUILDINGS HELP THE PLOTS NEXT TO THEM.', chefe: (n) => `A BOSS COMES EVERY ${n} ROUNDS`,
-    ganhe: 'WIN THE FIGHT, THEN PICK 1 OF THESE', horda: (n) => `${n} INVADERS THIS ROUND`,
+    ganhe: 'WIN THE FIGHT, THEN PICK 1 OF THESE', horda: (n) => (n === 1 ? '1 INVADER THIS ROUND' : `${n} INVADERS THIS ROUND`),
   },
-  resumo: { dano: 'DAMAGE BY PLOT', mvp: 'MVP', magia: 'MAGIC' },
-  fim: 'RUN OVER', aguentou: 'ROUNDS HELD', recorde: 'NEW RECORD!', melhor: 'BEST SCORE', pontos: 'SCORE', ouroGanho: 'GOLD', deNovo: 'PLAY AGAIN', postar: 'SHARE',
+  resumo: { dano: 'DAMAGE BY PLOT', mvp: 'MVP', magia: 'MAGIC', ajuda: 'EACH BAR IS THE DAMAGE OF ONE PLOT' },
+  ganheAjuda: 'WIN, THEN PICK 1',
+  fim: 'RUN OVER', aguentou: (n) => (n === 1 ? 'ROUND HELD' : 'ROUNDS HELD'), recorde: 'NEW RECORD!', melhor: 'BEST SCORE', pontos: 'SCORE', ouroGanho: 'GOLD', deNovo: 'PLAY AGAIN', postar: 'SHARE',
   media: 'AVG BEST 3', recordeMais: (d) => `NEW BEST SCORE: +${d} OVER YOUR OLD BEST`, recordeFalta: (d) => `${d} SHORT OF YOUR BEST SCORE`, primeira: 'YOUR FIRST SCORE ON THE BOARD', recordeIgual: 'TIED WITH YOUR BEST SCORE',
-  ligaProxima: (nome, n) => `${nome} IN ${n}`, ligaTopo: 'TOP TITLE OF THE BETA', provisorio: 'PROVISIONAL', beta: 'BETA', proximaCarta: (n) => (n === 1 ? 'NEXT CARD IN 1 ROUND' : `NEXT CARD IN ${n} ROUNDS`), todasCartas: 'EVERY CARD UNLOCKED',
+  ligaProxima: (nome, n) => `${nome} IN ${n}`, ligaTopo: 'TOP TITLE OF THE BETA', provisorio: 'PROVISIONAL', beta: 'BETA', proximaCarta: (n) => (n === 1 ? '1 ROUND TO UNLOCK' : `${n} ROUNDS TO UNLOCK`), todasCartas: 'EVERY CARD UNLOCKED',
   desafio: (n) => (n === 1 ? 'BEAT MY 1 ROUND' : `BEAT MY ${n} ROUNDS`), desafioA: 'BEAT MY', desafioB: (n) => (n === 1 ? '1 ROUND' : `${n} ROUNDS`), copiado: 'LINK COPIED: SAME ROAD',
   postarTexto: (n, url) => `Keepmile: beat my ${n} round${n === 1 ? '' : 's'} on the same road ${url}`,
   melhorMomento: 'BEST MOMENT', melhorLinha: (nome, dano, r) => `${nome} ${dano} DMG IN ROUND ${r}`,
@@ -46,7 +47,7 @@ export const T = {
     efeitos: 'Effects', musica: 'Music', menosVol: (q) => `${q} quieter`, maisVol: (q) => `${q} louder`, data: (d) => `Earned ${d}`, enfeite: 'Title and medal', voltar: 'Back to menu',
     ajustes: 'Settings', faixa: (de, ate) => (ate ? `${de} to ${ate}` : `${de} or more`), nenhuma: 'No runs yet', rodadas: (n) => `${n} round${n === 1 ? '' : 's'}`,
   },
-  album: { titulo: 'Album', chances: 'Draw chances', proxima: (n) => (n === 1 ? 'Next card: 1 more round won' : `Next card: ${n} more rounds won`), todas: 'Every card unlocked', somadas: (n) => `${n} rounds won so far`, bloqueada: 'Locked card' },
+  album: { titulo: 'Album', chances: 'Draw chances', proxima: (n) => (n === 1 ? 'Next card: 1 more round won' : `Next card: ${n} more rounds won`), todas: 'Every card unlocked', somadas: (n) => (n === 1 ? '1 round won so far' : `${n} rounds won so far`), bloqueada: 'Locked card' },
   tipo: { tropa: 'Troop', construcao: 'Building', magia: 'Magic' },
   // MODO SERVIDOR (docs/reino/servidor.md): avisos curtos, modos de partida, temporada, placar do dia, perfil e replay. Todo número vem do servidor.
   srv: {
@@ -74,11 +75,11 @@ export const T = {
     },
     ranking: {
       titulo: 'Season', menu: 'Season ranking', temporada: (n, quando) => `Season ${n} - ends in ${quando}`, fechada: (n) => `Season ${n} - closed`, regra: (n) => `Score: average of your best ${n} ranked runs`,
-      voce: (pos, pts) => `Rank ${pos} - ${pts} points`, semVoce: 'No ranked run this season yet', proxima: (nome, n) => `${n} more for ${nome}`, topo: 'Top keepers', vazio: 'No ranked runs yet this season',
+      voce: (pos, pts) => `Rank ${pos} - ${pts} points`, semVoce: 'No ranked run this season yet', proxima: (nome, n) => `${n} more for ${nome}`, topo: 'Top keepers', vazio: 'No ranked runs yet this season', passar: (n, nome) => `${n} point${n === 1 ? '' : 's'} to pass ${nome}`,
       mais: 'More', ligas: 'Titles', faixa: (de) => `${de} or more`, lenda: (n) => `Top ${n} of the season`, beta: 'Beta: titles only.', partidas: (n) => `${n} run${n === 1 ? '' : 's'}`,
     },
     placar: {
-      titulo: "Today's road", menu: "Today's road", dia: (d, quando) => `${d} - new road in ${quando}`, voce: (pos, pts) => `You: rank ${pos} - ${pts} points`, aberta: 'Your road is in progress', naoJogou: 'You have not played today',
+      titulo: "Today's road", menu: "Today's road", dia: (d, quando) => (quando ? `${d} - new road in ${quando}` : `${d} - new road tomorrow`), voce: (pos, pts) => `You: rank ${pos} - ${pts} points`, aberta: 'Your road is in progress', naoJogou: 'You have not played today',
       abaHoje: 'Today', abaOntem: 'Yesterday', tituloOntem: "Yesterday's road", diaOntem: (d) => `${d} - final board`, vazioOntem: "Nobody on yesterday's board",
       fora: (pts) => `Your run: ${pts} - not on the board`, vazio: 'Nobody on the board yet', jogar: "Play today's road", replays: "Replays of today's road open tomorrow.", linha: (pts, n) => `${pts} - ${n} round${n === 1 ? '' : 's'}`,
     },
@@ -88,11 +89,14 @@ export const T = {
     },
     // trocar o nome (POST apelido): a regra em 1 linha e as recusas do servidor em texto curto. O tempo de espera é o `podeEm` dele.
     apelido: {
-      menu: 'Change name', titulo: 'Your name', rotulo: 'New name', atual: (n) => `Now: ${n}`, regra: '3-16 letters, numbers, spaces, - or underscore. 1 change a day.', salvar: 'Save name', feito: 'Name changed.', voltar: 'Back to profile',
+      menu: 'Change name', titulo: 'Your name', rotulo: 'New name', atual: (n) => `Now: ${n}`, novo: (n) => `New: ${n}`, regra: '3-16 letters, numbers, spaces, - or underscore. 1 change a day.', salvar: 'Save name', feito: 'Name changed.', voltar: 'Back to profile',
       espera: (quando) => `You can change again in ${quando}.`,
       erro: { APELIDO_EM_USO: 'That name is taken. Try another.', APELIDO_BARRADO: 'That name is not allowed. Try another.', APELIDO_INVALIDO: 'Use 3-16 letters, numbers, spaces, - or underscore.' },
     },
-    replay: { sair: 'Leave replay', de: (n) => `REPLAY: ${n}`, passo: (r, i, n) => `ROUND ${r} - STEP ${i}/${n}`, fim: (r, p) => `RUN OVER: ${r} ROUNDS - SCORE ${p}`, saia: 'TAP X TO LEAVE', por: (carta, k) => `${carta} > PLOT ${k}`, espolio: 'TOOK A REWARD', desistir: 'GAVE UP' },
+    // fim da partida no modo servidor: a subida no ranking (números do servidor, antes > depois) e o gancho da estrada do dia
+    subiu: { rank: (de, para) => `RANK ${de} > ${para}`, entrou: (n) => `ON THE BOARD: RANK ${n}`, liga: (nome) => `NEW TITLE: ${nome}` },
+    gancho: { aberta: "TODAY'S ROAD IS OPEN", curso: "TODAY'S ROAD: IN PROGRESS", nova: (quando) => `NEW ROAD IN ${String(quando).toUpperCase()}`, amanha: 'NEW ROAD TOMORROW' },
+    replay: { sair: 'Leave replay', de: (n) => `REPLAY: ${n}`, passo: (r, i, n) => `ROUND ${r} - STEP ${i}/${n}`, fim: (r, p) => `RUN OVER: ${r} ROUND${r === 1 ? '' : 'S'} - SCORE ${p}`, pular: 'SKIP TO FIGHT', rever: 'WATCH AGAIN', voltar: 'BACK', por: (carta, k) => `${carta} > PLOT ${k}`, espolio: 'TOOK A REWARD', desistir: 'GAVE UP' },
   },
   aria: {
     carta: (n) => `Card ${n}`, terreno: (k) => `Plot ${k}`, sortear: (c) => `Reroll cards for ${c} gold`, consertar: (c) => `Repair one life for ${c} gold`, vel: (v) => `Speed ${v}x`, som: 'Sound on or off', menu: 'Menu', espolio: (n) => `Take ${n}`, seguir: 'Continue', lutar: 'Fight',

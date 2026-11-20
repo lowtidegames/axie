@@ -178,6 +178,13 @@ function montarReino(comHorda = true) {
     fila.slice(0, cabem).forEach((t, i, a) => { const chefe = t === v.horda.chefe; C.nascer(1, t, chefe ? -30 : -6 - (i * (C.VW < 500 && C.tipo === 'pc' ? 22 : 46)) / Math.max(1, a.length) - (i % 2) * 4, 1, chefe ? 0.3 : ((i * 5) % 7) / 3.5 - 0.9, 0) })
   }
 }
+/** A MÃO CHEGA VIRADA e vira em cascata (os tempos estão na interface: `UI.REVELA`): um som por carta. Reduced motion: já chega aberta, sem som extra. */
+function maoNova(atraso = 0) {
+  M.maoT0 = agoraMs() + atraso; M.maoRevelada = !!C.menos; M.maoLog = []
+  if (C.menos) return
+  const t0 = M.maoT0, R = UI.REVELA
+  for (let i = 0; i < 3; i++) depois(atraso + R.espera + i * R.passo + (R.vira >> 1), () => { if (M.fase === 'carta' && M.maoT0 === t0 && !M.cartaPosta) Som.tocar('toque', { tom: i * 2 }) })
+}
 function nivelNaMao(carta) { let n = 0; for (const t of J.v.terrenos) if (t && t.carta === carta && t.nivel < CONFIG.PARTIDA.nivelMax) n = Math.max(n, t.nivel); return n }
 const precisaDe = (fam) => (J.v.reliquias.includes('banner') ? CONFIG.RELIQUIAS.banner.terrenos : CONFIG.FAMILIAS[fam].terrenos)
 const contaFamilias = () => { const cont = {}; for (const t of J.v.terrenos) if (t) { const f = CONFIG.CARTAS[t.carta].familia; cont[f] = (cont[f] || 0) + 1 } return cont }
@@ -220,7 +227,7 @@ function preencher() {
 function abrirRodada() {
   ler(); preencher()
   const v = J.v
-  M.fase = 'carta'; M.sel = -1; M.armado = null; M.trocar = 0; M.info = null; M.infoSel = null; M.vitoria = null; M.derrota = null; M.maoT0 = agoraMs() + 150; M.pulsaLutar = v.cartaPosta
+  M.fase = 'carta'; M.sel = -1; M.armado = null; M.trocar = 0; M.info = null; M.infoSel = null; M.vitoria = null; M.derrota = null; M.maoT0 = agoraMs() + 150; M.maoRevelada = true; M.pulsaLutar = v.cartaPosta
   M.primeira = v.rodada === 1 && v.terrenos.every((t) => !t); C.destaque = null; J.ouroAlvo = v.ouro
   canvas.style.filter = ''
   C.mudarHora(Arte.horaDaRodada(v.rodada), false, v.rodada); Musica.rodada(v.rodada) // a rodada vai direto para a cena (trecho da estrada)
@@ -233,6 +240,7 @@ function abrirRodada() {
     Som.tocar('chefeAnuncia', curto ? { forca: 0.6 } : {}); Musica.momento('chefe')
     depois(curto ? 800 : 3200, () => { if (M.fase === 'chefe') seguir() })
   } else {
+    maoNova(150)
     Musica.momento(v.horda.chefe ? 'chefe' : v.vidas === 1 ? 'porUmFio' : 'construir')
     if (v.proximoChefe.avisado && !v.horda.chefe && J.avisado !== chave) { J.avisado = chave; const c = CONFIG.CHEFES.find((x) => x.id === v.proximoChefe.chefe); festa({ tam: 1, tipo: 'aviso', ms: 3200, texto: T.emRodadas(v.proximoChefe.rodada - v.rodada), sub: `${c.nome}: ${T.comUnidade(c.texto)}`, k: 1, fase: 'carta' }) }
     // véspera do chefe com vida perdida e ouro parado: um lembrete de 1 linha
@@ -308,6 +316,7 @@ function destacar(carta, comandos) {
 function vizinhosDe(k) { const al = J.v.reliquias.includes('blueprints') ? CONFIG.RELIQUIAS.blueprints.alcance : 1, s = new Set(); for (let d = 1; d <= al; d++) for (const j of [k - d, k + d]) if (j >= 1 && j <= 6) s.add(j); return s }
 function selecionar(i) {
   if (M.fase !== 'carta' || M.cartaPosta) return
+  M.maoRevelada = true; M.maoT0 = 0 // tocar numa carta no meio da revelação mostra as três na hora (nunca se escolhe carta virada) e cala os sons de virada que faltavam
   M.trocar = 0; M.armado = null; M.info = null; M.infoSel = null
   if (i < 0 || M.sel === i) { M.sel = -1; C.destaque = null; Som.tocar('toque'); return }
   M.sel = i; M.infoSel = infoDaCarta(i); J.tocouCarta = true; M.setaCarta = false
@@ -345,7 +354,7 @@ function armar(qual, fazer) {
 }
 function sortear() {
   mandar({ tipo: 'sortear' }, () => {
-    J.semSorteio = false; preencher(); M.sel = -1; M.infoSel = null; C.destaque = null; M.maoT0 = agoraMs(); J.ouroAlvo = J.v.ouro
+    J.semSorteio = false; preencher(); M.sel = -1; M.infoSel = null; C.destaque = null; maoNova(); J.ouroAlvo = J.v.ouro
     Som.tocar('sortear'); UI.mudou()
   })
 }
@@ -434,7 +443,7 @@ function aoFimDaLuta(res) {
   UI.mudou()
 }
 function seguir() {
-  if (M.fase === 'chefe') { M.fase = 'carta'; M.chefe = null; M.maoT0 = agoraMs(); if (J.infoPend) { dizer(J.infoPend, 5000); J.infoPend = null } UI.mudou(); return }
+  if (M.fase === 'chefe') { M.fase = 'carta'; M.chefe = null; maoNova(); if (J.infoPend) { dizer(J.infoPend, 5000); J.infoPend = null } UI.mudou(); return }
   if (M.fase === 'fim') { if (M.fim && !M.fim.contou) J.pularFim?.(); return } // um toque pula a entrada do fim: tudo no lugar
   if (M.fase === 'derrota') { if (J.e.fase === 'fim') fimDaPartida(); else abrirRodada() }
 }
@@ -526,9 +535,17 @@ async function postar() {
 // ---------------------------------------------------------------- toques
 let arrasto = null
 function aoTocar(id, d, ev) {
-  if (M.replay && id !== 'vel' && id !== 'som') { if (id === 'sair-replay') { Som.tocar('toque'); sairDoReplay() } return } // assistindo: só sair, velocidade e som
+  if (M.replay && id !== 'som') { // assistindo: sair, velocidade (x1/x2), som, pular para a luta e, no fim, ver de novo ou voltar
+    if (id.includes(':')) return
+    Som.tocar('toque')
+    if (id === 'sair-replay' || id === 'voltar-replay') sairDoReplay()
+    else if (id === 'vel') { Bat.vel = Bat.vel === 1 ? 2 : 1; M.vel = Bat.vel; UI.mudou() }
+    else if (id === 'pular-luta') pularParaLuta()
+    else if (id === 'rever') reverReplay()
+    return
+  }
   if (!id.includes(':') && J.sujo && id !== 'menu') { J.sujo = false; if (!discoIgual() && sincronizar()) return } // outra aba andou com a partida
-  if (id.startsWith('aperta:carta')) { arrasto = { indice: d.indice, x0: ev.clientX, y0: ev.clientY, id: ev.pointerId, moveu: false }; return }
+  if (id.startsWith('aperta:carta')) { M.maoRevelada = true; M.maoT0 = 0; arrasto = { indice: d.indice, x0: ev.clientX, y0: ev.clientY, id: ev.pointerId, moveu: false }; return }
   if (id.startsWith('entra:terreno')) { if (M.fase === 'carta' && M.sel >= 0 && C.destaque && CONFIG.CARTAS[M.mao[M.sel].carta].tipo === 'construcao') C.destaque.vizinhos = C.destaque.terrenos.has(d.terreno) ? vizinhosDe(d.terreno) : new Set(); return }
   if (id.includes(':')) return
   if (id.startsWith('carta')) { selecionar(d.indice); UI.mudou(); return }
@@ -749,14 +766,46 @@ function linhaDoModo(voce) {
 }
 /** Depois do fim: o perfil novo (recorde, álbum, liga, energia) e, na estrada, o placar do dia — a placa do fim se acerta com eles. */
 async function depoisDoFim() {
-  const id = S.id
+  const id = S.id, antes = S.perfil?.temporada?.voce || null, nova = S.fimVisto?.id !== S.id // `antes`: a posição e a liga que o servidor tinha dito ANTES desta partida
   try {
-    const [p, rk] = await Promise.all([Srv.perfil(), S.modo === 'estrada' ? Srv.ranking() : null])
+    const [p, rk] = await Promise.all([Srv.perfil(), Srv.ranking()])
     S.perfil = p; S.energia = p.energia
     if (M.fase !== 'fim' || !M.fim || S.id !== id || J.replay) return
     const sit = situacaoDoServidor()
-    M.fim.media = sit.media; M.fim.liga = sit.liga; M.fim.album = albumDoServidor(); M.fim.amigo = linhaDoModo(rk ? rk.estradaDoDia.voce : null)
+    M.fim.media = sit.media; M.fim.liga = sit.liga; M.fim.album = albumDoServidor(); M.fim.amigo = linhaDoModo(S.modo === 'estrada' ? rk.estradaDoDia.voce : null)
+    M.fim.gancho = ganchoDaEstrada(rk.estradaDoDia)
+    // RANKING COM FESTA: só no fim de uma partida de ranking que contou, e só se o servidor diz posição melhor ou liga maior que antes
+    const s = S.modo === 'ranking' && nova && S.resultado?.conta !== false ? subidaNoRanking(antes, p.temporada?.voce || null) : null
+    if (s && !M.fim.subiu) {
+      // a faixa entra junto do fecho do fim (depois da contagem); com tudo parado, na hora
+      const f = M.fim, espera = f.parado || f.contou ? 0 : Math.max(0, f.t0 + f.tFaixa + (f.novoRecorde ? 500 : 0) - agoraMs())
+      s.t0 = agoraMs() + espera; f.subiu = s; festejarSubida(s, espera)
+    }
+    UI.mudou()
   } catch { /* fica o que já estava na placa */ }
+}
+/** Compara o que o servidor disse antes e depois (a tela não calcula ponto nem posição): { de, para, liga } ou null (sem subir, sem festa). */
+function subidaNoRanking(a, d) {
+  if (!d || d.posicao == null) return null
+  const L = CONFIG.BETA.ligas, ordem = [...L.map((l) => l.id), CONFIG.BETA.lenda.id], nomeDe = (id) => (id === CONFIG.BETA.lenda.id ? CONFIG.BETA.lenda.nome : L.find((l) => l.id === id)?.nome || String(id))
+  const pos = !a || a.posicao == null ? { de: null, para: d.posicao } : d.posicao < a.posicao ? { de: a.posicao, para: d.posicao } : null
+  const liga = a && ordem.indexOf(d.liga) > ordem.indexOf(a.liga) ? nomeDe(d.liga) : null
+  return pos || liga ? { de: pos ? pos.de : null, para: pos ? pos.para : null, liga, t0: agoraMs(), ms: 700 } : null
+}
+function festejarSubida(s, espera = 0) {
+  if (C.menos || s.de == null || s.para == null) { depois(espera, () => Som.tocar('nivelPequeno')); return }
+  const n = Math.min(8, s.de - s.para)
+  for (let i = 1; i <= n; i++) depois(espera + Math.round((s.ms * i) / n), () => Som.tocar('rankingSobe', { tom: i }))
+  depois(espera + s.ms + 120, () => { Som.tocar('nivelPequeno'); C.efeito('confetti', C.VW / 2 + C.cam.x, C.VH * 0.4) })
+}
+/** O GANCHO honesto do fim (modo servidor): a estrada do dia. O tempo é o do relógio do servidor e nunca passa de 1 dia — se a conta
+ *  der mais que isso (relógio do aparelho fora do lugar), a tela não escreve número: só "tomorrow". */
+function ganchoDaEstrada(ed) {
+  const G = T.srv.gancho, v = ed.voce
+  if (!v) return G.aberta
+  if (v.status === 'aberta') return G.curso
+  const falta = Date.parse(ed.dia + 'T00:00:00Z') + 86_400_000 - Srv.agora()
+  return falta > 0 && falta <= 86_400_000 ? G.nova(T.srv.em(falta)) : G.amanha
 }
 
 // ---------------------------------------------------------------- REPLAY (modo servidor): a tela de batalha passa os `passos`, sem motor
@@ -770,11 +819,14 @@ async function assistir(id, volta = null) {
   Telas.fechar(); iniciarReplay(rep, volta)
   return null
 }
-function iniciarReplay(rep, volta = null) {
+function iniciarReplay(rep, volta = null, guarda = null, velAntes = null) {
   semTimers(); Bat.parar(); limparFestas(); canvas.style.filter = ''; C.noite = 0; C.fimDeJogo = false
-  J.replay = { rep, i: 0, volta, guarda: { v: J.v, op: J.op, e: J.e, rot: M.modoRot } }; J.pos = null; J.emLuta = false
+  // `guarda`: a partida do jogador, para onde o "sair" volta (o WATCH AGAIN passa a mesma adiante). No replay a velocidade é x1 ou x2.
+  J.replay = { rep, i: 0, volta, guarda: guarda || { v: J.v, op: J.op, e: J.e, rot: M.modoRot }, velAntes: velAntes ?? Bat.vel }; J.pos = null; J.emLuta = false
+  if (Bat.vel > 2) Bat.vel = 2
+  M.vel = Bat.vel
   M.fim = null; M.vitoria = null; M.derrota = null; M.chefe = null; M.info = null; M.selo = null; M.resumo = null
-  M.replay = { nome: rep.apelido || '', i: 0, n: rep.passos.length, linha: '', fim: null }; M.modoRot = T.srv.replayRot
+  M.replay = { nome: rep.apelido || '', i: 0, n: rep.passos.length, linha: '', fim: null, passo: null, mvp: null, pular: rep.passos.some((p) => p.comando.tipo === 'batalhar') }; M.modoRot = T.srv.replayRot
   J.v = rep.inicio; J.op = OP_VAZIA(J.v); J.e = { fase: 'replay' }
   M.ouro = J.v.ouro; J.familias = J.v.familias.slice()
   replayParado(null); depois(800, passoDoReplay)
@@ -782,30 +834,52 @@ function iniciarReplay(rep, volta = null) {
 function replayParado(p) {
   preencher(); M.fase = 'replay'; M.sel = -1; M.vidas = J.v.vidas; J.ouroAlvo = J.v.ouro; C.destaque = null; canvas.style.filter = ''; C.noite = 0
   C.mudarHora(Arte.horaDaRodada(J.v.rodada), false, J.v.rodada); montarReino(J.v.fase === 'carta'); C.vidas = estadoCastelo()
-  if (p) { eventosDeTerreno(p.eventos.filter((x) => x.tipo === 'posta' || x.tipo === 'nivel')); M.replay.linha = legendaDoPasso(p.comando) }
+  M.replay.passo = null
+  if (p) {
+    eventosDeTerreno(p.eventos.filter((x) => x.tipo === 'posta' || x.tipo === 'nivel')); M.replay.linha = legendaDoPasso(p.comando); M.replay.mvp = null
+    // a carta escolhida e onde foi posta: a carta de verdade na faixa e o terreno aceso
+    if (p.comando.tipo === 'por' && CONFIG.CARTAS[p.comando.carta]) { const k = p.comando.terreno; M.replay.passo = { carta: p.comando.carta, terreno: k, nivel: J.v.terrenos[k - 1]?.nivel || 1 }; C.destaque = { terrenos: new Set([k]), sobe: new Set(), vizinhos: new Set(), forte: 0 } }
+  }
+  const R = J.replay; M.replay.pular = !!R && R.rep.passos.slice(R.i).some((x) => x.comando.tipo === 'batalhar')
   Musica.momento('construir'); UI.mudou()
 }
 function passoDoReplay() {
   const R = J.replay; if (!R) return
   const ps = R.rep.passos
-  if (R.i >= ps.length) { const r = R.rep.resultado || J.v; M.replay.fim = T.srv.replay.fim(r.vencidas, r.pontos); UI.mudou(); return } // fica na tela até sair
+  if (R.i >= ps.length) { const r = R.rep.resultado || J.v; M.replay.fim = T.srv.replay.fim(r.vencidas, r.pontos); M.replay.pular = false; M.replay.passo = null; C.destaque = null; UI.mudou(); return } // fica na tela: WATCH AGAIN ou BACK
   const p = ps[R.i], antes = J.v
   R.i++; M.replay.i = R.i
   const bat = p.comando.tipo === 'batalhar' ? p.eventos.find((x) => x.tipo === 'batalha') : null
   if (bat) {
-    M.fase = 'luta'; M.replay.linha = ''; Musica.momento(bat.horda.chefe ? 'chefe' : 'batalha')
+    M.fase = 'luta'; M.replay.linha = ''; M.replay.passo = null; M.replay.mvp = null; C.destaque = null; Musica.momento(bat.horda.chefe ? 'chefe' : 'batalha')
     Bat.iniciar({ eventos: bat.eventos, horda: bat.horda, terrenos: antes.terrenos, exercito: montarExercito(antes.terrenos, antes.reliquias), segundos: bat.segundos, rodada: antes.rodada }, () => {
       if (J.replay !== R) return
-      J.v = p.visao; replayParado(null); M.replay.linha = bat.vitoria ? T.vitoria : T.derrota; depois(1000, passoDoReplay)
+      // o MVP da luta que acabou de passar (do resumo dos eventos) fica na faixa até o passo seguinte
+      const Z = resumoDaLuta(), nomeMvp = Z.mvp > 0 ? CONFIG.CARTAS[Z.cartas[Z.mvp]]?.nome : Z.mvp === 0 ? T.resumo.magia : null
+      J.v = p.visao; replayParado(null); M.replay.linha = bat.vitoria ? T.vitoria : T.derrota
+      M.replay.mvp = nomeMvp && Z.dano[Z.mvp] > 0 ? `${T.resumo.mvp}: ${nomeMvp} ${Z.dano[Z.mvp]}` : null
+      depois(Math.round(1400 / (Bat.vel || 1)), passoDoReplay)
     })
     UI.mudou(); return
   }
-  J.v = p.visao; replayParado(p); depois(Math.round(900 / (Bat.vel || 1)), passoDoReplay)
+  J.v = p.visao; replayParado(p); depois(Math.round(1100 / (Bat.vel || 1)), passoDoReplay)
 }
+/** SKIP TO FIGHT: pula os passos de montar e vai direto para a próxima luta (o reino entra como estava logo antes dela). */
+function pularParaLuta() {
+  const R = J.replay; if (!R || M.fase !== 'replay' || M.replay.fim) return
+  const ps = R.rep.passos; let j = R.i
+  while (j < ps.length && ps[j].comando.tipo !== 'batalhar') j++
+  if (j >= ps.length) return
+  semTimers(); limparFestas()
+  if (j > R.i) { J.v = ps[j - 1].visao; R.i = j; replayParado(null) }
+  passoDoReplay()
+}
+function reverReplay() { const R = J.replay; if (R) iniciarReplay(R.rep, R.volta, R.guarda, R.velAntes) }
 /** Sair do replay: volta para a partida do jogador como o servidor a deixou e, por cima, para a tela de onde o replay foi aberto. */
 function sairDoReplay() {
   const R = J.replay; if (!R) return
-  semTimers(); Bat.parar(); limparFestas(); J.replay = null; M.replay = null; M.resumo = null
+  semTimers(); Bat.parar(); limparFestas(); J.replay = null; M.replay = null; M.resumo = null; C.destaque = null
+  Bat.vel = R.velAntes; M.vel = Bat.vel
   J.v = R.guarda.v; J.op = R.guarda.op; J.e = R.guarda.e; M.modoRot = R.guarda.rot
   M.ouro = J.v.ouro; J.ouroAlvo = J.v.ouro; J.familias = J.v.familias.slice(); J.anunciado = J.v.rodada + ':' + J.v.vidas
   if (J.e.fase === 'fim') fimDaPartida(true); else if (J.v.fase === 'espolio') mostrarEspolio(); else abrirRodada()
@@ -893,7 +967,7 @@ async function comecar() {
   requestAnimationFrame(quadro)
   if (TESTE) {
     const { ligarGanchos } = await import('./teste.js')
-    await ligarGanchos({ J, M: () => M, C, Bat: () => Bat, UI: () => UI, F, Som, Musica, Guarda, Arte, CONFIG, QUADROS, CUSTO, nq: () => nq, lutar, novaPartida, abrirRodada, fimDaPartida, mandar, ler, preencher, aoFimDaLuta, semTimers, limparFestas, festa, reproduzir, resultado, montarExercito, expandirHorda, cartaoDoReino, seguir, menos, CONTORNO, maxTipoVisivel, S, Srv, por, sairDoReplay, abrirModo, avisarServidor })
+    await ligarGanchos({ J, M: () => M, C, Bat: () => Bat, UI: () => UI, F, Som, Musica, Guarda, Arte, CONFIG, QUADROS, CUSTO, nq: () => nq, lutar, novaPartida, abrirRodada, fimDaPartida, mandar, ler, preencher, aoFimDaLuta, semTimers, limparFestas, festa, reproduzir, resultado, montarExercito, expandirHorda, cartaoDoReino, seguir, menos, CONTORNO, maxTipoVisivel, S, Srv, por, sairDoReplay, abrirModo, avisarServidor, maoNova, pularParaLuta })
   }
   document.documentElement.dataset.pronto = '1'
 }

@@ -1,15 +1,27 @@
 // Keepmile — A CENA: o reino desenhado no canvas (planos com paralaxe, terrenos, prédios, bonecos em lote, efeitos, números de dano).
 // Não conhece regra: recebe o que mostrar. Régua: docs/reino/arte.md (câmera, hora do dia, peso do golpe, limites de partícula/tremida/flash).
+// R21 — MOVIMENTO: cada boneco tem pose por código em cima do quadro do atlas (movimento.js: antecipa → bote → volta, apanhou, passo com
+// pulinho, tombo, estouro, queda do chefe em etapas), fumaça de queda e efeitos em pixel (particulas.js) e a estrada em 4 trechos
+// (cenario.js). Tudo por TEMPO (ms) e em pixel inteiro de arte.
 import * as Arte from './arte.js'
+import * as Mov from './movimento.js'
+import * as Px from './particulas.js'
+import { criarCenario, TRECHOS } from './cenario.js'
 
-const MAXU = 320, MAXP = 60, MAXE = 28, MAXN = 8
+const MAXU = 320, MAXP = 96, MAXE = 28, MAXN = 8, MAXPROJ = 16
 // HORDA LEGÍVEL (docs/reino/arte.md, "multidão embolada"): do mesmo tipo de invasor, na mesma região da estrada, aparecem no máximo
-// MAX_TIPO; o resto vira "pelotão" com a etiqueta "x56". Contorno claro e de cor diferente em cada lado (de relance: quem é quem).
+// MAX_TIPO; o resto vira "pelotão" com a etiqueta "x56".
 const MAX_TIPO = 12, NREG = 8, NTIPO = 32
-export const CONTORNO = { aliado: '#F4F8FF', invasor: '#FFE45C' }
+// COR DE LADO (de relance: quem é quem). R21: o boneco fica só com o contorno ESCURO dele; a cor de lado vai para a marca no chão,
+// debaixo do pé (azul-claro do reino × lima do invasor), para a barrinha e para a etiqueta do pelotão. Nada de contorno amarelo.
+export const CONTORNO = { aliado: '#9CCBFF', invasor: '#C8F45A' }
 const TOM_FILEIRA = [null, '#E2DCEC', '#C4BCD6'] // frente, meio, fundo: cada fileira um tom abaixo
 const ANIMS = ['idle', 'walk', 'attack', 'hit', 'fall']
 export const AN = { idle: 0, walk: 1, attack: 2, hit: 3, fall: 4 }
+/** Estados do boneco: 0 vazio · 1 vivo · 2 caindo · 3 enterrado · 4 sumiu · 5 virou fumaça. */
+export const EST = { vivo: 1, caindo: 2, enterrado: 3, sumiu: 4, fumaca: 5 }
+const PROJ = { T04: 'flecha', T05: 'virote', T06: 'falcao', T08: 'nada', T09: 'torta', T12: 'raio', spud: 'batata' }
+const VOO_MS = 210
 
 export function criarCena(canvas, CONFIG) {
   const g = canvas.getContext('2d', { alpha: false })
@@ -17,8 +29,8 @@ export function criarCena(canvas, CONFIG) {
     g, tipo: 'celular', e: 2, VW: 180, VH: 370, ox: 0, oy: 0, geo: null, pts: [], tiers: [],
     menos: false, limite: 40,
     terrenos: Array(6).fill(null), vidas: 3, vidasMax: 3,
-    hora: 'morning', horaDe: 'morning', mix: 1, noite: 0,
-    cam: { x: 0, alvo: 0, zoom: 1, fx: 0, fy: 0, zoomAte: 0 }, trem: { px: 0, ate: 0, x: 0, y: 0 },
+    hora: 'morning', horaDe: 'morning', mix: 1, noite: 0, portoes: false, portoesDe: false,
+    cam: { x: 0, alvo: 0, zoom: 1, zoomAlvo: 1, fx: 0, fy: 0, zoomAte: 0, kick: 0 }, trem: { px: 0, ate: 0, x: 0, y: 0 },
     flashes: [], flashAte: 0, flashCor: '#FFF6E0', tremidaMax: 0, picoParticulas: 0, brancos: [],
     relogio: 0, // ms visuais (animações)
     destaque: null, // { terrenos: Set, vizinhos: Set, forte: n }
@@ -27,16 +39,30 @@ export function criarCena(canvas, CONFIG) {
     n: 0, lado: new Uint8Array(MAXU), peca: new Array(MAXU), vari: new Uint8Array(MAXU), x0: new Float32Array(MAXU), v: new Float32Array(MAXU), t0: new Float32Array(MAXU),
     lane: new Float32Array(MAXU), dxe: new Float32Array(MAXU), hp: new Int32Array(MAXU), hpMax: new Int32Array(MAXU), est: new Uint8Array(MAXU), anim: new Uint8Array(MAXU),
     animT: new Float64Array(MAXU), dir: new Int8Array(MAXU), k: new Float32Array(MAXU), barra: new Uint8Array(MAXU), preso: new Float32Array(MAXU), sx: new Float32Array(MAXU), sy: new Float32Array(MAXU), tier: new Uint8Array(MAXU),
-    ordem: new Uint16Array(MAXU), tb: 0, nv: new Uint8Array(MAXU), lider: new Uint8Array(MAXU), marcha: false,
+    ordem: new Uint16Array(MAXU), tb: 0, nv: new Uint8Array(MAXU), lider: new Uint8Array(MAXU), marcha: false, marchaT0: 0, gritoT: -1e9,
+    // movimento (R21): golpe, apanhou, virada, queda — tempos em ms do relógio visual
+    idTipo: new Array(MAXU), atirador: new Uint8Array(MAXU), grupo: new Uint8Array(MAXU), atqT: new Float64Array(MAXU), atqAnt: new Float32Array(MAXU), atqTiro: new Uint8Array(MAXU), atqAlvo: new Int16Array(MAXU), atqSolta: new Uint8Array(MAXU),
+    hitT: new Float64Array(MAXU), hitDir: new Int8Array(MAXU), hitF: new Float32Array(MAXU), viraT: new Float64Array(MAXU), dirV: new Int8Array(MAXU), morteT: new Float64Array(MAXU), morteTipo: new Uint8Array(MAXU), etapa: new Uint8Array(MAXU),
+    fase: new Uint8Array(MAXU), passoN: new Int32Array(MAXU), qi: new Uint16Array(MAXU), pDx: new Int8Array(MAXU), pDy: new Int8Array(MAXU), pLarg: new Int8Array(MAXU), pAlt: new Int8Array(MAXU), pIncl: new Int8Array(MAXU),
     // partículas, efeitos animados, números
-    pn: 0, px: new Float32Array(MAXP), py: new Float32Array(MAXP), pvx: new Float32Array(MAXP), pvy: new Float32Array(MAXP), pvida: new Float32Array(MAXP), pcor: new Uint8Array(MAXP), ptam: new Uint8Array(MAXP),
-    ef: Array.from({ length: MAXE }, () => ({ p: null, x: 0, y: 0, t0: 0, flip: false, ate: 0, anim: null })),
-    num: Array.from({ length: MAXN }, () => ({ x: 0, y: 0, t0: -1e9, s: '', ouro: false, grande: false })),
-    proj: Array.from({ length: 12 }, () => ({ x0: 0, y0: 0, x1: 0, y1: 0, t0: -1e9, tipo: 0 })),
+    pn: 0, px: new Float32Array(MAXP), py: new Float32Array(MAXP), pvx: new Float32Array(MAXP), pvy: new Float32Array(MAXP), pvida: new Float32Array(MAXP), pvida0: new Float32Array(MAXP), pcor: new Uint8Array(MAXP), ptam: new Uint8Array(MAXP), ptipo: new Uint8Array(MAXP),
+    ef: Array.from({ length: MAXE }, () => ({ p: null, x: 0, y: 0, t0: 0, flip: false, ate: 0, anim: null, k: 1 })),
+    num: Array.from({ length: MAXN }, (_, i) => ({ x: 0, y: 0, t0: -1e9, nasc: -1e9, s: '', v: 0, tipo: 0, ouro: false, grande: false, lado: i & 1 ? 1 : -1 })),
+    proj: Array.from({ length: MAXPROJ }, () => ({ x0: 0, y0: 0, x1: 0, y1: 0, t0: -1e9, tipo: '', dur: VOO_MS, chegou: true })),
+    finc: Array.from({ length: 12 }, () => ({ x: 0, y: 0, t0: -1e9, esq: false })),
+    // medidas do movimento (para o teste e o relato): quantas vezes cada etapa aconteceu
+    med: null,
   }
-  const CORES_P = ['#FFF6E0', '#E8C48A', '#FFD248', '#CC3C3E', '#4884E8', '#9248C8', '#7CC950', '#E0489B', '#CECAD8']
-  const P = { x: 0, y: 0, tier: 0, sent: 1 }
+  C.zerarMedidas = () => { C.med = { antecipa: 0, bote: 0, volta: 0, seq: [], seqDe: -1, fumacas: 0, tombos: 0, estouros: 0, chefeEtapas: [], passos: 0, poeiras: 0, viradas: 0, flechas: 0, fincadas: 0, explosoes: 0, aneis: 0, somados: 0, numeros: 0, zoomMax: 1, empurrao: 0, brancosLog: [], meioPixel: 0, trechos: [] }; C.tremidaMax = 0; C.picoParticulas = 0; C.flashes.length = 0 }
+  C.zerarMedidas()
+  const CORES_P = ['#FFF6E0', '#E8C48A', '#FFD248', '#CC3C3E', '#4884E8', '#9248C8', '#7CC950', '#E0489B', '#CECAD8', '#B6F03C', '#E87E2E', '#704C3E']
+  const BRASA = ['#704C3E', '#CC3C3E', '#E87E2E', '#FFD248', '#FFF6E0']
+  const P = { x: 0, y: 0, tier: 0, sent: 1 }, PO = Mov.pose()
+  const S = criarCenario(C)
   let vinheta = null
+  // folhas feitas por código, uma vez (particulas.js)
+  let FX = null
+  const fx = () => FX || (FX = { fumaca: [Px.fumaca('#FFFFFF', '#C9C4DA', null, 1), Px.fumaca('#DDBEF4', '#8E59C2', '#B6F03C', 4), Px.fumaca('#F4ECE0', '#9E98B4', '#FFD248', 7), Px.fumaca('#E8E2D4', '#8C8498', null, 11)], anel: Px.anel('#FFF6E0', '#FFD248'), anelPo: Px.anel('#E8C48A', '#CDA068'), varrida: Px.varrida(), marca: [Px.marca(CONTORNO.aliado), Px.marca(CONTORNO.invasor), Px.marca(CONTORNO.invasor, 30, 10), Px.marca(CONTORNO.invasor, 54, 14)] })
 
   // ---------------------------------------------------------------- medidas
   C.ajustar = (vw, vh) => {
@@ -85,7 +111,7 @@ export function criarCena(canvas, CONFIG) {
     const pts = C.pts
     let i = 1
     while (i < pts.length - 1 && pts[i][0] < xe) i++
-    const a = pts[i - 1], b = pts[i], f = Math.max(-0.5, Math.min(1.2, (xe - a[0]) / (b[0] - a[0])))
+    const a = pts[i - 1], b = pts[i], f = Math.max(-1.6, Math.min(1.2, (xe - a[0]) / (b[0] - a[0])))
     P.x = C.ox + a[1] + (b[1] - a[1]) * f
     P.y = C.oy + a[2] + (b[2] - a[2]) * f + lane * C.meiaFaixa
     P.tier = f < 0.5 ? a[3] : b[3]
@@ -102,29 +128,51 @@ export function criarCena(canvas, CONFIG) {
   C.centroDoTerreno = (k) => { const t = C.geo.terrenos[k - 1]; return { x: C.ox + t.x - C.cam.x, y: C.oy + (t.estrada[0] + t.estrada[1]) / 2, base: C.oy + t.base_predio } }
 
   // ---------------------------------------------------------------- bonecos
-  C.limparBonecos = () => { C.n = 0; ordenar = true }
+  let grupoAtual = 0
+  C.limparBonecos = () => { C.n = 0; ordenar = true; grupoAtual = 0 }
   // pelotões: contagem por (região, tipo) refeita a cada quadro em vetores fixos (nada de objeto por quadro)
   C.oculto = new Uint8Array(MAXU); C.etiquetas = []
-  const gN = new Int16Array(NREG * NTIPO), gVis = new Int16Array(NREG * NTIPO), gX = new Float32Array(NREG * NTIPO), gTopo = new Float32Array(NREG * NTIPO), gTier = new Int8Array(NREG * NTIPO), tipoDe = new Map()
+  const gN = new Int16Array(NREG * NTIPO), gVis = new Int16Array(NREG * NTIPO), gX = new Float32Array(NREG * NTIPO), gTopo = new Float32Array(NREG * NTIPO), gTier = new Int8Array(NREG * NTIPO), gHp = new Float64Array(NREG * NTIPO), gMax = new Float64Array(NREG * NTIPO), tipoDe = new Map()
+  // grupos do reino (um por terreno): para a barrinha fina de vida do grupo
+  const NG = 16, aN = new Int16Array(NG), aX = new Float32Array(NG), aTopo = new Float32Array(NG), aHp = new Float64Array(NG), aMax = new Float64Array(NG)
   function agrupar() {
-    gN.fill(0); gVis.fill(0); gX.fill(0); gTopo.fill(1e9)
+    gN.fill(0); gVis.fill(0); gX.fill(0); gTopo.fill(1e9); gHp.fill(0); gMax.fill(0); aN.fill(0); aX.fill(0); aTopo.fill(1e9); aHp.fill(0); aMax.fill(0)
     for (let i = 0; i < C.n; i++) {
       C.oculto[i] = 0
-      if (C.lado[i] !== 1 || C.est[i] !== 1 || C.peca[i].w > 60) continue
+      if (C.lado[i] === 0) { // soma do grupo: quem caiu conta como vida perdida
+        const k = C.grupo[i] % NG; aMax[k] += C.hpMax[i]
+        if (C.est[i] === 1) { aN[k]++; aHp[k] += Math.max(0, C.hp[i]); aX[k] += C.sx[i]; const topo = C.sy[i] - C.peca[i].ay + Arte.topoDe(C.peca[i]); if (topo < aTopo[k]) aTopo[k] = topo }
+        continue
+      }
+      if (C.est[i] !== 1 || C.peca[i].w > 60) continue
       let t = tipoDe.get(C.peca[i]); if (t === undefined) { t = tipoDe.size % NTIPO; tipoDe.set(C.peca[i], t) }
       const k = Math.max(0, Math.min(NREG - 1, Math.floor((C.xDe(i) + 100) / 100))) * NTIPO + t
+      gHp[k] += Math.max(0, C.hp[i]); gMax[k] += C.hpMax[i]
       if (++gN[k] > MAX_TIPO) { C.oculto[i] = 1; continue }
       gVis[k]++; gX[k] += C.sx[i]; gTier[k] = C.tier[i]; const topo = C.sy[i] - C.peca[i].ay + Arte.topoDe(C.peca[i]); if (topo < gTopo[k]) gTopo[k] = topo
     }
   }
-  /** As etiquetas "x56" por cima de cada pelotão (um tipo com mais de MAX_TIPO na mesma região). */
+  /** Barrinha FINA de vida (3 px com a borda): `f` 0..1. */
+  function barrinha(x, y, w, f, cor) {
+    g.fillStyle = '#2B1E3A'; g.fillRect(x - (w >> 1) - 1, y, w + 2, 3)
+    g.fillStyle = '#4E3A66'; g.fillRect(x - (w >> 1), y + 1, w, 1)
+    const c = Math.max(f > 0 ? 1 : 0, Math.round(w * Math.min(1, f))); if (c > 0) { g.fillStyle = cor; g.fillRect(x - (w >> 1), y + 1, c, 1) }
+  }
+  /** Por cima dos grupos: barrinha fina de cada grupo do reino (na luta) e a flâmula "x56" de cada pelotão (com a vida dele). */
   function etiquetas() {
     C.etiquetas.length = 0
-    const cx = Math.round(C.cam.x - C.trem.x)
+    const cx = camX()
+    if (C.emLuta && !C.marcha) for (let k = 0; k < NG; k++) { if (!aN[k] || aMax[k] <= 0) continue; barrinha(Math.round(aX[k] / aN[k]) - cx, Math.round(aTopo[k]) - 7 + Math.round(C.trem.y), 16, aHp[k] / aMax[k], '#7CC950') }
     for (let k = 0; k < gN.length; k++) {
-      if (gN[k] <= MAX_TIPO || !gVis[k]) continue
-      const s = 'x' + gN[k], w = Arte.largura(s, 'reino-contorno') + 6, x = Math.max(2 + (w >> 1), Math.min(C.VW - 2 - (w >> 1), Math.round(gX[k] / gVis[k]) - cx)), y = Math.round(gTopo[k]) - 12 - ((k % NTIPO) % 2) * 9
-      g.fillStyle = '#2B1E3A'; g.globalAlpha = 0.85; g.fillRect(x - (w >> 1), y - 1, w, 11); g.globalAlpha = 1; g.fillStyle = CONTORNO.invasor; g.fillRect(x - (w >> 1), y + 10, w, 1)
+      if (!gVis[k]) continue
+      const X = Math.round(gX[k] / gVis[k]) - cx, topo = Math.round(gTopo[k]) + Math.round(C.trem.y)
+      if (gN[k] <= MAX_TIPO) { if (C.emLuta && !C.marcha && gN[k] >= 3 && gHp[k] < gMax[k]) barrinha(X, topo - 6, 16, gHp[k] / gMax[k], '#E0503C'); continue }
+      // flâmula do pelotão: plaqueta ameixa com filete lima e pontinha para baixo, presa ao grupo (balança 1 px com a marcha)
+      const s = 'x' + gN[k], w = Arte.largura(s, 'reino-contorno') + 8, x = Math.max(2 + (w >> 1), Math.min(C.VW - 2 - (w >> 1), X)), bal = C.menos ? 0 : Math.round(Math.sin(C.relogio / 260 + k) * 0.8), y = topo - 17 - ((k % NTIPO) % 2) * 9 + bal
+      g.fillStyle = '#2B1E3A'; g.fillRect(x - (w >> 1) + 1, y - 2, w - 2, 14); g.fillRect(x - (w >> 1), y - 1, w, 12); g.fillRect(x - 2, y + 12, 5, 1); g.fillRect(x - 1, y + 13, 3, 1); g.fillRect(x, y + 14, 1, 1)
+      g.fillStyle = '#4E3A66'; g.fillRect(x - (w >> 1) + 1, y - 1, w - 2, 1)
+      g.fillStyle = CONTORNO.invasor; g.fillRect(x - (w >> 1) + 1, y + 10, w - 2, 1)
+      if (gMax[k] > 0) { g.fillStyle = '#E0503C'; g.fillRect(x - (w >> 1) + 1, y + 10, Math.round((w - 2) * (1 - gHp[k] / gMax[k])), 1) } // a vida perdida do pelotão come o filete
       Arte.texto(g, s, x, y, { fonte: 'reino-contorno', alinhar: 'centro' })
       C.etiquetas.push(gN[k])
     }
@@ -137,9 +185,14 @@ export function criarCena(canvas, CONFIG) {
   C.nascer = (lado, tipo, x, hp, lane, dxe, grande = 1, nivel = 0, lider = false) => {
     const i = C.n; if (i >= MAXU) return -1
     const p = Arte.unidade(tipo)
-    C.lado[i] = lado; C.peca[i] = p; C.vari[i] = p.variantes ? (i * 7 + 3) % p.variantes.length : 0
-    C.x0[i] = x; C.v[i] = 0; C.t0[i] = C.tb; C.lane[i] = lane; C.dxe[i] = dxe; C.hp[i] = hp; C.hpMax[i] = hp; C.est[i] = 1
-    C.anim[i] = 0; C.animT[i] = C.relogio - (i * 137) % 900; C.dir[i] = lado ? 1 : -1; C.k[i] = grande; C.barra[i] = p.barra ? 1 : 0; C.preso[i] = -1; C.nv[i] = nivel; C.lider[i] = lider ? 1 : 0
+    C.lado[i] = lado; C.peca[i] = p; C.idTipo[i] = tipo; { const c = CONFIG.CARTAS?.[tipo] || CONFIG.INVASORES?.[tipo] || CONFIG.CHEFES?.find((x) => x.id === tipo); C.atirador[i] = c && c.alcance > 60 ? 1 : 0 } C.vari[i] = p.variantes ? (i * 7 + 3) % p.variantes.length : 0
+    // formação com profundidade: ninguém exatamente em cima do outro nem na mesma pose (desvio fixo por boneco; só desenho)
+    const h = (i * 2654435761) >>> 0
+    C.x0[i] = x; C.v[i] = 0; C.t0[i] = C.tb; C.lane[i] = lane + (p.w > 60 ? 0 : (((h >>> 4) % 7) - 3) * 0.03); C.dxe[i] = dxe + (p.w > 60 ? 0 : ((h >>> 9) % 7) - 3); C.hp[i] = hp; C.hpMax[i] = hp; C.est[i] = 1
+    C.anim[i] = 0; C.animT[i] = C.relogio - (h >>> 12) % 1040; C.dir[i] = lado ? 1 : -1; C.dirV[i] = C.dir[i]; C.k[i] = grande; C.barra[i] = p.barra ? 1 : 0; C.preso[i] = -1; C.nv[i] = nivel; C.lider[i] = lider ? 1 : 0
+    if (lado === 0 && lider) grupoAtual++
+    C.grupo[i] = lado === 0 ? grupoAtual : 0
+    C.atqT[i] = C.hitT[i] = C.viraT[i] = C.morteT[i] = -1e9; C.atqSolta[i] = 0; C.fase[i] = 0; C.passoN[i] = -1; C.etapa[i] = 0; C.morteTipo[i] = 0
     C.n = i + 1; ordenar = true
     return i
   }
@@ -147,31 +200,94 @@ export function criarCena(canvas, CONFIG) {
   C.tocarAnim = (i, a) => { if (C.est[i] !== 1 && a !== AN.fall) return; C.anim[i] = a; C.animT[i] = C.relogio }
   C.xDe = (i) => C.x0[i] + C.v[i] * Math.max(0, C.tb - C.t0[i])
   C.telaDe = (i) => ({ x: C.sx[i] - C.cam.x, y: C.sy[i] })
+  const pesoDe = (p) => (p.w > 100 ? 2 : p.w > 60 ? 1.5 : 1)
+  /** Quanto tempo (ms de animação) o boneco leva da preparação até o impacto: o 1º tempo do golpe no atlas. */
+  C.antecipaDe = (i) => { const a = C.peca[i].anim.attack; return a ? a.ms[0] : 120 }
+  /** O boneco `i` atira (alvo longe)? E com quê. */
+  C.projetilDe = (i) => PROJ[C.idTipo[i]] || (C.lado[i] ? 'batata' : 'flecha')
+  /** Começa o golpe de `i` (a batalha chama ANTES do impacto, com a antecipação que cabe). `alvo` ≥ 0 e `tiro`: solta o projétil no fim da antecipação. */
+  C.atacar = (i, alvo = -1, tiro = false, jaNoBote = false) => {
+    if (C.est[i] !== 1) return false
+    const ant = C.antecipaDe(i)
+    if (!jaNoBote && C.relogio - C.atqT[i] < ant + Mov.BOTE_MS + Mov.SEGURA_MS) return false // já está no meio de um golpe
+    C.atqAnt[i] = ant; C.atqT[i] = jaNoBote ? C.relogio - ant : C.relogio; C.atqTiro[i] = tiro ? 1 : 0; C.atqAlvo[i] = alvo; C.atqSolta[i] = tiro && alvo >= 0 ? 1 : 0
+    C.anim[i] = AN.attack; C.animT[i] = C.atqT[i]
+    return true
+  }
+  C.emGolpe = (i) => C.relogio - C.atqT[i] < C.atqAnt[i] + Mov.BOTE_MS + Mov.SEGURA_MS
+  /** `i` apanhou: recua e amassa (`dirTela` = +1 empurra para a direita da tela). Não troca o quadro de quem está no meio do bote. */
+  C.apanhar = (i, dirTela, forca = 1) => { C.hitT[i] = C.relogio; C.hitDir[i] = dirTela; C.hitF[i] = forca }
+  /** `i` cai: 0 soldado (tombo + fumaça clara) · 1 invasor (estoura em fumaça roxa) · 2 chefe (queda em etapas) · 3 bruto (tomba + poeira). */
+  C.morrer = (i, tipo) => { C.est[i] = 2; C.morteT[i] = C.relogio; C.morteTipo[i] = tipo; C.etapa[i] = 0; C.anim[i] = AN.fall; C.animT[i] = C.relogio; C.v[i] = 0; C.atqSolta[i] = 0; C.fase[i] = 0 }
 
   // ---------------------------------------------------------------- efeitos
-  const vivos = () => { let n = 0; for (let i = 0; i < MAXP; i++) if (C.pvida[i] > 0) n++; for (const e of C.ef) if (e.ate > C.relogio) n++; return n }
-  C.particula = (x, y, vx, vy, vida, cor, tam = 1) => {
-    if (vivos() >= C.limite) return
-    for (let i = 0; i < MAXP; i++) if (C.pvida[i] <= 0) { C.px[i] = x; C.py[i] = y; C.pvx[i] = vx; C.pvy[i] = vy; C.pvida[i] = vida; C.pcor[i] = cor; C.ptam[i] = tam; return }
+  let viv = 0 // partículas + efeitos vivos (contados no desenho e somados a cada nascimento)
+  /** Partícula em pixel. `tipo` 0 lasca (cai) · 1 poeira/fumacinha (sobe devagar e encolhe) · 2 brasa (cai devagar e esfria de cor).
+   *  `prio` 0 = enfeite (poeira do passo): só nasce com metade do teto livre, para a queda e o estouro nunca ficarem sem. */
+  C.particula = (x, y, vx, vy, vida, cor, tam = 1, tipo = 0, prio = 1) => {
+    if (viv >= (prio ? C.limite : C.limite >> 1)) return false
+    for (let i = 0; i < MAXP; i++) if (C.pvida[i] <= 0) { C.px[i] = x; C.py[i] = y; C.pvx[i] = vx; C.pvy[i] = vy; C.pvida[i] = C.pvida0[i] = vida; C.pcor[i] = cor; C.ptam[i] = tam; C.ptipo[i] = tipo; viv++; return true }
+    return false
   }
   C.estouro = (x, y, n, cor, forca = 40) => { for (let i = 0; i < n; i++) { const a = (i / n) * 6.283 + i, f = forca * (0.5 + ((i * 37) % 10) / 20); C.particula(x, y, Math.cos(a) * f, Math.sin(a) * f - forca * 0.6, 380 + (i % 4) * 60, cor, 1 + (i & 1)) } }
+  function porEfeito(p, x, y, flip, a, k = 1, atraso = 0) {
+    if (viv >= C.limite) return false
+    for (const e of C.ef) if (e.ate <= C.relogio) { e.p = p; e.x = x; e.y = y; e.t0 = C.relogio + atraso; e.flip = flip; e.anim = a; e.k = k; e.ate = e.t0 + Arte.duracao(a); viv++; return true }
+    return false
+  }
   /** Efeito animado do atlas (dust, spark, slash, explosion, heal, level-ring, confetti…). Sem a peça: partículas simples. */
   C.efeito = (nome, x, y, flip = false, anim = 'play') => {
     const p = Arte.peca(nome)
     if (!p) { C.estouro(x, y - 4, nome === 'explosion' ? 10 : nome === 'confetti' ? 8 : 4, nome === 'explosion' ? 2 : nome === 'heal' ? 6 : 1, nome === 'explosion' ? 70 : 36); return }
-    if (vivos() >= C.limite) return
-    const a = p.anim[anim] || p.anim.play
-    for (const e of C.ef) if (e.ate <= C.relogio) { e.p = p; e.x = x; e.y = y; e.t0 = C.relogio; e.flip = flip; e.anim = a; e.ate = C.relogio + Arte.duracao(a); return }
+    porEfeito(p, x, y, flip, p.anim[anim] || p.anim.play)
+  }
+  /** ESTOURO de fogo (barril, Bloater, magia): bola de fogo do atlas + anel de choque no chão + brasas que caem + fumaça que sobe depois. */
+  C.explodir = (x, y, gas = false) => {
+    C.med.explosoes++
+    C.efeito(gas && Arte.peca('gas-burst') ? 'gas-burst' : 'explosion', x, y + 4)
+    if (porEfeito(fx().anel, x, y + 2, false, fx().anel.anim.play)) C.med.aneis++
+    porEfeito(fx().fumaca[3], x, y - 2, false, fx().fumaca[3].anim.play, 1, 230)
+    const n = C.menos ? 3 : 7
+    for (let i = 0; i < n; i++) { const a = -0.3 - (i / n) * 2.55, f = 50 + ((i * 53) % 40); C.particula(x + Math.cos(a) * 6, y - 8, Math.cos(a) * f, Math.sin(a) * f - 30, 420 + (i % 3) * 110, gas ? 9 : 2, 1 + (i & 1), 2) }
   }
   C.numero = (x, y, s, ouro = false, grande = false) => {
     let alvo = C.num[0]
     for (const n of C.num) if (n.t0 < alvo.t0) alvo = n
     if (C.relogio - alvo.t0 < 500 && !ouro) return // 8 ao mesmo tempo, no máximo
-    alvo.x = x; alvo.y = y; alvo.t0 = C.relogio; alvo.s = s; alvo.ouro = ouro; alvo.grande = grande
+    alvo.x = x; alvo.y = y; alvo.t0 = alvo.nasc = C.relogio; alvo.s = s; alvo.ouro = ouro; alvo.grande = grande; alvo.tipo = 3; alvo.v = 0
   }
-  C.projetil = (x0, y0, x1, y1, tipo = 0) => { let a = C.proj[0]; for (const p of C.proj) if (p.t0 < a.t0) a = p; a.x0 = x0; a.y0 = y0; a.x1 = x1; a.y1 = y1; a.t0 = C.relogio; a.tipo = tipo }
+  const DUR_NUM = 680
+  const textoDoDano = (n) => { n.s = n.tipo === 2 ? '+' + n.v : n.tipo === 1 ? n.v + '!' : String(n.v) }
+  /** Número de DANO (ou de cura): salta em arco e cai. `tipo` 0 comum (creme) · 1 forte (ouro, com "!") · 2 cura (verde, "+").
+   *  Muitos golpes no mesmo lugar em pouco tempo SOMAM num número só (na rodada alta dá para ler). No máximo 8 na tela. */
+  C.dano = (x, y, valor, tipo = 0, grande = false) => {
+    const t = C.relogio
+    let livre = null, velho = C.num[0]
+    for (const n of C.num) {
+      if (n.tipo === tipo && t - n.nasc < 420 && t - n.t0 < DUR_NUM && Math.abs(n.x - x) < 26 && Math.abs(n.y - y) < 20) { n.v += valor; n.grande = n.grande || grande; textoDoDano(n); n.t0 = Math.max(n.t0, t - 90); C.med.somados++; return } // soma e dá um repique
+      if (t - n.t0 >= DUR_NUM) livre = livre || n
+      if (n.t0 < velho.t0) velho = n
+    }
+    if (!livre) {
+      // tela cheia de números: soma no mais perto do mesmo tipo; o forte toma o lugar do mais velho; o comum espera a vez
+      let perto = null, d = 1e9
+      for (const n of C.num) if (n.tipo === tipo) { const q = Math.abs(n.x - x) + Math.abs(n.y - y); if (q < d) { d = q; perto = n } }
+      if (perto && d < 90) { perto.v += valor; textoDoDano(perto); C.med.somados++; return }
+      if (tipo !== 1) return
+      livre = velho
+    }
+    livre.x = x; livre.y = y; livre.t0 = livre.nasc = t; livre.v = valor; livre.tipo = tipo; livre.ouro = tipo === 1; livre.grande = grande; textoDoDano(livre); C.med.numeros++
+  }
+  /** Projétil de enfeite (o tiro já está decidido): `tipo` 'flecha' | 'virote' | 'batata' | 'torta' | 'falcao' | 'raio' (ou 0/1 da versão antiga). */
+  C.projetil = (x0, y0, x1, y1, tipo = 'flecha', dur = VOO_MS) => {
+    if (tipo === 0) tipo = 'flecha'; else if (tipo === 1) tipo = 'batata'
+    let a = C.proj[0]; for (const p of C.proj) if (p.t0 < a.t0) a = p
+    a.x0 = x0; a.y0 = y0; a.x1 = x1; a.y1 = y1; a.t0 = C.relogio; a.tipo = tipo; a.dur = tipo === 'raio' ? 110 : dur; a.chegou = false; C.med.flechas++
+  }
   /** Tremida: no máximo 6 px e 120 ms. Com "Reduced motion" não treme. */
   C.tremer = (px, ms = 100) => { if (C.menos) return; C.trem.px = Math.min(6, px); C.trem.ate = performance.now() + Math.min(120, ms) }
+  /** Empurrão de câmera na carga: a cena dá um tranco curto (até 3 px) e volta macio. Com "Reduced motion" não mexe. */
+  C.empurrar = (px) => { if (C.menos) return; C.cam.kick = Math.max(-3, Math.min(3, px)); C.med.empurrao = Math.max(C.med.empurrao, Math.abs(C.cam.kick)) }
   /** Clarão: no máximo 3 por segundo, nunca a tela toda branca. Com "Reduced motion" não pisca. Devolve se piscou. */
   C.flash = (cor = '#FFF6E0', ms = 120) => {
     if (C.menos) return false
@@ -187,12 +303,25 @@ export function criarCena(canvas, CONFIG) {
     const agora = performance.now()
     while (C.brancos.length && agora - C.brancos[0] > 1000) C.brancos.shift()
     if (C.brancos.length >= 3) return false
-    C.brancos.push(agora); return true
+    C.brancos.push(agora); if (C.med.brancosLog.length < 400) C.med.brancosLog.push(agora); return true
   }
-  C.zoom = (x, y, ms) => { if (C.menos) return; C.cam.zoom = (C.e + 1) / C.e; C.cam.fx = x; C.cam.fy = y; C.cam.zoomAte = performance.now() + ms }
-  C.mudarHora = (h, jaJa = false) => { if (h === C.hora) return; C.horaDe = C.hora; C.hora = h; C.mix = jaJa ? 1 : 0 }
+  /** Zoom no golpe final e na queda do chefe: entra e sai MACIO (sem salto). Com "Reduced motion" não há zoom. */
+  C.zoom = (x, y, ms) => { if (C.menos) return; C.cam.zoomAlvo = (C.e + 1) / C.e; if (C.cam.zoom === 1) C.cam.zoom = 1 + 0.02; C.cam.fx = x; C.cam.fy = y; C.cam.zoomAte = performance.now() + ms }
+  /** Trecho da estrada na tela agora: 0 campos (manhã) · 1 vila (tarde) · 2 portões (pôr do sol) · 3 noite de chefe. */
+  const trechoDe = (hora, portoes) => (hora === 'boss-night' ? 3 : hora === 'afternoon' ? (portoes ? 2 : 1) : 0)
+  C.trecho = () => trechoDe(C.hora, C.portoes)
+  C.nomeDoTrecho = () => TRECHOS[C.trecho()]
+  C.mudarHora = (h, jaJa = false) => {
+    const r = Arte.rodadaPedida(), portoes = h === 'afternoon' && r > 0 && ((r - 1) % 5) === 3 // a 4ª rodada do ciclo é a dos portões, ao pôr do sol
+    if (h === C.hora && portoes === C.portoes) return
+    C.horaDe = C.hora; C.portoesDe = C.portoes; C.hora = h; C.portoes = portoes; C.mix = jaJa ? 1 : 0
+  }
+  /** Vai direto a um trecho (0..3) — para o replay e o teste. */
+  C.irParaTrecho = (n, jaJa = true) => { const h = S.horaDe(n), p = n === 2; if (h === C.hora && p === C.portoes) return; C.horaDe = C.hora; C.portoesDe = C.portoes; C.hora = h; C.portoes = p; C.mix = jaJa ? 1 : 0 }
+  C.cenario = S
 
   // ---------------------------------------------------------------- desenho
+  const camX = () => Math.round(C.cam.x - C.trem.x)
   function plano(p, alfa) {
     const [qx, qy, qw, qh] = p.quadro
     let x = Math.round(C.ox + p.x - C.cam.x * p.paralaxe + C.trem.x * Math.min(1, p.paralaxe)), y = C.oy + p.y + Math.round(C.trem.y * Math.min(1, p.paralaxe))
@@ -235,16 +364,17 @@ export function criarCena(canvas, CONFIG) {
     vg.putImageData(d, 0, 0); return c
   }
   /** Vida do cenário (só enfeite, fora da conta de partículas): pássaros de dia, vaga-lumes à noite, bandeirolas na festa do fim. */
-  function vida(cen) {
+  function vida() {
     const lista = Arte.vidaDaHora(C.hora), T = C.relogioReal
     if (lista.includes('bird') && !C.menos) { const p = Arte.peca('bird'); if (p) for (let i = 0; i < 2; i++) { const x = ((T * (0.012 + i * 0.005) + i * 140) % (C.VW + 60)) - 30, y = C.oy + (C.tipo === 'celular' ? 24 : 14) + i * 13 + Math.round(Math.sin(T / 600 + i) * 2); Arte.desenhar(g, p, quadroDaPeca(p, 'play', T + i * 200), Math.round(x), y) } }
+    if (lista.includes('dust-mote') && !C.portoes) { const p = Arte.peca('dust-mote'); if (p) for (let i = 0; i < 5; i++) { const x = ((i * 97 + 31) % C.VW) + (C.menos ? 0 : Math.round(Math.sin(T / 1300 + i * 1.7) * 7)), y = C.oy + C.tiers[i % C.tiers.length] - 26 - ((i * 29) % 18) + (C.menos ? 0 : Math.round(Math.cos(T / 1100 + i) * 4)); Arte.desenhar(g, p, quadroDaPeca(p, 'play', C.menos ? 0 : T + i * 260), x, y) } }
     if (lista.includes('firefly')) { const p = Arte.peca('firefly'); if (p) for (let i = 0; i < 6; i++) { const x = ((i * 73 + 20) % C.VW) + (C.menos ? 0 : Math.round(Math.sin(T / 900 + i * 2) * 5)), y = C.oy + C.tiers[i % C.tiers.length] - 20 - ((i * 37) % 24) + (C.menos ? 0 : Math.round(Math.cos(T / 700 + i) * 3)); Arte.desenhar(g, p, quadroDaPeca(p, 'play', C.menos ? 0 : T + i * 330), x, y) } }
     if (C.fimDeJogo) { const p = Arte.peca('bunting'); if (p) { const y = C.oy + C.tiers[0] - (C.tipo === 'celular' ? 62 : 58); for (let x = -((Math.round(C.cam.x)) % 64) - 64; x < C.VW; x += 64) Arte.desenhar(g, p, quadroDaPeca(p, 'play', C.menos ? 0 : T), x, y) } }
   }
   const quadroDaPeca = (p, animNome, ms, vari = 0) => { const a = p.anim[animNome] || Object.values(p.anim)[0]; return (p.variantes ? p.variantes[vari] : p.quadros)[Arte.quadroDe(a, ms)] }
 
   function moveis(tier, tinta, t) {
-    const T = C.geo.terrenos, cx = Math.round(C.cam.x - C.trem.x), ty = Math.round(C.trem.y)
+    const T = C.geo.terrenos, cx = camX(), ty = Math.round(C.trem.y)
     const yTier = C.tiers[tier]
     if (tier === C.tiers.length - 1) { const p = Arte.peca('gate'); if (p) Arte.desenhar(g, p, p.quadros[0], C.ox + C.geo.portao[0] - cx, C.oy + C.geo.portao[1] + ty, false, tinta) }
     if (tier === 0) {
@@ -280,38 +410,55 @@ export function criarCena(canvas, CONFIG) {
     g.globalAlpha = 1
   }
 
-  function bonecos(tier, tinta) {
-    const sh = Arte.peca('shadow'), cen = Arte.cenario(C.tipo, C.hora), cx = Math.round(C.cam.x - C.trem.x), ty = Math.round(C.trem.y)
-    g.globalAlpha = cen.luz.sombra.alfa
+  C.sentido = new Int8Array(MAXU)
+  const face = (i) => (C.dir[i] * C.sentido[i] < 0 ? -1 : 1) // para que lado da TELA o boneco olha
+  /** Um quadro do boneco com a pose por código: desloca, engorda/estica com o pé parado e inclina em 4 faixas (tudo em pixel inteiro). */
+  function sprite(img, p, q, X, Y, flip, L, A, I, k) {
+    const w = q[2], h = q[3], sx = flip ? img.width - q[0] - w : q[0], ax = flip ? w - 1 - p.ax : p.ax
+    if (k !== 1) { g.drawImage(img, sx, q[1], w, h, X - ax * k, Y - p.ay * k, w * k, h * k); return }
+    if (!L && !A && !I) { g.drawImage(img, sx, q[1], w, h, X - ax, Y - p.ay, w, h); return }
+    const W = Math.max(4, w + L), H = Math.max(4, h + A), base = Y + (h - p.ay), topo = base - H, esq = X - Math.round(ax * W / w)
+    if (!I) { g.drawImage(img, sx, q[1], w, h, esq, topo, W, H); return }
+    for (let b = 0; b < 4; b++) { const y0 = (h * b) >> 2, y1 = (h * (b + 1)) >> 2, d0 = Math.round(H * b / 4), d1 = Math.round(H * (b + 1) / 4); g.drawImage(img, sx, q[1] + y0, w, y1 - y0, esq + Math.round(I * (1 - b / 3)), topo + d0, W, d1 - d0) }
+  }
+  function bonecos(tier, tinta, sombra) {
+    const sh = Arte.peca('shadow'), cx = camX(), ty = Math.round(C.trem.y), F = fx(), t = C.relogio
+    // 1) marca de lado no chão (de relance: azul-claro = reino, lima = invasor) e sombra de cada um (comprida à tarde, some no ar)
+    for (let o = 0; o < C.n; o++) {
+      const i = C.ordem[o]; if (C.tier[i] !== tier || C.est[i] !== 1 || C.oculto[i]) continue
+      const p = C.peca[i], m = F.marca[C.lado[i] ? (p.w > 100 ? 3 : p.w > 60 ? 2 : 1) : 0]
+      g.globalAlpha = C.lado[i] ? 0.62 : 0.5; g.drawImage(m, Math.round(C.sx[i]) - cx - (m.width >> 1), Math.round(C.sy[i]) + ty - (m.height >> 1))
+    }
     for (let o = 0; o < C.n; o++) {
       const i = C.ordem[o]; if (C.tier[i] !== tier || C.est[i] === 0 || C.est[i] >= 3 || C.oculto[i]) continue
-      const X = Math.round(C.sx[i]) - cx + cen.luz.sombra.dx, Y = Math.round(C.sy[i]) + ty
-      if (sh) { const q = sh.quadros[C.peca[i].w > 100 ? 3 : C.peca[i].w > 60 ? 1 : 0]; g.drawImage(sh.img, q[0], q[1], q[2], q[3], X - (q[2] >> 1), Y - 3, q[2], q[3]) } else { g.fillStyle = '#2B1E3A'; g.fillRect(X - 7, Y - 1, 14, 2); g.fillRect(X - 5, Y - 2, 10, 4) }
+      const ar = -C.pDy[i], X = Math.round(C.sx[i]) - cx + sombra.dx + C.pDx[i] * face(i), Y = Math.round(C.sy[i]) + ty
+      g.globalAlpha = sombra.alfa * (ar > 2 ? 0.6 : 1)
+      if (sh) { const q = sh.quadros[C.peca[i].w > 100 ? 3 : C.peca[i].w > 60 ? 1 : 0], w = Math.max(4, Math.round(q[2] * sombra.estica) - ar * 2); g.drawImage(sh.img, q[0], q[1], q[2], q[3], X - (q[2] >> 1), Y - 3, w, q[3]) } else { g.fillStyle = '#2B1E3A'; g.fillRect(X - 7, Y - 1, 14, 2); g.fillRect(X - 5, Y - 2, 10, 4) }
     }
     g.globalAlpha = 1
+    // 2) os bonecos, de trás para a frente
     for (let o = 0; o < C.n; o++) {
-      const i = C.ordem[o]; if (C.tier[i] !== tier || C.est[i] === 0 || C.est[i] >= 3 || C.oculto[i]) continue
-      const p = C.peca[i]
-      let an = C.anim[i], ms = C.relogio - C.animT[i], a = p.anim[ANIMS[an]]
-      if (!a.loop && ms >= Arte.duracao(a)) {
-        if (an === AN.fall) { C.est[i] = 4; continue }
-        an = C.anim[i] = C.v[i] !== 0 ? AN.walk : AN.idle; a = p.anim[ANIMS[an]]; ms = C.relogio - C.animT[i]
-      } else if (an <= AN.walk) { const quer = C.v[i] !== 0 || (C.marcha && C.lado[i] === 1 && !C.menos) ? AN.walk : AN.idle; if (quer !== an) { an = C.anim[i] = quer; a = p.anim[ANIMS[an]] } }
-      if (C.menos && an === AN.idle) ms = 0
-      const qs = p.variantes ? p.variantes[C.vari[i]] : p.quadros
-      const flip = (C.dir[i] * C.sentido[i] < 0) !== p.olhaEsquerda
-      const X = Math.round(C.sx[i]) - cx, Y = Math.round(C.sy[i]) + ty
-      const q = qs[Arte.quadroDe(a, ms)], grandao = p.w > 60
-      // leitura da multidão: contorno CLARO nos dois lados, de cor diferente (aliado branco-azulado, invasor amarelo-vivo: roxo sobre
-      // roxo sumia); cada fileira um tom abaixo da da frente
-      if (!grandao) { const sil = Arte.folhaSil(p.img, C.lado[i] ? CONTORNO.invasor : CONTORNO.aliado, flip), w = q[2], h = q[3], sx = flip ? sil.width - q[0] - w : q[0], ax = flip ? w - 1 - p.ax : p.ax; g.drawImage(sil, sx, q[1], w, h, X - ax - 1, Y - p.ay, w, h); g.drawImage(sil, sx, q[1], w, h, X - ax + 1, Y - p.ay, w, h); g.drawImage(sil, sx, q[1], w, h, X - ax, Y - p.ay - 1, w, h) }
-      Arte.desenhar(g, p, q, X, Y, flip, tinta || (grandao ? null : TOM_FILEIRA[C.lane[i] < -0.5 ? 2 : C.lane[i] < 0.1 ? 1 : 0]), C.k[i])
-      if (C.nv[i] >= 3 && C.lado[i] === 0 && C.est[i] === 1) marcaDeNivel(i, p, X, Y)
-      if (C.barra[i] && C.hp[i] < C.hpMax[i]) { const w = p.w > 100 ? 40 : 24, yb = Y - p.ay - 1 + (p.w > 100 ? 14 : 8); g.fillStyle = '#2B1E3A'; g.fillRect(X - (w >> 1) - 1, yb - 1, w + 2, 5); g.fillStyle = '#CC3C3E'; g.fillRect(X - (w >> 1), yb, Math.max(0, Math.round(w * C.hp[i] / C.hpMax[i])), 3) }
+      const i = C.ordem[o]; if (C.tier[i] !== tier || C.oculto[i]) continue
+      const e = C.est[i]; if (e !== 1 && e !== 2 && e !== 5) continue
+      const p = C.peca[i], fc = face(i), X = Math.round(C.sx[i]) - cx, Y = Math.round(C.sy[i]) + ty
+      if (e === 5) { // virou fumaça: nuvem em pixel que sobe e some (clara no soldado, roxa com faísca lima no invasor, grande no chefe)
+        const fu = F.fumaca[C.morteTipo[i] === 0 ? 0 : C.morteTipo[i] === 1 ? 1 : 2], k = C.morteTipo[i] === 2 ? 2 : 1
+        const q = fu.quadros[Arte.quadroDe(fu.anim.play, t - C.morteT[i])]; g.drawImage(fu.img, q[0], q[1], q[2], q[3], X + C.pDx[i] - fu.ax * k, Y - fu.ay * k - (p.w > 60 && k === 1 ? 6 : 0), q[2] * k, q[3] * k)
+        if (C.morteTipo[i] === 3) { const q2 = fu.quadros[Arte.quadroDe(fu.anim.play, Math.max(0, t - C.morteT[i] - 90))]; g.drawImage(fu.img, q2[0], q2[1], q2[2], q2[3], X + C.pDx[i] - fu.ax + 10, Y - fu.ay - 14, q2[2], q2[3]) }
+        continue
+      }
+      const qs = p.variantes ? p.variantes[C.vari[i]] : p.quadros, flip = (fc < 0) !== p.olhaEsquerda, grandao = p.w > 60
+      const tin = tinta || (grandao ? null : TOM_FILEIRA[C.lane[i] < -0.5 ? 2 : C.lane[i] < 0.1 ? 1 : 0])
+      const Xp = X + C.pDx[i] * fc, Yp = Y + C.pDy[i]
+      sprite(Arte.folhaVar(p.img, tin, flip), p, qs[C.qi[i]], Xp, Yp, flip, C.pLarg[i], C.pAlt[i], C.pIncl[i] * fc, C.k[i])
+      if (e !== 1) continue
+      // rastro do golpe: meia-lua clara que varre na frente de quem dá o bote (corpo a corpo)
+      if (C.fase[i] === Mov.FASE.bote && !C.atirador[i]) { const v = F.varrida, ms = t - C.atqT[i] - C.atqAnt[i], q = v.quadros[Math.min(2, Math.floor(ms / 45))], kk = grandao ? 2 : 1, alt = Math.round(p.ay * 0.45); g.globalAlpha = 0.8; if (fc > 0) g.drawImage(v.img, q[0], q[1], q[2], q[3], Xp + 3 * kk, Yp - alt - 13 * kk, q[2] * kk, q[3] * kk); else { g.save(); g.translate(Xp - 3 * kk, Yp - alt - 13 * kk); g.scale(-1, 1); g.drawImage(v.img, q[0], q[1], q[2], q[3], 0, 0, q[2] * kk, q[3] * kk); g.restore() } g.globalAlpha = 1 }
+      if (C.nv[i] >= 3 && C.lado[i] === 0) marcaDeNivel(i, p, Xp, Yp)
+      if (C.barra[i] && C.hp[i] < C.hpMax[i]) barrinha(X, Y - p.ay + Arte.topoDe(p) - 5, p.w > 100 ? 40 : 22, C.hp[i] / C.hpMax[i], '#E0503C')
       if (C.preso[i] > C.tb) { g.fillStyle = '#286840'; g.fillRect(X - 6, Y - 4, 12, 2); g.fillStyle = '#469C48'; g.fillRect(X - 4, Y - 7, 2, 4); g.fillRect(X + 2, Y - 8, 2, 5) }
     }
   }
-  C.sentido = new Int8Array(MAXU)
   /** Nível 3+: o líder do grupo leva o estandarte (prata; ouro no 5, com os pinos do nível). Nível 5: cada soldado ganha também uma divisa de ouro que brilha. Só desenho. */
   function marcaDeNivel(i, p, X, Y) {
     const topo = Y - p.ay + Arte.topoDe(p) - 4, max = C.nv[i] >= 5
@@ -329,11 +476,70 @@ export function criarCena(canvas, CONFIG) {
     }
   }
 
+  /** Posição, quadro do atlas e POSE de cada boneco neste instante (e o que a pose dispara: poeira do passo, tiro solto, etapas da queda). */
   function atualizarBonecos() {
+    const t = C.relogio, med = C.med, entra = C.marcha && !C.menos ? Math.min(1, Math.max(0, (t - C.marchaT0) / 1250)) : 1, cxp = C.cam.x
     for (let i = 0; i < C.n; i++) {
-      if (C.est[i] === 0 || C.est[i] >= 3) continue
-      const p = pos(C.xDe(i) + C.dxe[i], C.lane[i])
+      const e = C.est[i]
+      if (e === 0 || e === 3 || e === 4) continue
+      const p0 = C.peca[i], inv = C.lado[i] === 1
+      // entrada da horda: vem marchando de fora da tela até a posição (só desenho; a luta ainda não começou)
+      const p = pos(C.xDe(i) + C.dxe[i] - (inv && entra < 1 ? (1 - entra * (2 - entra)) * (60 + (i % 5) * 9) : 0), C.lane[i])
       C.sx[i] = p.x; C.sy[i] = p.y; C.tier[i] = p.tier; C.sentido[i] = p.sent
+      Mov.zerar(PO)
+      if (e === 5) { if (t - C.morteT[i] >= 560) C.est[i] = 4; continue }
+      const fc = face(i), peso = pesoDe(p0), qs = p0.anim
+      if (e === 2) { // ---- caindo
+        const ms = t - C.morteT[i], tipo = C.morteTipo[i], fall = qs.fall, durQ = Arte.duracao(fall)
+        let acabou = false
+        if (tipo === 0) { Mov.tombo(PO, ms, durQ); C.qi[i] = Arte.quadroDe(fall, ms); if (ms >= durQ) { acabou = true; med.tombos++ } }
+        else if (tipo === 1) { Mov.estouro(PO, ms); C.qi[i] = qs.hit.quadros[qs.hit.quadros.length - 1]; if (ms >= Mov.ESTOURO_MS) { acabou = true; med.estouros++; for (let k = 0; k < 3; k++) C.particula(p.x, p.y - 12, (k - 1) * 46, -70 - k * 12, 340, k === 1 ? 9 : 5, 1 + (k & 1)) } }
+        else if (tipo === 3) { C.qi[i] = Arte.quadroDe(fall, ms); if (ms >= durQ) { acabou = true; med.tombos++; C.efeito('dust', p.x - 8, p.y + 2); C.efeito('dust', p.x + 8, p.y + 2, true) } }
+        else { // chefe: cambaleia → ajoelha → tomba → poeira e tremor → fumaça grande
+          const et = Mov.quedaDoChefe(PO, ms), msQ = ms - Mov.CHEFE.cambaleia - Mov.CHEFE.ajoelha
+          C.qi[i] = et < 3 ? qs.hit.quadros[qs.hit.quadros.length - 1] : Arte.quadroDe(fall, msQ)
+          if (et !== C.etapa[i]) { C.etapa[i] = et; med.chefeEtapas.push(et); if (et === 2) C.efeito('dust', p.x - 14 * fc, p.y + 2) }
+          if (et === 1 && Math.floor(ms / 130) !== Math.floor((ms - C.dtAnim) / 130)) C.efeito('spark', p.x + (((ms / 130) | 0) % 3 - 1) * 16, p.y - 30 - (((ms / 130) | 0) % 2) * 20) // estalos pelo corpo
+          if (et === 3 && msQ >= durQ) { acabou = true; med.chefeEtapas.push(4); C.tremer(6, 120); C.efeito('dust', p.x - 22, p.y + 2); C.efeito('dust', p.x + 22, p.y + 2, true); porEfeito(fx().anelPo, p.x, p.y, false, fx().anelPo.anim.play) }
+        }
+        C.pDx[i] = PO.dx; C.pDy[i] = PO.dy; C.pLarg[i] = PO.larg; C.pAlt[i] = PO.alt; C.pIncl[i] = PO.incl
+        if (acabou) { C.est[i] = 5; C.morteT[i] = t; C.pDx[i] = PO.dx * (tipo === 0 ? fc : 0); med.fumacas++; if (C.gatilho) C.gatilho(tipo === 2 ? 'fumacaChefe' : 'fumaca', p.x - cxp, p.y) }
+        continue
+      }
+      // ---- vivo: quadro do atlas
+      let an = C.anim[i], ms = t - C.animT[i], a = qs[ANIMS[an]]
+      const movendo = C.v[i] !== 0 || (inv && entra < 1)
+      if (!a.loop && ms >= Arte.duracao(a)) { an = C.anim[i] = movendo ? AN.walk : AN.idle; a = qs[ANIMS[an]] }
+      else if (an <= AN.walk) { const quer = movendo ? AN.walk : AN.idle; if (quer !== an) { an = C.anim[i] = quer; a = qs[ANIMS[an]]; if (quer === AN.walk) C.animT[i] = t - (i * 61) % 300 } }
+      ms = t - C.animT[i]
+      if (C.menos && an === AN.idle) ms = 0
+      C.qi[i] = Arte.quadroDe(a, ms)
+      // ---- pose por código
+      if (C.dirV[i] !== C.dir[i]) { C.dirV[i] = C.dir[i]; C.viraT[i] = t; med.viradas++ }
+      if (an === AN.walk) {
+        const meio = (a.total || Arte.duracao(a)) / 2, pisou = Mov.passo(PO, ms, meio, peso > 1 ? 1 : 2), np = Math.floor(ms / meio)
+        if (pisou && np !== C.passoN[i]) { C.passoN[i] = np; med.passos++; if (!C.oculto[i] && C.particula(p.x - fc * 4, p.y, -fc * 14, -10, 260, 1, peso > 1 ? 2 : 1, 1, peso > 1 ? 1 : 0)) med.poeiras++ } // poeira no pé (enfeite: só com teto sobrando)
+      } else if (an === AN.idle && !C.menos) Mov.parado(PO, t + i * 397)
+      if (!inv && !C.menos) Mov.grito(PO, t - C.gritoT - (i % 6) * 55)
+      const msA = t - C.atqT[i]
+      let fase = 0
+      if (msA < C.atqAnt[i] + 400) {
+        fase = Mov.golpe(PO, msA, C.atqAnt[i], peso, !!C.atirador[i])
+        if (C.atqSolta[i] && msA >= C.atqAnt[i]) { // fim da antecipação: solta o tiro para ele chegar junto com o dano
+          C.atqSolta[i] = 0; const j = C.atqAlvo[i]
+          if (j >= 0 && j < C.n) { const tp = C.projetilDe(i); if (tp !== 'nada') { C.projetil(p.x + fc * 8, p.y - p0.ay * 0.5, C.sx[j], C.sy[j] - C.peca[j].ay * 0.45, tp); if (C.gatilho) C.gatilho(tp, p.x - cxp, p.y) } }
+        }
+      }
+      if (fase !== C.fase[i]) {
+        C.fase[i] = fase
+        if (fase === 1) med.antecipa++; else if (fase === 2) med.bote++; else if (fase === 3) med.volta++
+        if (fase === 1 && med.seqDe < 0 && !C.atqTiro[i]) med.seqDe = i
+        if (med.seqDe === i && med.seq.length < 8) med.seq.push(fase)
+        if (fase === 1 && C.gatilho) C.gatilho(C.atqTiro[i] ? 'mira' : p0.w > 100 ? 'golpeChefe' : 'golpe', p.x - cxp, p.y)
+      }
+      Mov.apanhou(PO, t - C.hitT[i], C.hitDir[i] * fc, C.hitF[i])
+      Mov.virada(PO, t - C.viraT[i], p0.w)
+      C.pDx[i] = PO.dx; C.pDy[i] = PO.dy; C.pLarg[i] = PO.larg; C.pAlt[i] = PO.alt; C.pIncl[i] = PO.incl
     }
     if (ordenar) for (let i = 0; i < C.n; i++) C.ordem[i] = i
     if (ordenar || (C.quadro & 7) === 0) { // inserção: quase sempre já está em ordem
@@ -341,26 +547,110 @@ export function criarCena(canvas, CONFIG) {
       ordenar = false
     }
   }
-  C.quadro = 0; C.relogioReal = 0; C.zonaTitulo = null; C.numerosPulados = 0
+  C.quadro = 0; C.relogioReal = 0; C.zonaTitulo = null; C.numerosPulados = 0; C.dtAnim = 0
+
+  /** Linha em pixel (flecha, virote, raio). */
+  function linha(x0, y0, x1, y1) { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) | 0; for (let k = 0; k <= n; k++) g.fillRect(Math.round(x0 + (x1 - x0) * k / (n || 1)), Math.round(y0 + (y1 - y0) * k / (n || 1)), 1, 1) }
+  function flecha(x, y, ux, uy, comp, corpo) { // ponta em (x, y), apontando para (ux, uy)
+    const tx = x - ux * comp, ty = y - uy * comp
+    g.fillStyle = '#2B1E3A'; linha(tx, ty + 1, x, y + 1); linha(tx - ux, ty - uy - 1, x, y - 1)
+    g.fillStyle = corpo; linha(tx, ty, x, y)
+    g.fillStyle = '#FFF6E0'; g.fillRect(Math.round(tx), Math.round(ty), 1, 1); g.fillRect(Math.round(tx + ux), Math.round(ty + uy), 1, 1)
+    g.fillStyle = '#CECAD8'; g.fillRect(Math.round(x), Math.round(y), 1, 1); g.fillRect(Math.round(x - ux), Math.round(y - uy), 1, 1)
+  }
+  /** Projéteis em arco, com rastro curto; ao chegar: flecha FINCADA, batata e torta espatifam. */
+  function projeteis(t) {
+    const cx = camX(), ty = Math.round(C.trem.y)
+    for (const f of C.finc) { // fincadas: ficam 420 ms e somem piscando no fim
+      const ms = t - f.t0; if (ms < 0 || ms > 420 || (ms > 320 && ((ms / 40) & 1))) continue
+      const x = Math.round(f.x) - cx, y = Math.round(f.y) + ty, tre = ms < 90 ? Math.round(Math.sin(ms / 12) * 1) : 0
+      flecha(x, y, (f.esq ? -0.78 : 0.78), 0.62, 8, '#C48C54'); if (tre) { g.fillStyle = '#FFF6E0'; g.fillRect(x - (f.esq ? -6 : 6), y - 6 + tre, 1, 1) }
+    }
+    for (const p of C.proj) {
+      const f = (t - p.t0) / p.dur; if (f < 0 || p.chegou) continue
+      const dx = p.x1 - p.x0, dy = p.y1 - p.y0, dist = Math.abs(dx), alto = p.tipo === 'virote' || p.tipo === 'falcao' ? 3 : Math.min(26, 8 + dist * 0.13)
+      if (f >= 1) { // chegou
+        p.chegou = true
+        if (p.tipo === 'flecha' || p.tipo === 'virote') { let a = C.finc[0]; for (const q of C.finc) if (q.t0 < a.t0) a = q; a.x = p.x1 + (dx > 0 ? 3 : -3); a.y = p.y1 + 7; a.t0 = t; a.esq = dx < 0; C.med.fincadas++ }
+        else if (p.tipo === 'torta') C.efeito('pie', p.x1, p.y1, false, 'splat')
+        else if (p.tipo === 'batata') { C.particula(p.x1, p.y1, -30, -50, 260, 1, 2); C.particula(p.x1, p.y1, 34, -40, 240, 11, 1) }
+        continue
+      }
+      const em = (ff) => [p.x0 + dx * ff - cx, p.y0 + dy * ff - Math.sin(ff * Math.PI) * alto + ty], [x, y] = em(f), [xa, ya] = em(Math.max(0, f - 0.06)), d = Math.hypot(x - xa, y - ya) || 1, ux = (x - xa) / d, uy = (y - ya) / d
+      if (p.tipo === 'raio') { // raio do Sparkwright: zigue-zague que troca a cada 40 ms
+        const n = 5, s = ((t - p.t0) / 40) | 0
+        for (let pass = 0; pass < 2; pass++) { g.fillStyle = pass ? '#FFF6E0' : '#96ECE2'; let ax = p.x0 - cx, ay = p.y0 + ty; for (let k = 1; k <= n; k++) { const bx = p.x0 + dx * k / n - cx, by = p.y0 + dy * k / n + ty + (k < n ? (((k * 7 + s * 3) % 5) - 2) * 3 : 0); linha(ax, ay + pass, bx, by + pass); ax = bx; ay = by } }
+        continue
+      }
+      // rastro curto: 3 pontos que afinam
+      for (let k = 1; k <= 3; k++) { const [rx, ry] = em(Math.max(0, f - k * 0.075)); g.globalAlpha = 0.55 - k * 0.14; g.fillStyle = p.tipo === 'batata' ? '#E8C48A' : p.tipo === 'torta' ? '#F58CC4' : '#FFF6E0'; g.fillRect(Math.round(rx), Math.round(ry), k === 1 ? 2 : 1, k === 1 ? 2 : 1) }
+      g.globalAlpha = 1
+      if (p.tipo === 'flecha') flecha(Math.round(x), Math.round(y), ux, uy, 8, '#C48C54')
+      else if (p.tipo === 'virote') flecha(Math.round(x), Math.round(y), ux, uy, 11, '#9E98B4')
+      else { const ar = Arte.peca(p.tipo === 'batata' ? 'spud' : p.tipo === 'torta' ? 'pie' : 'falcon'); if (ar) Arte.desenhar(g, ar, ar.quadros[Arte.quadroDe(ar.anim.play, (t - p.t0) * (p.tipo === 'batata' ? 2 : 1) % Arte.duracao(ar.anim.play))], Math.round(x), Math.round(y), dx < 0); else { g.fillStyle = '#FFF6E0'; g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3) } }
+    }
+  }
+  /** Números: o dano salta em arco e cai (o forte maior, em ouro, com "!"; a cura em verde); o texto de magia sobe reto. */
+  function numeros(t) {
+    const zt = C.zonaTitulo
+    for (const n of C.num) {
+      const dur = n.tipo === 3 ? 500 : DUR_NUM, f = (t - n.t0) / dur; if (f < 0 || f >= 1) continue
+      let x, y, fonte
+      if (n.tipo === 3) { if (f > 0.75 && ((C.quadro >> 1) & 1) && !C.menos) continue; x = n.x - C.cam.x; y = n.y - Math.round(f * 10) - (n.grande ? 6 : 0); fonte = n.grande && /^[0-9!]+$/.test(n.s) && Arte.temFonte('dano-g-ouro') ? 'dano-g-ouro' : n.ouro ? 'reino-ouro' : 'reino-contorno' }
+      else {
+        const arco = C.menos ? 9 : Math.round(47.3 * f - 43 * f * f) // sobe 13 px e cai até 4 acima de onde nasceu
+        x = n.x - C.cam.x + (C.menos ? 0 : Math.round(n.lado * 7 * f)); y = n.y - arco - (n.grande ? 6 : 0)
+        const gde = n.grande || (n.tipo === 1 && n.v >= 40)
+        fonte = n.tipo === 2 ? (Arte.temFonte('reino-verde') ? 'reino-verde' : 'reino-contorno') : n.tipo === 1 ? (gde && Arte.temFonte('dano-g-ouro') ? 'dano-g-ouro' : 'reino-ouro') : gde && Arte.temFonte('dano-g') ? 'dano-g' : n.v < 6 && Arte.temFonte('mini-contorno') ? 'mini-contorno' : 'reino-contorno'
+        if (f > 0.86) g.globalAlpha = 0.55
+      }
+      if (zt) { // a zona do título (letreiro grande na tela): o número que cairia em cima dele não é desenhado
+        const z = C.cam.zoom, sx = z === 1 ? x : C.cam.fx + (x - C.cam.fx) * z, sy = z === 1 ? y : C.cam.fy + (y - C.cam.fy) * z, mw = (n.grande ? 22 : 12) * z, mh = (n.grande ? 18 : 10) * z
+        if (sx + mw > zt.x && sx - mw < zt.x + zt.w && sy + mh > zt.y && sy - 2 < zt.y + zt.h) { C.numerosPulados++; g.globalAlpha = 1; continue }
+      }
+      Arte.texto(g, n.s, x, y, { fonte, alinhar: 'centro' }); g.globalAlpha = 1
+    }
+  }
+
+  // gravador de TIRAS (prova de movimento): copia N quadros seguidos de um recorte do mundo, lado a lado. Só com ?teste=1.
+  C.gravador = null
+  C.gravar = ({ gatilho = '', n = 8, cada = 3, w = 120, h = 90, x = null, y = null, atraso = 0, dx = 0, dy = 0 } = {}) => { const c = Px.tela(w * C.e * n, h * C.e); C.gravador = { gatilho, n, cada, w, h, x, y, dx, dy, atraso, tela: c, i: 0, cont: 0, armado: !gatilho, pronta: false } }
+  C.gatilho = (nome, x, y) => { const G = C.gravador; if (!G || G.armado || G.pronta || G.gatilho !== nome) return; G.armado = true; if (G.x == null) { G.x = x + G.dx; G.y = y - G.h * 0.22 + G.dy } }
+  C.tira = () => (C.gravador?.pronta ? C.gravador.tela.toDataURL('image/png') : null)
+  function gravarQuadro() {
+    const G = C.gravador; if (!G || !G.armado || G.pronta) return
+    if (G.atraso > 0) { G.atraso--; return }
+    if (G.cont++ % G.cada) return
+    const e = C.e, w = G.w * e, h = G.h * e, sx = Math.max(0, Math.min(canvas.width - w, Math.round(((G.x ?? C.VW / 2) - G.w / 2) * e))), sy = Math.max(0, Math.min(canvas.height - h, Math.round(((G.y ?? C.VH / 2) - G.h / 2) * e)))
+    G.tela.getContext('2d').drawImage(canvas, sx, sy, w, h, G.i * w, 0, w, h)
+    if (++G.i >= G.n) G.pronta = true
+  }
 
   /** Um quadro do mundo. `dtAnim` = ms de animação que passaram (0 = parado). */
   C.desenhar = (agora, dtReal, dtAnim) => {
-    C.quadro++; C.relogio += dtAnim; C.relogioReal += C.menos ? 0 : dtReal
+    C.quadro++; C.relogio += dtAnim; C.relogioReal += C.menos ? 0 : dtReal; C.dtAnim = dtAnim
     const t = C.relogio
-    // câmera e tremida
+    // câmera, tremida e empurrão
     if (C.trem.ate > agora && !C.menos) { const k = C.trem.px; C.trem.x = Math.round(Math.sin(agora / 11) * k); C.trem.y = Math.round(Math.cos(agora / 13) * k * 0.6); C.tremidaMax = Math.max(C.tremidaMax, Math.abs(C.trem.x), Math.abs(C.trem.y)) } else { C.trem.x = 0; C.trem.y = 0 }
+    if (C.cam.kick && !C.menos) { C.trem.x += Math.round(C.cam.kick); C.cam.kick *= Math.pow(0.004, dtReal / 1000); if (Math.abs(C.cam.kick) < 0.5) C.cam.kick = 0 } else C.cam.kick = 0
     if (C.menos) C.cam.x = 0; else { const d = C.cam.alvo - C.cam.x, passo = 24 * dtReal / 1000; C.cam.x += Math.abs(d) <= passo ? d : Math.sign(d) * passo }
-    if (C.cam.zoom !== 1 && agora > C.cam.zoomAte) C.cam.zoom = 1
+    if (C.menos) { C.cam.zoom = C.cam.zoomAlvo = 1 } else {
+      if (C.cam.zoomAlvo !== 1 && agora > C.cam.zoomAte) C.cam.zoomAlvo = 1
+      if (C.cam.zoom !== C.cam.zoomAlvo) { const d = C.cam.zoomAlvo - C.cam.zoom, k = 1 - Math.pow(0.001, dtReal / (d > 0 ? 170 : 260)); C.cam.zoom += d * k; if (Math.abs(C.cam.zoomAlvo - C.cam.zoom) < 0.006) C.cam.zoom = C.cam.zoomAlvo }
+      if (C.cam.zoom > C.med.zoomMax) C.med.zoomMax = C.cam.zoom
+    }
     { // no fim de partida do PC o mundo sobe para a placa caber embaixo
       const pc = C.tipo === 'pc', alvoY = pc && C.fimDeJogo ? -36 : 0, // na luta o mundo não sai do lugar: o painel de resumo ocupa a base
        d = alvoY - C.camY, passo = C.menos ? 1e9 : 70 * dtReal / 1000
       C.camY += Math.abs(d) <= passo ? d : Math.sign(d) * passo; C.oy = C.oyBase + Math.round(C.camY)
     }
     if (C.mix < 1) C.mix = Math.min(1, C.mix + dtReal / 2000)
+    viv = 0; for (let i = 0; i < MAXP; i++) if (C.pvida[i] > 0) viv++; for (const e of C.ef) if (e.ate > t) viv++
     atualizarBonecos(); agrupar()
-    const cen = Arte.cenario(C.tipo, C.hora), de = C.mix < 1 ? Arte.cenario(C.tipo, C.horaDe) : null
-    const escuro = (c) => parseInt(c.luz.ambiente.slice(1, 3), 16) + parseInt(c.luz.ambiente.slice(3, 5), 16) < 400
-    const tinta = escuro(C.mix >= 0.5 ? cen : de) ? (C.mix >= 0.5 ? cen : de).luz.ambiente : null
+    // o trecho da estrada (e o de onde se vem, na virada de 2 s)
+    const tr = C.trecho(), cen = S.cen(tr), de = C.mix < 1 ? S.cen(trechoDe(C.horaDe, C.portoesDe)) : null
+    if (C.med.trechos[C.med.trechos.length - 1] !== tr && C.med.trechos.length < 40) C.med.trechos.push(tr)
+    const dono = C.mix >= 0.5 ? cen : de, tinta = dono.tinta, sombra = dono.luz.sombra, Tv = C.relogioReal
     g.setTransform(C.e, 0, 0, C.e, 0, 0); g.imageSmoothingEnabled = false
     if (C.cam.zoom !== 1) { const z = C.cam.zoom; g.translate(C.cam.fx, C.cam.fy); g.scale(z, z); g.translate(-C.cam.fx, -C.cam.fy) }
     const frente = []
@@ -368,46 +658,41 @@ export function criarCena(canvas, CONFIG) {
     if (de) camadas(de, 1)
     camadas(cen, de ? C.mix : 1)
     g.globalAlpha = 1
-    vida(cen)
-    for (let tier = 0; tier < C.tiers.length; tier++) { moveis(tier, tinta, t); if (tier === C.tiers.length - 1 && C.antesDosBonecos) C.antesDosBonecos(g, t); bonecos(tier, tinta) }
+    if (de) S.vidaDeTras(de, 1 - C.mix, Tv)
+    S.vidaDeTras(cen, de ? C.mix : 1, Tv)
+    vida()
+    const cxB = camX(), tyB = Math.round(C.trem.y)
+    for (let tier = 0; tier < C.tiers.length; tier++) { moveis(tier, tinta, t); S.beira(dono, tier, 1, Tv, cxB, tyB); if (tier === C.tiers.length - 1 && C.antesDosBonecos) C.antesDosBonecos(g, t); bonecos(tier, tinta, sombra) }
     etiquetas()
     destaques(agora)
-    // projéteis (só desenho: o tiro já acertou)
-    for (const p of C.proj) {
-      const f = (t - p.t0) / 130; if (f < 0 || f > 1) continue
-      const x = p.x0 + (p.x1 - p.x0) * f - Math.round(C.cam.x), y = p.y0 + (p.y1 - p.y0) * f - Math.sin(f * 3.14) * 10
-      const ar = Arte.peca(p.tipo === 1 ? 'spud' : 'arrow')
-      if (ar) Arte.desenhar(g, ar, ar.quadros[0], Math.round(x), Math.round(y), p.x1 < p.x0); else { g.fillStyle = '#FFF6E0'; g.fillRect(Math.round(x) - 3, Math.round(y), 6, 1) }
-    }
+    projeteis(t)
     // efeitos animados e partículas
     let np = 0
-    for (const e of C.ef) { if (e.ate <= t) continue; np++; Arte.desenhar(g, e.p, e.p.quadros[Arte.quadroDe(e.anim, t - e.t0)], Math.round(e.x - C.cam.x + C.trem.x), Math.round(e.y + C.trem.y), e.flip) }
-    const s = dtAnim / 1000
+    for (const e of C.ef) { if (e.ate <= t) continue; np++; if (t < e.t0) continue; Arte.desenhar(g, e.p, e.p.quadros[Arte.quadroDe(e.anim, t - e.t0)], Math.round(e.x - C.cam.x + C.trem.x), Math.round(e.y + C.trem.y), e.flip, null, e.k) }
+    const s = dtAnim / 1000, cxP = Math.round(C.cam.x)
     for (let i = 0; i < MAXP; i++) {
       if (C.pvida[i] <= 0) continue
-      np++; C.pvida[i] -= dtAnim; C.px[i] += C.pvx[i] * s; C.py[i] += C.pvy[i] * s; C.pvy[i] += 160 * s
-      g.fillStyle = CORES_P[C.pcor[i]]; g.fillRect(Math.round(C.px[i] - C.cam.x), Math.round(C.py[i]), C.ptam[i], C.ptam[i])
+      np++; C.pvida[i] -= dtAnim; const tp = C.ptipo[i], f = Math.max(0, C.pvida[i] / C.pvida0[i])
+      C.px[i] += C.pvx[i] * s; C.py[i] += C.pvy[i] * s
+      let tam = C.ptam[i], cor = CORES_P[C.pcor[i]]
+      if (tp === 1) { C.pvx[i] *= Math.pow(0.02, s); C.pvy[i] -= 26 * s; tam = f > 0.55 ? tam + 1 : f > 0.25 ? tam : Math.max(1, tam - 1); if (f < 0.3 && ((i + C.quadro) & 1)) continue } // poeira: freia, sobe e some pontilhada
+      else if (tp === 2) { C.pvy[i] += 210 * s; cor = BRASA[Math.min(4, Math.floor(f * 5))] } // brasa: cai e esfria (branco → ouro → laranja → carmim)
+      else C.pvy[i] += 160 * s
+      g.fillStyle = cor; g.fillRect(Math.round(C.px[i]) - cxP, Math.round(C.py[i]), tam, tam)
     }
     if (np > C.picoParticulas) C.picoParticulas = np
     for (let i = 0; i < frente.length; i += 2) plano(frente[i], frente[i + 1])
     g.globalAlpha = 1
-    const zt = C.zonaTitulo
-    // números de dano: creme com contorno; forte em ouro com "!"; sobem 10 px e somem em 500 ms
-    for (const n of C.num) {
-      const f = (t - n.t0) / 500; if (f < 0 || f >= 1) continue
-      if (f > 0.75 && ((C.quadro >> 1) & 1) && !C.menos) continue
-      if (zt) { // a zona do título (letreiro grande na tela): o número que cairia em cima dele não é desenhado
-        const z = C.cam.zoom, nx = n.x - C.cam.x, ny = n.y - Math.round(f * 10) - (n.grande ? 6 : 0), sx = z === 1 ? nx : C.cam.fx + (nx - C.cam.fx) * z, sy = z === 1 ? ny : C.cam.fy + (ny - C.cam.fy) * z, mw = (n.grande ? 22 : 12) * z, mh = (n.grande ? 18 : 10) * z
-        if (sx + mw > zt.x && sx - mw < zt.x + zt.w && sy + mh > zt.y && sy - 2 < zt.y + zt.h) { C.numerosPulados++; continue }
-      }
-      Arte.texto(g, n.s, n.x - C.cam.x, n.y - Math.round(f * 10) - (n.grande ? 6 : 0), { fonte: n.grande && /^[0-9!]+$/.test(n.s) && Arte.temFonte('dano-g-ouro') ? 'dano-g-ouro' : n.ouro ? 'reino-ouro' : 'reino-contorno', alinhar: 'centro' })
-    }
+    S.vidaDaFrente(dono, 1, Tv)
+    numeros(t)
     if (C.depoisDoMundo) C.depoisDoMundo(g, t)
     g.setTransform(C.e, 0, 0, C.e, 0, 0)
     if (C.noite > 0) { g.globalAlpha = C.noite * 0.38; g.fillStyle = '#141432'; g.fillRect(0, 0, C.VW, C.VH); g.globalAlpha = 1 }
     if (!vinheta) vinheta = fazerVinheta()
     g.globalAlpha = Math.min(1, (de ? de.luz.vinheta * (1 - C.mix) + cen.luz.vinheta * C.mix : cen.luz.vinheta) * 2.6 + (C.emLuta ? 0.12 : 0)); g.drawImage(vinheta, 0, 0); g.globalAlpha = 1
     if (C.flashAte > agora) { g.globalAlpha = 0.32 * ((C.flashAte - agora) / C.flashMs); g.fillStyle = C.flashCor; g.fillRect(0, 0, C.VW, C.VH); g.globalAlpha = 1 }
+    gravarQuadro()
   }
+  try { if (/[?&]teste=1/.test(location.search)) window.__kmCena = C } catch { /* fora do navegador */ }
   return C
 }

@@ -178,7 +178,7 @@ describe('tarefa 5 — servidor HTTP do porão', () => {
 
 describe('P8 — segurança', () => {
   test('SAVE_SO_LEITURA: GET /api/estado não muda o save', async () => {
-    const lerSave = () => srv.db.prepare('SELECT estado, atualizado_em FROM save').all()
+    const lerSave = () => srv.db.prepare('SELECT conta_id, estado, atualizado_em FROM saves ORDER BY conta_id').all() // progresso por conta (20/11 18:17)
     const nDiario = () => srv.db.prepare('SELECT COUNT(*) AS n FROM diario').get().n
     assert.equal((await post('/api/imprimir', {}, { 'Idempotency-Key': chave() })).status, 200)
     await pedir('GET', '/api/estado') // aqui pode gravar

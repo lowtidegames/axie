@@ -7,9 +7,25 @@
 import * as R from '../comum/regras.js'
 import { TEXTOS, citar } from '../comum/nomes.js'
 import { LUXOS, INFLUENCIADORES, CONTRATO, CALOR, GAVETA, FUSAO, RARIDADES, PRESTIGIO } from '../comum/config.js'
-import { transacao, carregarSave, gravarSave, anotarDiario, buscarPedido, gravarPedido } from './banco.mjs'
+import {
+  transacao, anotarDiario, buscarPedido, gravarPedido,
+  buscarConta, contaConvidadaLocal, carregarSaveDaConta, gravarSaveDaConta, somaDoDiarioDaConta,
+} from './banco.mjs'
+import { validarApelido, ERROS_DO_APELIDO } from '../comum/apelido.js'
+
+// Progresso POR CONTA (decisão do dono 20/11 18:17): agir, verEstado e definirApelido recebem contaId.
+// Sem contaId (undefined ou null) = conta convidada local padrão (compatibilidade até a tarefa 4, que liga a sessão).
+// Chave de pedido é da conta que a usou: outra conta (ou pedido gravado sem conta) recebe 'chave_reusada'.
 
 const ERRO_GENERICO = 'Não deu para fazer isso agora.'
+const ERRO_CONTA = 'Conta não encontrada.'
+
+/** Conta do pedido: contaId omitido = convidada local; id que não é inteiro positivo ou não existe = null. */
+function contaDoPedido(db, contaId) {
+  if (contaId === undefined || contaId === null) return contaConvidadaLocal(db)
+  if (!Number.isSafeInteger(contaId) || contaId <= 0) return null
+  return buscarConta(db, contaId)
+}
 
 /** Ações que a tela pode pedir: nome → (estado, dados) → resultado de regras.js. */
 export const ACOES = Object.freeze({
@@ -35,11 +51,11 @@ class Recusa extends Error {
 // Ação
 // ---------------------------------------------------------------------------------------------
 /**
- * agir(db, { acao, dados, chave, agora, textos? }) →
+ * agir(db, { acao, dados, chave, agora, textos?, contaId? }) →
  *   { ok: true, acao, resultado, estado: <estadoParaTela>, repetido? } | { ok: false, erro, codigo }
- * codigo: 'chave_invalida' | 'chave_reusada' | 'acao_invalida' | 'dados_invalidos' | 'recusado'.
+ * codigo: 'chave_invalida' | 'chave_reusada' | 'acao_invalida' | 'dados_invalidos' | 'recusado' | 'conta_invalida'.
  */
-export function agir(db, { acao, dados = {}, chave, agora, textos = TEXTOS } = {}) {
+export function agir(db, { acao, dados = {}, chave, agora, textos = TEXTOS, contaId } = {}) {
   if (typeof chave !== 'string' || !CHAVE_VALIDA.test(chave)) {
     return falha('Pedido sem chave válida (8 a 80 letras, números, - ou _).', 'chave_invalida')
   }
@@ -53,23 +69,28 @@ export function agir(db, { acao, dados = {}, chave, agora, textos = TEXTOS } = {
 
   try {
     return transacao(db, () => {
+      const conta = contaDoPedido(db, contaId)
+      if (!conta) throw new Recusa(ERRO_CONTA, 'conta_invalida')
       const antigo = buscarPedido(db, chave)
       if (antigo) {
-        if (antigo.acao !== acao || antigo.corpo !== corpo) throw new Recusa('Essa chave de pedido já foi usada para outro pedido.', 'chave_reusada')
+        // Mesma mensagem para "outra conta" e "outro pedido": não conta a ninguém que a chave existe noutra conta.
+        if (antigo.contaId !== conta.id || antigo.acao !== acao || antigo.corpo !== corpo) {
+          throw new Recusa('Essa chave de pedido já foi usada para outro pedido.', 'chave_reusada')
+        }
         return { ...JSON.parse(antigo.resposta), repetido: true }
       }
-      const inicio = R.atualizarEstado(carregarSave(db))
+      const inicio = R.atualizarEstado(carregarSaveDaConta(db, conta.id))
       const avanco = R.avancar(inicio, agora)
       const r = ACOES[acao](avanco.estado, dados)
       if (!r || r.ok !== true) throw new Recusa(r?.erro || ERRO_GENERICO, 'recusado')
       const fim = r.estado
-      anotarComMulta(db, inicio.caixa, avanco.estado.caixa, avanco.eventos, 'rendimento', agora, chave)
-      anotarComMulta(db, avanco.estado.caixa, fim.caixa, r.eventos, acao, agora, chave)
-      gravarSave(db, fim, agora)
+      anotarComMulta(db, conta.id, inicio.caixa, avanco.estado.caixa, avanco.eventos, 'rendimento', agora, chave)
+      anotarComMulta(db, conta.id, avanco.estado.caixa, fim.caixa, r.eventos, acao, agora, chave)
+      gravarSaveDaConta(db, conta.id, fim, agora)
       const resultado = limparResultado(r, fim, textos)
       resultado.eventosDoTempo = avanco.eventos
-      const resposta = { ok: true, acao, resultado, estado: estadoParaTela(fim, { textos }) }
-      gravarPedido(db, { chave, acao, corpo, resposta: JSON.stringify(resposta), em: agora })
+      const resposta = { ok: true, acao, resultado, estado: estadoParaTela(fim, { textos, conta }) }
+      gravarPedido(db, { chave, acao, corpo, resposta: JSON.stringify(resposta), em: agora, contaId: conta.id })
       return resposta
     })
   } catch (e) {
@@ -79,21 +100,24 @@ export function agir(db, { acao, dados = {}, chave, agora, textos = TEXTOS } = {
 }
 
 /**
- * verEstado(db, agora, { textos }) → { ok: true, estado: <estadoParaTela>, segundos, online, rendeu, eventos }.
- * Adianta o relógio e grava (com a linha de rendimento no diário); com gravar:false só calcula (SAVE_SO_LEITURA). Sem chave de pedido: repetir só adianta o relógio.
+ * verEstado(db, agora, { textos, gravar, contaId }) →
+ *   { ok: true, estado: <estadoParaTela>, segundos, online, rendeu, eventos } | { ok: false, erro, codigo: 'conta_invalida' }.
+ * Adianta o relógio da conta e grava (com a linha de rendimento no diário); com gravar:false só calcula (SAVE_SO_LEITURA). Sem chave de pedido: repetir só adianta o relógio.
  */
-export function verEstado(db, agora, { textos = TEXTOS, gravar = true } = {}) {
+export function verEstado(db, agora, { textos = TEXTOS, gravar = true, contaId } = {}) {
   if (!Number.isFinite(agora)) throw new TypeError('agora precisa ser número (ms)')
   return transacao(db, () => {
-    const inicio = R.atualizarEstado(carregarSave(db))
+    const conta = contaDoPedido(db, contaId)
+    if (!conta) return falha(ERRO_CONTA, 'conta_invalida')
+    const inicio = R.atualizarEstado(carregarSaveDaConta(db, conta.id))
     const avanco = R.avancar(inicio, agora)
     if (gravar) {
-      anotarComMulta(db, inicio.caixa, avanco.estado.caixa, avanco.eventos, 'rendimento', agora, null)
-      gravarSave(db, avanco.estado, agora)
+      anotarComMulta(db, conta.id, inicio.caixa, avanco.estado.caixa, avanco.eventos, 'rendimento', agora, null)
+      gravarSaveDaConta(db, conta.id, avanco.estado, agora)
     }
     return {
       ok: true,
-      estado: estadoParaTela(avanco.estado, { textos }),
+      estado: estadoParaTela(avanco.estado, { textos, conta }),
       segundos: avanco.segundos,
       online: avanco.online,
       rendeu: avanco.rendeu,
@@ -102,29 +126,83 @@ export function verEstado(db, agora, { textos = TEXTOS, gravar = true } = {}) {
   })
 }
 
-/** Soma de todas as linhas do diário (deve ser igual ao caixa do save). */
-export function somaDoDiario(db) {
-  return db.prepare('SELECT COALESCE(SUM(valor), 0) AS s FROM diario').get().s
+/** Soma do diário da conta (deve ser igual ao caixa do save dela). Sem contaId = convidada local. */
+export function somaDoDiario(db, contaId) {
+  const conta = contaDoPedido(db, contaId)
+  return conta ? somaDoDiarioDaConta(db, conta.id) : 0
 }
 
-/** Últimas linhas do diário (mais nova primeiro). */
-export function lerDiario(db, limite = 50) {
+/** Últimas linhas do diário da conta (mais nova primeiro). Sem contaId = convidada local. */
+export function lerDiario(db, limite = 50, { contaId } = {}) {
   const n = Number.isSafeInteger(limite) && limite > 0 ? Math.min(limite, 500) : 50
-  return db.prepare('SELECT id, em, motivo, valor, caixa_depois AS caixaDepois FROM diario ORDER BY id DESC LIMIT ?').all(n)
+  const conta = contaDoPedido(db, contaId)
+  if (!conta) return []
+  return db.prepare('SELECT id, em, motivo, valor, caixa_depois AS caixaDepois FROM diario WHERE conta_id = ? ORDER BY id DESC LIMIT ?').all(conta.id, n)
+}
+
+/**
+ * definirApelido(db, contaId, texto, agora, { textos }) →
+ *   { ok: true, apelido, conta } | { ok: false, erro, codigo, chaveTexto? }
+ * Só depois do 1º tapete (contagem.tapetes ≥ 1, que a prisão não zera), só 1 vez, único sem ligar para maiúscula
+ * e acento (contas.apelido_chave UNIQUE). codigo: 'conta_invalida' | 'apelido_definido' | 'apelido_cedo' |
+ * 'apelido_invalido' (com chaveTexto 'apelido.erro.curto' | 'apelido.erro.feio' | 'apelido.erro.usado' e erro = o texto).
+ * Recusa não grava nada.
+ */
+export function definirApelido(db, contaId, apelidoPedido, agora, { textos = TEXTOS } = {}) {
+  if (!Number.isFinite(agora)) throw new TypeError('agora precisa ser número (ms)')
+  const invalido = chaveTexto => ({ ok: false, erro: texto(textos, chaveTexto), codigo: 'apelido_invalido', chaveTexto })
+  return transacao(db, () => {
+    const conta = contaId === undefined || contaId === null ? null : contaDoPedido(db, contaId)
+    if (!conta) return falha(ERRO_CONTA, 'conta_invalida')
+    if (conta.apelido !== null) return falha('Esta conta já tem apelido: ele é para sempre.', 'apelido_definido')
+    if (!(carregarSaveDaConta(db, conta.id).contagem.tapetes >= 1)) {
+      return falha('O apelido vem depois do primeiro tapete puxado.', 'apelido_cedo')
+    }
+    const v = validarApelido(apelidoPedido)
+    if (!v.ok) return invalido(v.erro)
+    if (db.prepare('SELECT 1 FROM contas WHERE apelido_chave = ?').get(v.chave)) return invalido(ERROS_DO_APELIDO.usado)
+    try {
+      const { changes } = db.prepare('UPDATE contas SET apelido = ?, apelido_chave = ?, visto_em = ? WHERE id = ? AND apelido IS NULL')
+        .run(v.apelido, v.chave, Math.floor(agora), conta.id)
+      if (changes !== 1) return falha('Esta conta já tem apelido: ele é para sempre.', 'apelido_definido')
+    } catch (e) {
+      if (/UNIQUE/i.test(String(e?.message))) return invalido(ERROS_DO_APELIDO.usado)
+      throw e
+    }
+    const nova = buscarConta(db, conta.id)
+    return { ok: true, apelido: nova.apelido, conta: contaParaTela(nova, carregarSaveDaConta(db, conta.id)) }
+  })
 }
 
 function falha(erro, codigo) { return { ok: false, erro, codigo } }
 
-function anotarDiferenca(db, antes, depois, motivo, em, pedido) {
+function anotarDiferenca(db, contaId, antes, depois, motivo, em, pedido) {
   const valor = depois - antes
-  if (valor !== 0) anotarDiario(db, { em, motivo, valor, caixaDepois: depois, pedido })
+  if (valor !== 0) anotarDiario(db, { em, motivo, valor, caixaDepois: depois, pedido, contaId })
 }
 
 /** Como anotarDiferenca, mas a multa da batida (eventos 'multa') vai numa linha própria com motivo 'multa'. */
-function anotarComMulta(db, antes, depois, eventos, motivo, em, pedido) {
+function anotarComMulta(db, contaId, antes, depois, eventos, motivo, em, pedido) {
   const multa = R.multaDosEventos(eventos)
-  anotarDiferenca(db, antes, depois + multa, motivo, em, pedido)
-  anotarDiferenca(db, depois + multa, depois, 'multa', em, pedido)
+  anotarDiferenca(db, contaId, antes, depois + multa, motivo, em, pedido)
+  anotarDiferenca(db, contaId, depois + multa, depois, 'multa', em, pedido)
+}
+
+/** "7xKXtg…gAsU" → "7xKX…gAsU" (4…4). A carteira inteira nunca vai para a tela. */
+function carteiraCurta(carteira) {
+  if (typeof carteira !== 'string' || carteira.length === 0) return null
+  return carteira.length <= 8 ? carteira : `${carteira.slice(0, 4)}…${carteira.slice(-4)}`
+}
+
+/** O que a tela vê da conta. pedirApelido: já puxou o 1º tapete e ainda não tem apelido. */
+function contaParaTela(conta, estado) {
+  if (!conta) return null
+  return {
+    tipo: conta.tipo,
+    apelido: conta.apelido ?? null,
+    carteiraCurta: conta.tipo === 'carteira' ? carteiraCurta(conta.carteira) : null,
+    pedirApelido: !conta.apelido && estado.contagem.tapetes >= 1,
+  }
 }
 
 /** Resultado de regras.js sem o estado (e sem nada do sorteio), com nomes resolvidos. */
@@ -235,8 +313,9 @@ const arred = (x, casas = 2) => Math.round(x * 10 ** casas) / 10 ** casas
 /**
  * Estado para a tela: SEM semente e sem contador do sorteio; nomes resolvidos; prévias prontas.
  * opcoes.textos: textos por chave (padrão nomes.js; o servidor passa o resultado de carregarNomes).
+ * opcoes.conta: a conta do banco (buscarConta); sem ela, conta: null (chamada direta, sem banco).
  */
-export function estadoParaTela(estado, { textos = TEXTOS } = {}) {
+export function estadoParaTela(estado, { textos = TEXTOS, conta = null } = {}) {
   const noAr = p => R.FASES_NO_AR.includes(p.fase)
   const bonus = R.bonus(estado)
   const liberados = R.influenciadoresLiberados(estado)
@@ -381,5 +460,6 @@ export function estadoParaTela(estado, { textos = TEXTOS } = {}) {
     chat,
     album: Object.keys(estado.album).filter(k => estado.album[k]).map(ideia => ({ ideia, nome: nomeIdeia(ideia, textos) })),
     contagem: { ...estado.contagem },
+    conta: contaParaTela(conta, estado),
   }
 }

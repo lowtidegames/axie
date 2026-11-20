@@ -6,8 +6,12 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { abrirBancoPorao, carregarSave, gravarSave, MIGRACOES } from '../servidor/banco.mjs'
-import { agir, verEstado, estadoParaTela, somaDoDiario, ACOES } from '../servidor/jogo.mjs'
+import {
+  abrirBancoPorao, carregarSave, gravarSave, MIGRACOES,
+  criarConta, contaDaCarteira, buscarConta, carregarSaveDaConta, gravarSaveDaConta, somaDoDiarioDaConta,
+} from '../servidor/banco.mjs'
+import { agir, verEstado, estadoParaTela, somaDoDiario, ACOES, definirApelido } from '../servidor/jogo.mjs'
+import { validarApelido, APELIDO } from '../comum/apelido.js'
 import * as R from '../comum/regras.js'
 import { TEXTOS } from '../comum/nomes.js'
 import { RARIDADES, LUXOS, INFLUENCIADORES, CONTRATO, CALOR } from '../comum/config.js'
@@ -25,7 +29,8 @@ function lcg(s) { return () => ((s = (s * 1103515245 + 12345) % 2147483648) / 21
 /** Foto do que está gravado (para provar que nada mudou). */
 function foto(db) {
   return {
-    save: db.prepare('SELECT estado FROM save').all(),
+    saves: db.prepare('SELECT conta_id, estado, atualizado_em FROM saves ORDER BY conta_id').all(), // progresso por conta (20/11 18:17)
+    contas: db.prepare('SELECT * FROM contas ORDER BY id').all(),
     diario: db.prepare('SELECT * FROM diario ORDER BY id').all(),
     pedidos: db.prepare('SELECT * FROM pedidos ORDER BY chave').all(),
   }
@@ -183,7 +188,7 @@ describe('tarefa 4 — banco e ações do porão', () => {
     const copias = fs.readdirSync(path.join(pasta, 'copias'))
     assert.equal(copias.length, 1)
     const copia = new DatabaseSync(path.join(pasta, 'copias', copias[0]), { readOnly: true })
-    assert.equal(JSON.parse(copia.prepare('SELECT estado FROM save').get().estado).caixa, antes.caixa)
+    assert.equal(JSON.parse(copia.prepare('SELECT estado FROM saves WHERE conta_id = 1').get().estado).caixa, antes.caixa)
     copia.close()
     assert.deepEqual(carregarSave(db), antes)
     db.close()
@@ -287,7 +292,7 @@ describe('P8 — SAVE_SO_LEITURA e limpeza de pedidos', () => {
     assert.equal(r.ok, true)
     assert.deepEqual(foto(db), antes)
     verEstado(db, T0 + 30_000)
-    assert.notDeepEqual(foto(db).save, antes.save)
+    assert.notDeepEqual(foto(db).saves, antes.saves)
   })
 
   test('boot apaga pedidos com mais de 1 dia e guarda os novos', () => {
@@ -489,5 +494,257 @@ describe('consertos do núcleo (20/11): multa da batida e luxos alinhados', () =
     assert.ok(linhas.some(l => l.motivo === 'tapete' && l.valor === r.resultado.ganho))
     assert.equal(somaDoDiario(db), carregarSave(db).caixa)
     db.close()
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Abertura, tarefa 2 (decisão do dono 20/11 18:17): progresso SEPARADO POR CONTA.
+// ---------------------------------------------------------------------------------------------
+describe('abertura T2 — progresso por conta', () => {
+  const CARTEIRA_A = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'
+  const CARTEIRA_B = 'DRpbCBMxVnDK7maPM5tGv6MvB3v1sRMC86PZ8okm21hy'
+
+  function bancoComContas() {
+    const db = bancoNovo()
+    const a = contaDaCarteira(db, CARTEIRA_A, { agora: T0, semente: 'semente-da-conta-a' })
+    const b = criarConta(db, { tipo: 'convidado', agora: T0, semente: 'semente-da-conta-b' })
+    return { db, a, b, local: 1 }
+  }
+  const fotoDaConta = (db, id) => ({
+    save: db.prepare('SELECT estado, atualizado_em FROM saves WHERE conta_id = ?').get(id),
+    diario: db.prepare('SELECT * FROM diario WHERE conta_id = ? ORDER BY id').all(id),
+    pedidos: db.prepare('SELECT * FROM pedidos WHERE conta_id = ? ORDER BY chave').all(id),
+    conta: db.prepare('SELECT * FROM contas WHERE id = ?').get(id),
+  })
+
+  /** Joga até o 1º tapete da conta, só por ações do servidor. Devolve o agora final. */
+  function primeiroTapete(db, contaId, agora = T0) {
+    assert.equal(agir(db, { acao: 'imprimir', dados: {}, chave: chave(), agora: agora += 1000, contaId }).ok, true)
+    const carta = carregarSaveDaConta(db, contaId).cartas[0]
+    assert.equal(agir(db, { acao: 'lancar', dados: { cartaId: carta.id }, chave: chave(), agora: agora += 1000, contaId }).ok, true)
+    const pid = carregarSaveDaConta(db, contaId).projetos[0].id
+    agora += 120_000
+    const r = agir(db, { acao: 'tapete', dados: { projetoId: pid }, chave: chave(), agora, contaId })
+    assert.equal(r.ok, true, r.erro)
+    assert.equal(carregarSaveDaConta(db, contaId).contagem.tapetes, 1)
+    return agora
+  }
+
+  test('contas isoladas: imprimir em A não muda B nem a convidada local', () => {
+    const { db, a, b, local } = bancoComContas()
+    const antesB = fotoDaConta(db, b.id)
+    const antesLocal = fotoDaConta(db, local)
+    const r = agir(db, { acao: 'imprimir', dados: {}, chave: chave(), agora: T0 + 1000, contaId: a.id })
+    assert.equal(r.ok, true, r.erro)
+    assert.equal(carregarSaveDaConta(db, a.id).contagem.impressoes, 1)
+    assert.equal(r.estado.cartas.length, 1)
+    assert.deepEqual(fotoDaConta(db, b.id), antesB)
+    assert.deepEqual(fotoDaConta(db, local), antesLocal)
+    assert.equal(db.prepare('SELECT conta_id FROM pedidos').get().conta_id, a.id)
+    // ver o estado de B mostra o porão de B (nada impresso) e não toca em A
+    const antesA = fotoDaConta(db, a.id)
+    const vb = verEstado(db, T0 + 2000, { contaId: b.id })
+    assert.equal(vb.ok, true)
+    assert.equal(vb.estado.cartas.length, 0)
+    assert.equal(vb.estado.contagem.impressoes, 0)
+    assert.deepEqual(fotoDaConta(db, a.id), antesA)
+    // sem contaId = convidada local (compatível até a tarefa 4)
+    assert.equal(agir(db, { acao: 'imprimir', dados: {}, chave: chave(), agora: T0 + 3000 }).ok, true)
+    assert.equal(carregarSaveDaConta(db, local).contagem.impressoes, 1)
+    assert.equal(carregarSaveDaConta(db, b.id).contagem.impressoes, 0)
+    db.close()
+  })
+
+  test('chave de pedido usada pela conta A é recusada na conta B (e pedido sem conta não é de ninguém)', () => {
+    const { db, a, b } = bancoComContas()
+    const k = 'pedido-da-conta-a-01'
+    const ra = agir(db, { acao: 'imprimir', dados: {}, chave: k, agora: T0 + 1000, contaId: a.id })
+    assert.equal(ra.ok, true, ra.erro)
+    const antes = foto(db)
+    // mesma chave, mesma ação, mesmos dados, outra conta: recusa sem gravar e sem entregar a resposta de A
+    for (const contaId of [b.id, undefined, null]) {
+      const rb = agir(db, { acao: 'imprimir', dados: {}, chave: k, agora: T0 + 2000, contaId })
+      assert.equal(rb.ok, false, `conta ${contaId}`)
+      assert.equal(rb.codigo, 'chave_reusada')
+      assert.ok(!('estado' in rb) && !('resultado' in rb))
+      assert.deepEqual(foto(db), antes)
+    }
+    // a própria A repete normalmente
+    const ra2 = agir(db, { acao: 'imprimir', dados: {}, chave: k, agora: T0 + 3000, contaId: a.id })
+    assert.equal(ra2.repetido, true)
+    assert.deepEqual(ra2.estado, ra.estado)
+    // pedido gravado sem conta (conta_id NULL) não pode ser repetido por conta nenhuma
+    db.prepare("INSERT INTO pedidos (chave, acao, corpo, resposta, em) VALUES ('pedido-sem-conta-01', 'imprimir', '{}', ?, ?)")
+      .run(JSON.stringify({ ok: true, acao: 'imprimir', resultado: {}, estado: { caixa: 999999 } }), T0)
+    const antes2 = foto(db)
+    for (const contaId of [a.id, b.id, undefined]) {
+      const r = agir(db, { acao: 'imprimir', dados: {}, chave: 'pedido-sem-conta-01', agora: T0 + 4000, contaId })
+      assert.equal(r.ok, false)
+      assert.equal(r.codigo, 'chave_reusada')
+      assert.deepEqual(foto(db), antes2)
+    }
+    db.close()
+  })
+
+  test('conta inexistente ou id estranho: recusa sem gravar nada', () => {
+    const db = bancoNovo()
+    const antes = foto(db)
+    for (const contaId of [9999, 0, -1, 1.5, '1', {}]) {
+      const r = agir(db, { acao: 'imprimir', dados: {}, chave: chave(), agora: T0 + 1000, contaId })
+      assert.equal(r.ok, false, String(contaId))
+      assert.equal(r.codigo, 'conta_invalida')
+      const v = verEstado(db, T0 + 1000, { contaId })
+      assert.equal(v.ok, false)
+      assert.equal(v.codigo, 'conta_invalida')
+      assert.deepEqual(foto(db), antes)
+    }
+    db.close()
+  })
+
+  test('soma do diário = caixa de CADA conta numa sequência longa misturando contas', () => {
+    const { db, a, b, local } = bancoComContas()
+    const ids = [a.id, b.id, local]
+    const sorte = lcg(7)
+    let agora = T0
+    for (let i = 0; i < 450; i++) {
+      agora += sorte() < 0.05 ? 3 * 3600_000 : Math.floor(5_000 + sorte() * 40_000)
+      const contaId = ids[Math.floor(sorte() * ids.length)]
+      const e = carregarSaveDaConta(db, contaId)
+      const noAr = e.projetos.filter(p => R.FASES_NO_AR.includes(p.fase) && p.fase !== 'LANCAMENTO')
+      const opcoes = [
+        ['imprimir', {}], ['imprimir', {}],
+        ['lancar', { cartaId: e.cartas[0]?.id }],
+        ['tapete', { projetoId: noAr[0]?.id }],
+        ['luxo', { luxoId: LUXOS[Math.floor(sorte() * LUXOS.length)].id }],
+        ['batida', { escolha: sorte() < 0.5 ? 'rebrand' : 'perder' }],
+        ['fundir', { ideia: e.cartas[0]?.ideia }],
+      ]
+      const [acao, dados] = opcoes[Math.floor(sorte() * opcoes.length)]
+      if (sorte() < 0.15) verEstado(db, agora, { contaId })
+      else agir(db, { acao, dados, chave: chave(), agora, contaId })
+      for (const id of ids) assert.equal(somaDoDiarioDaConta(db, id), carregarSaveDaConta(db, id).caixa, `passo ${i}, conta ${id}`)
+    }
+    assert.equal(somaDoDiario(db, a.id), carregarSaveDaConta(db, a.id).caixa)
+    assert.equal(somaDoDiario(db), carregarSaveDaConta(db, local).caixa) // sem conta = convidada local
+    for (const id of ids) {
+      assert.ok(carregarSaveDaConta(db, id).contagem.impressoes > 5, `conta ${id} jogou pouco`)
+      assert.ok(somaDoDiarioDaConta(db, id) !== 0 || carregarSaveDaConta(db, id).caixa === 0)
+    }
+    db.close()
+  })
+
+  test('estadoParaTela traz conta { tipo, apelido, carteiraCurta, pedirApelido }', () => {
+    const { db, a, b } = bancoComContas()
+    let v = verEstado(db, T0 + 1000, { contaId: a.id })
+    assert.deepEqual(v.estado.conta, { tipo: 'carteira', apelido: null, carteiraCurta: '7xKX…gAsU', pedirApelido: false })
+    assert.ok(!JSON.stringify(v).includes(CARTEIRA_A), 'carteira inteira não vai para a tela')
+    v = verEstado(db, T0 + 1000, { contaId: b.id })
+    assert.deepEqual(v.estado.conta, { tipo: 'convidado', apelido: null, carteiraCurta: null, pedirApelido: false })
+    // depois do 1º tapete e sem apelido: pede
+    const agora = primeiroTapete(db, a.id)
+    v = verEstado(db, agora + 1000, { contaId: a.id })
+    assert.equal(v.estado.conta.pedirApelido, true)
+    const r = definirApelido(db, a.id, 'Rug_Rico', agora + 2000)
+    assert.equal(r.ok, true, r.erro)
+    const t = agir(db, { acao: 'imprimir', dados: {}, chave: chave(), agora: agora + 3000, contaId: a.id })
+    assert.deepEqual(t.estado.conta, { tipo: 'carteira', apelido: 'Rug_Rico', carteiraCurta: '7xKX…gAsU', pedirApelido: false })
+    // chamada direta, sem banco: conta null
+    assert.equal(estadoParaTela(carregarSaveDaConta(db, a.id)).conta, null)
+    db.close()
+  })
+
+  describe('apelido', () => {
+    test('validarApelido: tamanho 3–20, letras/números/_, chave sem acento e minúscula, palavrão com leet', () => {
+      assert.equal(APELIDO.minimo, 3)
+      assert.equal(APELIDO.maximo, 20)
+      const ok = (t, chaveEsperada) => {
+        const r = validarApelido(t)
+        assert.equal(r.ok, true, `${t}: ${r.erro}`)
+        assert.equal(r.chave, chaveEsperada, t)
+        assert.equal(r.erro, null)
+      }
+      ok('Rug', 'rug')
+      ok('Rug_Rico', 'rug_rico')
+      ok('ÁçãoDev_9', 'acaodev_9')
+      ok('x'.repeat(20), 'x'.repeat(20))
+      ok('computador', 'computador') // não confunde com palavrão (Scunthorpe)
+      ok('Cuidado_Ze', 'cuidado_ze')
+      ok('Rei_do_Porão', 'rei_do_porao') // "porra" exige 2 r: o nome do jogo passa
+      ok('Esporadico', 'esporadico')
+      const erro = (t, chaveTexto) => {
+        const r = validarApelido(t)
+        assert.equal(r.ok, false, String(t))
+        assert.equal(r.erro, chaveTexto, String(t))
+        assert.equal(r.chave, null)
+      }
+      erro('ab', 'apelido.erro.curto')
+      erro('', 'apelido.erro.curto')
+      erro(null, 'apelido.erro.curto')
+      erro(42, 'apelido.erro.curto')
+      erro('x'.repeat(21), 'apelido.erro.feio')
+      erro('tem espaco', 'apelido.erro.feio')
+      erro('rug-rico', 'apelido.erro.feio')
+      erro('rug.rico', 'apelido.erro.feio')
+      erro('аbc', 'apelido.erro.feio') // "а" cirílico: parece latino, não é
+      erro('rugé́́', 'apelido.erro.feio') // acento solto empilhado
+      for (const feio of ['merda', 'M3RD4', 'porra_dev', 'P0rr4', 'caralho123', 'fdp', 'puta', 'dev_puta', 'BUC3T4', 'm3rrrda']) erro(feio, 'apelido.erro.feio')
+    })
+
+    test('definirApelido: só depois do 1º tapete, só 1 vez, único sem ligar para maiúscula e acento', () => {
+      const { db, a, b } = bancoComContas()
+      const c = contaDaCarteira(db, CARTEIRA_B, { agora: T0, semente: 'semente-da-conta-c' })
+      const linha = id => db.prepare('SELECT * FROM contas WHERE id = ?').get(id)
+
+      // antes do 1º tapete: recusa, nada gravado
+      let antes = linha(a.id)
+      let r = definirApelido(db, a.id, 'Rug_Rico', T0 + 10)
+      assert.equal(r.ok, false)
+      assert.equal(r.codigo, 'apelido_cedo')
+      assert.equal(typeof r.erro, 'string')
+      assert.deepEqual(linha(a.id), antes)
+
+      let agora = primeiroTapete(db, a.id)
+      antes = linha(a.id)
+      // 2 e 21 caracteres, palavrão com leet: recusa com a chave de texto
+      for (const [t, k] of [['ab', 'apelido.erro.curto'], ['x'.repeat(21), 'apelido.erro.feio'], ['m3rd4_dev', 'apelido.erro.feio']]) {
+        r = definirApelido(db, a.id, t, agora)
+        assert.equal(r.ok, false, t)
+        assert.equal(r.codigo, 'apelido_invalido')
+        assert.equal(r.chaveTexto, k)
+        assert.equal(r.erro, TEXTOS[k])
+        assert.deepEqual(linha(a.id), antes)
+      }
+      r = definirApelido(db, a.id, 'Rug_Rico', agora)
+      assert.equal(r.ok, true, r.erro)
+      assert.equal(r.apelido, 'Rug_Rico')
+      assert.equal(buscarConta(db, a.id).apelido, 'Rug_Rico')
+      assert.equal(linha(a.id).apelido_chave, 'rug_rico')
+
+      // 2ª vez: recusa (mesmo com outro nome)
+      antes = linha(a.id)
+      r = definirApelido(db, a.id, 'Outro_Nome', agora + 10)
+      assert.equal(r.ok, false)
+      assert.equal(r.codigo, 'apelido_definido')
+      assert.deepEqual(linha(a.id), antes)
+
+      // duplicado com maiúscula e acento em outra conta: usado
+      agora = primeiroTapete(db, b.id, agora)
+      for (const t of ['RUG_RICO', 'rug_rico', 'Rúg_Ricó']) {
+        const antesB = linha(b.id)
+        r = definirApelido(db, b.id, t, agora)
+        assert.equal(r.ok, false, t)
+        assert.equal(r.codigo, 'apelido_invalido')
+        assert.equal(r.chaveTexto, 'apelido.erro.usado')
+        assert.equal(r.erro, TEXTOS['apelido.erro.usado'])
+        assert.deepEqual(linha(b.id), antesB)
+      }
+      assert.equal(definirApelido(db, b.id, 'Vó_Do_Golpe', agora).ok, true)
+      assert.equal(linha(b.id).apelido_chave, 'vo_do_golpe')
+
+      // conta inexistente; conta C sem tapete continua sem poder
+      assert.equal(definirApelido(db, 9999, 'Qualquer', agora).codigo, 'conta_invalida')
+      assert.equal(definirApelido(db, c.id, 'Novo_Dev', agora).codigo, 'apelido_cedo')
+      db.close()
+    })
   })
 })

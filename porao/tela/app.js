@@ -13,27 +13,49 @@ const cena = await criarCena(raizCena, {
   aoClicar: (c) => { if (c.alvo === 'celular') monitores?.abrirCelular(); },
   aoMudarVista: (v) => monitores?.aoMudarVista(v),
 });
-monitores = criarMonitores({ cena, api, raiz: raizCena });
+monitores = criarMonitores({ cena, api, raiz: raizCena, aoAtualizar: (v) => pintarStatus(v) });
 
-// topo: caixa e Calor sempre à vista, e o botão "Menos animação"
+// barra de status fixa no topo: caixa, Calor (com cor) e a hora do relógio do jogo, mais o botão "Menos animação"
 const topo = document.querySelector('.pagina-topo');
 const sub = topo.querySelector('h1 small');
 if (sub) sub.textContent = api.modo === 'falso' ? '— modo de teste (sem servidor)' : '— mesa do Rugrigo';
 const botao = document.getElementById('menos');
-const placar = document.createElement('p');
-placar.className = 'pagina-placar';
-placar.style.cssText = 'margin:0;font-family:var(--fonte-num);font-variant-numeric:tabular-nums;color:var(--ouro);font-weight:700';
-topo.insertBefore(placar, botao);
+const novo = (tag, classe, texto) => { const e = document.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; };
+const status = novo('div', 'pagina-status');
+status.setAttribute('aria-label', 'Situação agora');
+function chip(nome, rotulo) {
+  const c = novo('span', `pagina-chip pagina-chip--${nome}`); c.dataset.pm = `status-${nome}`;
+  const valor = novo('b', 'pagina-chip__valor', '—');
+  c.append(novo('span', 'pagina-chip__rot', rotulo), valor);
+  status.append(c);
+  return { c, valor };
+}
+const sCaixa = chip('caixa', 'Caixa'), sCalor = chip('calor', 'Calor'), sHora = chip('hora', 'Hora');
+const barraCalor = novo('span', 'pagina-chip__barra'); const cheioCalor = novo('span', 'pagina-chip__cheio');
+barraCalor.append(cheioCalor); barraCalor.setAttribute('aria-hidden', 'true'); sCalor.c.append(barraCalor);
+topo.insertBefore(status, botao);
+// altura da barra: o zoom dos monitores no celular começa logo abaixo dela
+new ResizeObserver(() => document.documentElement.style.setProperty('--alto-topo', `${topo.offsetHeight}px`)).observe(topo);
 const mostrarMenos = () => botao.setAttribute('aria-pressed', String(cena.menosAnimacao));
 botao.addEventListener('click', () => { cena.definirMenosAnimacao(!cena.menosAnimacao); mostrarMenos(); });
 mostrarMenos();
 
 function receber(r) {
   if (!r.ok || !r.visao) return false;
-  monitores.atualizar(r.visao);
-  const e = r.visao.estado;
-  placar.textContent = `$ ${Number(e.caixa).toLocaleString('pt-BR')} · Calor ${Math.round(e.calor)}`;
+  monitores.atualizar(r.visao); // pinta a barra de status pelo aoAtualizar
   return true;
+}
+
+function pintarStatus(visao) {
+  const e = visao.estado;
+  sCaixa.valor.textContent = `$ ${Number(e.caixa).toLocaleString('pt-BR')}`;
+  const calor = Number(e.calor) || 0;
+  sCalor.valor.textContent = calor.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  sCalor.c.dataset.nivel = e.batida ? 'batida' : calor < 50 ? 'frio' : calor < 75 ? 'morno' : calor < 90 ? 'quente' : 'fervendo';
+  cheioCalor.style.width = `${Math.max(0, Math.min(100, calor))}%`;
+  // hora do relógio do jogo = o último instante que o servidor contou (sem contagem regressiva)
+  const ms = Number(e.ultimoTempo ?? e.relogio ?? visao.agora);
+  if (Number.isFinite(ms)) sHora.valor.textContent = new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 async function ciclo() {

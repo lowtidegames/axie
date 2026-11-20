@@ -14,6 +14,17 @@
   --aviso: #5be08a;
   --fonte: ui-rounded, "Trebuchet MS", system-ui, sans-serif;
   --fonte-num: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  /* letra gorda (fonte do sistema: o servidor do Porão só serve porao/tela) */
+  --fonte-gorda: "Arial Black", "Segoe UI Black", "Helvetica Neue", system-ui, sans-serif;
+  --ganho: #3dff6e;
+  --calor-frio: #5be08a; --calor-morno: #ffd84a; --calor-quente: #ff8a3d; --calor-fervendo: #ff4b4b;
+  /* papel de parede de cada monitor e cor da barra de título de cada aplicativo */
+  --mesa-1: #0b5a3e; --mesa-1-b: #11714f;
+  --mesa-2: #4b1a73; --mesa-2-b: #5d228c;
+  --mesa-3: #0f4590; --mesa-3-b: #2160b8;
+  --app-verde: #1fae5b; --app-ouro: #e0a21a; --app-rosa: #e0457b; --app-ciano: #1fa5c4;
+  --app-azul: #2f6fe0; --app-roxo: #8a4fe0; --app-laranja: #ee7a1f; --app-vinho: #b8384f;
+  --moldura: #2b2735; --moldura-c: #3d3849;
 
   /* cores do desenho em canvas (pixel art provisória) */
   --pix-contorno: #1d1622; --pix-chao-a: #4d4259; --pix-chao-b: #453b50; --pix-chao-l: #322a3b;
@@ -40,10 +51,30 @@ body {
 :focus-visible { outline: 3px solid var(--foco); outline-offset: 2px; }
 
 .pagina-topo {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  padding: 10px 14px; background: var(--noite-funda); border-bottom: 2px solid var(--borda);
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap;
+  padding: 8px 14px; background: var(--noite-funda); border-bottom: 3px solid var(--pix-contorno); box-shadow: 0 2px 0 var(--borda);
 }
-.pagina-topo h1 { margin: 0; font-size: 1.1rem; letter-spacing: 0.04em; }
+.pagina-topo h1 { margin: 0; font-family: var(--fonte-gorda); font-weight: 900; font-size: 1.15rem; letter-spacing: 0.04em; }
+
+/* barra de status: caixa, Calor e hora, lidos num relance */
+.pagina-status { display: flex; gap: 8px; flex: 1 1 auto; justify-content: center; min-width: 0; }
+.pagina-chip {
+  display: inline-flex; align-items: baseline; gap: 6px; position: relative; padding: 4px 10px 8px; min-width: 0;
+  background: var(--painel); border: 3px solid var(--pix-contorno); border-radius: 8px; box-shadow: 0 3px 0 var(--pix-contorno);
+}
+.pagina-chip__rot { font-size: 13px; font-weight: 800; color: var(--linho-apagado); }
+.pagina-chip__valor { font-family: var(--fonte-gorda); font-weight: 900; font-size: 1.2rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pagina-chip--caixa .pagina-chip__valor { color: var(--ganho); }
+.pagina-chip--hora .pagina-chip__valor { color: var(--linho); }
+.pagina-chip--calor { --cor-calor: var(--calor-frio); }
+.pagina-chip--calor[data-nivel="morno"] { --cor-calor: var(--calor-morno); }
+.pagina-chip--calor[data-nivel="quente"] { --cor-calor: var(--calor-quente); }
+.pagina-chip--calor[data-nivel="fervendo"], .pagina-chip--calor[data-nivel="batida"] { --cor-calor: var(--calor-fervendo); }
+.pagina-chip--calor .pagina-chip__valor { color: var(--cor-calor); }
+.pagina-chip--calor[data-nivel="batida"] { border-color: var(--calor-fervendo); }
+.pagina-chip__barra { position: absolute; left: 6px; right: 6px; bottom: 2px; height: 4px; border-radius: 2px; background: var(--noite-funda); overflow: hidden; }
+.pagina-chip__cheio { display: block; height: 100%; width: 0; background: var(--cor-calor); }
 .pagina-topo small { color: var(--linho-apagado); font-weight: normal; }
 .pagina-palco { flex: 1; min-height: 0; display: flex; }
 #cena { flex: 1; min-width: 0; }
@@ -72,7 +103,7 @@ body {
 
 /* zoom: os três monitores */
 .cena__zoom {
-  position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px;
+  position: absolute; inset: 0; z-index: 40; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px;
   background: var(--noite-funda); opacity: 0; transition: opacity 0.2s ease;
 }
 .cena__zoom[hidden] { display: none; }
@@ -81,20 +112,20 @@ body {
 .cena__zoom-titulo { color: var(--linho-apagado); font-weight: 700; }
 .cena__trilho { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: center; padding-bottom: 30px; }
 .cena__monitor {
-  position: relative; display: flex; flex-direction: column; min-width: 0; padding: 10px 10px 14px; border-radius: 10px;
-  background: var(--painel); border: 3px solid var(--borda);
+  position: relative; display: flex; flex-direction: column-reverse; min-width: 0; padding: 10px 10px 6px; border-radius: 12px;
+  background: var(--moldura); border: 4px solid var(--pix-contorno); box-shadow: inset 0 0 0 3px var(--moldura-c), 0 4px 0 var(--pix-contorno);
 }
 /* pé do monitor */
 .cena__monitor::after {
-  content: ""; position: absolute; left: 50%; bottom: -24px; width: 34%; height: 18px; transform: translateX(-50%);
-  background: var(--borda); clip-path: polygon(30% 0, 70% 0, 100% 100%, 0 100%);
+  content: ""; position: absolute; left: 50%; bottom: -26px; width: 34%; height: 20px; transform: translateX(-50%);
+  background: var(--pix-contorno); clip-path: polygon(30% 0, 70% 0, 100% 100%, 0 100%);
 }
-.cena__monitor-titulo { margin: 0 0 8px; font-size: 1.05rem; color: var(--linho); text-align: center; }
+/* plaquinha com o nome do monitor, na moldura de baixo */
+.cena__monitor-titulo { margin: 6px 0 0; font-family: var(--fonte-gorda); font-weight: 900; font-size: 13px; letter-spacing: 0.08em; color: var(--linho-apagado); text-align: center; text-transform: uppercase; }
 .cena__tela {
-  flex: none; aspect-ratio: 4 / 3; border-radius: 4px; background: var(--pix-tela-f); border: 2px solid var(--noite-funda);
-  background-image: repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 255, 255, 0.03) 3px 4px);
+  flex: none; aspect-ratio: 4 / 3; border-radius: 4px; background: var(--pix-tela-f); border: 3px solid var(--pix-contorno);
 }
-.cena__monitor--aviso { border-color: var(--aviso); box-shadow: 0 0 0 3px var(--aviso); }
+.cena__monitor--aviso { border-color: var(--aviso); box-shadow: 0 0 0 4px var(--aviso), 0 4px 0 var(--pix-contorno); }
 .cena__pontos { display: none; justify-content: center; gap: 14px; padding: 4px 0 6px; }
 .cena__ponto {
   width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--linho-apagado); background: transparent; padding: 0; cursor: pointer;
@@ -103,7 +134,18 @@ body {
 
 /* celular (tela estreita): um monitor por vez, troca por toque/arrasto */
 @media (max-width: 720px) {
-  .cena__zoom { position: fixed; }
+  .pagina-topo { padding: 6px 8px; gap: 6px; }
+  .pagina-topo h1 small { display: none; }
+  .pagina-topo button { padding: 6px 10px; }
+  .pagina-status { order: 3; flex-basis: 100%; gap: 6px; }
+  .pagina-chip { flex: 1 1 0; flex-direction: column; align-items: center; gap: 0; padding: 2px 4px 8px; }
+  .pagina-chip__rot { font-size: 13px; line-height: 1.1; }
+  .pagina-chip__valor { font-size: 1.1rem; }
+  .cena__zoom { position: fixed; top: var(--alto-topo, 0); padding: 8px; gap: 6px; }
+  .cena__monitor { padding: 4px 4px 2px; border-width: 3px; }
+  .cena__monitor::after { display: none; }
+  .cena__monitor-titulo { margin-top: 2px; }
+  .cena__trilho { padding-bottom: 0; }
   .cena__tela { aspect-ratio: auto; flex: 1; min-height: 200px; }
   .cena__monitor { align-self: stretch; max-height: 520px; }
   .cena__trilho { align-items: flex-start; }

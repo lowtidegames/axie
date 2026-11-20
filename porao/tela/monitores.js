@@ -1,6 +1,6 @@
 // Porão — o conteúdo dos 3 monitores, o celular da mesa e a janela da batida.
 // A tela NÃO decide nada: cada botão chama a API e mostra o que o servidor devolveu (a "visão").
-//   const m = criarMonitores({ cena, api, raiz });   m.atualizar(visao);  m.abrirCelular();  m.aoMudarVista(v)
+//   const m = criarMonitores({ cena, api, raiz, aoAtualizar });   (aoAtualizar(visao): a cada visão nova, inclusive depois de ações)   m.atualizar(visao);  m.abrirCelular();  m.aoMudarVista(v)
 import { TEXTOS, citar } from '../comum/nomes.js';
 import { RARIDADES, IDEIAS_POR_RARIDADE, TROUXAS, GAVETA, CALOR } from '../comum/config.js';
 
@@ -18,6 +18,75 @@ const CSS = `
 @media (max-width: 720px) { .pm-aba { font-size: 13px; padding: 0 2px; } .cena .cena__monitor { max-height: none; } .cena .cena__tela { min-height: 0; } }
 .cena .cena__ponto.pm-ponto-aviso { border-color: var(--aviso); box-shadow: 0 0 0 3px var(--aviso); }
 .cena .cena__zoom-topo { flex-wrap: wrap; }
+
+/* ---- área de trabalho: papel de parede, janelas fixas e barra de ícones ---- */
+.pm-mesa { flex: 1; min-height: 0; display: flex; flex-direction: column; font-size: 14px; position: relative; }
+.pm-mesa--grafico { background-color: var(--mesa-1);
+  background-image: linear-gradient(var(--mesa-1-b) 2px, transparent 2px), linear-gradient(90deg, var(--mesa-1-b) 2px, transparent 2px);
+  background-size: 28px 28px; }
+.pm-mesa--comunidade { background-color: var(--mesa-2);
+  background-image: repeating-linear-gradient(135deg, var(--mesa-2-b) 0 14px, transparent 14px 28px); }
+.pm-mesa--projeto { background-color: var(--mesa-3);
+  background-image: radial-gradient(var(--mesa-3-b) 3px, transparent 4px); background-size: 22px 22px; }
+.pm-mesa__area { flex: 1; min-height: 0; position: relative; margin: 8px 8px 0; }
+.pm-jan { position: absolute; display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  background: var(--painel); border: 3px solid var(--pix-contorno); border-radius: 8px; box-shadow: 4px 4px 0 var(--pix-contorno); overflow: hidden; }
+.pm-jan__barra { flex: none; display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 6px; background: var(--app, var(--painel-claro));
+  border-bottom: 3px solid var(--pix-contorno); cursor: pointer; user-select: none; }
+.pm-jan__icone { width: 24px; height: 24px; image-rendering: pixelated; flex: none; }
+.pm-jan__nome { flex: 1; min-width: 0; font-family: var(--fonte-gorda); font-weight: 900; font-size: 15px; letter-spacing: 0.02em; color: var(--linho);
+  text-shadow: 2px 0 0 var(--pix-contorno), -2px 0 0 var(--pix-contorno), 0 2px 0 var(--pix-contorno), 0 -2px 0 var(--pix-contorno), 2px 2px 0 var(--pix-contorno);
+  white-space: nowrap; overflow: hidden; }
+.pm-jan__botoes { display: flex; gap: 4px; flex: none; }
+.pm-jan__botoes span { width: 16px; height: 16px; border: 2px solid var(--pix-contorno); border-radius: 3px; background: var(--linho); }
+.pm-jan__botoes span:nth-child(2) { background: var(--ouro); }
+.pm-jan__botoes span:last-child { background: var(--pix-tela-r); }
+.pm-jan__corpo { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.pm-jan:not(.pm-jan--frente) .pm-jan__barra { filter: saturate(0.45) brightness(0.8); }
+.pm-jan--frente { box-shadow: 5px 5px 0 var(--pix-contorno), 0 0 0 2px var(--linho); }
+/* cascata fixa (não arrasta): cada janela um pouco mais para baixo e para a direita */
+.pm-jan[data-pos="0"][data-total="2"] { inset: 0 18px 36px 0; } .pm-jan[data-pos="1"][data-total="2"] { inset: 36px 0 0 18px; }
+.pm-jan[data-pos="0"][data-total="4"] { inset: 0 30px 78px 0; } .pm-jan[data-pos="1"][data-total="4"] { inset: 26px 20px 52px 10px; }
+.pm-jan[data-pos="2"][data-total="4"] { inset: 52px 10px 26px 20px; } .pm-jan[data-pos="3"][data-total="4"] { inset: 78px 0 0 30px; }
+.pm-app--grafico { --app: var(--app-verde); } .pm-app--caixa { --app: var(--app-ouro); }
+.pm-app--comunidade { --app: var(--app-rosa); } .pm-app--chat { --app: var(--app-ciano); }
+.pm-app--projetos { --app: var(--app-azul); } .pm-app--ideias { --app: var(--app-roxo); }
+.pm-app--impressora { --app: var(--app-laranja); } .pm-app--porao { --app: var(--app-vinho); }
+.pm-dock { flex: none; display: flex; justify-content: center; gap: 6px; margin-top: 8px; padding: 6px; background: var(--noite-funda); border-top: 3px solid var(--pix-contorno); }
+.pm-icone { flex: 0 1 auto; min-width: 0; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: 4px 8px; font: inherit; font-family: var(--fonte-gorda); font-weight: 900; font-size: 13px; color: var(--linho);
+  background: transparent; border: 3px solid transparent; border-radius: 8px; cursor: pointer; }
+.pm-icone canvas { width: 32px; height: 32px; image-rendering: pixelated; }
+.pm-icone span { white-space: nowrap; max-width: 100%; overflow: hidden; }
+.pm-icone:hover { border-color: var(--borda); }
+.pm-icone[aria-pressed="true"] { background: var(--app); border-color: var(--pix-contorno); box-shadow: 0 3px 0 var(--pix-contorno);
+  text-shadow: 1px 1px 0 var(--pix-contorno), -1px -1px 0 var(--pix-contorno), 1px -1px 0 var(--pix-contorno), -1px 1px 0 var(--pix-contorno); }
+@media (max-width: 720px) {
+  /* celular: cada janela em tela cheia; a barra de ícones fica embaixo */
+  .pm-mesa__area { margin: 0; }
+  .pm-mesa .pm-jan[data-pos][data-total] { inset: 0; border-radius: 0; box-shadow: none; border-width: 0; }
+  .pm-jan:not(.pm-jan--frente) { visibility: hidden; }
+  .pm-dock { margin-top: 0; gap: 4px; padding: 4px; }
+  .pm-icone { flex: 1 1 0; padding: 4px 2px; }
+}
+
+/* ---- Confiança dos trouxas: medidor em gomos ---- */
+.pm-confianca { display: flex; flex-direction: column; gap: 4px; }
+.pm-confianca__topo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.pm-confianca__rot { font-family: var(--fonte-gorda); font-weight: 900; font-size: 14px; }
+.pm-confianca__gomos { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; padding: 3px; background: var(--pix-contorno); border-radius: 6px; }
+.pm-confianca__gomo { height: 14px; border-radius: 2px; background: var(--painel-claro); }
+.pm-confianca__gomo--cheio { background: var(--nivel, var(--aviso)); }
+.pm-confianca[data-nivel="baixa"] { --nivel: var(--pix-tela-r); } .pm-confianca[data-nivel="media"] { --nivel: var(--ouro); } .pm-confianca[data-nivel="alta"] { --nivel: var(--ganho); }
+
+/* ---- número gigante do ganho ---- */
+.pm-gigante { position: fixed; z-index: 75; pointer-events: none; transform: translate(-50%, -50%); white-space: nowrap;
+  font-family: var(--fonte-gorda); font-weight: 900; font-size: min(15vw, 120px); line-height: 1; color: var(--ganho); letter-spacing: 0.01em;
+  -webkit-text-stroke: 8px var(--pix-contorno); paint-order: stroke fill; text-shadow: 6px 7px 0 var(--pix-contorno); font-variant-numeric: tabular-nums; }
+.pm-gigante__pulo { display: inline-block; animation: pm-pulo 0.5s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes pm-pulo { from { transform: scale(0.35); } 60% { transform: scale(1.12); } to { transform: scale(1); } }
+.pm-gigante--parado .pm-gigante__pulo { animation: none; }
+@media (prefers-reduced-motion: reduce) { .pm-gigante__pulo { animation: none; } }
 
 .pm-tela { flex: 1; min-height: 0; display: flex; flex-direction: column; font-size: 14px; }
 .pm-abas { display: flex; gap: 4px; padding: 4px; background: var(--noite-funda); }
@@ -49,7 +118,7 @@ const CSS = `
 .pm-medidor__cheio { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ouro); }
 .pm-medidor--calor .pm-medidor__cheio { background: linear-gradient(90deg, var(--ouro), var(--acao), var(--pix-tela-r)); }
 .pm-medidor__previa { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--linho); }
-.pm-calor { padding: 8px; background: var(--noite-funda); border-bottom: 2px solid var(--borda); display: flex; flex-direction: column; gap: 4px; }
+.pm-calor { padding: 8px; background: var(--noite-funda); border: 2px solid var(--borda); border-radius: 10px; display: flex; flex-direction: column; gap: 4px; }
 .pm-canvas { display: block; width: 100%; height: 100%; min-height: 120px; }
 .pm-grafico { flex: 1; min-height: 120px; border: 2px solid var(--borda); border-radius: 8px; background: var(--noite-funda); overflow: hidden; }
 .pm-seletor { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -103,6 +172,8 @@ const CSS = `
 .pm-toasts { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 80; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
 .pm-toast { background: var(--linho); color: var(--acao-texto); border-radius: 8px; padding: 10px 14px; font-weight: 700; max-width: 520px; pointer-events: auto; overflow-wrap: anywhere; }
 .pm-batida-faixa { width: 100%; }
+.pm-batida-frase { margin: 0; font-family: var(--fonte-gorda); font-weight: 900; font-size: 1.05rem; color: var(--calor-fervendo); }
+.pm-btn__sub { display: block; font-size: 13px; font-weight: 800; opacity: 0.85; overflow-wrap: anywhere; }
 
 .cena--menos .pm-folha, .cena--menos .pm-folha__rar, .cena--menos .pm-folha__nome { transition: none !important; }
 @media (prefers-reduced-motion: reduce) { .pm-folha, .pm-folha__rar, .pm-folha__nome { transition: none !important; } }
@@ -133,22 +204,39 @@ const ROTULO_RARIDADE = { comum: 'Comum', incomum: 'Incomum', raro: 'Raro', epic
 const ROTULO_FASE = { LANCAMENTO: 'Lançando', HYPE: 'Em alta', PICO: 'No pico', ESFRIANDO: 'Esfriando', APLICADO: 'Tapete puxado', APREENDIDO: 'Apreendido' };
 const ROTULO_TAMANHO = { nano: 'Nano', medio: 'Médio', mega: 'Mega' };
 const NO_AR = ['LANCAMENTO', 'HYPE', 'PICO', 'ESFRIANDO'];
-const ABAS = {
+// cada monitor é uma área de trabalho com janelas fixas de aplicativo (a ordem é a da barra de ícones)
+const MESAS = {
   grafico: [['grafico', 'Gráfico'], ['caixa', 'Caixa']],
   comunidade: [['comunidade', 'Comunidade'], ['chat', 'Chat']],
-  projeto: [['noar', 'No ar'], ['ideias', 'Ideias'], ['impressora', 'Impressora'], ['porao', 'Porão']],
+  projeto: [['projetos', 'Projetos'], ['ideias', 'Ideias'], ['impressora', 'Impressora'], ['porao', 'Porão']],
 };
+const MONITOR_DO_APP = Object.fromEntries(Object.entries(MESAS).flatMap(([m, l]) => l.map(([a]) => [a, m])));
+const INDICE_MONITOR = { grafico: 0, comunidade: 1, projeto: 2 };
+
+// ícones em pixel art (grade 16×16), desenhados por código com as cores do :root
+const ICONES = {
+  grafico: (r) => { r('k', 0, 1, 16, 12); r('f', 1, 2, 14, 10); [[2, 9], [4, 7], [6, 8], [8, 5], [10, 6], [12, 3]].forEach(([x, y]) => r('v', x, y, 2, 2)); r('y', 13, 2, 2, 2); r('k', 6, 13, 4, 1); r('k', 4, 14, 8, 2); },
+  caixa: (r) => { r('k', 2, 1, 14, 8); r('V', 3, 2, 12, 6); r('k', 0, 5, 14, 10); r('v', 1, 6, 12, 8); r('V', 2, 7, 2, 1); r('V', 10, 12, 2, 1); r('k', 4, 7, 6, 6); r('y', 5, 8, 4, 4); r('k', 6, 9, 2, 2); },
+  comunidade: (r) => { r('k', 0, 4, 6, 6); r('b', 1, 5, 4, 4); r('k', 0, 10, 6, 6); r('b', 1, 11, 4, 5); r('k', 10, 4, 6, 6); r('o', 11, 5, 4, 4); r('k', 10, 10, 6, 6); r('o', 11, 11, 4, 5); r('k', 4, 1, 8, 8); r('p', 5, 2, 6, 6); r('k', 6, 4, 1, 1); r('k', 9, 4, 1, 1); r('k', 3, 9, 10, 7); r('r', 4, 10, 8, 6); },
+  chat: (r) => { r('k', 0, 1, 16, 11); r('w', 1, 2, 14, 9); r('k', 3, 12, 4, 3); r('w', 4, 11, 2, 2); r('k', 4, 6, 2, 2); r('k', 7, 6, 2, 2); r('k', 10, 6, 2, 2); },
+  projetos: (r) => { r('k', 5, 0, 6, 13); r('w', 6, 1, 4, 11); r('k', 7, 1, 2, 1); r('b', 7, 4, 2, 2); r('k', 2, 8, 4, 5); r('r', 3, 9, 2, 3); r('k', 10, 8, 4, 5); r('r', 11, 9, 2, 3); r('o', 6, 13, 4, 2); r('y', 7, 14, 2, 2); },
+  ideias: (r) => { r('k', 3, 0, 10, 10); r('y', 4, 1, 8, 8); r('w', 5, 2, 2, 2); r('k', 4, 10, 8, 1); r('m', 5, 11, 6, 3); r('k', 5, 12, 6, 1); r('k', 6, 14, 4, 2); },
+  impressora: (r) => { r('k', 3, 0, 10, 5); r('w', 4, 1, 8, 4); r('k', 0, 4, 16, 8); r('m', 1, 5, 14, 6); r('v', 12, 6, 2, 1); r('k', 2, 8, 12, 1); r('k', 3, 11, 10, 5); r('w', 4, 11, 8, 4); r('o', 5, 12, 6, 1); },
+  porao: (r) => { r('k', 6, 0, 4, 2); r('k', 4, 2, 8, 2); r('k', 2, 4, 12, 2); r('r', 7, 1, 2, 1); r('r', 5, 3, 6, 1); r('r', 3, 5, 10, 1); r('k', 2, 6, 12, 10); r('n', 3, 7, 10, 8); r('k', 9, 9, 3, 7); r('y', 4, 8, 3, 3); r('k', 5, 9, 1, 1); },
+};
+const COR_ICONE = { k: '--pix-contorno', f: '--pix-tela-f', v: '--pix-tela-v', V: '--pix-planta', y: '--ouro', o: '--acao', r: '--pix-tela-r', b: '--pix-tela-a', w: '--linho', p: '--pix-pele', m: '--pix-metal', n: '--pix-madeira' };
 // luxo (id do config) → número do nome em nomes.js
 const NOME_LUXO = { aquario: 1, cadeira_gamer: 2, maquina_bebida: 3, carro_na_garagem: 4, letreiro_neon: 5 };
 
-export function criarMonitores({ cena, api, raiz }) {
+export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   // CSP do servidor não aceita <style> embutido: folha construída por código (CSSOM) passa.
   const folha = new CSSStyleSheet(); folha.replaceSync(CSS);
   document.adoptedStyleSheets = [...document.adoptedStyleSheets, folha];
 
   let visao = null;
   let ativoId = null; // projeto escolhido no gráfico
-  const aba = { grafico: 'grafico', comunidade: 'comunidade', projeto: 'noar' };
+  const frente = { grafico: 'grafico', comunidade: 'comunidade', projeto: 'projetos' }; // janela da frente em cada monitor
+  const ordem = { grafico: ['caixa', 'grafico'], comunidade: ['chat', 'comunidade'], projeto: ['porao', 'impressora', 'ideias', 'projetos'] }; // última = frente
   const historico = {}; // projetoId → [valor da prévia] (amostras reais, uma por atualização)
   const chat = []; // { autor, texto, influ? }
   let ticChat = 0;
@@ -215,39 +303,71 @@ export function criarMonitores({ cena, api, raiz }) {
     setTimeout(() => t.remove(), 4200);
   }
 
-  // ----- caixa de aba com foco e rolagem preservados -----
-  function montarTela(id, aoRender) {
-    const tela = cena.telas[id];
-    const raizTela = h('div', { class: 'pm-tela', 'data-pm-monitor': id });
-    const extra = h('div', { class: 'pm-extra' }); // faixa fixa acima das abas (ex.: Calor)
-    const abas = h('div', { class: 'pm-abas', role: 'tablist', 'aria-label': `Abas do monitor ${id}` });
-    const corpo = h('div', { class: 'pm-corpo', role: 'tabpanel' });
-    ABAS[id].forEach(([a, rot]) => {
-      const b = h('button', { type: 'button', class: 'pm-aba', role: 'tab', 'data-aba': a, 'aria-selected': 'false',
-        onclick: () => { aba[id] = a; render(id); } }, rot);
-      abas.append(b);
-    });
-    raizTela.append(extra, abas, corpo);
-    tela.replaceChildren(raizTela);
-    return { id, tela, raizTela, extra, abas, corpo, aoRender, sig: '' };
+  // ----- ícone em pixel art (canvas 16×16, ampliado pelo CSS sem borrar) -----
+  function icone(app, classe) {
+    const cv = h('canvas', { class: classe || '', width: '16', height: '16', 'aria-hidden': 'true' });
+    const c = cv.getContext('2d');
+    const cores = {};
+    ICONES[app]?.((k, x, y, w, hh) => { c.fillStyle = cores[k] ||= lerCor(COR_ICONE[k]); c.fillRect(x, y, w, hh); });
+    return cv;
   }
-  const telas = {};
 
-  function render(id, forcar = true) {
+  // ----- área de trabalho de cada monitor: janelas fixas (sem arrastar) + barra de ícones -----
+  const apps = {}; // app → { app, monitor, janela, corpo, botao, sig }
+  function montarMesa(id) {
+    const tela = cena.telas[id];
+    const lista = MESAS[id];
+    const raizTela = h('div', { class: `pm-mesa pm-mesa--${id}`, 'data-pm-monitor': id });
+    const area = h('div', { class: 'pm-mesa__area' });
+    const dock = h('nav', { class: 'pm-dock', 'aria-label': `Aplicativos do monitor ${INDICE_MONITOR[id] + 1}` });
+    lista.forEach(([a, nome], pos) => {
+      const corpo = h('div', { class: 'pm-jan__corpo' });
+      const barra = h('div', { class: 'pm-jan__barra' }, icone(a, 'pm-jan__icone'), h('span', { class: 'pm-jan__nome' }, nome),
+        h('span', { class: 'pm-jan__botoes', 'aria-hidden': 'true' }, h('span'), h('span'), h('span')));
+      const janela = h('section', { class: `pm-jan pm-app--${a}`, 'data-app': a, 'data-pos': String(pos), 'data-total': String(lista.length), 'aria-label': nome }, barra, corpo);
+      janela.addEventListener('pointerdown', () => { if (frente[id] !== a) trazer(a); });
+      area.append(janela);
+      const botao = h('button', { type: 'button', class: `pm-icone pm-app--${a}`, 'data-app': a, 'aria-pressed': 'false', onclick: () => trazer(a) }, icone(a), h('span', {}, nome));
+      dock.append(botao);
+      apps[a] = { app: a, monitor: id, janela, corpo, botao, sig: '' };
+    });
+    raizTela.append(area, dock);
+    tela.replaceChildren(raizTela);
+    arrumar(id);
+  }
+  /** Ordem das janelas do monitor: a da frente por cima, as outras atrás na ordem do último uso. */
+  function arrumar(id) {
+    ordem[id].forEach((a, i) => {
+      const t = apps[a]; if (!t) return;
+      const naFrente = a === frente[id];
+      t.janela.style.zIndex = String(i + 1);
+      t.janela.classList.toggle('pm-jan--frente', naFrente);
+      if (naFrente) t.janela.removeAttribute('inert'); else if (movel()) t.janela.setAttribute('inert', ''); else t.janela.removeAttribute('inert');
+      t.botao.setAttribute('aria-pressed', String(naFrente));
+    });
+  }
+  /** Traz a janela do app para a frente (clique no ícone, na janela ou atalho de outro monitor). */
+  function trazer(a) {
+    const id = MONITOR_DO_APP[a];
+    frente[id] = a;
+    ordem[id] = ordem[id].filter((x) => x !== a).concat(a);
+    arrumar(id);
+    if (a === 'chat') apps.chat.corpo.scrollTop = apps.chat.corpo.scrollHeight;
+  }
+
+  function render(id, forcar = true) { for (const [a] of MESAS[id]) renderApp(a, forcar); }
+  function renderApp(a, forcar = true) {
     if (!visao) return;
-    const t = telas[id];
-    const foco = document.activeElement?.closest?.('.pm-tela') === t.raizTela ? document.activeElement.dataset.k : null;
+    const t = apps[a];
+    const foco = document.activeElement?.closest?.('.pm-jan') === t.janela ? document.activeElement.dataset.k : null;
     const rol = t.corpo.scrollTop;
-    t.abas.querySelectorAll('.pm-aba').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.aba === aba[id])));
-    t.corpo.dataset.aba = aba[id];
-    const sig = JSON.stringify([aba[id], visao.estado, visao.previas, ativoId, chat.length, celularNovo, cenaAtiva.revelacao]);
-    if (!forcar && (sig === t.sig || (id === 'projeto' && aba.projeto === 'impressora' && cenaAtiva.revelacao))) return;
+    const sig = JSON.stringify([visao.estado, visao.previas, ativoId, chat.length, celularNovo, cenaAtiva.revelacao, cenaAtiva.tapete]);
+    if (!forcar && (sig === t.sig || (a === 'impressora' && cenaAtiva.revelacao))) return;
     t.sig = sig;
-    t.extra.replaceChildren();
     t.corpo.replaceChildren();
-    t.aoRender(t);
-    t.corpo.scrollTop = rol;
-    if (foco) t.raizTela.querySelector(`[data-k="${foco}"]`)?.focus({ preventScroll: true });
+    RENDER[a](t);
+    t.corpo.scrollTop = a === 'chat' ? t.corpo.scrollHeight : rol;
+    if (foco) t.janela.querySelector(`[data-k="${foco}"]`)?.focus({ preventScroll: true });
   }
 
   // =============================================================================================
@@ -310,13 +430,12 @@ export function criarMonitores({ cena, api, raiz }) {
   }
 
   function renderGrafico(t) {
-    if (aba.grafico === 'caixa') return renderCaixa(t);
     const lista = projetosNoAr();
     const p = projetoAtivo();
     if (!p) {
       t.corpo.append(
-        h('p', { class: 'pm-vazio' }, 'Nenhum projeto no ar. Imprima uma ideia e lance no monitor Projeto.'),
-        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-k': 'ir-projeto', onclick: () => { aba.projeto = 'impressora'; render('projeto'); cena.irParaMonitor(2); } }, 'Ir para o monitor Projeto'),
+        h('p', { class: 'pm-vazio' }, 'Nenhum projeto no ar. Imprima uma ideia na Impressora (monitor 3) e lance.'),
+        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-k': 'ir-projeto', onclick: () => { trazer('impressora'); cena.irParaMonitor(2); } }, 'Abrir a Impressora'),
       );
       return;
     }
@@ -400,6 +519,23 @@ export function criarMonitores({ cena, api, raiz }) {
     sobre.append(palco, legenda, numero, pular);
     tela.append(sobre);
     let relogio = 0, terminou = false;
+    // número gigante: por cima de tudo, centrado no monitor do gráfico; some sozinho depois de um tempo
+    let gigante = null, timerGigante = 0;
+    const mostrarGigante = (valor) => {
+      if (!gigante) {
+        const r = tela.getBoundingClientRect();
+        const pulo = h('span', { class: 'pm-gigante__pulo' });
+        gigante = h('div', { class: `pm-gigante${menos() ? ' pm-gigante--parado' : ''}`, 'data-pm': 'ganho-gigante', 'aria-hidden': 'true' }, pulo);
+        gigante.dataset.cx = String(r.left + r.width / 2);
+        gigante.style.top = `${Math.round(r.top + r.height * 0.42)}px`;
+        document.body.append(gigante);
+      }
+      gigante.firstChild.textContent = `+${din(valor)}`;
+      // centrado no monitor, mas sem passar da borda da janela do navegador
+      const meia = gigante.offsetWidth / 2, cx = Number(gigante.dataset.cx);
+      gigante.style.left = `${Math.round(Math.max(meia + 8, Math.min(window.innerWidth - meia - 8, cx)))}px`;
+    };
+    const tirarGigante = () => { clearTimeout(timerGigante); gigante?.remove(); gigante = null; };
 
     const resumo = () => {
       if (terminou) return;
@@ -407,6 +543,8 @@ export function criarMonitores({ cena, api, raiz }) {
       palco.style.transform = '';
       pintarCurva(cv, v, { prog: 1, queda: 1 });
       numero.textContent = `+${din(ganho)}`;
+      mostrarGigante(ganho);
+      timerGigante = setTimeout(tirarGigante, 2600);
       const calorAgora = visao.estado.calor;
       sobre.replaceChildren(h('div', { class: 'pm-resumo', 'data-pm': 'tapete-resumo' },
         h('h3', { style: 'margin:0' }, `${nome}: tapete puxado`),
@@ -420,6 +558,7 @@ export function criarMonitores({ cena, api, raiz }) {
       sobre.querySelector('[data-pm="tapete-fechar"]').focus({ preventScroll: true });
     };
     function fechar() {
+      tirarGigante();
       sobre.remove(); cenaAtiva.tapete = false;
       render('grafico');
       if (batidaAdiada) { batidaAdiada = false; abrirBatida(); }
@@ -441,7 +580,7 @@ export function criarMonitores({ cena, api, raiz }) {
       else { queda = 1; legenda.textContent = ''; }
       palco.style.transform = dx ? `translateX(${dx.toFixed(1)}px)` : '';
       pintarCurva(cv, v, { prog, queda });
-      if (s >= T4) numero.textContent = `+${din(Math.round(ganho * (1 - (1 - Math.min(1, (s - T4) / (T5 - T4))) ** 3)))}`;
+      if (s >= T4) { numero.textContent = `+${din(Math.round(ganho * (1 - (1 - Math.min(1, (s - T4) / (T5 - T4))) ** 3)))}`; mostrarGigante(Math.round(ganho * (1 - (1 - Math.min(1, (s - T4) / (T5 - T4))) ** 3))); }
       if (s >= T5) legenda.textContent = frase;
       if (s >= T6) { resumo(); return; }
       relogio = requestAnimationFrame(quadro);
@@ -470,12 +609,11 @@ export function criarMonitores({ cena, api, raiz }) {
     // Calor sempre visível (fica acima das abas)
     const lista = projetosNoAr();
     const algum = lista.map((p) => visao.previas.tapete[p.id]).find(Boolean);
-    t.extra.append(h('div', { class: 'pm-calor', 'data-pm': 'calor' },
+    t.corpo.append(h('div', { class: 'pm-calor', 'data-pm': 'calor' },
       h('div', { class: 'pm-linha' }, h('strong', {}, 'Calor'), h('span', { class: 'pm-num', 'data-pm': 'calor-num' }, `${fmt(visao.estado.calor, 1)} / ${CALOR.maximo}`)),
       meterCalor(algum ? algum.calor : null),
       h('p', { class: 'pm-pequeno' }, visao.estado.batida ? 'A polícia está na porta!' : algum ? `A marca clara mostra onde o Calor iria se você puxar o tapete (+${fmt(algum.calor, 1)}).` : 'Cai devagar enquanto você está aqui.'),
     ));
-    if (aba.comunidade === 'chat') return renderChat(t);
     const total = lista.reduce((s, p) => s + Math.round(p.trouxas), 0);
     const numEl = h('div', { class: 'pm-grande', 'data-pm': 'trouxas' }, fmt(contadorTrouxas));
     t.corpo.append(h('div', { class: 'pm-card' }, h('p', { class: 'pm-pequeno' }, 'Trouxas entrando'), numEl));
@@ -524,9 +662,6 @@ export function criarMonitores({ cena, api, raiz }) {
   // =============================================================================================
   // MONITOR 3: PROJETO (no ar · ideias · impressora · porão)
   // =============================================================================================
-  function renderProjeto(t) {
-    ({ noar: renderNoAr, ideias: renderIdeias, impressora: renderImpressora, porao: renderPorao })[aba.projeto](t);
-  }
 
   function nomeContrato(p) {
     const c = p.contrato;
@@ -544,17 +679,26 @@ export function criarMonitores({ cena, api, raiz }) {
       t.corpo.append(h('div', { class: 'pm-card', 'data-pm': 'projeto', 'data-projeto': String(p.id) },
         h('div', { class: 'pm-linha' }, h('strong', {}, nomeIdeia(p.ideia)), chipRar(p.raridade)),
         h('p', { class: 'pm-pequeno' }, `${ROTULO_FASE[p.fase]} · ${fmt(p.trouxas)} trouxas · rende ${din(visao.rendimentos[p.id] || 0)}/h`),
-        h('div', { class: 'pm-linha' }, h('span', { class: 'pm-pequeno' }, 'Hype'), h('span', { class: 'pm-num' }, fmt(p.hype))),
-        h('div', { class: 'pm-medidor', role: 'meter', 'aria-label': `Hype de ${nomeIdeia(p.ideia)}`, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(p.hype)) },
-          h('div', { class: 'pm-medidor__cheio', style: `width:${Math.min(100, p.hype)}%` })),
+        medidorConfianca(p),
         p.contrato ? h('p', { class: 'pm-pequeno' }, nomeContrato(p)) : null,
         h('div', { class: 'pm-botoes' },
-          h('button', { type: 'button', class: 'pm-btn', 'data-k': `ver-${p.id}`, onclick: () => { ativoId = p.id; render('grafico'); cena.irParaMonitor(0); } }, previa ? `Tapete: +${din(previa.ganho)}` : 'Ver gráfico'),
+          h('button', { type: 'button', class: 'pm-btn', 'data-k': `ver-${p.id}`, onclick: () => { ativoId = p.id; render('grafico'); trazer('grafico'); cena.irParaMonitor(0); } }, previa ? `Tapete: +${din(previa.ganho)}` : 'Ver gráfico'),
           p.contrato ? null : h('button', { type: 'button', class: 'pm-btn', 'data-k': `contratar-${p.id}`, onclick: () => abrirCelular('contratar', p.id) }, 'Contratar influenciador')),
       ));
     });
     const fim = visao.estado.projetos.filter((p) => !NO_AR.includes(p.fase));
     if (fim.length) t.corpo.append(h('p', { class: 'pm-pequeno' }, `Encerrados: ${fim.map((p) => `${nomeIdeia(p.ideia)} (${ROTULO_FASE[p.fase].toLowerCase()})`).join(', ')}`));
+  }
+
+  /** "Confiança dos trouxas": é o hype do projeto (mesmo número do servidor), em 10 gomos. */
+  function medidorConfianca(p) {
+    const rotulo = visao.rotulos?.confianca ?? visao.estado.rotulos?.confianca ?? T('ui.confianca', 'Confiança dos trouxas');
+    const v = Math.max(0, Math.min(100, p.hype));
+    const cheios = Math.round(v / 10);
+    return h('div', { class: 'pm-confianca', 'data-pm': 'confianca', 'data-nivel': v < 34 ? 'baixa' : v < 67 ? 'media' : 'alta' },
+      h('div', { class: 'pm-confianca__topo' }, h('span', { class: 'pm-confianca__rot' }, rotulo), h('span', { class: 'pm-num' }, fmt(p.hype))),
+      h('div', { class: 'pm-confianca__gomos', role: 'meter', 'aria-label': `${rotulo} em ${nomeIdeia(p.ideia)}`, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(p.hype)) },
+        Array.from({ length: 10 }, (_, i) => h('span', { class: `pm-confianca__gomo${i < cheios ? ' pm-confianca__gomo--cheio' : ''}` }))));
   }
 
   function gaveta() {
@@ -596,7 +740,7 @@ export function criarMonitores({ cena, api, raiz }) {
   async function lancar(cartaId) {
     const r = await api.lancar(cartaId);
     aplicar(r, null, true);
-    if (r.ok) { aba.projeto = 'noar'; ativoId = r.resultado.projeto.id; render('projeto'); render('grafico'); toast('No ar! O tapete libera em alguns segundos.'); }
+    if (r.ok) { trazer('projetos'); ativoId = r.resultado.projeto.id; render('projeto'); render('grafico'); toast('No ar! O tapete libera em alguns segundos.'); }
   }
   async function fundir(ideia) {
     const r = await api.fundir(ideia);
@@ -684,13 +828,20 @@ export function criarMonitores({ cena, api, raiz }) {
     const b = visao.previas.batida;
     const p = acharProjeto(b.projetoId);
     const nome = p ? nomeIdeia(p.ideia) : 'projeto';
+    // textos da batida: o servidor manda prontos (batida.frase, batida.nomeAposRebrand); no modo falso, mesma conta com nomes.js
+    const srv = typeof visao.estado.batida === 'object' && visao.estado.batida ? visao.estado.batida : (b.frase || b.nomeAposRebrand ? b : {});
+    const familia = (pre) => { let n = 0; while (typeof T(`${pre}.${n + 1}`, null) === 'string') n++; return n; };
+    const daFamilia = (pre, k) => { const n = familia(pre); return n ? T(`${pre}.${(((k % n) + n) % n) + 1}`) : ''; };
+    const frase = srv.frase ?? daFamilia('batida', Math.max(0, (visao.estado.contagem?.batidas ?? 1) - 1));
+    const novoNome = srv.nomeAposRebrand ?? (p ? daFamilia('rebrand', p.id - 1 + (p.rebrands || 0)).replaceAll('{nome}', nome) : '');
     return [
+      frase ? h('p', { class: 'pm-batida-frase', 'data-pm': 'batida-frase' }, frase) : null,
       h('p', {}, `O Calor chegou a ${CALOR.maximo}. A polícia quer saber de `, h('strong', {}, nome), '.'),
       h('div', { class: 'pm-opcao' },
         h('strong', {}, 'Fazer rebrand'),
         h('p', {}, `Custa ${din(b.custoRebrand)} de caixa. O Calor cai para ${b.calorDepoisDoRebrand}. ${nome} continua no ar com outro nome.`),
         b.podeRebrand ? null : h('p', { class: 'pm-aviso-texto' }, `Falta ${din(b.custoRebrand - visao.estado.caixa)} para pagar.`),
-        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'rebrand', disabled: !b.podeRebrand, onclick: () => resolverBatida('rebrand') }, `Pagar ${din(b.custoRebrand)} e fazer rebrand`)),
+        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'rebrand', disabled: !b.podeRebrand, onclick: () => resolverBatida('rebrand') }, `Pagar ${din(b.custoRebrand)} e fazer rebrand`, novoNome ? h('span', { class: 'pm-btn__sub', 'data-pm': 'rebrand-nome' }, `vira: ${novoNome}`) : null)),
       h('div', { class: 'pm-opcao' },
         h('strong', {}, 'Perder o projeto'),
         h('p', {}, `${nome} é apreendido e você não ganha mais nada com ele. O Calor cai para ${b.calorDepoisDePerder}.`),
@@ -745,7 +896,7 @@ export function criarMonitores({ cena, api, raiz }) {
     return h('div', { class: 'pm-chat', 'data-pm': 'mensagens' }, com.map((p) => {
       const c = p.contrato, nome = nomeIdeia(p.ideia), quem = nomeInflu(c.influenciador);
       const inf = visao.influenciadores.find((i) => i.id === c.influenciador);
-      const oferta = citar(T('msg.video1.oferta'), nome).replace(/\b5 mil\b/, din(c.p1));
+      const oferta = citar(T('msg.video1.oferta'), nome).replaceAll('{valor}', din(c.p1));
       const bal = [
         h('div', { class: 'pm-balao' }, oferta),
         h('div', { class: 'pm-balao pm-balao--eu' }, `Fechado: ${din(c.p1)} pelo vídeo 1.`),
@@ -847,6 +998,7 @@ export function criarMonitores({ cena, api, raiz }) {
   function atualizar(nova) {
     const antes = visao;
     visao = nova;
+    aoAtualizar?.(nova);
     const e = nova.estado;
     // amostras do gráfico: o que o servidor pagaria agora
     for (const p of projetosNoAr()) {
@@ -875,7 +1027,7 @@ export function criarMonitores({ cena, api, raiz }) {
     const hype = Math.round(Math.max(0, ...projetosNoAr().map((p) => p.hype)));
     const sig = JSON.stringify([trouxas, hype, luxos, celularNovo]);
     if (sig !== ultimoEstadoCena) { ultimoEstadoCena = sig; cena.definirEstado({ trouxas, hype, luxos, celularNovo }); }
-    for (const id of Object.keys(telas)) render(id, false);
+    for (const id of Object.keys(MESAS)) render(id, false);
     if (janelaCelular) {
       const sc = JSON.stringify([e.projetos.map((p) => p.contrato), e.caixa, abaCelular, projetoContratar, e.contagem.tapetes]);
       if (sc !== sigCelular) { sigCelular = sc; janelaCelular.atualizar(conteudoCelular()); }
@@ -886,12 +1038,12 @@ export function criarMonitores({ cena, api, raiz }) {
   function pulsar() {
     const influ = andarChat();
     if (influ) avisar(1);
-    if (aba.comunidade === 'chat') render('comunidade');
+    renderApp('chat');
   }
 
-  telas.grafico = montarTela('grafico', renderGrafico);
-  telas.comunidade = montarTela('comunidade', renderComunidade);
-  telas.projeto = montarTela('projeto', renderProjeto);
+  const RENDER = { grafico: renderGrafico, caixa: renderCaixa, comunidade: renderComunidade, chat: renderChat, projetos: renderNoAr, ideias: renderIdeias, impressora: renderImpressora, porao: renderPorao };
+  Object.keys(MESAS).forEach(montarMesa);
+  window.matchMedia('(max-width: 720px)').addEventListener('change', () => Object.keys(MESAS).forEach(arrumar));
   // pré-chat com a comunidade já falando
   chat.push({ autor: 'Joaozinho123', texto: 'quando lambo?' }, { autor: 'Marilu Fiel', texto: 'confia que sobe, tô dentro com tudo' });
 

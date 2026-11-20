@@ -137,3 +137,32 @@ describe('R24 3 — cursor do ranking', () => {
     } finally { await fechar() }
   })
 })
+
+describe('R24 ofensa curta composta', () => {
+  // ofensa curta que não aparece em nome comum barra em qualquer posição; a que colide com nome real barra como palavra,
+  // com plural/sufixo ou enfeite (nazis, naziboy, xXnaziXx), sem barrar o nome real
+  const COMPOSTAS = ['fuckyou', 'fucker', 'Fuckboy', 'fu_ck', 'Fu ck', 'f u c k e r', 'shithead', 'bullshit', 'nazis', 'naziboy', 'xXnaziXx', 'pornhub', 'cuntface', 'sluts', 'slutty']
+  const NOMES = ['Nazira', 'Shitara', 'Hoshitaro', 'Slutsky', 'Scunthorpe', 'Yoshito', 'Devon', 'Sigma', 'Downer']
+
+  test('compostas barradas e nomes reais passam (função)', () => {
+    for (const ruim of COMPOSTAS) assert.equal(apelidoBarrado(ruim), true, ruim)
+    for (const bom of NOMES) assert.equal(apelidoBarrado(bom), false, bom)
+  })
+
+  test('compostas barradas e nomes reais passam (conta nova)', async () => {
+    const { api, fechar } = await subir()
+    try {
+      for (const ruim of COMPOSTAS) assert.equal((await api('POST', '/api/conta', null, { apelido: ruim })).json?.erro?.codigo, 'APELIDO_BARRADO', ruim)
+      for (const bom of NOMES) assert.equal((await api('POST', '/api/conta', null, { apelido: bom })).status, 201, bom)
+    } finally { await fechar() }
+  })
+
+  test('compostas barradas e nomes reais passam (troca de apelido)', async () => {
+    const { api, conta, fechar } = await subir()
+    try {
+      const a = await conta()
+      for (const ruim of COMPOSTAS) assert.equal((await api('POST', '/api/reino/apelido', a.token, { apelido: ruim })).json?.erro?.codigo, 'APELIDO_BARRADO', ruim)
+      for (const bom of NOMES) assert.equal((await api('POST', '/api/reino/apelido', (await conta()).token, { apelido: bom })).status, 200, bom)
+    } finally { await fechar() }
+  })
+})

@@ -128,7 +128,8 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     salvar: db.prepare("UPDATE reino_partidas SET estado = ?, comandos = ?, tempos = ?, novidades = ?, seq = ?, tocada_em = ? WHERE id = ? AND seq = ? AND status = 'aberta'"),
     guardarResposta: db.prepare('UPDATE reino_partidas SET resposta = ? WHERE id = ?'),
     contaCriada: db.prepare('SELECT criada_em FROM contas WHERE id = ?'),
-    temRanking: db.prepare("SELECT 1 FROM reino_partidas WHERE conta_id = ? AND modo = 'ranking' AND status = 'terminada' AND conferida = 1 LIMIT 1"),
+    // R20: mesmo corte do placarDoDia — ranking terminado ANTES do fim do dia da estrada (2º parâmetro)
+    temRanking: db.prepare("SELECT 1 FROM reino_partidas WHERE conta_id = ? AND modo = 'ranking' AND status = 'terminada' AND conferida = 1 AND terminada_em < ? LIMIT 1"),
     terminar: db.prepare(`UPDATE reino_partidas SET status = 'terminada', estado = NULL, motivo = ?, pontos = ?, vencidas = ?, rodada = ?,
                           conferida = ?, terminada_em = ? WHERE id = ? AND status = 'aberta'`),
     paradas: db.prepare("SELECT * FROM reino_partidas WHERE conta_id = ? AND status = 'aberta' AND tocada_em < ?"),
@@ -270,14 +271,14 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
 
   /**
    * K2: a conta entra no placar da estrada do dia? Só conta criada antes das 00:00 UTC daquele dia e com 1 partida de
-   * ranking terminada (e conferida). Quem não cumpre joga, mas fica fora do placar: { codigo, motivo }; cumpre: null.
+   * ranking terminada (e conferida) antes do fim daquele dia (R20, o mesmo corte do placar). Quem não cumpre joga, mas fica fora do placar: { codigo, motivo }; cumpre: null.
    */
   function foraDoPlacar(contaId, dia) {
     const criada = q.contaCriada.get(contaId)?.criada_em
     if (criada === undefined || criada >= dia * DIA_MS) {
       return { codigo: 'CONTA_NOVA', motivo: 'Fora do placar hoje: o placar do dia é só de conta criada antes do dia. Jogue à vontade; a partir de amanhã, com 1 partida de ranking terminada, você entra.' }
     }
-    if (!q.temRanking.get(contaId)) {
+    if (!q.temRanking.get(contaId, (dia + 1) * DIA_MS)) {
       return { codigo: 'SEM_RANKING', motivo: 'Fora do placar hoje: termine 1 partida de ranking para entrar no placar da estrada do dia.' }
     }
     return null

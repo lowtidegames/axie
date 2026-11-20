@@ -269,7 +269,7 @@ describe('R14 — anti-trapaça', () => {
       assert.equal(fim.status, 'terminada')
       assert.equal(fim.resultado.motivo, 'sem_vidas')
       const l = s.db.prepare('SELECT * FROM reino_partidas WHERE id = ?').get(fim.id)
-      const r = reproduzir({ semente: l.semente, cartasLiberadas: JSON.parse(l.liberadas), comandos: JSON.parse(l.comandos) })
+      const r = reproduzir({ semente: l.semente, cartasLiberadas: JSON.parse(l.liberadas), comandos: JSON.parse(l.comandos), regra: l.regra }) // regra mudou (R46): partida nova nasce com a regra 2 (gravada na linha)
       assert.equal(r.ok, true)
       assert.equal(r.resultado.pontos, l.pontos)
       assert.equal(r.resultado.vencidas, l.vencidas)

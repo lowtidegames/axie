@@ -6,17 +6,17 @@ Regra: uma por vez, 400 ms entre elas, a maior por último; conquista e carta no
    esperando a vez: First Supper, Clean Plate
 
 == depois da escolha: as conquistas da vitória, uma por vez, e a festa de nível
-    1. brinde tam 2  fase carta       7946 →   10362  (2417 ms)  First Supper
-    2. brinde tam 2  fase carta      10762 →   13179  (2417 ms, 400 ms depois da anterior)  Clean Plate
+    1. brinde tam 2  fase carta       8040 →   10440  (2400 ms)  First Supper
+    2. brinde tam 2  fase carta      10856 →   13273  (2417 ms, 417 ms depois da anterior)  Clean Plate
 
 == queda do chefe (rodada 5)
-    1. aviso  tam 2  fase luta        3294 →    4911  (1617 ms)  Gutbucket the Wide
-    2. aviso  tam 3  fase luta       11727 → na tela  (ainda na tela, 6817 ms depois da anterior)  Gutbucket DOWN!
+    1. aviso  tam 2  fase luta        3545 →    5162  (1617 ms)  Gutbucket the Wide
+    2. aviso  tam 3  fase luta       11995 → na tela  (ainda na tela, 6833 ms depois da anterior)  Gutbucket DOWN!
 
 == fim com recorde
    (nenhuma festa nova passou pela fila)
    sequência do fim (não passa pela fila; ms depois de abrir a tela de fim): o número conta de 0 a 14 a partir de +450; faixa NEW RECORD com confete em +1680; a placa sobe em +2980; botões em +3430; fecho: Fuse Runner 638 DMG IN ROUND 14
 
 == fim sem recorde
-    1. brinde tam 1  fase fim         5123 →    5730  (607 ms)  LINK COPIED: SAME ROAD
+    1. brinde tam 1  fase fim         6520 →    7095  (575 ms)  LINK COPIED: SAME ROAD
    sequência do fim (não passa pela fila; ms depois de abrir a tela de fim): o número conta de 0 a 1 a partir de +450; fecho sem recorde em +770; a placa sobe em +1770; botões em +2220; fecho: Doorman 48 DMG IN ROUND 1

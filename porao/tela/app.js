@@ -3,6 +3,14 @@
 import { criarCena } from './cena.js';
 import { criarApi } from './api.js';
 import { criarMonitores } from './monitores.js';
+import { rodarAbertura } from './abertura.js';
+
+// Abertura (logo → carregando → título → ...) antes do porão. ?pular=abertura vai direto ao porão (testes antigos).
+const raizAbertura = document.getElementById('abertura');
+if (new URLSearchParams(location.search).get('pular') !== 'abertura') await rodarAbertura(raizAbertura);
+raizAbertura.remove();
+document.querySelector('.pagina-topo').hidden = false;
+document.querySelector('.pagina-palco').hidden = false;
 
 const raizCena = document.getElementById('cena');
 const api = await criarApi();

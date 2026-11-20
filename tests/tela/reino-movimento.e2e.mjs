@@ -8,6 +8,9 @@
 // R25 (movimento 2): cada pelotão é desenhado com poucos REPRESENTANTES maiores (PC até 5, celular até 4, um degrau inteiro de pixel
 // de tela acima do cenário) e a plaqueta diz o número real; estrela de impacto em todo golpe (branco de corpo só no golpe forte);
 // arco de aço no bote; a horda entra dentro da tela no PC; moldura de pedra e madeira na luta.
+// R26 (movimento 3): portão sem abraço (vão entre as frentes; só quem dá o bote cruza), plaqueta + vida numa peça só no mastro,
+// UM número somado por pelotão, gesto próprio por tipo, golpes em cascata, poeira no bote, festa da vitória; celular com 3
+// representantes; tiras de golpe e de queda também no celular; foto batalha-reduced-celular.png.
 // Só uma parte: MOV_SO=celular|pc (a bateria completa é sem a variável).
 // Rode pela trava:  node tools/trava-robos.mjs rodar "timeout 900 node tests/tela/reino-movimento.e2e.mjs"
 import { createRequire } from 'node:module'
@@ -105,22 +108,27 @@ async function rodar(fmt) {
   confere(m.fumacas >= 3 && m.tombos >= 1 && m.estouros >= 1, `toda queda vira fumaça (${m.fumacas}); soldado TOMBA (${m.tombos}) e invasor ESTOURA (${m.estouros}): quedas diferentes`)
   confere(m.grupos.pior <= m.repMax && m.grupos.ocultos > 0 && m.repMax <= 9 && m.kRep === (m.e + 1) / m.e, `poucas figuras GRANDES: cada pelotão desenha no máximo ${m.grupos.pior} representantes (teto ${m.repMax}), ${m.grupos.ocultos} de ${m.grupos.vivos} vivos ficam na plaqueta; boneco em escala ×${m.e + 1} de tela (cenário ×${m.e}), pixel inteiro`)
   confere(m.estrelas > 0 && m.varridas > 0 && m.moldura === 1, `todo golpe tem estrela de impacto (${m.estrelas}) e o bote de perto tem o arco da arma (${m.varridas}); a luta está na moldura do castelo`)
+  confere(m.repMax === (pc ? 5 : 3), `representantes por pelotão: ${m.repMax} (PC 5, celular 3: a estrada do celular tem 18 px)`)
+  confere(m.numPorGrupo === 1 && m.plaquetas > 0, `leitura em cima do choque: UM número somado por pelotão ao mesmo tempo (${m.numPorGrupo}); número real e vida do grupo numa peça só, no mastro`)
+  confere(m.gestos.filter((q) => q > 0).length >= 4 && m.cascata > 0 && m.poBote > 0, `peso do golpe: ${m.gestos.filter((q) => q > 0).length} gestos diferentes na luta (corte ${m.gestos[0]}, estocada ${m.gestos[1]}, frigideira ${m.gestos[2]}, bicada ${m.gestos[3]}, tiro ${m.gestos[5]}), ${m.cascata} golpes em cascata, poeira no pé em ${m.poBote} botes`)
   confere(m.passos > 0 && m.poeiras > 0, `marcha com passo e poeira no pé (${m.passos} pisadas, ${m.poeiras} poeirinhas)`)
   confere(m.flechas > 0 && m.fincadas > 0, `tiro em arco que chega e finca (${m.flechas} projéteis, ${m.fincadas} fincadas)`)
   confere(m.somados > 0 && m.numeros > 0 && m.numeros8 === 8, `números de dano: ${m.numeros} nasceram, ${m.somados} golpes SOMADOS num número já na tela; no máximo 8 ao mesmo tempo`)
   confere(m.empurrao > 0 && m.empurrao <= 3, `empurrão de câmera na carga: ${m.empurrao} px (≤ 3)`)
   await page.waitForTimeout(2500)
   m = await med(page)
+  confere(m.quadrosLuta > 30 && m.abracos / m.quadrosLuta < 0.1, `portão sem abraço: em repouso (sem bote, sem apanhar) invasor e soldado ficam a menos de meio boneco em ${m.abracos} de ${m.quadrosLuta} quadros medidos (${(100 * m.abracos / m.quadrosLuta).toFixed(0)}%, < 10%)`)
   confere(m.limite <= TETO_DO_GUIA && m.pico <= m.limite, `teto de partículas: pico ${m.pico} de ${m.limite} (guia de estilo: ≤ ${TETO_DO_GUIA})`)
   confere(m.tremidaMax <= 6, `tremida de no máximo 6 px (${m.tremidaMax})`)
   confere(porSegundo(m.flashes) <= 3 && porSegundo(m.brancos) <= 3, `clarões ≤ 3 por segundo (${porSegundo(m.flashes)}) e quadros brancos de "apanhou" ≤ 3 por segundo (${porSegundo(m.brancos)}; ${m.brancos.length} no total)`)
 
   // ---------------------------------------------------------------- 2. tiras do golpe, da flecha e das quedas (luta nova a cada uma)
-  if (pc) {
-    await lutaDoMotor(page, ['T01', 'T03', null, null, null, null], ['muncher', 'muncher', 'muncher', 'brute', 'muncher', 'muncher']); await tira(page, 'ataque-corpo-a-corpo', { gatilho: 'golpe', cada: 3, w: 84, h: 64, zoom: 2, dx: -8 })
-    await lutaDoMotor(page, ['T04', 'T04', 'T05', 'T04', null, null], [...Array(10).fill('muncher'), 'brute', 'brute']); await tira(page, 'flecha', { gatilho: 'flecha', cada: 2, w: 170, h: 70, dx: -62 })
-    await K(page, (k) => k.batalhaCheia()); await tira(page, 'morte-do-invasor', { gatilho: 'morteInvasor', cada: 5, w: 80, h: 64, zoom: 2 })
-    await lutaDoMotor(page, ['T01', null, null, null, null, null], [...Array(26).fill('muncher'), 'brute', 'brute', 'brute']); await tira(page, 'morte-do-soldado', { gatilho: 'morteAliado', cada: 7, w: 80, h: 64, zoom: 2, dx: 6 })
+  { const N = (n) => (pc ? n : n + '-celular'), W = pc ? 84 : 78, H = pc ? 64 : 58
+    await lutaDoMotor(page, ['T01', 'T03', null, null, null, null], ['muncher', 'muncher', 'muncher', 'brute', 'muncher', 'muncher']); await tira(page, N('ataque-corpo-a-corpo'), { gatilho: 'golpe', cada: 3, w: W, h: H, zoom: 2, dx: -8 })
+    if (pc) { await lutaDoMotor(page, ['T04', 'T04', 'T05', 'T04', null, null], [...Array(10).fill('muncher'), 'brute', 'brute']); await tira(page, 'flecha', { gatilho: 'flecha', cada: 2, w: 170, h: 70, dx: -62 }) }
+    // no pior aperto (o portão, com a luta cheia)
+    await K(page, (k) => k.batalhaCheia()); await tira(page, N('morte-do-invasor'), { gatilho: 'morteInvasor', cada: 5, w: W, h: H, zoom: 2 })
+    await lutaDoMotor(page, ['T01', null, null, null, null, null], [...Array(26).fill('muncher'), 'brute', 'brute', 'brute']); await tira(page, N('morte-do-soldado'), { gatilho: 'morteAliado', cada: 7, w: W, h: H, zoom: 2, dx: 6 })
   }
 
   // ---------------------------------------------------------------- 3. estouro: bola de fogo + anel + brasas
@@ -138,6 +146,7 @@ async function rodar(fmt) {
   m = await med(page)
   confere(m.chefeEtapas.join('') === '1234', `queda do chefe em etapas: cambaleia → ajoelha → tomba → poeira e fumaça (${m.chefeEtapas.join(' ')})`)
   confere(m.zoomMax > 1 && m.zoomMax <= (m.e + 1) / m.e + 0.001 && m.tremidaMax <= 6 && porSegundo(m.flashes) <= 3, `queda do chefe: zoom macio até ×${m.zoomMax.toFixed(2)}, tremida ${m.tremidaMax} px, ${porSegundo(m.flashes)} clarões/s`)
+  confere(m.fim === 'festa', `fim da luta: quem venceu comemora antes do painel (${m.fim})`)
   confere(await espera(page, () => window.__kmCena.cam.zoom === 1, 8000), 'o zoom volta a ×1 sozinho')
 
   // ---------------------------------------------------------------- 5. quadros por segundo com 150+ bonecos desenhados e animando
@@ -193,6 +202,7 @@ async function rodar(fmt) {
   await K(pm, (k, C) => { k.batalhaCheia(); C.zerarMedidas() })
   confere(await espera(pm, () => { const d = window.__kmCena.med; return d.bote >= 6 && d.fumacas >= 3 }, 45000), 'Reduced motion: a luta acontece e dá para ver (golpes e quedas)')
   await pm.waitForTimeout(2500)
+  if (!pc) { const arq = path.join(TIRAS, '..', 'batalha-reduced-celular.png'); await pm.screenshot({ path: arq }); const kb = (await stat(arq)).size / 1024; confere(kb < 400, `foto batalha-reduced-celular.png (batalha com Reduced motion): ${kb.toFixed(0)} KB (< 400)`) }
   m = await med(pm)
   confere(m.tremidaMax === 0 && m.flashes.length === 0 && m.brancos.length === 0 && m.zoomMax === 1 && m.camX === 0 && m.empurrao === 0, `Reduced motion: sem tremida (${m.tremidaMax}), sem clarão (${m.flashes.length}), sem quadro branco (${m.brancos.length}), sem zoom (×${m.zoomMax}), câmera parada, sem empurrão`)
   confere(m.bote > 0 && m.fumacas > 0 && m.numeros > 0, `Reduced motion: o movimento essencial continua (${m.bote} botes, ${m.fumacas} quedas em fumaça, ${m.numeros} números de dano)`)

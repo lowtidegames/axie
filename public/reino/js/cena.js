@@ -41,6 +41,7 @@ export function criarCena(canvas, CONFIG) {
     flashes: [], flashAte: 0, flashCor: '#FFF6E0', tremidaMax: 0, picoParticulas: 0, brancos: [],
     relogio: 0, // ms visuais (animações)
     destaque: null, // { terrenos: Set, vizinhos: Set, forte: n }
+    revanche: null, troca: null, // R46: { marcado, dica } (o app diz o que acender) e a troca de 2 terrenos em curso (C.trocar)
     pulo: new Float64Array(7), casteloTreme: 0, dessatura: 0,
     // bonecos (estrutura de vetores: nada de objeto por quadro)
     n: 0, lado: new Uint8Array(MAXU), peca: new Array(MAXU), vari: new Uint8Array(MAXU), x0: new Float32Array(MAXU), v: new Float32Array(MAXU), t0: new Float32Array(MAXU),
@@ -62,7 +63,7 @@ export function criarCena(canvas, CONFIG) {
     // medidas do movimento (para o teste e o relato): quantas vezes cada etapa aconteceu
     med: null,
   }
-  C.zerarMedidas = () => { C.med = { antecipa: 0, bote: 0, volta: 0, seq: [], seqDe: -1, fumacas: 0, quadrosLuta: 0, abracos: 0, plaquetas: 0, gestos: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], cascata: 0, poBote: 0, festas: 0, recuos: 0, numPorGrupo: 0, vaoMin: 99, riscoK: 0, hordaComGrande: 0, quadrosChefe: 0, chefeColado: 0, riscosFortes: 0, frenteBaixa: 0, riscos: 0, hordaMax: 0, silMax: 0, silhuetas: 0, vagas: 0, vagaPassos: 0, pisoes: 0, enquadre: 0, duelo: 0, ladoErrado: 0, caixas: 0, quadrosPortao: 0, vaoRepouso: 999, foraDoPortao: 0, cortados: 0, fumacinhas: 0, fumacasJuntas: 0, fumacasSeguradas: 0, nuvens: 0, fumacaMs: 0, fumacaLado: 0, numAlternados: 0, numEsperas: 0, numColados: 0, quadrosNum: 0, brilhos: 0, sombrasNoPulo: 0, bandeirolas: 0, gruposCaidos: 0, pausaGrupoMs: 0, lentoMs: 0, repsCaidos: 0, repsMax: 0, estrelas: 0, varridas: 0, tombos: 0, estouros: 0, chefeEtapas: [], passos: 0, poeiras: 0, viradas: 0, flechas: 0, fincadas: 0, explosoes: 0, aneis: 0, somados: 0, numeros: 0, zoomMax: 1, empurrao: 0, brancosLog: [], meioPixel: 0, trechos: [], chefeContorno: 0, apagados: 0, chefeBarra: 0, chefeBarraRet: null, numPxMin: 999, perto: 0, pertoCortes: 0, pertoZoom: 1, setaDesviada: 0 }; C.tremidaMax = 0; C.picoParticulas = 0; C.flashes.length = 0 }
+  C.zerarMedidas = () => { C.med = { antecipa: 0, bote: 0, volta: 0, seq: [], seqDe: -1, fumacas: 0, quadrosLuta: 0, abracos: 0, plaquetas: 0, gestos: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], cascata: 0, poBote: 0, festas: 0, recuos: 0, numPorGrupo: 0, vaoMin: 99, riscoK: 0, hordaComGrande: 0, quadrosChefe: 0, chefeColado: 0, riscosFortes: 0, frenteBaixa: 0, riscos: 0, hordaMax: 0, silMax: 0, silhuetas: 0, vagas: 0, vagaPassos: 0, pisoes: 0, enquadre: 0, duelo: 0, ladoErrado: 0, caixas: 0, quadrosPortao: 0, vaoRepouso: 999, foraDoPortao: 0, cortados: 0, fumacinhas: 0, fumacasJuntas: 0, fumacasSeguradas: 0, nuvens: 0, fumacaMs: 0, fumacaLado: 0, numAlternados: 0, numEsperas: 0, numColados: 0, quadrosNum: 0, brilhos: 0, sombrasNoPulo: 0, bandeirolas: 0, gruposCaidos: 0, pausaGrupoMs: 0, lentoMs: 0, repsCaidos: 0, repsMax: 0, estrelas: 0, varridas: 0, tombos: 0, estouros: 0, chefeEtapas: [], passos: 0, poeiras: 0, viradas: 0, flechas: 0, fincadas: 0, explosoes: 0, aneis: 0, somados: 0, numeros: 0, zoomMax: 1, empurrao: 0, brancosLog: [], meioPixel: 0, trechos: [], chefeContorno: 0, apagados: 0, chefeBarra: 0, chefeBarraRet: null, numPxMin: 999, perto: 0, pertoCortes: 0, pertoZoom: 1, setaDesviada: 0, trocas: 0, trocaDesvio: 0, trocaQuadros: 0, trocaSome: 0 }; C.tremidaMax = 0; C.picoParticulas = 0; C.flashes.length = 0 }
   C.zerarMedidas()
   const CORES_P = ['#FFF6E0', '#E8C48A', '#FFD248', '#CC3C3E', '#4884E8', '#9248C8', '#7CC950', '#E0489B', '#CECAD8', '#B6F03C', '#E87E2E', '#704C3E']
   const BRASA = ['#704C3E', '#CC3C3E', '#E87E2E', '#FFD248', '#FFF6E0']
@@ -697,13 +698,15 @@ export function criarCena(canvas, CONFIG) {
     }
     for (let k = 0; k < 6; k++) {
       const tr = T[k]; if ((tr.estrada[0] + tr.estrada[1]) / 2 !== yTier) continue
-      const X = Math.round(C.ox + tr.x - cx), Y = C.oy + tr.base_predio + ty, t0 = C.terrenos[k], pul = C.pulo[k + 1] > t ? -Math.round(4 * Math.sin(((C.pulo[k + 1] - t) / 300) * Math.PI)) : 0
+      let X = Math.round(C.ox + tr.x - cx), Y = C.oy + tr.base_predio + ty; const t0 = C.terrenos[k], pul = C.pulo[k + 1] > t ? -Math.round(4 * Math.sin(((C.pulo[k + 1] - t) / 300) * Math.PI)) : 0
       if (!t0) { const p = Arte.peca('plot-empty'); if (p) { const q = quadroDaPeca(p, 'plot' + (k + 1), C.menos ? 0 : t); Arte.desenhar(g, p, q, X, Y + 3, false, tinta); { const cv = caixaDoVazio(p, 'plot' + (k + 1)); C.setas.push({ k: k + 1, tipo: 'vazio', x: X - p.ax + cv.x, y: Y + 3 - p.ay + cv.y, w: cv.w, h: cv.h }) } /* a caixa pontilhada com a seta dentro, sem a margem vazia do quadro */ } continue }
       const c = CONFIG.CARTAS[t0.carta], fam = CONFIG.FAMILIAS[c.familia].nome
+      const naTroca = desvioDaTroca(k + 1); if (naTroca) { X += DV.x; Y += DV.yP; g.globalAlpha = TR.alfa } // R46: o que está no terreno cruza de lugar (ou esmaece, com Reduced motion)
       const fl = Arte.peca('plot-flag'); if (fl && fl.anim[fam]) Arte.desenhar(g, fl, quadroDaPeca(fl, fam, C.menos ? 0 : t + k * 90), X - (tr.largura >> 1) + 4, Y + 2, false, tinta)
       if (c.tipo === 'construcao') { const p = Arte.predio(t0.carta), an = p.niveis ? p.niveis[t0.nivel] : Object.keys(p.anim)[0]; Arte.desenhar(g, p, quadroDaPeca(p, an, C.menos ? 0 : t), X + 2, Y + 2 + pul, false, tinta) }
-      if (c.tipo === 'magia') { const p = Arte.magia(t0.carta), est = C.magiaAnim?.[k + 1]; Arte.desenhar(g, p, quadroDaPeca(p, est?.nome || 'idle', est ? t - est.t0 : (C.menos ? 0 : t)), X + 2, C.oy + tr.estrada[0] + 9 + ty + pul, false, tinta) }
+      if (c.tipo === 'magia') { const p = Arte.magia(t0.carta), est = C.magiaAnim?.[k + 1]; Arte.desenhar(g, p, quadroDaPeca(p, est?.nome || 'idle', est ? t - est.t0 : (C.menos ? 0 : t)), X + 2, C.oy + tr.estrada[0] + 9 + ty + pul + (naTroca ? DV.yP : 0), false, tinta) }
       for (let i = 0; i < 5; i++) Arte.icone(g, i < t0.nivel ? 'pin-on' : 'pin-off', X - 14 + i * 6, Y - 2)
+      if (naTroca) g.globalAlpha = 1
     }
   }
   function destaques(t) {
@@ -728,6 +731,80 @@ export function criarCena(canvas, CONFIG) {
       if (viz) { const b = C.menos ? 0 : Math.round(Math.abs(Math.sin(t / 200 + k)) * 3); g.globalAlpha = 1; Arte.icone(g, 'up', x + (w >> 1) - 5, y + 6 - b); Arte.texto(g, '+', x + (w >> 1) + 7, y + 8 - b, { fonte: 'reino-ouro' }) }
     }
     g.globalAlpha = 1
+  }
+
+  // ---------------------------------------------------------------- R46: revanche (a troca de 2 terrenos e o que fica aceso)
+  /** TROCA COM PESO (~350 ms): o que está nos terrenos `a` e `b` (prédio, magia, bandeira, pinos e soldados) cruza de lugar — agacha
+   *  2 px (antecipa), viaja em arco (um por cima, o outro por baixo: os dois não se atropelam), pousa e amassa. Chamar DEPOIS de
+   *  pôr o reino novo em `C.terrenos`: cada peça já está na casa nova e é desenhada vindo da antiga. `some` (Reduced motion): nada
+   *  anda — as peças aparecem no lugar novo esmaecendo. Tudo em pixel inteiro, pelo relógio de verdade. */
+  C.trocar = (a, b, { ms = 350, some = false } = {}) => {
+    const T = C.geo.terrenos, ta = T[a - 1], tb = T[b - 1]; if (!ta || !tb || a === b) return
+    const dx = tb.x - ta.x
+    C.troca = { a, b, t0: performance.now(), ms: some ? Math.min(ms, 220) : ms, some, dx, dyP: tb.base_predio - ta.base_predio, dyS: (tb.estrada[0] + tb.estrada[1] - ta.estrada[0] - ta.estrada[1]) / 2, alto: Math.min(18, 9 + Math.abs(dx) * 0.05) }
+    C.med.trocas++; if (some) C.med.trocaSome++
+  }
+  const TR = { on: false, a: 0, b: 0, f: 0, sobe: 0, amassa: 0, alfa: 1, some: false }, DV = { x: 0, yP: 0, yS: 0 }
+  function passoDaTroca(agora) {
+    const R = C.troca; TR.on = false
+    if (!R) return
+    const ms = Math.max(0, agora - R.t0) // (o relógio do quadro pode vir um nada antes do toque que pediu a troca)
+    if (ms >= R.ms) { C.troca = null; return }
+    TR.on = true; TR.a = R.a; TR.b = R.b; TR.some = R.some; TR.alfa = 1; TR.f = 0; TR.sobe = 0; TR.amassa = 0
+    if (R.some) { TR.alfa = 0.2 + 0.8 * (ms / R.ms); return }
+    const ANT = 0.2, POUSO = 0.86, u = ms / R.ms
+    if (u < ANT) { const q = u / ANT; TR.f = 1; TR.amassa = Math.round(2 * (1 - (1 - q) * (1 - q))) } // antecipa: afunda sem sair do lugar
+    else if (u < POUSO) { const v = (u - ANT) / (POUSO - ANT), e = v * v * (3 - 2 * v); TR.f = 1 - e; TR.sobe = Math.sin(Math.PI * v) * R.alto } // viaja em arco
+    else TR.amassa = Math.round(2 * (1 - (u - POUSO) / (1 - POUSO))) // pousa: amassa e assenta
+    C.med.trocaQuadros++
+  }
+  /** O desvio (px de arte) do que está no terreno `k` neste quadro da troca, em DV. Devolve false se `k` não está trocando. */
+  function desvioDaTroca(k) {
+    if (!TR.on || (k !== TR.a && k !== TR.b)) return false
+    const R = C.troca, s = k === TR.a ? 1 : -1, sobe = Math.round(TR.sobe * (s > 0 ? 1 : 0.35)) // o de `a` passa por cima; o de `b`, por baixo
+    DV.x = Math.round(s * R.dx * TR.f); DV.yP = Math.round(s * R.dyP * TR.f) - sobe + TR.amassa; DV.yS = Math.round(s * R.dyS * TR.f) - sobe + TR.amassa
+    const d = Math.max(Math.abs(DV.x), Math.abs(DV.yP), Math.abs(DV.yS)); if (d > C.med.trocaDesvio) C.med.trocaDesvio = d
+    return true
+  }
+  const terrenoDoSoldado = (i) => Math.floor(C.x0[i] / 100) + 1
+  // as duas setas da troca (uma para cada lado) em pixel, 8×7 com contorno escuro; feitas uma vez por cor
+  const SETAS_TROCA = ['.....#..', '#######.', '.....#..', '........', '..#.....', '.#######', '..#.....'], setasProntas = new Map()
+  function setasDeTroca(cor) {
+    let c = setasProntas.get(cor); if (c) return c
+    c = Px.tela(10, 9); const q = c.getContext('2d')
+    const pinta = (ox, oy) => { for (let y = 0; y < 7; y++) for (let x = 0; x < 8; x++) if (SETAS_TROCA[y][x] === '#') q.fillRect(1 + x + ox, 1 + y + oy, 1, 1) }
+    q.fillStyle = '#2B1E3A'; for (let d = 0; d < 8; d++) pinta(VIZ8[d * 2], VIZ8[d * 2 + 1])
+    q.fillStyle = cor; pinta(0, 0)
+    setasProntas.set(cor, c); return c
+  }
+  const COR_MARCADO = '#FFD248', COR_DICA = '#8EE05A'
+  /** R46 — o que a revanche acende: o terreno MARCADO para a troca (ouro cheio, parado) e o par da DICA (verde, pulsando de leve, com
+   *  as duas setas em cima). Reduced motion: tudo parado. Só desenha; quem decide o que acender é o app (`C.revanche`). */
+  function marcasDaTroca(t) {
+    const R = C.revanche; C.revancheVisto = null
+    if (!R || C.destaque) return
+    const pulso = C.menos ? 1 : 0.5 + 0.5 * Math.sin(t / 260), vis = { marcado: 0, dica: [], pulsa: !C.menos, pulso, rets: {} }
+    for (let k = 1; k <= 6; k++) {
+      const m = R.marcado === k, d = !!R.dica && (R.dica.a === k || R.dica.b === k)
+      if (!m && !d) continue
+      const a = C.areaDoTerreno(k), x = Math.round(a.x) + 1, y = Math.round(a.y), w = a.w - 2, h = a.h, L = m ? 9 : 7
+      g.fillStyle = m ? COR_MARCADO : COR_DICA
+      g.globalAlpha = m ? 0.2 : 0.05 + 0.09 * pulso; g.fillRect(x, y, w, h)
+      g.globalAlpha = m ? 1 : 0.5 + 0.5 * pulso
+      for (const [cx, cy, sx, sy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]]) { g.fillRect(sx > 0 ? cx : cx - L, sy > 0 ? cy : cy - 2, L, 2); g.fillRect(sx > 0 ? cx : cx - 2, sy > 0 ? cy : cy - L, 2, L) }
+      if (m) { g.fillStyle = '#FFF096'; g.fillRect(x, y, L, 1); g.fillRect(x + w - L, y, L, 1); g.fillRect(x + 2, y + h - 1, w - 4, 1) } // aceso: brilho no alto e a linha de baixo fechada
+      g.globalAlpha = 1
+      if (d) {
+        const s = setasDeTroca(COR_DICA), zc = C.zonaChances, b = C.menos ? 0 : Math.round(pulso * 2); let ya = y + 3
+        if (zc && x + (w >> 1) + 5 > zc.x && x + (w >> 1) - 5 < zc.x + zc.w && ya - 2 < zc.y + zc.h && ya + 9 > zc.y) ya = zc.y + zc.h + 3 // nunca por cima da linha das chances
+        C.setas.push({ k, tipo: 'troca', x: x + (w >> 1) - 5, y: ya - 2, w: 10, h: 11 })
+        g.drawImage(s, x + (w >> 1) - 5, ya - b)
+        vis.dica.push(k)
+      }
+      if (m) vis.marcado = k
+      vis.rets[k] = { x, y, w, h }
+    }
+    C.revancheVisto = vis
   }
 
   C.sentido = new Int8Array(MAXU)
@@ -803,7 +880,9 @@ export function criarCena(canvas, CONFIG) {
       // ele está de pé, os outros invasores um tom apagados (menos cor, mais escuros). Parado: vale igual com Reduced motion.
       if (C.ehChefe[i]) { const sil = Arte.folhaSil(p.img, COR_CHEFE, flip); for (let d = 0; d < 8; d++) sprite(sil, p, qs[C.qi[i]], Xp + VIZ8[d * 2] * kk, Yp + VIZ8[d * 2 + 1] * kk, flip, C.pLarg[i], C.pAlt[i], C.pIncl[i] * fc, kk); C.med.chefeContorno++ }
       const apaga = C.chefeVivo && C.lado[i] === 1 && !C.ehChefe[i]; if (apaga) C.med.apagados++
+      const some = TR.on && TR.alfa < 1 && C.lado[i] === 0 && !C.emLuta && (terrenoDoSoldado(i) === TR.a || terrenoDoSoldado(i) === TR.b); if (some) g.globalAlpha = TR.alfa // R46 (Reduced motion): a troca esmaece
       sprite(apaga ? Arte.folhaApagada(p.img, tinta, flip) : Arte.folhaVar(p.img, tin, flip), p, qs[C.qi[i]], Xp, Yp, flip, C.pLarg[i], C.pAlt[i], C.pIncl[i] * fc, C.k[i])
+      if (some) g.globalAlpha = 1
       if (e !== 1) continue
       // ARMA QUE VARRE, pelo GESTO do tipo: arco de aço (corte, frigideira, esmaga), risco reto (estocada); a bicada é só o pescoço. Some em 3 quadros.
       if (C.fase[i] === Mov.FASE.bote && !C.atirador[i]) {
@@ -875,6 +954,7 @@ export function criarCena(canvas, CONFIG) {
         if (x + C.dxe[i] > b) C.dxe[i] = b - x; else if (x + C.dxe[i] < a) C.dxe[i] = a - x } }
       const p = pos(C.xDe(i) + C.dxe[i] - (inv && entra < 1 ? (1 - entra * (2 - entra)) * (60 + (i % 5) * 9) : 0), C.lane[i])
       C.sx[i] = p.x; C.sy[i] = p.y; C.tier[i] = p.tier; C.sentido[i] = p.sent
+      if (TR.on && !inv && e === 1 && !C.emLuta && desvioDaTroca(terrenoDoSoldado(i))) { C.sx[i] += DV.x; C.sy[i] += DV.yS; if (!TR.some && TR.f > 0 && TR.f < 1) desl = true } // R46: os soldados cruzam junto com a casa deles (andando)
       Mov.zerar(PO)
       if (e === 5) { if (t - C.morteT[i] >= (C.nuvem[i] ? 560 : FUM_MS)) C.est[i] = 4; continue }
       const fc = face(i), peso = pesoDe(p0), qs = p0.anim
@@ -1121,7 +1201,7 @@ export function criarCena(canvas, CONFIG) {
     }
     if (C.mix < 1) C.mix = Math.min(1, C.mix + dtReal / 2000)
     viv = 0; for (let i = 0; i < MAXP; i++) if (C.pvida[i] > 0) viv++; for (const e of C.ef) if (e.ate > t) viv++
-    atualizarBonecos(); agrupar()
+    passoDaTroca(agora); atualizarBonecos(); agrupar()
     // o trecho da estrada (e o de onde se vem, na virada de 2 s)
     const tr = C.trecho(), cen = S.cen(tr), de = C.mix < 1 ? S.cen(trechoDe(C.horaDe, C.portoesDe)) : null
     if (C.med.trechos[C.med.trechos.length - 1] !== tr && C.med.trechos.length < 40) C.med.trechos.push(tr)
@@ -1140,7 +1220,7 @@ export function criarCena(canvas, CONFIG) {
     C.setas.length = 0
     for (let tier = 0; tier < C.tiers.length; tier++) { moveis(tier, tinta, t); S.beira(dono, tier, 1, Tv, cxB, tyB); if (tier === C.tiers.length - 1 && C.antesDosBonecos) C.antesDosBonecos(g, t); bonecos(tier, tinta, sombra) }
     etiquetas()
-    destaques(agora)
+    destaques(agora); marcasDaTroca(agora)
     projeteis(t)
     // efeitos animados e partículas
     let np = 0

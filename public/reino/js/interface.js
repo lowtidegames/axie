@@ -23,6 +23,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     sortear: { custo: 0, pode: false }, consertar: { custo: 0, pode: false, visivel: false, destaque: false }, armado: null, trocar: 0,
     espolios: [], espolioPode: [], espolioDesc: [], info: null, infoSel: null, forca: null, vel: 1, mudo: false, aviso: null, vitoria: null, derrota: null, chefe: null, fim: null, arrasto: null,
     apertado: null, selo: null, brinde: null, hordaN: 0, hordaChefe: null, pulsaLutar: false, chances: [], reliquias: [], resumo: null, familias: [],
+    revanche: null, // R46: { ativa, marcado, dica, t0, feita } — a troca grátis depois da derrota (o app monta com `visao.revanche`)
     status: null, replay: null, modoRot: null, // modo servidor: aviso curto (rede, erro do contrato), replay em curso e o rótulo do modo
   }
   const UI = { M, L: {}, botoes: [], desenhou: new Set(), letra: {} }
@@ -141,7 +142,9 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     // um toque no item explica em 1 linha: vidas, pinos do chefe, a horda no portão e a linha "WIN:"
     add('dica-vidas', L.vidas, T.aria.vidas); add('dica-pinos', L.pinos, T.aria.pinos)
     if (M.hordaN) { const r = hordaRet(); if (r.h >= 44 / C.css - 0.01) add('horda', r, T.aria.horda) }
-    if (M.espolios.length) add('dica-ganhe', M.cartaPosta ? L.premios : L.ganhe, T.aria.ganhe)
+    const rv = geoDaRevanche()
+    if (M.espolios.length && !(rv && L.cel)) add('dica-ganhe', M.cartaPosta ? L.premios : L.ganhe, T.aria.ganhe) // (celular: a faixa da revanche fica no lugar da linha "WIN:" enquanto está à vista)
+    if (rv && rv.ativa) add('manter', rv.toque, T.revanche.manter)
     return b
   }
   /** Refaz a lista de botões (chamar quando o modelo muda; não a cada quadro). */
@@ -380,10 +383,10 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   const baseCurta = () => { const R = M.resumo, f = M.fase; return !!R && UI.L.cel && !M.replay && (f === 'luta' || f === 'derrota' || (f === 'vitoria' && !M.vitoria?.pronto)) && R.cartas.filter(Boolean).length <= 2 }
   function mesa() { const L = UI.L; if (!L.cel) return; if ((M.baseCurta = baseCurta())) return; g.fillStyle = COR.ameixa; g.fillRect(0, L.mesa.y - 1, C.VW, 1); g.fillStyle = COR.painel; g.fillRect(0, L.mesa.y, C.VW, L.mesa.h); g.fillStyle = COR.filete; g.fillRect(0, L.mesa.y, C.VW, 1) }
   /** Linhas de informação: no celular numa caixa logo acima da mesa; no PC à esquerda da mão. Linha que começa com "#" sai em ouro. */
-  function faixa(linhas) {
+  function faixa(linhas, sobe = 0) { // `sobe`: quanto a caixa sobe no celular (a faixa da revanche fica entre ela e a mesa)
     const L = UI.L, f = L.faixa
     if (L.cel) {
-      const h = linhas.length * 7 + 3, y = f.y - h
+      const h = linhas.length * 7 + 3, y = f.y - h - sobe
       g.fillStyle = COR.ameixa; g.fillRect(0, y - 1, C.VW, 1); g.fillStyle = COR.painel; g.fillRect(0, y, C.VW, h)
       linhas.forEach((s, i) => Arte.texto(g, s.replace(/^#/, ''), C.VW >> 1, y + 2 + i * 7, { fonte: 'mini', cor: s[0] === '#' ? COR.ouro : COR.creme, alinhar: 'centro' }))
     } else linhas.forEach((s, i) => Arte.texto(g, s.replace(/^#/, ''), f.x, f.y + f.h - (linhas.length - i) * 8, { fonte: s[0] === '#' && Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno' }))
@@ -788,7 +791,8 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   function aviso(agora) {
     const a = M.aviso; if (!a || agora > a.t0 + a.ms || agora < a.t0) return
     const dt = agora - a.t0, cx = C.VW >> 1, base = Math.floor(C.VH * (UI.L.cel ? 0.24 : 0.2)), livre = UI.L.cel && M.fase === 'carta' && !M.cartaPosta ? UI.L.odds.y + UI.L.odds.h + 5 : 0 // celular: abaixo das linhas de chances
-    const y = Math.max(base, livre) - (C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 150) * 8))
+    const rv = UI.L.cel ? null : geoDaRevanche(agora) // PC: a faixa da revanche fica no alto — o letreiro desce para baixo dela
+    const y = Math.max(base, livre, rv ? rv.y + rv.h + 5 : 0) - (C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 150) * 8))
     if (dt > a.ms - 200 && ((agora >> 6) & 1) && !C.menos) return
     const k = a.k || 2, lin = quebrar(a.texto, (C.VW - 8) / k, 'reino-contorno')
     lin.forEach((s, i) => Arte.titulo(g, s, cx, y + i * 10 * k, k, a.ouro))
@@ -849,7 +853,8 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const canto = !cel && (M.fase === 'vitoria' || M.fase === 'luta') // PC na escolha do espólio e na luta: a placa vai para o canto de baixo (nunca por cima dos 3 espólios nem da horda no portão)
     const w = canto ? L.premios.w : Math.min(C.VW - 8, 150)
     const x = canto ? L.premios.x : cel || M.fase === 'fim' ? (C.VW - w) >> 1 : 4
-    const y = canto ? L.premios.y + 15 : M.fase === 'fim' ? L.fimPainel.y - 34 : cel ? (M.fase === 'carta' || M.fase === 'terreno' ? L.odds.y + L.odds.h + 3 : M.fase === 'luta' ? Math.max(48, hudFim) : L.mesa.y - 34) : Math.max(32, hudFim)
+    let y = canto ? L.premios.y + 15 : M.fase === 'fim' ? L.fimPainel.y - 34 : cel ? (M.fase === 'carta' || M.fase === 'terreno' ? L.odds.y + L.odds.h + 3 : M.fase === 'luta' ? Math.max(48, hudFim) : L.mesa.y - 34) : Math.max(32, hudFim)
+    { const rv = cel || canto ? null : geoDaRevanche(agora); if (rv && x < rv.x + rv.w && x + w > rv.x && y < rv.y + rv.h + 2) y = rv.y + rv.h + 3 } // PC: nunca por cima da faixa da revanche
     M.brindeRet = { x, y, w, h: 30 }
     const desce = C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 200) * 20)
     Arte.painel(g, x, y - desce, w, 30)
@@ -891,6 +896,65 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     viu('replay')
   }
 
+  // ---------------------------------------------------------------- R46: a faixa da revanche
+  const REV_FEITA_MS = 1200, COR_DICA = '#8EE05A'
+  /** Onde fica a faixa da revanche neste instante (px de arte), ou null se não está à vista. À vista: fase de carta, sem carta da mão
+   *  escolhida (com carta escolhida o toque no terreno PÕE a carta, como sempre), com a troca valendo — ou logo depois dela ("SWAPPED").
+   *  Celular: faixa de lado a lado colada em cima da mesa (no lugar da linha "WIN:"). PC: faixa centrada no céu, abaixo da meta. Nunca
+   *  por cima das chances nem da meta do HUD. O toque do botão "KEEP AS IS" tem 44 px e não encosta nos terrenos nem nas cartas. */
+  function geoDaRevanche(agora = performance.now()) {
+    const R = M.revanche
+    if (!R || M.fase !== 'carta' || M.replay || M.sel >= 0) return null
+    const feita = !R.ativa && R.feita && agora - R.feita < REV_FEITA_MS
+    if (!R.ativa && !feita) return null
+    const L = UI.L, cel = L.cel, hmin = 44 / C.css, Tr = T.revanche
+    const wT = (fo) => Arte.largura(Tr.titulo[0], fo) + 10 + Arte.largura(Tr.titulo[1], fo), dica = R.ativa && !!R.dica
+    const bw = Arte.largura(Tr.manter, 'mini') + 10, wL = Math.max(Arte.largura(Tr.linha, 'mini'), Arte.largura(Tr.segundo, 'mini'))
+    const max = cel ? C.VW : Math.min(C.VW - 8, 260), fonteT = wT('reino-ouro') + 12 <= max ? 'reino-ouro' : 'mini'
+    if (feita) { const w = cel ? C.VW : Arte.largura(Tr.feita, 'reino-ouro') + 40, h = 17; return { feita: true, ativa: false, x: cel ? 0 : (C.VW - w) >> 1, y: cel ? L.mesa.y - h : revTopoPc(), w, h } }
+    const w = cel ? C.VW : Math.min(max, Math.max(wT(fonteT), dica ? Arte.largura(Tr.dica, 'mini') : 0, wL + bw + 10) + 16)
+    const hT = fonteT === 'mini' ? 8 : 10, h = 3 + hT + (dica ? 8 : 0) + 15, x = cel ? 0 : (C.VW - w) >> 1, y = cel ? L.mesa.y - h : revTopoPc()
+    const bt = { x: x + w - bw - 4, y: y + h - 14, w: bw, h: 12 }
+    // celular: o toque do botão desce por cima da beira da mesa (até o alto das cartas) — os terrenos acabam antes dele
+    const toque = cel ? { x: bt.x - 2, y: C.VH - 78 - hmin, w: bw + 4, h: hmin } : { x: bt.x - 2, y: bt.y - 1, w: bw + 4, h: 14 }
+    return { feita: false, ativa: true, x, y, w, h, hT, fonteT, dica, bt, toque }
+  }
+  /** PC: a faixa fica logo abaixo do HUD de cima (relíquias, meta ou selo "HELD"). */
+  const revTopoPc = () => Math.ceil(Math.max(32 * UI.L.bs, UI.metaRet ? UI.metaRet.y + UI.metaRet.h + 3 : 0))
+  /** A FAIXA DA REVANCHE: "REMATCH · SAME HORDE AGAIN" em ouro, a dica em verde ("THIS SWAP WINS AS IT STANDS": vale para o reino como
+   *  está) e, na última linha, o que fazer ("SWAP TWO PLOTS (FREE)"; com um terreno marcado, "NOW TAP THE OTHER PLOT") ao lado do
+   *  botão pequeno "KEEP AS IS". Depois da troca: "SWAPPED" por um instante. Abre do meio para os lados em 180 ms; Reduced motion: já
+   *  no lugar, parada. */
+  function faixaDaRevanche(agora, V) {
+    const R = M.revanche, Tr = T.revanche, cx = V.x + (V.w >> 1), dt = agora - (V.feita ? R.feita : R.t0)
+    const abre = C.menos || V.feita ? 1 : Math.max(0, Math.min(1, dt / 180)), w = Math.round(V.w * (1 - (1 - abre) * (1 - abre))), x = cx - (w >> 1)
+    g.fillStyle = '#1C1230'; g.globalAlpha = 0.92; g.fillRect(x, V.y, w, V.h); g.globalAlpha = 1
+    g.fillStyle = COR.carmim; g.fillRect(x, V.y - 2, w, 1)
+    g.fillStyle = COR.ouro; g.fillRect(x, V.y - 1, w, 2); g.fillStyle = '#FFF096'; g.fillRect(x, V.y - 1, w, 1)
+    if (!UI.L.cel) { g.fillStyle = COR.ouro; g.fillRect(x, V.y + V.h - 1, w, 1); g.fillStyle = COR.carmim; g.fillRect(x, V.y + V.h, w, 1) }
+    R.ret = { x: V.x, y: V.y - 2, w: V.w, h: V.h + (UI.L.cel ? 2 : 3) }; R.linhas = []; R.btRet = null; R.aberta = abre >= 1
+    if (abre < 1) { viu('revanche'); return }
+    if (V.feita) {
+      const pop = C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 140) * 4)
+      Arte.texto(g, Tr.feita, cx, V.y + 5 - pop, { fonte: 'reino-ouro', alinhar: 'centro' })
+      R.linhas.push(Tr.feita); viu('revanche'); viu('revancheFeita'); return
+    }
+    // título em duas metades com o ponto do meio desenhado (a letra do jogo não tem "·")
+    { const fo = V.fonteT, cor = fo === 'mini' ? COR.ouro : null, w0 = Arte.largura(Tr.titulo[0], fo), w1 = Arte.largura(Tr.titulo[1], fo), x0 = cx - ((w0 + 10 + w1) >> 1), y = V.y + 3
+      Arte.texto(g, Tr.titulo[0], x0, y, { fonte: fo, cor }); g.fillStyle = COR.ouro; g.fillRect(x0 + w0 + 4, y + (fo === 'mini' ? 2 : 3), 2, 2); Arte.texto(g, Tr.titulo[1], x0 + w0 + 10, y, { fonte: fo, cor })
+      R.linhas.push(Tr.titulo.join(' · ')) }
+    let y = V.y + 3 + V.hT
+    if (V.dica) { Arte.texto(g, Tr.dica, cx, y + 1, { fonte: 'mini', cor: COR_DICA, alinhar: 'centro' }); R.linhas.push(Tr.dica); y += 8; viu('revancheDica') }
+    { const b = V.bt, ap = M.apertado === 'manter' ? 1 : 0, s = R.marcado ? Tr.segundo : Tr.linha, larg = b.x - V.x - 8
+      Arte.texto(g, s, V.x + 4 + Math.max(0, (larg - Arte.largura(s, 'mini')) >> 1), b.y + 4, { fonte: 'mini', cor: R.marcado ? COR.ouro : COR.creme }); R.linhas.push(s)
+      // o botão pequeno: plaqueta ameixa com filete, 1 px para baixo quando apertado
+      g.fillStyle = COR.ameixa; g.fillRect(b.x - 1, b.y - 1 + ap, b.w + 2, b.h + 2 - ap); g.fillStyle = '#4E3A66'; g.fillRect(b.x, b.y + ap, b.w, b.h - 1 - ap); g.fillStyle = COR.filete; g.fillRect(b.x, b.y + ap, b.w, 1)
+      Arte.texto(g, Tr.manter, b.x + (b.w >> 1), b.y + 4 + ap, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' })
+      R.btRet = { ...b }; R.linhas.push(Tr.manter) }
+    viu('revanche')
+  }
+  UI.geoDaRevanche = geoDaRevanche
+
   /** Por cima do mundo, ainda com a câmera: selo de LEVEL UP com "antes > depois", contagem da horda no portão, "REPLACE?". */
   C.depoisDoMundo = (gg, t) => {
     const agora = performance.now()
@@ -924,22 +988,23 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     if (f === 'replay') { mesa(); faixaReplay(); hud(agora); aviso(agora); brinde(agora); status(agora); return }
     if (f === 'carta') {
       mesa()
-      const sel = M.sel >= 0 && M.mao[M.sel] && M.infoSel
+      const sel = M.sel >= 0 && M.mao[M.sel] && M.infoSel, rv = geoDaRevanche(agora), rvH = rv && L.cel ? rv.h : 0
       if (!M.cartaPosta) {
         if (!L.cel) premios(true)
         mao(agora)
-        if (sel) { faixa(linhasQueCabem(M.infoSel, 6)); viu('infoCarta') } else if (M.info) { faixa(linhasQueCabem(M.info, 7)); viu('info') } else if (L.cel) premios(false)
+        if (sel) { faixa(linhasQueCabem(M.infoSel, 6)); viu('infoCarta') } else if (M.info) { faixa(linhasQueCabem(M.info, 7), rvH); viu('info') } else if (L.cel && !rv) premios(false)
         ouroBt(L.sortear, 'sortear', 'reroll', M.sortear, agora, T.sortearNome)
         setaCarta(agora)
         chances()
       } else {
         premios(true)
-        if (M.info) { faixa(linhasQueCabem(M.info, 7)); viu('info') }
+        if (M.info) { faixa(linhasQueCabem(M.info, 7), rvH); viu('info') }
         const r = L.lutar2, pulsa = C.menos ? 0 : Math.round(Math.abs(Math.sin(agora / 240)) * 2)
         const d = bt('green', { ...r, y: r.y - pulsa }, 'lutar2'); Arte.texto(g, T.lutar, r.x + (r.w >> 1), r.y + 7 + d - pulsa, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }); g.globalAlpha = 1
         if (C.menos) { moldura(r.x - 2, r.y - 2, r.w + 4, 30); Arte.icone(g, 'play', r.x - 14, r.y + 8); viu('lutarFixo') } // Reduced motion: contorno de ouro e seta parados no lugar do pulso
       }
       if (M.consertar.visivel) ouroBt(L.consertar, 'consertar', 'life', M.consertar, agora, T.consertarNome)
+      if (rv) faixaDaRevanche(agora, rv)
     } else if (f === 'luta') { mesa(); resumo(L.resumo, true); if (!L.cel) premios(true) } else if (f === 'terreno') {
       mesa(); faixa(['#' + T.escolhaTerreno, ...(M.info || [])])
       const e = M.espolios[M.espolioI], ds = M.espolioDesc[M.espolioI]

@@ -45,6 +45,8 @@ export const T = {
   // a regra do chefe do config fala em terrenos sem dizer a unidade ("within 0.5"): a tela acrescenta "plots" (o número é o do config)
   comUnidade: (s) => String(s).replace(/(within \d+(?:\.\d+)?)(?=\.?$)/i, '$1 plots'),
   ganheN: (n) => `WIN: PICK 1 OF ${n}`,
+  // R46 — revanche: a mesma horda de novo e UMA troca grátis de 2 terrenos (o motor decide; a dica é dele e vale para o reino como está)
+  revanche: { titulo: ['REMATCH', 'SAME HORDE AGAIN'], linha: 'SWAP TWO PLOTS (FREE)', segundo: 'NOW TAP THE OTHER PLOT', dica: 'THIS SWAP WINS AS IT STANDS', manter: 'KEEP AS IS', feita: 'SWAPPED', vazios: 'BOTH PLOTS ARE EMPTY' },
   toqueCarta: 'TAP A CARD', sortearNome: 'REROLL', consertarNome: 'REPAIR', chefeAmanha: (c) => `BOSS NEXT ROUND: REPAIR A HEART FOR ${c} GOLD`, dicaConserto: (c) => `SPARE GOLD? REPAIR A HEART FOR ${c}`,
   proximaMao: 'NEXT HAND', unidadeTerreno: (x) => `${x} PLOTS`,
   cartaNova: 'NEW CARD', conquista: 'ACHIEVEMENT', limpo: 'CLEAN PLATE', maisNivel: '+1 LEVEL', pegue: 'PICK 1 REWARD', continua: (r) => `RUN RESUMED: ROUND ${r}`,
@@ -109,7 +111,7 @@ export const T = {
     // fim da partida no modo servidor: a subida no ranking (números do servidor, antes > depois) e o gancho da estrada do dia
     subiu: { rank: (de, para) => `RANK ${de} > ${para}`, entrou: (n) => `ON THE BOARD: RANK ${n}`, liga: (nome) => `NEW TITLE: ${nome}` },
     gancho: { aberta: "TODAY'S ROAD IS OPEN", curso: "TODAY'S ROAD: IN PROGRESS", nova: (quando) => `NEW ROAD IN ${String(quando).toUpperCase()}`, amanha: 'NEW ROAD TOMORROW' },
-    replay: { sair: 'Leave replay', de: (n) => `REPLAY: ${n}`, passo: (r, i, n) => `ROUND ${r} - STEP ${i}/${n}`, fim: (r, p) => `RUN OVER: ${r} ROUND${r === 1 ? '' : 'S'} - SCORE ${p}`, fimVenceu: (r, p) => `HELD: ${r} ROUNDS - SCORE ${p}`, pular: 'SKIP TO FIGHT', rever: 'WATCH AGAIN', voltar: 'BACK', por: (carta, k) => `${carta} > PLOT ${k}`, espolio: 'TOOK A REWARD', desistir: 'GAVE UP' },
+    replay: { sair: 'Leave replay', de: (n) => `REPLAY: ${n}`, passo: (r, i, n) => `ROUND ${r} - STEP ${i}/${n}`, fim: (r, p) => `RUN OVER: ${r} ROUND${r === 1 ? '' : 'S'} - SCORE ${p}`, fimVenceu: (r, p) => `HELD: ${r} ROUNDS - SCORE ${p}`, pular: 'SKIP TO FIGHT', rever: 'WATCH AGAIN', voltar: 'BACK', por: (carta, k) => `${carta} > PLOT ${k}`, espolio: 'TOOK A REWARD', troca: (a, b) => `SWAP: PLOT ${a} AND ${b}`, desistir: 'GAVE UP' },
   },
   aria: {
     carta: (n) => `Card ${n}`, terreno: (k) => `Plot ${k}`, sortear: (c) => `Reroll cards for ${c} gold`, consertar: (c) => `Repair one life for ${c} gold`, vel: (v) => `Speed ${v}x`, som: 'Sound on or off', menu: 'Menu', espolio: (n) => `Take ${n}`, seguir: 'Continue', lutar: 'Fight',

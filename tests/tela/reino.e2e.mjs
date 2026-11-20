@@ -1813,6 +1813,211 @@ async function r44hud(w, h, toque) {
   await ctx.close()
 }
 
+/** R46 — A REVANCHE NA TELA (REINO_SO=r46; 390×844 com toque e 1280×720): depois da derrota a faixa "REMATCH · SAME HORDE AGAIN" com
+ *  "SWAP TWO PLOTS (FREE)"; marcar e desmarcar um terreno; a troca muda os terrenos (o motor decide), as peças cruzam de lugar e a
+ *  faixa some; segunda troca impossível; a dica acende o par que o MOTOR mandou (`visao.revanche.dica`); "KEEP AS IS"; com carta
+ *  escolhida o terreno recebe a carta; Reduced motion sem movimento; partida guardada sem regra (regra 1) não mostra nada; o replay
+ *  mostra a troca. Os cenários (derrota com dica, derrota sem dica) são achados ANTES com o motor, na semente fixa. */
+const R46 = { dica: ['e2e-keepmile-r46-15', 'aleatorio'], semDica: ['e2e-keepmile-r46-1', 'aleatorio'] }
+function planoR46([semente, robo], liberadas) {
+  let e = criarPartida({ semente, cartasLiberadas: liberadas, regra: CFG.PARTIDA.regra }), s = 12345, n = 0
+  const inteiro = (k) => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s % k }, cmds = []
+  while (e.fase !== 'fim' && n++ < 400) {
+    const c = escolher(robo, e, inteiro), r = aplicar(e, c)
+    if (c.tipo === 'batalhar' && !r.eventos.find((x) => x.tipo === 'batalha').vitoria) { const v = visaoDoMotor(r.estado); return { semente, cmds, fim: r.estado.fase === 'fim', dica: v.revanche?.dica ?? null, troca: !!v.revanche?.troca, terrenos: v.terrenos, rodada: e.rodada, chefe: !!v.horda.chefe, depois: r.estado } }
+    cmds.push(c); e = r.estado
+  }
+  return null
+}
+async function r46(fmt) {
+  console.log(`\n=== R46: a revanche na tela (${fmt.nome} ${fmt.w}×${fmt.h}) ===`)
+  const erros = [], ruins = [], Tr = T.revanche, TITULO = Tr.titulo.join(' · ')
+  const novoCtx = (extra = {}) => browser.newContext({ viewport: { width: fmt.w, height: fmt.h }, hasTouch: fmt.toque, isMobile: fmt.toque, deviceScaleFactor: 1, reducedMotion: 'no-preference', ...extra })
+  const abrir = async (page, q) => { await page.goto(base + q); await page.waitForFunction(() => window.__keepmile?.pronto, null, { timeout: 20000 }); await page.waitForTimeout(250) }
+  const toca = async (page, id) => { const l = page.locator('#bt-' + id); if (fmt.toque) await l.tap(); else await l.click() }
+  const fot = async (page, nome) => { const arq = path.join(FOTOS, `r46-${nome}-${fmt.nome}.png`); await page.screenshot({ path: arq }); const kb = (await stat(arq)).size / 1024; confere(kb < 400, `foto r46-${nome}-${fmt.nome}.png com ${kb.toFixed(0)} KB (< 400)`) }
+  const RV = (page) => K(page, (k) => k.revanche())
+  const espiarSons = (page) => page.evaluate(async () => { const m = await import('./som-reino.js'); if (!window.__sons46) { window.__sons46 = []; const o = m.Som.tocar; m.Som.tocar = (n, opc) => { window.__sons46.push(n); return o.call(m.Som, n, opc) } } window.__sons46.length = 0 })
+  const sons46 = (page) => page.evaluate(() => window.__sons46.slice())
+  const apertarLutar = async (page) => { await toca(page, (await page.locator('#bt-lutar2').count()) ? 'lutar2' : 'lutar'); await fase(page, 'luta'); await page.waitForTimeout(120) }
+  /** Leva a partida nova até a derrota do plano (a luta perdida passa pela tela, sem esperar) e abre a rodada da revanche. */
+  const ateARevanche = async (page, P) => { await abrir(page, `?teste=1&nova=1&semente=${P.semente}`); await K(page, (k, c) => k.jogarComandos(c), [...P.cmds, { tipo: 'batalhar' }]); await page.waitForTimeout(1800) } // (a dica espera a fanfarra da derrota: 1,5 s)
+  /** A faixa (px de arte) × as linhas das chances, a meta do HUD e os botões do HUD. */
+  const faixaLivre = (page) => page.evaluate(() => {
+    const k = window.__keepmile, C = window.__kmCena, r = k.revanche().modelo?.ret, e = C.css, toca = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+    if (!r) return null
+    const z = C.zonaChances, m = k.vitoria().metaRet, bts = [...document.querySelectorAll('#toques button')].filter((b) => /^bt-(menu|som|lutar|sortear|consertar|reliquias|dica-vidas|dica-pinos)$/.test(b.id)).map((b) => { const q = b.getBoundingClientRect(); return { id: b.id, x: q.x / e, y: q.y / e, w: q.width / e, h: q.height / e } })
+    return { ret: r, dentro: r.x >= 0 && r.y >= 0 && r.x + r.w <= C.VW + 0.5 && r.y + r.h <= C.VH + 0.5, chances: z ? z.linhas.filter((l) => toca(l, r)).length : 0, temChances: !!z, meta: m ? toca(m, r) : false, temMeta: !!m, botoes: bts.filter((b) => toca(b, r)).map((b) => b.id) }
+  })
+  const ctx = await novoCtx(), page = await ctx.newPage(); vigiar(page, erros, ruins)
+  await abrir(page, `?teste=1&nova=1&semente=${R46.dica[0]}`)
+  const liberadas = await K(page, (k) => k.liberadas())
+  const P = planoR46(R46.dica, liberadas), P0 = planoR46(R46.semDica, liberadas)
+  confere(!!P && !P.fim && P.troca && !!P.dica && !P.chefe && P.terrenos.filter((t) => !t).length >= 2, `R46 motor: a semente ${R46.dica[0]} perde a rodada ${P?.rodada} com troca que vence (dica ${JSON.stringify(P?.dica)}) e 2 terrenos vazios`)
+  confere(!!P0 && !P0.fim && P0.troca && P0.dica === null, `R46 motor: a semente ${R46.semDica[0]} perde a rodada ${P0?.rodada} sem troca que vença (dica null)`)
+  if (!P || !P.dica || !P0) { await ctx.close(); return }
+  const { a: DA, b: DB } = P.dica, vazios = P.terrenos.map((t, i) => (t ? 0 : i + 1)).filter(Boolean), ocupados = P.terrenos.map((t, i) => (t ? i + 1 : 0)).filter(Boolean)
+
+  // ================= 1. antes da derrota nada de revanche; a derrota (botão de verdade) traz a faixa com a dica do motor
+  await K(page, (k, c) => k.jogarComandos(c), P.cmds); await page.waitForTimeout(300)
+  { const r = await RV(page)
+    confere(r.regra === CFG.PARTIDA.regra && r.regra === 2, `R46: a partida nova nasce com a regra do config (${r.regra})`)
+    confere(!!r.visao && r.visao.troca === false && r.modelo === null && r.trocas === 0 && !(await viu(page)).includes('revanche'), 'R46: antes de perder não há faixa, nem troca nas opções') }
+  await espiarSons(page)
+  await apertarLutar(page)
+  await K(page, (k) => k.avancarBatalha()); await fase(page, 'derrota'); await page.waitForTimeout(700)
+  confere(!(await viu(page)).includes('revanche'), 'R46: na tela de derrota a faixa ainda não aparece')
+  await toca(page, 'seguir'); await fase(page, 'carta'); await page.waitForTimeout(120)
+  { const r = await RV(page); confere(!!r.modelo?.ativa && r.modelo.dica === null && (r.cena === null || r.cena.dica.length === 0) && !(await sons46(page)).includes('dica') && !!r.visao.dica, 'R46 dica: espera a fanfarra da derrota acabar (1,5 s) — a faixa já está, o par e o som ainda não') }
+  await page.waitForTimeout(1300)
+  { const r = await RV(page), v = await viu(page)
+    confere(v.includes('revanche') && !!r.modelo?.ativa && r.modelo.aberta, 'R46: depois da derrota a faixa da revanche aparece na fase de carta')
+    confere(r.modelo?.linhas[0] === TITULO && r.modelo.linhas.includes(Tr.linha) && r.modelo.linhas.includes(Tr.manter), `R46: a faixa diz "${r.modelo?.linhas[0]}" e "${Tr.linha}", com o botão "${Tr.manter}"`)
+    confere(JSON.stringify(r.visao.dica) === JSON.stringify(P.dica) && JSON.stringify(r.modelo?.dica) === JSON.stringify(P.dica), `R46 dica: a tela guarda o par que o motor mandou (visao.revanche.dica = ${JSON.stringify(r.visao.dica)})`)
+    confere(v.includes('revancheDica') && !!r.modelo?.linhas.includes(Tr.dica) && JSON.stringify(r.cena?.dica) === JSON.stringify([DA, DB]) && r.cena.marcado === 0, `R46 dica: os terrenos ${r.cena?.dica.join(' e ')} acendem (o par do motor) e a faixa diz "${Tr.dica}"`)
+    confere(r.cena?.pulsa === true, 'R46 dica: o par pulsa (sem Reduced motion)')
+    confere(r.trocas === 6 * 5 / 2 - 1, `R46: as opções trazem as trocas válidas (${r.trocas} = 15 menos o par dos dois vazios)`)
+    confere((await sons46(page)).includes('dica'), 'R46 som: a dica chama o som "dica"')
+    const hv = await K(page, (k) => ({ antes: k.lutas().at(-1)?.rodada, agora: k.visao().rodada, horda: k.visao().horda.ordem.join(',') }))
+    confere(hv.antes === hv.agora && hv.horda === visaoDoMotor(P.depois).horda.ordem.join(','), `R46: a mesma horda de novo na rodada ${hv.agora} (igual à do motor)`) }
+  { const f = await faixaLivre(page)
+    confere(!!f && f.dentro && f.temChances && f.chances === 0 && f.temMeta && !f.meta && f.botoes.length === 0, `R46 ${fmt.nome}: a faixa cabe na tela e não cobre as chances, a meta nem os botões do HUD (faixa ${f ? [f.ret.x, f.ret.y, f.ret.w, f.ret.h].join(',') : '-'})` + (f?.botoes.length ? ' → ' + f.botoes.join(', ') : '')) }
+  await conferirLayout(page, `R46 ${fmt.nome} faixa da revanche`)
+  { const q = await page.locator('#bt-manter').boundingBox(); confere(!!q && q.width >= 43.5 && q.height >= 43.5, `R46 ${fmt.nome}: o toque do "KEEP AS IS" tem ${q?.width.toFixed(0)}×${q?.height.toFixed(0)} px (≥ 44)`) }
+  await fot(page, 'faixa-dica')
+  { // o pulso anda: duas leituras em instantes diferentes dão valores diferentes
+    const p1 = (await RV(page)).cena.pulso; await page.waitForTimeout(240); const p2 = (await RV(page)).cena.pulso
+    confere(Math.abs(p1 - p2) > 0.01, `R46 dica: o pulso muda com o tempo (${p1.toFixed(2)} → ${p2.toFixed(2)})`) }
+
+  // ================= 2. marcar e desmarcar; dois vazios não trocam
+  await toca(page, 'terreno' + DA); await page.waitForTimeout(200)
+  { const r = await RV(page); confere(r.modelo.marcado === DA && r.cena.marcado === DA && r.modelo.linhas.includes(Tr.segundo), `R46: o 1º toque acende o terreno ${DA} e a faixa diz "${Tr.segundo}"`) }
+  await fot(page, 'marcado')
+  await page.waitForTimeout(450); await toca(page, 'terreno' + DA); await page.waitForTimeout(200)
+  { const r = await RV(page); confere(r.modelo.marcado === 0 && r.cena.marcado === 0 && r.modelo.linhas.includes(Tr.linha), 'R46: tocar de novo no mesmo terreno desmarca') }
+  if (!fmt.toque) { // PC: o mesmo pelo teclado (os terrenos são botões de verdade; Esc desmarca)
+    await page.locator('#bt-terreno' + DB).focus(); await page.keyboard.press('Enter'); await page.waitForTimeout(150)
+    const m1 = (await RV(page)).modelo.marcado; await page.keyboard.press('Escape'); await page.waitForTimeout(150)
+    confere(m1 === DB && (await RV(page)).modelo.marcado === 0, 'R46 PC: Enter no terreno marca e Esc desmarca')
+  }
+  { const n0 = (await K(page, (k) => k.comandos())).length
+    await page.waitForTimeout(450); await toca(page, 'terreno' + vazios[0]); await page.waitForTimeout(450); await toca(page, 'terreno' + vazios[1]); await page.waitForTimeout(200)
+    const r = await RV(page), m = await modelo(page)
+    confere(r.modelo.marcado === vazios[0] && (await K(page, (k) => k.comandos())).length === n0 && (m.info || []).join(' ').includes(Tr.vazios), `R46: dois terrenos vazios (${vazios[0]} e ${vazios[1]}) não trocam — "${Tr.vazios}"`)
+    await page.waitForTimeout(450); await toca(page, 'terreno' + vazios[0]); await page.waitForTimeout(150) }
+
+  // ================= 3. a troca: as peças cruzam, os terrenos mudam, "SWAPPED", a faixa some; segunda troca impossível
+  await page.evaluate(() => window.__keepmile.zerarMedidas()); await espiarSons(page)
+  const antes = (await K(page, (k) => k.visao())).terrenos, n0 = (await K(page, (k) => k.comandos())).length
+  await page.waitForTimeout(300); await toca(page, 'terreno' + DA); await page.waitForTimeout(450); await toca(page, 'terreno' + DB)
+  await page.waitForTimeout(150)
+  { const r = await RV(page); confere(!!r.troca && r.troca.a === DA && r.troca.b === DB && r.troca.some === false && r.troca.ms >= 300 && r.troca.ms <= 400, `R46 troca: as peças dos terrenos ${DA} e ${DB} cruzam de lugar (${r.troca?.ms} ms)`) }
+  await fot(page, 'troca-meio')
+  await page.waitForTimeout(500)
+  { const r = await RV(page), v = await K(page, (k) => k.visao()), cmds = await K(page, (k) => k.comandos()), c = await K(page, (k) => k.cena())
+    const igual = (x, y) => JSON.stringify(x) === JSON.stringify(y), nome = (t) => (t ? t.carta + ':' + t.nivel : null)
+    confere(igual(v.terrenos[DA - 1], antes[DB - 1]) && igual(v.terrenos[DB - 1], antes[DA - 1]) && v.terrenos.every((t, i) => i === DA - 1 || i === DB - 1 || igual(t, antes[i])), `R46 troca: o motor trocou o conteúdo dos terrenos ${DA} e ${DB} e só eles`)
+    confere(r.terrenos[DA - 1] === nome(antes[DB - 1]) && r.terrenos[DB - 1] === nome(antes[DA - 1]), 'R46 troca: a cena desenha o reino trocado')
+    confere(cmds.length === n0 + 1 && igual(cmds.at(-1), { tipo: 'trocar', a: DA, b: DB }), `R46 troca: um comando só, ${JSON.stringify(cmds.at(-1))}`)
+    confere(r.troca === null && r.med.trocas === 1 && r.med.desvio >= 20 && r.med.quadros >= 5 && r.med.some === 0, `R46 troca: movimento de verdade (as peças vieram de ${r.med.desvio} px de arte, ${r.med.quadros} quadros) e acabou em ~350 ms`)
+    confere(c.tremidaMax === 0 && c.flashes.length === 0, 'R46 troca: sem tremida e sem flash')
+    confere(!!r.modelo && !r.modelo.ativa && r.modelo.feita && r.modelo.linhas.join() === Tr.feita && (await viu(page)).includes('revancheFeita'), `R46 troca: a faixa diz "${Tr.feita}"`)
+    confere(r.visao.troca === false && r.visao.dica === null && r.trocas === 0 && r.cena === null, 'R46 troca: depois de usada, a troca sai das opções e os destaques apagam')
+    confere((await sons46(page)).includes('troca'), 'R46 som: a troca chama o som "troca"') }
+  await fot(page, 'swapped')
+  await page.waitForTimeout(1300)
+  { const r = await RV(page); confere(r.modelo === null && !(await viu(page)).includes('revanche') && (await page.locator('#bt-manter').count()) === 0, 'R46: depois do "SWAPPED" a faixa some (e o botão com ela)') }
+  { // segunda troca impossível: os toques nos terrenos voltam a explicar o terreno, e o motor recusa o comando
+    const n1 = (await K(page, (k) => k.comandos())).length
+    await toca(page, 'terreno' + ocupados[0]); await page.waitForTimeout(450); await toca(page, 'terreno' + ocupados[1]); await page.waitForTimeout(200)
+    const m = await modelo(page), recusou = await K(page, (k, c) => { try { k.jogarComandos([c]); return false } catch { return true } }, { tipo: 'trocar', a: DA, b: DB })
+    confere((await K(page, (k) => k.comandos())).length === n1 && recusou && !!m.info && (await RV(page)).modelo === null, 'R46: segunda troca impossível (os terrenos só explicam; o motor recusa "trocar")') }
+  { const rp = await K(page, (k) => k.reproduzir()); confere(rp.ok && rp.igual, 'R46: a lista de comandos (com a troca) refaz a mesma partida no motor') }
+  confere((await K(page, (k) => k.partidaSalva()))?.regra === 2, 'R46: a partida guardada no aparelho leva a regra 2')
+  await conferirLayout(page, `R46 ${fmt.nome} depois da troca`)
+
+  // ================= 4. o replay mostra a troca (as peças cruzam; legenda "SWAP")
+  { const tr0 = (await RV(page)).med.trocas, q0 = (await RV(page)).med.quadros, legenda = T.srv.replay.troca(DA, DB)
+    const rep = await K(page, (k, d) => k.replayLocal({ desde: d }), n0)
+    await page.waitForFunction((s) => window.__keepmile.modelo().replay?.linha === s, legenda, { timeout: 5000 }).catch(() => {})
+    await page.waitForTimeout(140)
+    const m = await modelo(page), r = await RV(page)
+    confere(rep.trocas === 1 && m.replay?.linha === legenda && r.med.trocas === tr0 + 1 && r.med.quadros > q0, `R46 replay: o passo da troca aparece com a legenda "${m.replay?.linha}" e as peças cruzando`)
+    await fot(page, 'replay')
+    await toca(page, 'sair-replay'); await fase(page, 'carta'); await page.waitForTimeout(300)
+    confere((await K(page, (k) => k.visao())).terrenos[DA - 1]?.carta === antes[DB - 1]?.carta && (await K(page, (k) => k.erros())).length === 0, 'R46 replay: sair volta à partida como estava') }
+
+  // ================= 5. a luta depois da troca da dica: o motor vence (a dica é honesta: vale para o reino como está)
+  await apertarLutar(page)
+  await K(page, (k) => k.avancarBatalha()); await page.waitForFunction(() => window.__keepmile.fase() !== 'luta', null, { timeout: 20000 })
+  { const u = await K(page, (k) => k.ultimaLuta()); confere(u.motor === true && u.tela === true, 'R46 dica honesta: com a troca da dica (sem carta nova) a mesma horda é vencida') }
+  // recarregar: a partida guardada volta com a regra dela
+  await abrir(page, '?teste=1')
+  confere((await RV(page)).regra === 2 && (await K(page, (k) => k.comandos())).some((c) => c.tipo === 'trocar'), 'R46: recarregar retoma a partida de regra 2 (com a troca nos comandos)')
+
+  // ================= 6. com carta escolhida o terreno recebe a carta; "KEEP AS IS" fecha a faixa
+  await ateARevanche(page, P)
+  confere((await RV(page)).modelo?.ativa === true, 'R46: (cenário 2) a faixa está à vista')
+  await toca(page, 'carta0'); await page.waitForTimeout(250)
+  { const r = await RV(page), v = await viu(page), m = await modelo(page)
+    confere(m.sel === 0 && !v.includes('revanche') && r.cena === null && v.includes('infoCarta') && (await page.locator('#bt-manter').count()) === 0, 'R46: com uma carta da mão escolhida a faixa e os destaques da troca saem (fica a ficha da carta)') }
+  { const carta = (await modelo(page)).mao[0].carta, alvo = vazios[0]
+    await toca(page, 'terreno' + alvo); await page.waitForTimeout(350)
+    const v = await K(page, (k) => k.visao()), r = await RV(page)
+    confere(v.cartaPosta && v.terrenos[alvo - 1]?.carta === carta && r.modelo?.marcado === 0, `R46: com carta escolhida, tocar o terreno ${alvo} PÕE a carta (não marca para a troca)`)
+    confere(r.visao.troca === true && !!r.modelo?.ativa && (await viuJa(page, 'revanche')), 'R46: pôr a carta não gasta a troca (a faixa volta)') }
+  await conferirLayout(page, `R46 ${fmt.nome} faixa com a carta posta`)
+  await fot(page, 'carta-posta')
+  await toca(page, 'manter'); await page.waitForTimeout(250)
+  { const r = await RV(page), v = await viu(page)
+    confere(r.modelo === null && r.cena === null && !v.includes('revanche') && (await page.locator('#bt-manter').count()) === 0, 'R46 "KEEP AS IS": a faixa e os destaques somem nesta rodada')
+    await toca(page, 'terreno' + ocupados[0]); await page.waitForTimeout(200)
+    confere(!!(await modelo(page)).info && (await RV(page)).modelo === null, 'R46 "KEEP AS IS": o toque no terreno volta a explicar o terreno') }
+  await conferirLayout(page, `R46 ${fmt.nome} depois do KEEP AS IS`)
+  await apertarLutar(page)
+  confere((await K(page, (k) => k.fase())) === 'luta', 'R46 "KEEP AS IS": lutar segue normal')
+  await K(page, (k) => k.avancarBatalha()); await page.waitForFunction(() => window.__keepmile.fase() !== 'luta', null, { timeout: 20000 })
+
+  // ================= 7. derrota sem troca que vença: a faixa sem a linha da dica e nenhum par aceso
+  await ateARevanche(page, P0)
+  { const r = await RV(page), v = await viu(page)
+    confere(!!r.modelo?.ativa && r.visao.dica === null && r.modelo.dica === null && !r.modelo.linhas.includes(Tr.dica) && !v.includes('revancheDica') && (r.cena === null || r.cena.dica.length === 0), 'R46 sem dica: a faixa aparece sem "THIS SWAP WINS…" e nenhum terreno pulsa') }
+  await fot(page, 'faixa-sem-dica')
+  await ctx.close()
+
+  // ================= 8. Reduced motion: destaque parado, troca no lugar (esmaece), sem tremida nem flash
+  { const c2 = await novoCtx({ reducedMotion: 'reduce' }), p2 = await c2.newPage(); vigiar(p2, erros, ruins)
+    await ateARevanche(p2, P)
+    const r0 = await RV(p2), pa = r0.cena?.pulso; await p2.waitForTimeout(240); const pb = (await RV(p2)).cena?.pulso
+    confere((await K(p2, (k) => k.cena())).menos && !!r0.modelo?.ativa && r0.modelo.aberta && r0.cena?.pulsa === false && pa === pb && JSON.stringify(r0.cena.dica) === JSON.stringify([DA, DB]), 'R46 Reduced motion: a faixa já chega aberta e o par da dica fica aceso PARADO (sem pulso)')
+    await fot(p2, 'reduced-faixa')
+    await p2.evaluate(() => window.__keepmile.zerarMedidas())
+    await toca(p2, 'terreno' + DA); await p2.waitForTimeout(450); await toca(p2, 'terreno' + DB); await p2.waitForTimeout(60)
+    const rm = await RV(p2); await fot(p2, 'reduced-troca'); await p2.waitForTimeout(500)
+    const r = await RV(p2), c = await K(p2, (k) => k.cena()), v = await K(p2, (k) => k.visao())
+    confere(v.terrenos[DA - 1]?.carta === P.terrenos[DB - 1]?.carta && v.terrenos[DB - 1]?.carta === P.terrenos[DA - 1]?.carta, 'R46 Reduced motion: a troca acontece')
+    confere(r.med.trocas === 1 && r.med.some === 1 && r.med.desvio === 0 && r.med.quadros === 0 && (rm.troca === null || rm.troca.some === true), 'R46 Reduced motion: nenhuma peça anda (troca no lugar, só esmaece)')
+    confere(c.tremidaMax === 0 && c.flashes.length === 0, 'R46 Reduced motion: sem tremida e sem flash')
+    await c2.close() }
+
+  // ================= 9. partida antiga guardada (sem regra = regra 1): continua como era, sem nada de revanche
+  { const c3 = await novoCtx(), p3 = await c3.newPage(); vigiar(p3, erros, ruins)
+    await abrir(p3, '?teste=1&nova=1&semente=' + P.semente)
+    await p3.evaluate((g) => localStorage.setItem('keepmile_partida_v1', JSON.stringify(g)), { semente: P.semente, liberadas, comandos: P.cmds, emLuta: false, desafio: null, melhor: null })
+    await abrir(p3, '?teste=1')
+    const r0 = await RV(p3)
+    confere(r0.regra === 1 && r0.visao === null && (await K(p3, (k) => k.comandos())).length === P.cmds.length, 'R46 regra 1: a partida guardada sem regra volta na regra 1 (visao sem "revanche")')
+    await K(p3, (k) => k.jogarComandos([{ tipo: 'batalhar' }])); await p3.waitForTimeout(450)
+    const r = await RV(p3), u = await K(p3, (k) => k.ultimaLuta()), salva = await K(p3, (k) => k.partidaSalva())
+    confere(u.motor === false && (await K(p3, (k) => k.fase())) === 'carta' && r.visao === null && r.modelo === null && r.cena === null && r.trocas === 0 && !(await viu(p3)).includes('revanche') && (await p3.locator('#bt-manter').count()) === 0, 'R46 regra 1: depois da derrota não aparece faixa, destaque nem botão')
+    confere(!!salva && !('regra' in salva), 'R46 regra 1: a partida antiga continua guardada sem regra')
+    await toca(p3, 'terreno' + ocupados[0]); await p3.waitForTimeout(200)
+    confere(!!(await modelo(p3)).info, 'R46 regra 1: o toque no terreno explica o terreno, como sempre')
+    await fot(p3, 'regra1')
+    await c3.close() }
+  confere(erros.length === 0 && ruins.length === 0, `R46 ${fmt.nome}: zero erro e zero 404` + (erros.length + ruins.length ? ' → ' + [...erros, ...ruins].slice(0, 4).join(' | ') : ''))
+}
+
 const SO =process.env.REINO_SO || '' // para rodar só uma parte enquanto se trabalha nela (a bateria completa é sem isto)
 try {
   if (!SO || SO === 'base' || SO === 'celular') await rodar({ nome: 'celular', w: 360, h: 740, toque: true })
@@ -1834,6 +2039,7 @@ try {
     await r44({ nome: 'celular', w: 390, h: 844, toque: true }); await r44({ nome: 'pc', w: 1280, h: 720, toque: false })
     for (const [w, h, toque] of [[320, 568, true], [360, 740, true], [390, 844, true], [1280, 720, false], [1920, 1080, false]]) await r44hud(w, h, toque)
   }
+  if (!SO || SO === 'r46') { await r46({ nome: 'celular', w: 390, h: 844, toque: true }); await r46({ nome: 'pc', w: 1280, h: 720, toque: false }) }
 } catch (e) { falha('exceção: ' + (e?.stack || e)) }
 await browser.close()
 servidor.close()

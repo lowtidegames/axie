@@ -34,7 +34,9 @@ const agoraMs = () => performance.now()
 // ---------------------------------------------------------------- motor
 function ler() { if (S.on) return; J.v = visao(J.e); J.op = opcoes(J.e) }
 /** A partida em curso fica guardada a cada passo: semente + cartas liberadas + comandos (o motor refaz). */
-function salvar() { if (S.on) return; Guarda.salvarPartida(J.e && J.e.fase !== 'fim' && J.comandos.length ? { semente: J.semente, liberadas: J.liberadas, comandos: J.comandos, emLuta: J.emLuta, desafio: J.desafio, melhor: J.melhor } : null) }
+function salvar() { if (S.on) return; Guarda.salvarPartida(J.e && J.e.fase !== 'fim' && J.comandos.length ? { semente: J.semente, liberadas: J.liberadas, comandos: J.comandos, emLuta: J.emLuta, desafio: J.desafio, melhor: J.melhor, ...regraGuardada() } : null) }
+/** R46: a regra da partida fica guardada junto dela (só quando é ≥ 2: partida antiga guardada, sem o campo, continua na regra 1). */
+const regraGuardada = () => (J.regra >= 2 ? { regra: J.regra } : {})
 /** FIM GUARDADO NA HORA em que o motor decide (antes de animar a luta): pontos, recorde e melhores partidas, uma vez só por partida.
  *  A partida terminada fica no aparelho até o Play again: recarregar volta para a tela de fim dela. */
 function registrarFim() {
@@ -48,7 +50,7 @@ function registrarFim() {
 function guardarFim(visto = false) {
   // modo servidor: no aparelho fica só QUAL partida terminada está à vista (e o que a placa dizia); a partida vem do servidor
   if (S.on) { if (S.id && !J.replay) Srv.guardarFim({ id: S.id, visto, reg: J.fimReg, melhor: J.melhor || null }); return }
-  Guarda.salvarFim({ semente: J.semente, liberadas: J.liberadas, comandos: J.comandos, reg: J.fimReg, desafio: J.desafio, melhor: J.melhor, visto })
+  Guarda.salvarFim({ semente: J.semente, liberadas: J.liberadas, comandos: J.comandos, reg: J.fimReg, desafio: J.desafio, melhor: J.melhor, visto, ...regraGuardada() })
 }
 /** O que está guardado no aparelho é a partida desta aba? (outra aba pode ter jogado a MESMA partida) */
 function discoIgual() {
@@ -64,11 +66,12 @@ function sincronizar() {
   if (salva ? retomar(salva, T.outraAba) : fimS ? retomarFim(fimS) : false) return true
   return false
 }
+const mesmoComando = (c, cmd) => c.tipo === cmd.tipo && (c.carta ?? null) === (cmd.carta ?? null) && (c.terreno ?? null) === (cmd.terreno ?? null) && (c.indice ?? null) === (cmd.indice ?? null) && (c.a ?? null) === (cmd.a ?? null) && (c.b ?? null) === (cmd.b ?? null)
 /** Manda um comando ao motor. Só aceita o que está em `opcoes(estado).comandos`. Devolve os eventos ou null. */
 function mandar(cmd, entao = null) {
   if (S.on) { S.ultimo = mandarAoServidor(cmd, entao); return null }
   if (!discoIgual() && sincronizar()) { Som.tocar('negado'); return null }
-  const valido = J.op.comandos.some((c) => c.tipo === cmd.tipo && (c.carta ?? null) === (cmd.carta ?? null) && (c.terreno ?? null) === (cmd.terreno ?? null) && (c.indice ?? null) === (cmd.indice ?? null))
+  const valido = J.op.comandos.some((c) => mesmoComando(c, cmd))
   const r = valido ? aplicar(J.e, cmd) : { ok: false }
   if (!r.ok) { Som.tocar('negado'); return null }
   const antes = J.e
@@ -258,6 +261,9 @@ function abrirRodada() {
   const v = J.v
   M.fase = 'carta'; M.sel = -1; M.armado = null; M.trocar = 0; M.info = null; M.infoSel = null; M.vitoria = null; M.derrota = null; M.maoT0 = agoraMs() + 150; M.maoRevelada = true; M.pulsaLutar = v.cartaPosta
   M.primeira = v.rodada === 1 && v.terrenos.every((t) => !t); C.destaque = null; J.ouroAlvo = v.ouro
+  // R46 — REVANCHE: o motor (ou o servidor) diz se a troca grátis está valendo e qual par vence (`visao.revanche`; servidor antigo
+  // ou partida de regra 1: o campo não existe e a tela não mostra nada)
+  M.revanche = v.revanche?.troca && J.op.comandos.some((c) => c.tipo === 'trocar') ? { ativa: true, marcado: 0, dica: null, dicaDoMotor: v.revanche.dica ? { a: v.revanche.dica.a, b: v.revanche.dica.b } : null, t0: agoraMs(), feita: 0 } : null
   canvas.style.filter = ''
   C.mudarHora(Arte.horaDaRodada(v.rodada), false, v.rodada); Musica.rodada(v.rodada) // a rodada vai direto para a cena (trecho da estrada)
   montarReino(); Som.tocar('cartaAparece')
@@ -269,7 +275,7 @@ function abrirRodada() {
     Som.tocar('chefeAnuncia', curto ? { forca: 0.6 } : {}); Musica.momento('chefe')
     depois(curto ? 800 : 3200, () => { if (M.fase === 'chefe') seguir() })
   } else {
-    maoNova(150)
+    maoNova(150); anunciarRevanche()
     Musica.momento(v.horda.chefe ? 'chefe' : v.vidas === 1 ? 'porUmFio' : 'construir')
     if (v.proximoChefe.avisado && !v.horda.chefe && J.avisado !== chave) { J.avisado = chave; const c = CONFIG.CHEFES.find((x) => x.id === v.proximoChefe.chefe); festa({ tam: 1, tipo: 'aviso', ms: 3200, texto: T.emRodadas(v.proximoChefe.rodada - v.rodada), sub: `${c.nome}: ${T.comUnidade(c.texto)}`, k: 1, fase: 'carta' }) }
     // véspera do chefe com vida perdida e ouro parado: um lembrete de 1 linha
@@ -278,12 +284,57 @@ function abrirRodada() {
   M.setaCarta = M.primeira && !Guarda.get('dica') && !J.tocouCarta
   UI.mudou()
 }
+// ---------------------------------------------------------------- R46: revanche (a troca grátis de 2 terrenos)
+/** A faixa da revanche entra agora (depois do anúncio do chefe, se houve): a dica chega com o som dela. */
+function anunciarRevanche() {
+  const R = M.revanche; if (!R || !R.ativa) return
+  R.t0 = agoraMs()
+  if (!R.dicaDoMotor) return
+  // a DICA (o par aceso, a linha da faixa e o som dela) só entra depois que a fanfarra da derrota acabou
+  const acender = () => { if (M.revanche !== R || !R.ativa || R.dica) return; R.dica = R.dicaDoMotor; Som.tocar('dica'); UI.mudou() }
+  const espera = (J.derrotaEm || -1e9) + DICA_DEPOIS_DA_DERROTA - agoraMs()
+  if (espera > 0) depois(espera, acender); else acender()
+}
+const DICA_DEPOIS_DA_DERROTA = 1500
+/** A troca está à vista e os terrenos respondem a ela? (sem carta da mão escolhida: com carta, o toque no terreno põe a carta) */
+const revancheAberta = () => M.fase === 'carta' && !!M.revanche?.ativa && M.sel < 0 && !M.replay
+const podeTrocar = (a, b) => J.op.comandos.some((c) => c.tipo === 'trocar' && ((c.a === a && c.b === b) || (c.a === b && c.b === a)))
+/** Toque num terreno com a troca aberta: o 1º fica aceso (tocar de novo desmarca); o 2º manda a troca. Dois vazios não trocam. */
+function marcarTroca(k) {
+  const R = M.revanche
+  if (R.marcado === k) { R.marcado = 0; Som.tocar('toque'); return }
+  if (!R.marcado) { if (!J.op.comandos.some((c) => c.tipo === 'trocar' && (c.a === k || c.b === k))) { Som.tocar('negado'); return } R.marcado = k; R.marcadoEm = agoraMs(); M.info = null; Som.tocar('toque', { tom: 2 }); return }
+  if (cedoDemais(R.marcadoEm)) return // toque repetido não confirma
+  if (!podeTrocar(R.marcado, k)) { Som.tocar('negado'); dizer(['#' + T.revanche.vazios], 2500); return }
+  trocarTerrenos(Math.min(R.marcado, k), Math.max(R.marcado, k))
+}
+const TROCA_MS = 350, TROCA_POUSO = 300
+/** As peças dos dois terrenos cruzam de lugar na cena (peso: antecipa, arco, pouso com poeira); Reduced motion: no lugar, esmaecendo. */
+function animarTroca(a, b) {
+  C.trocar(a, b, { ms: TROCA_MS, some: C.menos })
+  Som.tocar('troca')
+  if (C.menos) return
+  depois(TROCA_POUSO, () => { for (const k of [a, b]) { if (!C.terrenos[k - 1]) continue; const p = C.centroDoTerreno(k); C.efeito('dust', p.x + C.cam.x - 9, p.y + 4); C.efeito('dust', p.x + C.cam.x + 9, p.y + 5, true) } })
+}
+function trocarTerrenos(a, b) {
+  const R = M.revanche
+  mandar({ tipo: 'trocar', a, b }, () => {
+    preencher(); montarReino()
+    R.ativa = false; R.marcado = 0; R.dica = null; R.feita = agoraMs(); M.info = null
+    animarTroca(a, b)
+    depois(1250, () => { if (M.revanche === R) { M.revanche = null; UI.mudou() } })
+    soltarConquistas(); UI.mudou()
+  })
+}
+/** "KEEP AS IS": fecha a faixa e apaga os destaques nesta rodada (pôr carta e lutar seguem como sempre). */
+function manterReino() { M.revanche = null; Som.tocar('toque'); UI.mudou() }
+
 function zerarPartida() {
   semTimers(); Bat.parar(); limparFestas()
   J.comandos = []; J.lutas = []; J.conqPend = []; J.anunciado = ''; J.avisado = ''; J.ultimaLuta = null; J.familias = []; J.chefesVistos = new Set(); J.emLuta = false
   J.fimReg = null; J.melhor = null; J.desafio = null; J.sujo = false; J.relI = -1; J.infoPend = null; J.pularReino = null
-  M.fim = null; M.selo = null; M.resumo = null; M.info = null; M.desafio = null; M.relSel = -1
-  C.fimDeJogo = false
+  M.fim = null; M.selo = null; M.resumo = null; M.info = null; M.desafio = null; M.relSel = -1; M.revanche = null
+  C.fimDeJogo = false; C.troca = null
 }
 /** Partida nova. `semente`: estrada fixa (teste). `desafio` = { semente, rodadas }: a estrada de um amigo ("MESMA ESTRADA" de verdade:
  *  só as cartas do álbum inicial do config, iguais para todos; vale UMA partida). Sem nada: se há uma partida guardada no 2º espaço
@@ -294,7 +345,8 @@ function novaPartida({ semente = null, desafio = null } = {}) {
   J.desafio = desafio; M.desafio = desafio
   J.semente = desafio ? desafio.semente : semente || sementeNova()
   J.liberadas = desafio ? CONFIG.ALBUM.inicial.slice() : Guarda.liberadas(CONFIG.ALBUM)
-  J.e = criarPartida({ semente: J.semente, cartasLiberadas: J.liberadas })
+  J.regra = CONFIG.PARTIDA.regra // R46: partida NOVA nasce com a regra do config (a guardada no aparelho continua com a dela)
+  J.e = criarPartida({ semente: J.semente, cartasLiberadas: J.liberadas, regra: J.regra })
   ler(); M.ouro = J.v.ouro; salvar()
   abrirRodada()
   if (desafio) festa({ tam: 2, tipo: 'aviso', ms: 3000, texto: desafio.rodadas != null ? T.desafio(desafio.rodadas) : T.amigo.estrada, sub: T.amigo.sub, ouro: true, k: kAviso(), fase: 'carta', ao: () => Som.tocar('chefeAnuncia', { forca: 0.5 }) })
@@ -305,10 +357,10 @@ function retomar(p, aviso = null) {
   const lutando = !!p.emLuta && cmds.length > 0 && cmds[cmds.length - 1].tipo === 'batalhar'
   if (lutando) cmds = cmds.slice(0, -1)
   let r
-  try { r = reproduzir({ semente: p.semente, cartasLiberadas: p.liberadas, comandos: cmds }) } catch { return false }
+  try { r = reproduzir({ semente: p.semente, cartasLiberadas: p.liberadas, comandos: cmds, regra: p.regra }) } catch { return false }
   if (!r.ok || r.estado.fase === 'fim') return false
   zerarPartida(); Guarda.salvarFim(null)
-  J.semente = p.semente; J.liberadas = p.liberadas.slice(); J.e = r.estado; J.comandos = cmds.slice()
+  J.regra = p.regra ?? 1; J.semente = p.semente; J.liberadas = p.liberadas.slice(); J.e = r.estado; J.comandos = cmds.slice()
   J.desafio = p.desafio || null; M.desafio = J.desafio; J.melhor = p.melhor || null
   ler(); M.ouro = J.v.ouro; J.familias = J.v.familias.slice(); salvar()
   if (J.v.fase === 'espolio') mostrarEspolio()
@@ -319,10 +371,10 @@ function retomar(p, aviso = null) {
 /** Volta para a tela de fim da partida terminada que está guardada (recarregou na luta final ou na própria tela de fim). */
 function retomarFim(f) {
   let r
-  try { r = reproduzir({ semente: f.semente, cartasLiberadas: f.liberadas, comandos: f.comandos }) } catch { return false }
+  try { r = reproduzir({ semente: f.semente, cartasLiberadas: f.liberadas, comandos: f.comandos, regra: f.regra }) } catch { return false }
   if (!r.ok || r.estado.fase !== 'fim' || !f.reg) return false
   zerarPartida()
-  J.semente = f.semente; J.liberadas = f.liberadas.slice(); J.e = r.estado; J.comandos = f.comandos.slice()
+  J.regra = f.regra ?? 1; J.semente = f.semente; J.liberadas = f.liberadas.slice(); J.e = r.estado; J.comandos = f.comandos.slice()
   J.desafio = f.desafio || null; M.desafio = J.desafio; J.melhor = f.melhor || null; J.fimReg = f.reg
   ler(); M.ouro = J.v.ouro; J.ouroAlvo = J.v.ouro
   fimDaPartida(!!f.visto)
@@ -470,7 +522,7 @@ function aoFimDaLuta(res) {
   } else {
     const nome = res.quem ? (CONFIG.INVASORES[res.quem] || CONFIG.CHEFES.find((c) => c.id === res.quem))?.nome : null
     // derrota como "quase": o quanto da horda caiu é o número do motor (`pctHorda`); a mesma rodada volta com mais uma carta
-    M.fase = 'derrota'; M.derrota = { t0: agoraMs(), linha: nome ? (res.tocouCastelo ? T.chegou(nome) : T.varreu(nome)) : T.derrota, pct: bat.pctHorda, deNovo: J.e.fase !== 'fim' }
+    J.derrotaEm = agoraMs(); M.fase = 'derrota'; M.derrota = { t0: agoraMs(), linha: nome ? (res.tocouCastelo ? T.chegou(nome) : T.varreu(nome)) : T.derrota, pct: bat.pctHorda, deNovo: J.e.fase !== 'fim' }
     M.vidas = J.v.vidas; M.vidaSome = { i: J.v.vidas, ate: agoraMs() + 1200 }
     C.vidas = estadoCastelo(); C.casteloTreme = C.relogio + 600; C.tremer(6, 120)
     Som.tocar('casteloRacha'); depois(500, () => Som.tocar('vidaPerdida')); depois(900, () => Som.tocar('derrota'))
@@ -501,7 +553,7 @@ function festejarReino(R) {
 }
 function seguir() {
   if (M.fase === 'vitoria') { J.pularReino?.(); return }
-  if (M.fase === 'chefe') { M.fase = 'carta'; M.chefe = null; maoNova(); if (J.infoPend) { dizer(J.infoPend, 5000); J.infoPend = null } UI.mudou(); return }
+  if (M.fase === 'chefe') { M.fase = 'carta'; M.chefe = null; maoNova(); anunciarRevanche(); if (J.infoPend) { dizer(J.infoPend, 5000); J.infoPend = null } UI.mudou(); return }
   if (M.fase === 'fim') { if (M.fim && !M.fim.contou) J.pularFim?.(); return } // um toque pula a entrada do fim: tudo no lugar
   if (M.fase === 'derrota') { if (J.e.fase === 'fim') fimDaPartida(); else abrirRodada() }
 }
@@ -619,6 +671,7 @@ function aoTocar(id, d, ev) {
     if (M.fase === 'terreno') { terrenoDoEspolio(d.terreno); return }
     if (M.fase !== 'carta') return
     if (M.sel >= 0 && !M.cartaPosta) { por(d.terreno); return }
+    if (revancheAberta()) { marcarTroca(d.terreno); UI.mudou(); return } // R46: sem carta escolhida e com a troca valendo, o terreno é marcado para a troca
     const t = J.v.terrenos[d.terreno - 1]; Som.tocar('toque')
     if (t) dizer([`#${CONFIG.CARTAS[t.carta].nome} - ${T.nivel} ${t.nivel}`, CONFIG.CARTAS[t.carta].texto], 4000); else M.info = null
     return
@@ -639,6 +692,7 @@ function aoTocar(id, d, ev) {
   else if (id === 'dica-ganhe') { Som.tocar('toque'); dizer(['#' + T.dica.ganhe, ...M.espolioDesc.map((x) => `${x.titulo}: ${x.texto}`)], 6500) }
   else if (id === 'horda') { Som.tocar('toque'); sobreAHorda() }
   else if (id === 'reliquias') sobreAsReliquias()
+  else if (id === 'manter') manterReino()
 }
 addEventListener('pointermove', (ev) => {
   if (!arrasto || ev.pointerId !== arrasto.id || M.fase !== 'carta' || M.cartaPosta) return
@@ -661,7 +715,7 @@ function soltar(ev) {
   if (k && M.sel === a.indice) por(k, true) // arrastar até o terreno já é a confirmação
 }
 addEventListener('pointerup', soltar); addEventListener('pointercancel', soltar)
-addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { if (Telas.aberta()) Telas.fechar(); else if (M.replay) sairDoReplay(); else if (M.sel >= 0) { selecionar(-1); UI.mudou() } } })
+addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { if (Telas.aberta()) Telas.fechar(); else if (M.replay) sairDoReplay(); else if (M.sel >= 0) { selecionar(-1); UI.mudou() } else if (M.revanche?.marcado) { M.revanche.marcado = 0; Som.tocar('toque'); UI.mudou() } } })
 // nada toca antes do primeiro toque ou tecla
 for (const tipo of ['pointerdown', 'keydown', 'touchend', 'click']) addEventListener(tipo, () => Som.destravar(), { capture: true })
 // "voltar" do navegador não sai do jogo: fecha o painel aberto; na partida, pergunta antes de sair
@@ -692,6 +746,7 @@ function quadro(agora) {
     festasTique(agora)
     if (M.ouro !== J.ouroAlvo && agora - ouroEm > 55) { ouroEm = agora; const d = J.ouroAlvo - M.ouro; M.ouro += Math.sign(d) * Math.max(1, Math.floor(Math.abs(d) / 6)); if (d > 0 && M.fase !== 'vitoria') { if (M.ouro === J.ouroAlvo) Som.tocar('ouro', { tom: 2 }); else Som.tocar('ouroTique', { tom: M.ouro % 8, pan: -0.5 }) } }
     { const tr = C.trecho(); if (tr !== trechoSom) { trechoSom = tr; Som.ambiente(tr) } } // R35: o ambiente do trecho (pássaros, vila, pôr do sol, grilos) cruza em 1,5 s
+    C.revanche = revancheAberta() ? M.revanche : null // R46: terreno marcado e par da dica (a cena só desenha)
     UI.novoQuadro(); C.desenhar(agora, dt, dtAnim)
     UI.desenhar(agora)
   } catch (err) { if (!J.erros.includes(String(err))) { J.erros.push(String(err)); console.error(err) } }
@@ -748,7 +803,7 @@ function conferirResposta(cmd, seq, r) {
 /** Manda o comando com `seq`. Rede fora: o MESMO seq de novo até chegar (js/servidor.js) — a jogada não se perde nem vale duas vezes. */
 async function mandarAoServidor(cmd, entao) {
   if (S.ocupado || J.replay || !S.id) return
-  const valido = J.op.comandos.some((c) => c.tipo === cmd.tipo && (c.carta ?? null) === (cmd.carta ?? null) && (c.terreno ?? null) === (cmd.terreno ?? null) && (c.indice ?? null) === (cmd.indice ?? null))
+  const valido = J.op.comandos.some((c) => mesmoComando(c, cmd))
   if (!valido) { Som.tocar('negado'); return }
   const id = S.id, seq = S.seq
   S.ocupado = true
@@ -887,7 +942,7 @@ function ganchoDaEstrada(ed) {
 }
 
 // ---------------------------------------------------------------- REPLAY (modo servidor): a tela de batalha passa os `passos`, sem motor
-const legendaDoPasso = (c) => (c.tipo === 'por' ? T.srv.replay.por(CONFIG.CARTAS[c.carta]?.nome || c.carta, c.terreno) : c.tipo === 'sortear' ? T.sortearNome : c.tipo === 'consertar' ? T.consertarNome : c.tipo === 'espolio' ? T.srv.replay.espolio : c.tipo === 'desistir' ? T.srv.replay.desistir : '')
+const legendaDoPasso = (c) => (c.tipo === 'por' ? T.srv.replay.por(CONFIG.CARTAS[c.carta]?.nome || c.carta, c.terreno) : c.tipo === 'sortear' ? T.sortearNome : c.tipo === 'consertar' ? T.consertarNome : c.tipo === 'espolio' ? T.srv.replay.espolio : c.tipo === 'desistir' ? T.srv.replay.desistir : c.tipo === 'trocar' ? T.srv.replay.troca(c.a, c.b) : '')
 /** Busca o replay (em páginas) e começa a passar. Devolve null ou o código do erro (ESTRADA_DE_HOJE, 429…). */
 async function assistir(id, volta = null) {
   if (J.replay || S.ocupado) return 'PADRAO'
@@ -903,7 +958,7 @@ function iniciarReplay(rep, volta = null, guarda = null, velAntes = null) {
   J.replay = { rep, i: 0, volta, guarda: guarda || { v: J.v, op: J.op, e: J.e, rot: M.modoRot }, velAntes: velAntes ?? Bat.vel }; J.pos = null; J.emLuta = false
   if (Bat.vel > 2) Bat.vel = 2
   M.vel = Bat.vel
-  M.fim = null; M.vitoria = null; M.derrota = null; M.chefe = null; M.info = null; M.selo = null; M.resumo = null
+  M.fim = null; M.vitoria = null; M.derrota = null; M.chefe = null; M.info = null; M.selo = null; M.resumo = null; M.revanche = null
   M.replay = { nome: rep.apelido || '', i: 0, n: rep.passos.length, linha: '', fim: null, passo: null, mvp: null, pular: rep.passos.some((p) => p.comando.tipo === 'batalhar') }; M.modoRot = T.srv.replayRot
   J.v = rep.inicio; J.op = OP_VAZIA(J.v); J.e = { fase: 'replay' }
   M.ouro = J.v.ouro; J.familias = J.v.familias.slice()
@@ -916,6 +971,8 @@ function replayParado(p) {
   if (p) {
     eventosDeTerreno(p.eventos.filter((x) => x.tipo === 'posta' || x.tipo === 'nivel')); M.replay.linha = legendaDoPasso(p.comando); M.replay.mvp = null
     // a carta escolhida e onde foi posta: a carta de verdade na faixa e o terreno aceso
+    // R46: a troca da revanche — as peças dos dois terrenos cruzam de lugar e os dois ficam acesos (legenda "SWAP")
+    { const tr = p.eventos.find((x) => x.tipo === 'troca'); if (tr) { animarTroca(tr.a, tr.b); C.destaque = { terrenos: new Set([tr.a, tr.b]), sobe: new Set(), vizinhos: new Set(), forte: 0 } } }
     if (p.comando.tipo === 'por' && CONFIG.CARTAS[p.comando.carta]) { const k = p.comando.terreno; M.replay.passo = { carta: p.comando.carta, terreno: k, nivel: J.v.terrenos[k - 1]?.nivel || 1 }; C.destaque = { terrenos: new Set([k]), sobe: new Set(), vizinhos: new Set(), forte: 0 } }
   }
   const R = J.replay; M.replay.pular = !!R && R.rep.passos.slice(R.i).some((x) => x.comando.tipo === 'batalhar')
@@ -1049,7 +1106,7 @@ async function comecar() {
   requestAnimationFrame(quadro)
   if (TESTE) {
     const { ligarGanchos } = await import('./teste.js')
-    await ligarGanchos({ J, M: () => M, C, Bat: () => Bat, UI: () => UI, F, Som, Musica, Guarda, Arte, CONFIG, QUADROS, CUSTO, nq: () => nq, lutar, novaPartida, abrirRodada, fimDaPartida, mandar, ler, preencher, aoFimDaLuta, semTimers, limparFestas, festa, reproduzir, resultado, montarExercito, expandirHorda, cartaoDoReino, seguir, menos, CONTORNO, festejarReino, venceuDe, conquista, degrauPerto, maxTipoVisivel, S, Srv, por, sairDoReplay, abrirModo, avisarServidor, maoNova, pularParaLuta })
+    await ligarGanchos({ J, M: () => M, C, Bat: () => Bat, UI: () => UI, F, Som, Musica, Guarda, Arte, CONFIG, QUADROS, CUSTO, nq: () => nq, lutar, novaPartida, abrirRodada, fimDaPartida, mandar, ler, preencher, aoFimDaLuta, semTimers, limparFestas, festa, reproduzir, resultado, montarExercito, expandirHorda, cartaoDoReino, seguir, menos, CONTORNO, festejarReino, venceuDe, conquista, degrauPerto, maxTipoVisivel, S, Srv, por, sairDoReplay, abrirModo, avisarServidor, maoNova, pularParaLuta, iniciarReplay, aplicar, visao, opcoes, aoTocar })
   }
   document.documentElement.dataset.pronto = '1'
 }

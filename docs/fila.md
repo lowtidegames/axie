@@ -118,3 +118,27 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | G5 | GUARDIÃO rodada 5 (revanche) | guardiao | (só lê) | R49 | PRONTO: 76, aprovado sem veto. Pede: dica não pode ficar acesa depois de pôr carta; "(FREE)" → "ONCE"; texto da derrota; KEEP AS IS não perder a troca |
 | R51 | REVANCHE: dica sempre verdadeira (recalcula quando o reino muda) | dev-servidor (Opus) | shared/reino/partida.js, testes r46 | G5 | RODANDO |
 | R52 | REVANCHE polimento: SHOW ME, textos, etiqueta SWAP, festa REVENGE + som, celular um aviso por vez, setinhas | general-purpose (Fable, tela) | app.js, interface.js, cena.js, textos.js, teste.js, som-reino.js, e2e | C6, G5 | RODANDO |
+
+## Porão (jogo-sátira, uso pessoal) — desenho em docs/porao/desenho-v1.md
+
+| Nº | Tarefa | Agente (modelo) | Arquivos que mexe | Depende de | Estado |
+|---|---|---|---|---|---|
+| P1 | Regras puras e config (ciclo do golpe, Calor, impressora, fusão, luxos, prestígio, contrato) | dev-servidor (Opus) | porao/comum/regras.js, config.js, porao/tests/regras.test.js | — | PRONTO (2ab207d juntado; 27 testes; ideias alinhadas em 5 por raridade) |
+| P2 | Nomes provisórios inventados + troca por nomes locais fora do git | dev-servidor (Sonnet) | porao/comum/nomes.js, porao/servidor/nomes-local.mjs, porao/tests/nomes.test.js | — | PRONTO (16650da juntado; 10 testes) |
+| P3 | Cena isométrica do porão + zoom nos 3 monitores (arte provisória trocável) | dev-tela | porao/tela/index.html, estilo.css, sprites.js, cena.js | — | PRONTO (16862f4 juntado; fotos PC e celular, trindade ≥70) |
+| P4 | Banco e ações do jogo | dev-servidor (Opus) | porao/servidor/banco.mjs, jogo.mjs, porao/tests/jogo.test.js | P1, P2 | PRONTO (0219960 juntado; 9 testes; acertar depois: ids dos luxos config × nomes × cena, valor fixo na msg do vídeo 1) |
+| P5 | Servidor HTTP local (127.0.0.1:4900) | dev-servidor | porao/servidor/index.mjs, porao/tests/api.test.js | P4 | PRONTO (048af3c juntado; GO do seguranca: 2 médios e 3 baixos → P8) |
+| P6 | Conteúdo dos 3 monitores, celular da mesa, e2e | dev-tela | porao/tela/monitores.js, api.js, app.js, porao/tests/tela.e2e.mjs | P1, P3 | PRONTO (c9f01c9 juntado; e2e verde no modo falso, 1º tapete 14,9 s; falta servir /shared/rng.js e testar com servidor real) |
+| P7 | Simulador e ritmo dos números | economista (Opus) | porao/ferramentas/simular.mjs, números de porao/comum/config.js | P1 | PRONTO (303c645 juntado; simulador 7/7: 1º tapete 20 s, novidade a cada 3,2 min na 1ª hora, prestígio dia 2,9, Mítico 50% até o dia 7) |
+| P8 | Consertos do parecer de segurança do Porão: só-leitura no GET, relógio de 61 s, links, limpeza de pedidos, cabeçalho X-Porao | dev-servidor | porao/servidor/index.mjs, jogo.mjs, banco.mjs, porao/comum/regras.js, porao/tests/api.test.js, jogo.test.js, regras.test.js | P5 | RODANDO |
+| P9 | Monitores como área de trabalho, número gigante, barra de status, Confiança dos trouxas | dev-tela (Opus) | porao/tela/monitores.js, estilo.css, app.js, cena.js, porao/tests/tela.e2e.mjs | P6 | PRONTO (682bd62 juntado; e2e verde 44 checagens; fontes livres copiadas para porao/tela/fontes) |
+| P10 | Regras: multa na batida sem projeto, vídeo soma trouxas acima do limite, luxos alinhados (config × textos × sprites) | nucleo-do-jogo (Opus) | porao/comum/regras.js, config.js (só ids), porao/servidor/jogo.mjs, testes | P7 | PRONTO (e562e97 juntado; GO do seguranca; 80 testes; simulador 7/7) |
+| P11 | Tela: luxos com nome do servidor, sprites provisórios de ar-condicionado, neon e tela curva | dev-tela | porao/tela/monitores.js, cena.js, sprites.js, porao/tests/tela.e2e.mjs | P10 | PRONTO (ff397dc juntado; e2e verde) |
+| PA | Piloto de arte lado a lado (PixelLab × pacote itch.io) | diretor-de-arte | arte/piloto-porao/ | — | PRONTO (f38a44b juntado; PixelLab ganhou, 11 gerações; lote de produção espera o "sim") |
+| A1 | Régua de arte do Porão + porão inteiro com móveis soltos (âncora de escala) | diretor-de-arte (Fable) | docs/porao/regua-de-arte.md, arte/porao/regua/, docs/custos.md | PA | PRONTO (c11510c; 30 gerações) |
+| A2 | Objetos e gente: Rugrigo em poses, luxos, trouxas, influenciadores, molduras de carta | artista-pixel | arte/porao/objetos/, porao/tela/arte/ (só os seus nomes) | A1 | PRONTO (f622fce; 31 de 70 gerações; 33 peças + 11 retratos) |
+| A3 | Kit de interface: botões, abas, janelas, barras, papéis de parede, ícones, barra de status | artista-pixel | arte/porao/interface/, porao/tela/arte/ui/ | A1 | PRONTO (0f0458f; 20 gerações; papéis de parede a clarear no A4) |
+| A4 | Aplicar o kit em todas as telas e aumentar a grade do porão | dev-tela (Opus) | porao/tela/*.js, estilo.css, tela.e2e.mjs | A2, A3 | PRONTO (cffbb1a juntado; e2e 94 conferências; trindade ≥ 85 em todas as fotos) |
+| P12 | Desenho da abertura + login por assinatura + progresso por conta | arquiteto (Opus) | — (só desenho) | — | RODANDO |
+| P13 | Textos da abertura: vó tutora, aviso da assinatura, sugestões de apelido, historinha | humorista (Fable) | porao/comum/nomes.js, porao/tests/nomes.test.js | — | RODANDO |
+| A5 | Arte da abertura: casa da vó à noite, logo do jogo, logo do estúdio, retrato da vó | artista-pixel | arte/porao/abertura/, porao/tela/arte/ (só nomes novos) | — | RODANDO (teto 15) |

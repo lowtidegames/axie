@@ -41,7 +41,7 @@ export function criarCena(canvas, CONFIG) {
     animT: new Float64Array(MAXU), dir: new Int8Array(MAXU), k: new Float32Array(MAXU), barra: new Uint8Array(MAXU), preso: new Float32Array(MAXU), sx: new Float32Array(MAXU), sy: new Float32Array(MAXU), tier: new Uint8Array(MAXU),
     ordem: new Uint16Array(MAXU), tb: 0, nv: new Uint8Array(MAXU), lider: new Uint8Array(MAXU), marcha: false, marchaT0: 0, gritoT: -1e9,
     // movimento (R21): golpe, apanhou, virada, queda — tempos em ms do relógio visual
-    idTipo: new Array(MAXU), grupo: new Uint8Array(MAXU), atqT: new Float64Array(MAXU), atqAnt: new Float32Array(MAXU), atqTiro: new Uint8Array(MAXU), atqAlvo: new Int16Array(MAXU), atqSolta: new Uint8Array(MAXU),
+    idTipo: new Array(MAXU), atirador: new Uint8Array(MAXU), grupo: new Uint8Array(MAXU), atqT: new Float64Array(MAXU), atqAnt: new Float32Array(MAXU), atqTiro: new Uint8Array(MAXU), atqAlvo: new Int16Array(MAXU), atqSolta: new Uint8Array(MAXU),
     hitT: new Float64Array(MAXU), hitDir: new Int8Array(MAXU), hitF: new Float32Array(MAXU), viraT: new Float64Array(MAXU), dirV: new Int8Array(MAXU), morteT: new Float64Array(MAXU), morteTipo: new Uint8Array(MAXU), etapa: new Uint8Array(MAXU),
     fase: new Uint8Array(MAXU), passoN: new Int32Array(MAXU), qi: new Uint16Array(MAXU), pDx: new Int8Array(MAXU), pDy: new Int8Array(MAXU), pLarg: new Int8Array(MAXU), pAlt: new Int8Array(MAXU), pIncl: new Int8Array(MAXU),
     // partículas, efeitos animados, números
@@ -185,7 +185,7 @@ export function criarCena(canvas, CONFIG) {
   C.nascer = (lado, tipo, x, hp, lane, dxe, grande = 1, nivel = 0, lider = false) => {
     const i = C.n; if (i >= MAXU) return -1
     const p = Arte.unidade(tipo)
-    C.lado[i] = lado; C.peca[i] = p; C.idTipo[i] = tipo; C.vari[i] = p.variantes ? (i * 7 + 3) % p.variantes.length : 0
+    C.lado[i] = lado; C.peca[i] = p; C.idTipo[i] = tipo; { const c = CONFIG.CARTAS?.[tipo] || CONFIG.INVASORES?.[tipo] || CONFIG.CHEFES?.find((x) => x.id === tipo); C.atirador[i] = c && c.alcance > 60 ? 1 : 0 } C.vari[i] = p.variantes ? (i * 7 + 3) % p.variantes.length : 0
     // formação com profundidade: ninguém exatamente em cima do outro nem na mesma pose (desvio fixo por boneco; só desenho)
     const h = (i * 2654435761) >>> 0
     C.x0[i] = x; C.v[i] = 0; C.t0[i] = C.tb; C.lane[i] = lane + (p.w > 60 ? 0 : (((h >>> 4) % 7) - 3) * 0.03); C.dxe[i] = dxe + (p.w > 60 ? 0 : ((h >>> 9) % 7) - 3); C.hp[i] = hp; C.hpMax[i] = hp; C.est[i] = 1
@@ -453,7 +453,7 @@ export function criarCena(canvas, CONFIG) {
       sprite(Arte.folhaVar(p.img, tin, flip), p, qs[C.qi[i]], Xp, Yp, flip, C.pLarg[i], C.pAlt[i], C.pIncl[i] * fc, C.k[i])
       if (e !== 1) continue
       // rastro do golpe: meia-lua clara que varre na frente de quem dá o bote (corpo a corpo)
-      if (C.fase[i] === Mov.FASE.bote && !C.atqTiro[i]) { const v = F.varrida, ms = t - C.atqT[i] - C.atqAnt[i], q = v.quadros[Math.min(2, Math.floor(ms / 45))], kk = grandao ? 2 : 1, alt = Math.round(p.ay * 0.45); g.globalAlpha = 0.8; if (fc > 0) g.drawImage(v.img, q[0], q[1], q[2], q[3], Xp + 3 * kk, Yp - alt - 13 * kk, q[2] * kk, q[3] * kk); else { g.save(); g.translate(Xp - 3 * kk, Yp - alt - 13 * kk); g.scale(-1, 1); g.drawImage(v.img, q[0], q[1], q[2], q[3], 0, 0, q[2] * kk, q[3] * kk); g.restore() } g.globalAlpha = 1 }
+      if (C.fase[i] === Mov.FASE.bote && !C.atirador[i]) { const v = F.varrida, ms = t - C.atqT[i] - C.atqAnt[i], q = v.quadros[Math.min(2, Math.floor(ms / 45))], kk = grandao ? 2 : 1, alt = Math.round(p.ay * 0.45); g.globalAlpha = 0.8; if (fc > 0) g.drawImage(v.img, q[0], q[1], q[2], q[3], Xp + 3 * kk, Yp - alt - 13 * kk, q[2] * kk, q[3] * kk); else { g.save(); g.translate(Xp - 3 * kk, Yp - alt - 13 * kk); g.scale(-1, 1); g.drawImage(v.img, q[0], q[1], q[2], q[3], 0, 0, q[2] * kk, q[3] * kk); g.restore() } g.globalAlpha = 1 }
       if (C.nv[i] >= 3 && C.lado[i] === 0) marcaDeNivel(i, p, Xp, Yp)
       if (C.barra[i] && C.hp[i] < C.hpMax[i]) barrinha(X, Y - p.ay + Arte.topoDe(p) - 5, p.w > 100 ? 40 : 22, C.hp[i] / C.hpMax[i], '#E0503C')
       if (C.preso[i] > C.tb) { g.fillStyle = '#286840'; g.fillRect(X - 6, Y - 4, 12, 2); g.fillStyle = '#469C48'; g.fillRect(X - 4, Y - 7, 2, 4); g.fillRect(X + 2, Y - 8, 2, 5) }
@@ -524,7 +524,7 @@ export function criarCena(canvas, CONFIG) {
       const msA = t - C.atqT[i]
       let fase = 0
       if (msA < C.atqAnt[i] + 400) {
-        fase = Mov.golpe(PO, msA, C.atqAnt[i], peso, !!C.atqTiro[i])
+        fase = Mov.golpe(PO, msA, C.atqAnt[i], peso, !!C.atirador[i])
         if (C.atqSolta[i] && msA >= C.atqAnt[i]) { // fim da antecipação: solta o tiro para ele chegar junto com o dano
           C.atqSolta[i] = 0; const j = C.atqAlvo[i]
           if (j >= 0 && j < C.n) { const tp = C.projetilDe(i); if (tp !== 'nada') { C.projetil(p.x + fc * 8, p.y - p0.ay * 0.5, C.sx[j], C.sy[j] - C.peca[j].ay * 0.45, tp); if (C.gatilho) C.gatilho(tp, p.x - cxp, p.y) } }

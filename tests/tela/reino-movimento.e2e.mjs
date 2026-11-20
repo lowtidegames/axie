@@ -94,7 +94,7 @@ async function rodar(fmt) {
   await K(page, (k, C) => { k.batalhaCheia(); C.zerarMedidas() })
   let m = await med(page)
   confere(m.e === Math.round(m.e) && m.liso === false, `pixel inteiro: escala ×${m.e} e desenho sem suavizar`)
-  if (pc) await tira(page, 'entrada-das-tropas', { gatilho: '', cada: 9, w: 210, h: 104, x: 118, y: (await K(page, (k, C) => C.oy + C.tiers[C.tiers.length - 1] - 10)) })
+  if (pc) await tira(page, 'entrada-das-tropas', { gatilho: '', cada: 8, w: 250, h: 100, x: 125, atraso: 14, y: (await K(page, (k, C) => C.oy + C.tiers[C.tiers.length - 1] - 10)) })
   confere(await espera(page, () => { const d = window.__kmCena.med; return d.volta >= 6 && d.fumacas >= 3 && d.tombos >= 1 && d.estouros >= 1 && d.fincadas >= 1 }, 45000), 'a luta cheia chega ao choque: golpes, quedas e flechas acontecem')
   m = await med(page)
   confere(m.antecipa > 0 && m.bote > 0 && m.volta > 0 && m.seq[0] === 1 && m.seq[1] === 2 && m.seq[2] === 3, `golpe em etapas, nesta ordem: antecipação → bote → volta (o 1º a bater: ${m.seq.join(' ')}; ${m.antecipa} antecipações, ${m.bote} botes, ${m.volta} voltas)`)

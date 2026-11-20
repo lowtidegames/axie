@@ -5,8 +5,8 @@
 //   visao = { estado, previas:{ tapete:{[projetoId]:previa}, batida }, rendimentos:{[projetoId]:caixaPorHora}, bonus,
 //             impressora:{ custo, chances }, luxos:[{id,custo,bonus,comprado}], influenciadores:[...], prestigio:{liberado,meta},
 //             nomes? (troca de textos por chave), agora }
-// Servidor: { ok:true, estado, ...extras } | { ok:false, erro, codigo }; o que faltar na visão a tela monta
-// com as MESMAS funções de porao/comum/regras.js (nunca com conta própria). Toda ação leva a chave de pedido no cabeçalho Idempotency-Key.
+// Servidor: { ok:true, estado, ...extras } | { ok:false, erro, codigo }; `estado` já vem pronto para a tela
+// (porao/servidor/jogo.mjs estadoParaTela) e vira a visão SÓ pelo adaptador visaoDoServidor (sem conta própria). Toda ação leva a chave de pedido no cabeçalho Idempotency-Key.
 // Modo falso: ?falso=1 na página, ou quando o servidor NÃO RESPONDE (GET /api/sessao sem resposta JSON em 1,5 s).
 // Resposta 401 NÃO leva ao modo falso: vira o evento `sem-sessao` (a tela volta ao título).
 //
@@ -50,6 +50,65 @@ export function montarVisao(estado, agora = Date.now(), extra = {}) {
     })),
     prestigio: { liberado: R.prestigioLiberado(estado), meta: R.metaPrestigio(estado) },
     ...extra,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Adaptador ÚNICO: estado do servidor (porao/servidor/jogo.mjs estadoParaTela) → a mesma "visão" de montarVisao.
+// Não recalcula nada do jogo: só muda o formato do que o servidor já mandou pronto.
+// Diferenças (servidor → visão):
+//   relogio → estado.ultimoTempo · album [{ideia,nome}] → estado.album {ideia:true} · luxos [{id,comprado,...}] → estado.luxos [ids]
+//   (e a lista inteira em visao.luxos) · projetos[].previaTapete → previas.tapete[id] · batida (já com a prévia) → previas.batida
+//   projetos[].rendePorHora (só no ar) → rendimentos[id] · prestigio {nivel,meta,liberado} → visao.prestigio {liberado,meta}
+//   influenciadores[].liberaComTapetes → falta (tapetes que faltam) · sem semente, sorteios nem carteirinha (o servidor não manda).
+// ---------------------------------------------------------------------------------------------
+const LISTAS_DO_SERVIDOR = ['projetos', 'cartas', 'luxos', 'influenciadores', 'album'];
+const CAMPOS_DO_SERVIDOR = ['caixa', 'caixaTotal', 'calor', 'contagem', 'impressora', 'prestigio', 'bonus'];
+
+/** Campos que faltam (ou vêm com o tipo errado) no estado do servidor; [] = formato certo. */
+export function camposQueFaltam(t) {
+  if (!t || typeof t !== 'object') return ['estado'];
+  const faltam = [];
+  for (const k of LISTAS_DO_SERVIDOR) if (!Array.isArray(t[k])) faltam.push(k);
+  for (const k of CAMPOS_DO_SERVIDOR) if (t[k] === undefined || t[k] === null) faltam.push(k);
+  if (Array.isArray(t.projetos)) {
+    t.projetos.forEach((p, i) => { for (const k of ['id', 'ideia', 'raridade', 'fase', 'hype', 'trouxas']) if (p?.[k] === undefined) faltam.push(`projetos[${i}].${k}`); });
+  }
+  if (t.impressora && !Array.isArray(t.impressora.chances)) faltam.push('impressora.chances');
+  return faltam;
+}
+
+/** Visão da tela a partir da resposta do servidor. Formato errado: console.error com o campo e devolve null. */
+export function visaoDoServidor(t, agora = Date.now()) {
+  const faltam = camposQueFaltam(t);
+  if (faltam.length) {
+    console.error(`Porão: o estado do servidor veio sem o campo ${faltam.join(', ')}`);
+    return null;
+  }
+  const tapete = {}; const rendimentos = {};
+  for (const p of t.projetos) {
+    const noAr = p.noAr ?? R.FASES_NO_AR.includes(p.fase);
+    if (noAr) rendimentos[p.id] = Number(p.rendePorHora) || 0;
+    if (p.previaTapete) tapete[p.id] = p.previaTapete;
+  }
+  const tapetes = Number(t.contagem.tapetes) || 0;
+  return {
+    estado: {
+      ...t,
+      ultimoTempo: t.relogio,
+      luxos: t.luxos.filter((l) => l.comprado).map((l) => l.id),
+      album: Object.fromEntries(t.album.map((a) => [a.ideia, true])),
+    },
+    agora,
+    previas: { tapete, batida: t.batida ?? null },
+    rendimentos,
+    bonus: t.bonus,
+    impressora: t.impressora,
+    luxos: t.luxos,
+    influenciadores: t.influenciadores.map((i) => ({ ...i, falta: Math.max(0, (Number(i.liberaComTapetes) || 0) - tapetes) })),
+    prestigio: { liberado: !!t.prestigio.liberado, meta: t.prestigio.meta },
+    rotulos: t.rotulos,
+    conta: t.conta ?? null,
   };
 }
 
@@ -267,16 +326,21 @@ function criarApiReal(base = '', { janela = janelaPadrao() } = {}) {
   const SEM_SESSAO = { ok: false, erro: 'Sua sessão acabou. Entre de novo.', codigo: 'sem_sessao', semSessao: true };
 
   async function chamar(metodo, caminho, corpo, chave) {
+    let resposta;
     try {
-      const { r, j, semSessao } = await pedir(metodo, caminho, corpo, chave);
-      if (semSessao) return { ...SEM_SESSAO, visao: null };
-      const estado = j.estado ?? j.visao?.estado;
-      const v = j.visao ?? (estado ? montarVisao(estado, Date.now()) : null);
-      const ok = j.ok ?? r.ok;
-      return { ok, erro: ok ? undefined : (j.erro || 'O servidor recusou o pedido.'), resultado: j.resultado ?? j, visao: v };
+      resposta = await pedir(metodo, caminho, corpo, chave);
     } catch {
       return { ok: false, erro: 'Sem conexão com o servidor.', visao: null };
     }
+    const { r, j, semSessao } = resposta;
+    if (semSessao) return { ...SEM_SESSAO, visao: null };
+    const ok = j.ok ?? r.ok;
+    const base = { ok, erro: ok ? undefined : (j.erro || 'O servidor recusou o pedido.'), resultado: j.resultado ?? j };
+    if (!j.estado) return { ...base, visao: null };
+    // o servidor manda o estado já pronto para a tela (estadoParaTela); só muda o formato, nunca recalcula
+    const v = visaoDoServidor(j.estado, Date.now());
+    if (!v) return { ...base, ok: false, erro: 'A tela não entendeu a resposta do servidor.', visao: null };
+    return { ...base, visao: v };
   }
   const post = (caminho, corpo, chave = chaveNova()) => chamar('POST', caminho, corpo, chave);
 

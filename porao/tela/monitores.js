@@ -1031,7 +1031,8 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
       const bal = [
         h('div', { class: 'pm-balao' }, oferta),
         h('div', { class: 'pm-balao pm-balao--eu' }, `Fechado: ${din(c.p1)} pelo vídeo 1.`),
-        h('div', { class: 'pm-balao' }, `Vídeo 1 no ar: trouxe ${fmt(c.trazidasV1)} trouxas.`),
+        // o servidor (estadoParaTela) não manda trazidasV1: sem o número, a frase não inventa um
+        Number.isFinite(c.trazidasV1) ? h('div', { class: 'pm-balao' }, `Vídeo 1 no ar: trouxe ${fmt(c.trazidasV1)} trouxas.`) : h('div', { class: 'pm-balao' }, 'Vídeo 1 no ar.'),
       ];
       if (c.fase === 'PEDE_MAIS' || (c.proposta !== null && c.proposta !== c.p1) || c.chorou) bal.push(h('div', { class: 'pm-balao' }, T('msg.melhorar.oferta')));
       else if (c.proposta !== null) bal.push(h('div', { class: 'pm-balao' }, `Foi bem! Vídeo 2 pelo mesmo preço: ${din(c.proposta)}.`));

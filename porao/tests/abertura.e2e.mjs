@@ -6,8 +6,8 @@
 //    imprimir, lançar e tapete pelo servidor → apelido aceito → recarregar mostra Continuar e cai no porão com o mesmo
 //    progresso → sair volta ao título sem Continuar.
 // Só espera estado com prazo (nunca tempo fixo para algo que deve acontecer).
-// CONHECIDO: hoje api.js (modo servidor) quebra ao montar a visão com o estado que o servidor manda (sem carteirinha): o porão fica
-// em "Sem conexão com o servidor". Enquanto isso o bloco B só confere o que o servidor já faz; PORAO_E2E_EXIGIR_PORAO_REAL=1 exige a tela inteira.
+// O bloco B exige a tela inteira com o servidor de verdade (porão desenhado e as ações PELA TELA). A variável antiga
+// PORAO_E2E_EXIGIR_PORAO_REAL=1 continua aceita, mas não muda nada: não existe mais modo reduzido.
 // Fotos (opcional): PORAO_FOTOS=/pasta  node tools/trava-robos.mjs rodar "node porao/tests/abertura.e2e.mjs"
 import { createRequire } from 'node:module'
 import { createServer } from 'node:http'
@@ -189,44 +189,33 @@ try {
     await poraoPronto(page)
     const conta0 = await page.evaluate(() => window.poraoApp.api.sessao())
     confere(conta0.conta?.tipo === 'convidado' && conta0.conta.pedirApelido === false, 'servidor: conta convidada criada pelo servidor, ainda sem pedir apelido')
-    // A tela do porão recebe o estado do servidor? (ver CONHECIDO no começo do arquivo)
+    // A tela do porão recebe e desenha o estado do servidor (api.js visaoDoServidor)
     const portaoReal = (await page.evaluate(() => window.poraoApp.api.estado())).ok === true
-    let apelido = null
-    if (portaoReal) {
-      await passoVo(page, 1)
-      await page.waitForSelector('[data-pm="folha"][data-etapa="3"]', { timeout: 30000 })
-      await foto(page, 'ab-srv-2-impressa')
-      await page.click('[data-pm="lancar-agora"]')
-      await page.waitForSelector('[data-pm="projeto"]', { timeout: 8000 })
-      await esperarPuxar(page)
-      await page.click('[data-pm="puxar"]')
-      await page.waitForSelector('[data-pm="tapete-resumo"]', { timeout: 20000 })
-      await page.click('[data-pm="tapete-fechar"]')
-      await page.waitForSelector('[data-pm="apelido"]', { timeout: 8000 })
-      await foto(page, 'ab-srv-3-apelido')
-      apelido = 'dev_' + Math.random().toString(36).slice(2, 8)
-      await page.fill('[data-pm="apelido-campo"]', apelido)
-      await page.click('[data-pm="apelido-ok"]')
-      await page.waitForSelector('[data-pm="apelido"]', { state: 'detached', timeout: 8000 })
-      const aposApelido = await page.evaluate(() => window.poraoApp.api.sessao())
-      confere(aposApelido.conta?.apelido === apelido && aposApelido.conta.pedirApelido === false, `servidor: apelido "${apelido}" aceito e gravado`)
-      await page.waitForSelector('[data-pm="historia"]', { timeout: 5000 })
-      await page.click('[data-pm="historia-pular"]')
-    } else if (process.env.PORAO_E2E_EXIGIR_PORAO_REAL === '1') {
-      falha('servidor: o porão não consegue montar a tela com o estado do servidor (api.js montarVisao: estado.carteirinha vem vazio)')
-    } else {
-      console.log('  AVISO: o porão ainda não monta a tela com o estado do servidor (api.js montarVisao: estado.carteirinha vem vazio); imprimir/lançar vão direto no servidor. Exija com PORAO_E2E_EXIGIR_PORAO_REAL=1.')
-      // as mesmas ações, pedidas direto ao servidor (com a sessão do navegador)
-      await page.evaluate(async () => {
-        const h = { 'content-type': 'application/json', 'X-Porao': '1', 'Idempotency-Key': 'e2e-imprimir-1' }
-        await fetch('/api/imprimir', { method: 'POST', headers: h, body: '{}' })
-        const e = await (await fetch('/api/estado', { headers: { 'X-Porao': '1' } })).json()
-        await fetch('/api/lancar', { method: 'POST', headers: { ...h, 'Idempotency-Key': 'e2e-lancar-1' }, body: JSON.stringify({ cartaId: e.estado.cartas[0].id }) })
-      })
-    }
+    confere(portaoReal, 'servidor: a tela do porão monta a visão com o estado do servidor')
+    if (!portaoReal) throw new Error('o porão não monta a tela com o estado do servidor')
+    await passoVo(page, 1)
+    confere(await page.locator('[data-pm-monitor="projeto"] [data-pm="imprimir"]').count() === 1 && await page.locator('[data-pm="saldo"]').count() === 1, 'servidor: porão desenhado (monitores com saldo e impressora)')
+    await page.waitForSelector('[data-pm="folha"][data-etapa="3"]', { timeout: 30000 })
+    await foto(page, 'ab-srv-2-impressa')
+    await page.click('[data-pm="lancar-agora"]')
+    await page.waitForSelector('[data-pm="projeto"]', { timeout: 8000 })
+    await esperarPuxar(page)
+    await page.click('[data-pm="puxar"]')
+    await page.waitForSelector('[data-pm="tapete-resumo"]', { timeout: 20000 })
+    await page.click('[data-pm="tapete-fechar"]')
+    await page.waitForSelector('[data-pm="apelido"]', { timeout: 8000 })
+    await foto(page, 'ab-srv-3-apelido')
+    const apelido = 'dev_' + Math.random().toString(36).slice(2, 8)
+    await page.fill('[data-pm="apelido-campo"]', apelido)
+    await page.click('[data-pm="apelido-ok"]')
+    await page.waitForSelector('[data-pm="apelido"]', { state: 'detached', timeout: 8000 })
+    const aposApelido = await page.evaluate(() => window.poraoApp.api.sessao())
+    confere(aposApelido.conta?.apelido === apelido && aposApelido.conta.pedirApelido === false, `servidor: apelido "${apelido}" aceito e gravado`)
+    await page.waitForSelector('[data-pm="historia"]', { timeout: 5000 })
+    await page.click('[data-pm="historia-pular"]')
     const contagem = () => page.evaluate(async () => (await (await fetch('/api/estado', { headers: { 'X-Porao': '1' } })).json()).estado.contagem)
     const antes = await contagem()
-    confere(antes.impressoes >= 1 && antes.lancamentos >= 1 && (!portaoReal || antes.tapetes >= 1), `servidor: imprimir e lançar${portaoReal ? ' e tapete' : ''} feitos pelo servidor (${JSON.stringify({ i: antes.impressoes, l: antes.lancamentos, t: antes.tapetes })})`)
+    confere(antes.impressoes >= 1 && antes.lancamentos >= 1 && antes.tapetes >= 1, `servidor: imprimir, lançar e tapete feitos pela tela no servidor (${JSON.stringify({ i: antes.impressoes, l: antes.lancamentos, t: antes.tapetes })})`)
     await foto(page, 'ab-srv-4-depois')
 
     // recarregar: Continuar e o mesmo progresso
@@ -237,8 +226,16 @@ try {
     await page.click('[data-pm="continuar"]')
     await poraoPronto(page)
     const depois = await contagem()
+    // número da tela = número do servidor (saldo desenhado depois do Continuar)
+    const saldoOk = await page.waitForFunction(async () => {
+      const el = document.querySelector('[data-pm="saldo"]'); if (!el) return false
+      const e = (await (await fetch('/api/estado', { headers: { 'X-Porao': '1' } })).json()).estado
+      return el.textContent.replace(/\s/g, ' ').includes(Number(e.caixa).toLocaleString('pt-BR'))
+    }, null, { timeout: 10000 }).then(() => true).catch(() => false)
+    confere(saldoOk, 'servidor: depois do Continuar o porão desenha o saldo do servidor')
+    await foto(page, 'ab-srv-6-porao-continuar')
     confere(depois.lancamentos === antes.lancamentos && depois.tapetes === antes.tapetes && depois.impressoes >= antes.impressoes, 'servidor: Continuar volta ao porão com o mesmo progresso')
-    if (apelido) confere((await page.evaluate(() => window.poraoApp.api.sessao())).conta?.apelido === apelido, 'servidor: o apelido continua o mesmo')
+    confere((await page.evaluate(() => window.poraoApp.api.sessao())).conta?.apelido === apelido, 'servidor: o apelido continua o mesmo')
     confere(await semLateral(page), 'servidor: porão sem rolagem lateral')
 
     // sair: volta ao título sem Continuar

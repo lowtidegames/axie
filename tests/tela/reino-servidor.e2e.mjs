@@ -8,6 +8,11 @@
 // servidor; replay em páginas (?desde=) na tela de batalha, com botão de sair; replay da própria estrada de hoje → "available
 // tomorrow". No dia seguinte (relógio do servidor de teste), a MESMA conta no PC entra no placar do dia e a tela só então diz a posição.
 // Nada cortado em 320×568, 360×740, 390×844, 1280×720 e 740×360; toque ≥ 44 px; Reduced motion sem tremida nem flash.
+// R23: dois 401 juntos criam uma conta só; trocar o nome no perfil (regra em 1 linha, recusas do servidor em texto curto, "you can
+// change again in ..." pelo `podeEm`); "Watch" no topo da temporada e na aba YESTERDAY da estrada (sem `partida`, sem botão; sair do
+// replay volta à tela de onde saiu); recarregar na tela de fim volta a ela até o Play again; conquistas com a data do servidor; menu
+// curto (SETTINGS abre som/música/efeitos/Reduced motion; X e Close sempre à vista); o aviso de rede não cobre a 2ª linha do HUD; e
+// nada de "X more for <liga menor>" quando a liga da conta já é maior.
 // Fotos em tests/tela/fotos/reino/servidor-*.png.
 // Rode pela trava:  node tools/trava-robos.mjs rodar "timeout 900 node tests/tela/reino-servidor.e2e.mjs"
 import { createRequire } from 'node:module'
@@ -30,13 +35,14 @@ const falha = (m) => { falhas.push(m); console.log('FALHA: ' + m) }
 const confere = (ok, m) => { conferencias++; if (!ok) falha(m); else console.log('  ok: ' + m) }
 
 const DIA = 86_400_000
-const relogio = { desvio: 0 }
+const relogio = { desvio: -DIA } // o servidor nasce "ontem": a Aunt Sorrel cria a conta e joga 1 ranking; no dia 1 ela entra no placar da estrada
 const agora = () => Date.now() + relogio.desvio
 const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'keepmile-e2e-servidor-'))
 const folga = { pedidosPorConta: { max: 100_000, janelaMs: 60_000 }, pedidosPorIp: { max: 100_000, janelaMs: 60_000 }, contasPorIp: { max: 1000, janelaMs: 60_000 } }
 const reinoFolgado = { partidasPorConta: { max: 100_000, janelaMs: 3_600_000 }, partidasPorIp: { max: 100_000, janelaMs: 3_600_000 }, replaysPorConta: { max: 100_000, janelaMs: 60_000 }, replaysPorIp: { max: 100_000, janelaMs: 60_000 }, replayPassosPorPagina: 3 }
 const s = await iniciar({ dbPath: path.join(pasta, 'keepmile-e2e.db'), porta: 0, agora, log: () => {}, limites: folga, reino: { params: reinoFolgado } })
 const base = `http://127.0.0.1:${s.porta}`
+let SORREL = null
 const URL_JOGO = `${base}/public/reino/?teste=1`
 const browser = await chromium.launch()
 
@@ -48,9 +54,9 @@ async function api(metodo, caminho, token, corpo) {
   return { status: r.status, json }
 }
 /** Um robô de fora joga uma partida de ranking até o fim pela API (para o ranking ter mais gente). */
-async function roboDeRanking(apelido, rodadasComCarta) {
-  const c = (await api('POST', '/api/conta', null, { apelido })).json
-  let p = (await api('POST', '/api/reino/partida', c.token, { modo: 'ranking' })).json
+async function roboDeRanking(apelido, rodadasComCarta, modo = 'ranking', conta = null) {
+  const c = conta || (await api('POST', '/api/conta', null, { apelido })).json
+  let p = (await api('POST', '/api/reino/partida', c.token, { modo })).json
   for (let n = 0; n < 400 && p.status === 'aberta'; n++) {
     const o = p.opcoes, v = p.visao
     let cmd = o.fase === 'espolio' ? o.comandos.find((x) => x.tipo === 'espolio') : null
@@ -60,6 +66,23 @@ async function roboDeRanking(apelido, rodadasComCarta) {
   return c
 }
 
+/** Bloco de conferências de um item novo: se parar no meio (botão que não existe, espera que estoura), conta como falha e o teste segue. */
+async function item(nome, page, f, arrumar = null) {
+  try { await f() } catch (err) {
+    falha(`${nome}: parou — ${String(err?.message || err).split('\n')[0]}`)
+    try { await page.unrouteAll({ behavior: 'ignoreErrors' }) } catch { /* ok */ }
+    await page.evaluate(() => { if (!document.getElementById('tela').hidden) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })) }).catch(() => {})
+    if (arrumar) await arrumar()
+  }
+}
+/** X e Close à vista sem rolar (dentro da tela e da caixa). Devolve também se o meio da tela rola. */
+const topoEPe = (page) => page.evaluate(() => {
+  const c = document.getElementById('telaCaixa').getBoundingClientRect(), dentro = (e) => { if (!e) return false; const r = e.getBoundingClientRect(); return r.height >= 43.5 && r.top >= c.top - 0.5 && r.bottom <= c.bottom + 0.5 && r.top >= -0.5 && r.bottom <= innerHeight + 0.5 }
+  const meio = document.getElementById('telaCorpo')
+  return { x: dentro(document.querySelector('#telaCaixa .km-x')), pe: dentro(document.getElementById('telaPe')), rola: meio ? meio.scrollHeight > meio.clientHeight + 1 : document.getElementById('telaCaixa').scrollHeight > document.getElementById('telaCaixa').clientHeight + 1 }
+})
+/** O aviso do servidor não cobre o HUD: fica abaixo da fileira dos pinos do chefe (2ª linha) e, no celular, do sorteio e das chances. */
+const avisoForaDoHud = (page) => page.evaluate(() => { const q = window.__keepmile, m = q.modelo(), L = q.layout(); return !!m.statusRet && !!L.pinos && m.statusRet.y >= L.pinos.y + L.pinos.h && (!L.cel || m.statusRet.y >= L.odds.y + L.odds.h) })
 const K = (page, f, arg) => page.evaluate(f, arg)
 const modelo = (page) => page.evaluate(() => window.__keepmile.modelo())
 const srv = (page) => page.evaluate(() => window.__keepmile.servidor())
@@ -166,6 +189,7 @@ async function celular() {
   confere((await modelo(page)).status.texto === T.srv.rede, 'rede cortada: aviso curto "RECONNECTING..."')
   confere((await K(page, () => window.__keepmile.desenhou())).includes('status'), 'o aviso está desenhado na tela')
   { const m = await modelo(page), css = (await K(page, () => window.__keepmile.css())).css; confere(m.statusRet && m.statusRet.x >= 0 && (m.statusRet.x + m.statusRet.w) * css <= 360.5, 'o aviso cabe na largura do celular') }
+  confere(await avisoForaDoHud(page), 'R23: "RECONNECTING..." não cobre a 2ª linha do HUD (pinos do chefe e famílias) nem o sorteio e as chances')
   await foto('reconectando-celular')
   confere((await srv(page)).seq === antes && (await srv(page)).ocupado, 'enquanto a rede não volta, a jogada fica esperando (não se perde)')
   await ctx.setOffline(false)
@@ -253,17 +277,58 @@ async function celular() {
   await espera(page, (n) => window.__keepmile.modelo().fim.liga.nome === n, T.srv.semLiga)
   confere(true, 'sem partida de ranking, o fim não inventa liga (UNRANKED)')
   confere((await K(page, () => window.__keepmile.erros())).length === 0, 'treino inteiro sem divergência nem erro')
+  // ---- 7b. R23: recarregar na tela de fim volta à tela de fim DAQUELA partida (até o Play again)
+  await item('fim que sobrevive a recarregar', page, async () => {
+    const antesR = await srv(page), fimA = (await modelo(page)).fim, m0 = pedidos.length
+    await page.reload()
+    await espera(page, () => document.documentElement.dataset.pronto === '1' && window.__keepmile?.pronto)
+    const ok = await espera(page, () => window.__keepmile.fase() === 'fim' && window.__keepmile.modelo().fim?.contou, null, 8000).then(() => true, () => false)
+    const depoisR = await srv(page), fimB = (await modelo(page)).fim
+    confere(ok && depoisR.id === antesR.id && depoisR.modo === 'treino', 'R23: recarregar na tela de fim volta à tela de fim da mesma partida')
+    confere(!!fimB && fimB.pontos === fimA.pontos && fimB.vencidas === fimA.vencidas && fimB.novoRecorde === fimA.novoRecorde && fimB.recorde === fimA.recorde, `R23: a placa diz o mesmo de antes (${fimA.pontos} pontos, ${fimA.vencidas} rodadas, recorde ${fimA.novoRecorde})`)
+    confere(pedidos.slice(m0).some((p) => p.caminho === '/api/reino/partida/ultima' && p.status === 200) && !pedidos.slice(m0).some((p) => p.metodo === 'POST'), 'R23: a partida terminada veio do servidor (partida/ultima) e nenhuma partida nova foi aberta')
+    confere(!!fimB && fimB.parado === true, 'R23: a entrada do fim, já vista, não passa de novo (tudo no lugar)')
+    if (!ok) { await K(page, () => window.__keepmile.jogarNoServidor({ semCarta: true })); await espera(page, () => window.__keepmile.fase() === 'fim' && window.__keepmile.modelo().fim?.contou, null, 20_000) }
+  })
   const idTreino = (await srv(page)).id
   await tap('#bt-denovo')
   await espera(page, (id) => window.__keepmile.servidor().id !== id && window.__keepmile.fase() === 'carta', idTreino)
   confere((await srv(page)).modo === 'treino', 'PLAY AGAIN abre outro treino num toque')
+  await item('depois do Play again', page, async () => {
+    await page.reload()
+    await espera(page, () => document.documentElement.dataset.pronto === '1' && window.__keepmile?.pronto)
+    const d = await srv(page)
+    confere(d.id !== idTreino && (await modelo(page)).fase === 'carta', 'R23: depois do Play again, recarregar volta à partida em curso (não à tela de fim antiga)')
+  })
 
   // ---- 8. menu e escolha de modo; ranking gasta energia
-  await Promise.all([roboDeRanking('Old Ember', 6), roboDeRanking('Miss Crow', 3), roboDeRanking('Uncle Malt', 0)])
+  await Promise.all([roboDeRanking('Old Ember', 6), roboDeRanking('Miss Crow', 3), roboDeRanking('Uncle Malt', 0), roboDeRanking('Aunt Sorrel', 4, 'estrada', SORREL)])
   await abrirMenu()
   confere((await texto(page, '#mLiga')).includes(e.apelido), 'o menu mostra o nome da conta')
   await medirTela(page, 'menu')
-  await foto('menu-celular')
+  await item('menu curto', page, async () => {
+    const t = await topoEPe(page)
+    confere(t.x && t.pe, 'R23: menu no celular 360x740: o X e o Close estão à vista sem rolar')
+    confere(!t.rola && !!(await page.evaluate(() => !!document.getElementById('mNova'))), 'R23: o menu inteiro (com New run) cabe em 360x740 sem rolar')
+    confere(await page.evaluate(() => !!document.getElementById('mAjustes') && !document.getElementById('mSom') && !document.getElementById('mMusica') && !document.getElementById('mMenos')), 'R23: som, música, efeitos e Reduced motion saíram do menu para a linha SETTINGS')
+    await foto('menu-celular')
+    await tap('#mAjustes')
+    await espera(page, () => document.getElementById('tela').dataset.tela === 'ajustes' && !!document.getElementById('mMenos'))
+    confere(await page.evaluate(() => ['mSom', 'mMusica', 'mEfeitos', 'mMenos'].every((id) => !!document.getElementById(id))), 'R23: SETTINGS abre som, música, efeitos e Reduced motion')
+    await medirTela(page, 'settings')
+    await tap('#mMenos')
+    confere((await K(page, () => window.__keepmile.cena())).menos === true && (await page.evaluate(() => document.getElementById('mMenos').getAttribute('aria-pressed'))) === 'true', 'R23: Reduced motion liga pelo SETTINGS')
+    await tap('#mMenos')
+    confere((await K(page, () => window.__keepmile.cena())).menos === false, 'R23: e desliga')
+    const n0 = await page.evaluate(() => document.getElementById('mMusicaNivel').dataset.nivel)
+    await tap(n0 === '0' ? '#mMusicaMais' : '#mMusicaMenos')
+    confere((await page.evaluate(() => document.getElementById('mMusicaNivel').dataset.nivel)) !== n0, 'R23: o volume da música muda pelo SETTINGS')
+    await tap(n0 === '0' ? '#mMusicaMenos' : '#mMusicaMais')
+    await tap('#telaPe')
+    await espera(page, () => document.getElementById('tela').dataset.tela === 'menu')
+    confere(true, 'R23: o pé do SETTINGS volta ao menu')
+  })
+  if (await page.evaluate(() => document.getElementById('tela').hidden)) await abrirMenu()
   await espera(page, () => !window.__keepmile.modelo().status, null, 8000)
   await tap('#mJogar')
   await espera(page, () => !!document.getElementById('jRanking'))
@@ -286,6 +351,8 @@ async function celular() {
   const rk1 = (await api('GET', '/api/reino/ranking', await token())).json
   confere(fim.liga.marca === T.srv.posicaoMarca(rk1.voce.posicao) && fim.media === rk1.voce.pontos, `fim do ranking: posição e média da temporada vêm do servidor (${rk1.voce.posicao}º, ${rk1.voce.pontos})`)
   confere(fim.amigo?.texto === T.srv.energiaCurta(2, 9), 'e a energia que sobrou (2/9)')
+  confere(rk1.voce.liga === 'legend' && !!rk1.voce.faltaParaProxima && rk1.voce.faltaParaProxima.liga !== 'legend', `com poucas contas o servidor manda a liga do topo (legend) junto com "${rk1.voce.faltaParaProxima?.pontos} para ${rk1.voce.faltaParaProxima?.liga}"`)
+  confere(fim.liga.proxima == null && fim.liga.pct === 100, 'R23: a placa do fim não diz "<liga menor> IN X" para quem já é Legend of the Mile')
 
   // ---- 9. ranking da temporada
   await abrirTela('#mRanking', 'ranking')
@@ -302,6 +369,38 @@ async function celular() {
   }
   await medirTela(page, 'ranking')
   await foto('ranking-celular')
+  await item('ranking: liga e Watch', page, async () => {
+    confere((await texto(page, '#rankLiga')).includes('Legend of the Mile') && !(await page.evaluate(() => !!document.getElementById('rankProxima'))) && !/more for/i.test(await texto(page, '#rankLiga')), 'R23: Legend of the Mile sem a linha "X more for Road Warden" (liga menor)')
+    const bts = await page.evaluate(() => [...document.querySelectorAll('#listaTopo li')].map((li) => { const b = li.querySelector('.km-ver'), r = b?.getBoundingClientRect(); return { partida: b ? b.dataset.partida : null, w: r ? r.width : 0, h: r ? r.height : 0, texto: b ? b.textContent : '' } }))
+    confere(rk1.lista.some((l) => l.partida) && bts.length === rk1.lista.length && rk1.lista.every((l, i) => (l.partida || null) === bts[i].partida), `R23: cada linha do topo com \`partida\` tem o botão Watch daquela partida (${bts.filter((b) => b.partida).length} de ${bts.length})`)
+    confere(bts.filter((b) => b.partida).every((b) => b.w >= 43.5 && b.h >= 43.5 && b.texto === T.srv.perfil.ver), 'R23: o botão Watch tem 44 px de toque')
+    await page.locator('#listaTopo li').first().scrollIntoViewIfNeeded()
+    await page.evaluate(() => { const m = document.getElementById('telaCorpo'), l = document.getElementById('listaTopo'); m.scrollTop += l.getBoundingClientRect().top - m.getBoundingClientRect().top - 40 })
+    await foto('ranking-watch-celular')
+    // sem `partida`, sem botão: a última linha chega sem ela
+    await fecharTela()
+    await page.route('**/api/reino/ranking*', async (rota) => { const r = await rota.fetch(), j = await r.json(); j.lista[j.lista.length - 1].partida = null; await rota.fulfill({ response: r, json: j }) })
+    await abrirTela('#mRanking', 'ranking')
+    await page.unroute('**/api/reino/ranking*')
+    const semBt = await page.evaluate(() => [...document.querySelectorAll('#listaTopo li')].map((li) => !!li.querySelector('.km-ver')))
+    confere(semBt.length === rk1.lista.length && semBt.at(-1) === false && semBt.slice(0, -1).every(Boolean), 'R23: linha sem `partida` não tem botão')
+    await medirTela(page, 'ranking sem Watch na última linha')
+    // assistir a melhor partida de outra conta do topo e voltar para o ranking
+    const outro = rk1.lista.find((l) => l.partida && l.apelido !== e.apelido)
+    const antesW = await srv(page), faseW = (await modelo(page)).fase
+    await tap(`#listaTopo .km-ver[data-partida="${outro.partida}"]`)
+    await espera(page, () => !!window.__keepmile.modelo().replay && document.getElementById('tela').hidden)
+    await espera(page, () => window.__keepmile.desenhou().includes('replay'), null, 8000)
+    const rp = (await modelo(page)).replay
+    confere(rp.nome === outro.apelido && rp.faixa[0] === T.srv.replay.de(outro.apelido), `R23: a faixa do replay diz de quem é (${rp.faixa?.[0]})`)
+    confere(/^ROUND \d+ - STEP \d+\/\d+$/.test(rp.faixa[1] || '') && rp.faixa[1].endsWith('/' + rp.n), `R23: e a rodada (${rp.faixa?.[1]})`)
+    await tap('#bt-sair-replay')
+    await espera(page, () => !window.__keepmile.modelo().replay)
+    const voltou = await espera(page, () => document.getElementById('tela').dataset.tela === 'ranking' && !document.getElementById('tela').hidden && !!document.getElementById('listaTopo'), null, 8000).then(() => true, () => false)
+    const depoisW = await srv(page)
+    confere(voltou && depoisW.id === antesW.id && depoisW.seq === antesW.seq && (await modelo(page)).fase === faseW, 'R23: sair do replay volta para onde estava (o ranking aberto, a partida do jogador intacta)')
+  })
+  await fecharTela()
 
   // ---- 10. estrada do dia: conta nova fica fora do placar, com o motivo em 1 linha; 2ª tentativa → amanhã
   await abrirTela('#mJogar', 'jogar')
@@ -346,6 +445,63 @@ async function celular() {
   { const ids = await page.evaluate(() => [...document.querySelectorAll('#listaMelhores li')].map((li) => li.dataset.partida)); confere(JSON.stringify(ids) === JSON.stringify(perfil2.melhores.map((m) => m.id)), `perfil: as ${ids.length} melhores partidas do servidor, na ordem dele`) }
   await medirTela(page, 'perfil')
   await foto('perfil-celular')
+  await item('trocar o nome', page, async () => {
+    const A = T.srv.apelido, antigo = e.apelido, NOVO = 'Dame Quill-7'
+    const tentar = async (nome, codigo) => { await page.fill('#apelidoCampo', nome); await tap('#apelidoSalvar'); if (codigo) await espera(page, (c) => document.getElementById('apelidoErro')?.dataset.codigo === c && !document.getElementById('apelidoSalvar').disabled, codigo) }
+    await tap('#perfilNome')
+    await espera(page, () => document.getElementById('tela').dataset.tela === 'apelido' && !!document.getElementById('apelidoCampo'))
+    confere((await page.inputValue('#apelidoCampo')) === antigo && (await texto(page, '#apelidoAtual')) === A.atual(antigo), 'R23: trocar o nome: o campo abre com o nome de agora')
+    confere((await texto(page, '#apelidoRegra')) === A.regra && /^3-16 letters, numbers, spaces, - or underscore\./.test(A.regra), `R23: a regra em 1 linha (${A.regra})`)
+    { const c = await page.evaluate(() => { const i = document.getElementById('apelidoCampo'), r = i.getBoundingClientRect(), cx = document.getElementById('telaCaixa').getBoundingClientRect(); return { h: r.height, dentro: r.left >= cx.left && r.right <= cx.right, tipo: i.type, max: i.maxLength, sel: getComputedStyle(i).userSelect } })
+      confere(c.h >= 43.5 && c.dentro && c.tipo === 'text' && c.max === 16 && c.sel !== 'none', 'R23: campo de texto comum (teclado do aparelho), 44 px, dentro da caixa, até 16 letras') }
+    await medirTela(page, 'trocar o nome')
+    await page.fill('#apelidoCampo', NOVO)
+    await foto('apelido-celular')
+    const m0 = pedidos.length
+    await tentar('ab', 'APELIDO_INVALIDO')
+    confere((await texto(page, '#apelidoErro')) === A.erro.APELIDO_INVALIDO, `R23: nome curto demais: o servidor recusa e a tela diz "${A.erro.APELIDO_INVALIDO}"`)
+    await tentar('Admin Joe', 'APELIDO_BARRADO')
+    confere((await texto(page, '#apelidoErro')) === A.erro.APELIDO_BARRADO, `R23: nome não permitido: "${A.erro.APELIDO_BARRADO}"`)
+    await tentar('old ember', 'APELIDO_EM_USO')
+    confere((await texto(page, '#apelidoErro')) === A.erro.APELIDO_EM_USO, `R23: nome em uso: "${A.erro.APELIDO_EM_USO}"`)
+    await medirTela(page, 'trocar o nome (com a recusa)')
+    await foto('apelido-erro-celular')
+    confere(pedidos.slice(m0).filter((p) => p.caminho === '/api/reino/apelido').map((p) => `${p.status} ${p.codigo}`).join(',') === '400 APELIDO_INVALIDO,400 APELIDO_BARRADO,409 APELIDO_EM_USO', 'R23: as três recusas vieram do servidor (a tela não decide a regra)')
+    confere((await srv(page)).apelido === antigo && (await api('GET', '/api/reino/perfil', await token())).json.apelido === antigo, 'R23: nome recusado não muda nada')
+    // "já trocou hoje" (429 com `podeEm`): a tela escreve quanto falta pelo relógio do servidor, uma vez (sem contagem)
+    const podeEm = new Date(Date.now() + 21 * 3_600_000).toISOString()
+    await page.route('**/api/reino/apelido', (rota) => rota.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ erro: { codigo: 'APELIDO_TROCADO_HOJE', motivo: 'Você já trocou o apelido nas últimas 24 horas.', podeEm } }) }))
+    await tentar(NOVO, 'APELIDO_TROCADO_HOJE')
+    await page.unroute('**/api/reino/apelido')
+    { const t = await texto(page, '#apelidoErro'); confere([A.espera('21h 0m'), A.espera('20h 59m'), A.espera('21h 1m')].includes(t), `R23: 429 APELIDO_TROCADO_HOJE vira "${t}" (pelo \`podeEm\`)`)
+      await page.waitForTimeout(1200); confere((await texto(page, '#apelidoErro')) === t, 'R23: sem contagem na tela (o texto não anda sozinho)') }
+    // agora vale
+    await tentar(NOVO, null)
+    await espera(page, () => document.getElementById('tela').dataset.tela === 'perfil' && !!document.getElementById('perfilNota'))
+    const pNovo = (await api('GET', '/api/reino/perfil', await token())).json
+    confere(pNovo.apelido === NOVO && (await texto(page, '#perfilNota')) === A.feito, `R23: o servidor gravou o nome novo (${pNovo.apelido}) e a tela diz "${A.feito}"`)
+    confere((await texto(page, '#perfilTopo')).includes(NOVO) && !(await texto(page, '#perfilTopo')).includes(antigo), 'R23: o perfil mostra o nome novo na hora')
+    confere((await srv(page)).apelido === NOVO && JSON.parse(await page.evaluate(() => localStorage.getItem('keepmile_sessao_v1'))).apelido === NOVO, 'R23: o nome novo fica guardado no aparelho (a mesma conta, o mesmo token)')
+    confere(pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/api/conta').length === 1, 'R23: trocar o nome não cria conta')
+    e = await srv(page)
+    // 1 troca por dia: a tela diz quando pode de novo (o `podeEm` do perfil) e não mostra o campo
+    await tap('#perfilNome')
+    await espera(page, () => document.getElementById('tela').dataset.tela === 'apelido' && !!document.getElementById('apelidoEspera'))
+    { const falta = Date.parse(pNovo.trocaDeApelido.podeEm) - Date.now(), t = await texto(page, '#apelidoEspera')
+      confere(!!pNovo.trocaDeApelido.podeEm && [falta, falta - 60_000, falta + 60_000].some((f) => t === A.espera(T.srv.em(f))), `R23: depois de trocar: "${t}" (o tempo é o do servidor)`)
+      confere(!(await page.evaluate(() => !!document.getElementById('apelidoCampo'))) && (await texto(page, '#apelidoAtual')) === A.atual(NOVO), 'R23: e o campo não aparece até lá') }
+    await medirTela(page, 'trocar o nome (espera)')
+    await tap('#telaPe')
+    await espera(page, () => document.getElementById('tela').dataset.tela === 'perfil' && !!document.getElementById('perfilRecordes'))
+    confere(true, 'R23: o pé volta ao perfil')
+    await fecharTela(); await abrirMenu()
+    confere((await texto(page, '#mLiga')).includes(NOVO), 'R23: o menu mostra o nome novo')
+    await tap('#mRanking'); await espera(page, () => !!document.getElementById('listaTopo'))
+    confere((await texto(page, '#listaTopo li.km-feita')).includes(NOVO), 'R23: o ranking mostra o nome novo, com a linha da conta marcada')
+    await fecharTela(); await abrirMenu(); await tap('#mLiga')
+    await espera(page, () => !!document.getElementById('perfilRecordes'))
+  }, async () => { await fecharTela(); await abrirMenu(); await tap('#mLiga'); await espera(page, () => !!document.getElementById('perfilRecordes')) })
+  e = await srv(page)
   await tap('#perfilAlbum')
   await espera(page, () => !!document.getElementById('albumConta'))
   confere((await texto(page, '#albumConta')).startsWith(`${perfil2.album.liberadas.length} / ${perfil2.album.total}`) && (await page.evaluate(() => document.querySelectorAll('#albumGrade [data-livre="1"]').length)) === perfil2.album.liberadas.length, `álbum: ${perfil2.album.liberadas.length} cartas liberadas, as do servidor`)
@@ -355,6 +511,13 @@ async function celular() {
   await fecharTela(); await abrirTela('#mConquistas', 'conquistas')
   { const feitas = perfil2.conquistas.filter((c) => c.feita).map((c) => c.id).sort(), naTela = (await page.evaluate(() => [...document.querySelectorAll('#listaConquistas li.km-feita')].map((li) => li.dataset.id))).sort()
     confere(JSON.stringify(feitas) === JSON.stringify(naTela), `conquistas: as ${feitas.length} que o servidor marcou`) }
+  await item('conquistas com a data', page, async () => {
+    const naTela = await page.evaluate(() => [...document.querySelectorAll('#listaConquistas li')].map((li) => ({ id: li.dataset.id, em: li.dataset.em, texto: li.textContent })))
+    const comData = perfil2.conquistas.filter((c) => c.feita && c.quando)
+    confere(comData.length > 0 && perfil2.conquistas.every((c) => { const l = naTela.find((x) => x.id === c.id), d = c.feita && c.quando ? c.quando.slice(0, 10) : ''; return !!l && l.em === d && (d ? l.texto.includes(T.menu.data(d)) : !/Earned/.test(l.texto)) }), `R23: cada conquista feita mostra a data do servidor (${comData.length} com data: ${comData.map((c) => c.id + ' ' + c.quando.slice(0, 10)).join(', ')}); sem data, sem "Earned"`)
+    await medirTela(page, 'conquistas')
+    await foto('conquistas-data-celular')
+  })
 
   // ---- 12. replay: a própria estrada de hoje → "available tomorrow"; a de ranking passa na tela de batalha, em páginas
   await fecharTela(); await abrirMenu(); await tap('#mLiga')
@@ -391,13 +554,21 @@ async function celular() {
     await tap('#bt-sair-replay')
     await espera(page, () => !window.__keepmile.modelo().replay)
     confere((await modelo(page)).fase === 'fim' && (await srv(page)).modo === 'estrada', 'sair do replay volta para onde o jogador estava')
+    confere(await espera(page, () => document.getElementById('tela').dataset.tela === 'perfil' && !document.getElementById('tela').hidden && !!document.getElementById('listaMelhores'), null, 8000).then(() => true, () => false), 'R23: e o perfil, de onde o replay foi aberto, está de volta')
   }
+  await fecharTela()
 
   // ---- 13. Reduced motion: aviso e replay sem tremida nem flash
   await K(page, () => { window.__keepmile.guardaSet('menos', true) })
   await page.reload()
   await espera(page, () => document.documentElement.dataset.pronto === '1' && window.__keepmile?.pronto)
-  confere((await K(page, () => window.__keepmile.cena())).menos === true && (await srv(page)).modo === 'treino', 'Reduced motion ligado; sem partida aberta, recarregar abre um treino')
+  // (a regra mudou na R23, item 4: recarregar na tela de fim volta à tela de fim daquela partida; antes abria um treino)
+  await espera(page, () => window.__keepmile.fase() === 'fim' && window.__keepmile.modelo().fim?.contou, null, 8000).catch(() => {})
+  confere((await K(page, () => window.__keepmile.cena())).menos === true && (await modelo(page)).fase === 'fim' && (await srv(page)).modo === 'estrada', 'Reduced motion ligado; recarregar na tela de fim da estrada volta a ela (R23)')
+  { const c = await K(page, () => window.__keepmile.cena()); confere(c.tremidaMax === 0 && c.flashes.length === 0, 'R23: Reduced motion: a tela de fim que volta não treme nem pisca') }
+  if ((await modelo(page)).fase === 'fim') { await tap('#bt-denovo'); await espera(page, () => document.getElementById('tela').dataset.tela === 'jogar' && !!document.getElementById('jTreino')); await tap('#jTreino') }
+  await espera(page, () => window.__keepmile.servidor().modo === 'treino' && window.__keepmile.fase() === 'carta' && document.getElementById('tela').hidden)
+  confere(true, 'PLAY AGAIN depois da estrada abre a escolha de modo, e o treino começa')
   await K(page, () => { window.__keepmile.zerarMedidas(); window.__keepmile.avisarServidor('MUITOS_PEDIDOS') })
   await K(page, () => window.__keepmile.jogarNoServidor({ ateRodada: 2 }))
   await page.waitForTimeout(300)
@@ -444,6 +615,29 @@ async function pc({ sessao, apelido }) {
   confere((await texto(page, '#placarVoce')) === T.srv.placar.voce(1, rk.estradaDoDia.voce.pontos) && (await page.evaluate(() => document.querySelectorAll('#listaPlacar li.km-feita').length)) === 1, 'placar do dia: a conta aparece e está marcada, com os pontos do servidor')
   await medirTela(page, 'placar do dia (PC)')
   await foto('placar-pc')
+  await item('estrada de ontem', page, async () => {
+    const eo = rk.estradaDeOntem
+    confere(!!eo && eo.lista.length === 1 && eo.lista[0].apelido === 'Aunt Sorrel' && !!eo.lista[0].partida, `o servidor manda o placar de ontem (${eo?.dia}: ${eo?.lista.map((l) => l.apelido).join(', ')})`)
+    confere((await page.evaluate(() => document.getElementById('placarAbaHoje')?.getAttribute('aria-pressed'))) === 'true', "R23: a estrada abre na aba TODAY")
+    await page.click('#placarAbaOntem')
+    await espera(page, () => !!document.getElementById('listaOntem'))
+    confere((await texto(page, '#telaTitulo')) === T.srv.placar.tituloOntem && (await texto(page, '#ontemDia')) === T.srv.placar.diaOntem(eo.dia), `R23: aba YESTERDAY'S ROAD com o dia de ontem (${eo.dia})`)
+    const linhas = await page.evaluate(() => [...document.querySelectorAll('#listaOntem li')].map((li) => ({ texto: li.textContent, partida: li.querySelector('.km-ver')?.dataset.partida || null })))
+    confere(linhas.length === eo.lista.length && eo.lista.every((l, i) => linhas[i].texto.includes(l.apelido) && linhas[i].texto.includes(String(l.pontos)) && linhas[i].partida === (l.partida || null)), 'R23: o placar de ontem é o do servidor, com Watch em quem tem `partida`')
+    confere(!(await page.evaluate(() => !!document.getElementById('placarJogar') || !!document.getElementById('placarVoce'))), 'R23: ontem é só leitura (sem botão de jogar)')
+    await medirTela(page, 'estrada de ontem (PC)')
+    await page.click('#listaOntem .km-ver')
+    await espera(page, () => !!window.__keepmile.modelo().replay && document.getElementById('tela').hidden)
+    await espera(page, () => window.__keepmile.desenhou().includes('replay'), null, 8000)
+    const rp = (await modelo(page)).replay
+    confere(rp.nome === 'Aunt Sorrel' && rp.faixa[0] === T.srv.replay.de('Aunt Sorrel') && /^ROUND \d+ - STEP \d+\/\d+$/.test(rp.faixa[1] || ''), `R23: o replay da estrada de ontem passa, e a faixa diz de quem é e a rodada (${rp.faixa?.join(' / ')})`)
+    await page.keyboard.press('Escape')
+    await espera(page, () => !window.__keepmile.modelo().replay)
+    confere(await espera(page, () => document.getElementById('tela').dataset.tela === 'placar' && document.getElementById('placarAbas')?.dataset.aba === 'ontem' && !!document.getElementById('listaOntem'), null, 8000).then(() => true, () => false), 'R23: sair do replay volta à aba YESTERDAY')
+    await page.click('#placarAbaHoje')
+    await espera(page, () => !!document.getElementById('placarVoce'))
+    confere((await texto(page, '#telaTitulo')) === T.srv.placar.titulo, 'R23: a aba TODAY volta ao placar de hoje')
+  })
   await abrirTela('#mRanking', '#rankTemporada')
   confere((await texto(page, '#telaEnergia')).startsWith(T.srv.energia(5, 9)), 'ranking: a energia do servidor (5/9)')
   await medirTela(page, 'ranking (PC)')
@@ -461,6 +655,7 @@ async function pc({ sessao, apelido }) {
   await page.keyboard.press('Escape')
   await espera(page, () => !window.__keepmile.modelo().replay)
   confere((await modelo(page)).fase === 'fim', 'Esc sai do replay')
+  await fecharTela() // R23: sair do replay volta à tela de onde ele foi aberto (o perfil)
   // PLAY AGAIN depois da estrada: abre a escolha de modo (a estrada é uma por dia)
   await page.click('#bt-denovo')
   await espera(page, () => document.getElementById('tela').dataset.tela === 'jogar' && !!document.getElementById('jTreino'))
@@ -487,19 +682,39 @@ async function desenho({ sessao }) {
     const page = await ctx.newPage(), erros = [], pedidos = []
     vigiar(page, erros, pedidos)
     const clique = (sel) => (toque ? page.locator(sel).first().tap() : page.locator(sel).first().click())
+    const foto = async (nome) => { const arq = path.join(FOTOS, `servidor-${nome}.png`); await page.screenshot({ path: arq }); console.log('  foto: ' + path.relative(process.cwd(), arq)) }
     await page.goto(URL_JOGO)
     await espera(page, () => document.documentElement.dataset.pronto === '1' && window.__keepmile?.pronto)
-    for (const [botao, pronto, nome] of [[null, '#mJogar', 'menu'], ['#mJogar', '#jEstrada', 'escolha de modo'], ['#mRanking', '#rankTemporada', 'ranking'], ['#mPlacar', '#placarVoce', 'placar do dia'], ['#mLiga', '#perfilRecordes', 'perfil']]) {
+    // (R23, item 4: o PC terminou na tela de fim e recarregar volta a ela; as medidas daqui são com uma partida em curso)
+    if (await K(page, () => window.__keepmile.fase() === 'fim')) { await K(page, () => window.__keepmile.abrirModo('treino')); await espera(page, () => window.__keepmile.fase() === 'carta') }
+    for (const [botao, pronto, nome] of [[null, '#mJogar', 'menu'], ['#mJogar', '#jEstrada', 'escolha de modo'], ['#mRanking', '#rankTemporada', 'ranking'], ['#mPlacar', '#placarVoce', 'placar do dia'], ['#mLiga', '#perfilRecordes', 'perfil'], ['#mAjustes', '#mMenos', 'settings'], ['#mConquistas', '#listaConquistas', 'conquistas']]) {
       if (await page.evaluate(() => !document.getElementById('tela').hidden)) { await page.keyboard.press('Escape'); await espera(page, () => document.getElementById('tela').hidden) }
       await clique('#bt-menu'); await espera(page, () => document.getElementById('tela').dataset.tela === 'menu' && !document.getElementById('tela').hidden)
+      if (!botao) await item(`${w}x${h} menu curto`, page, async () => {
+        const t = await topoEPe(page)
+        confere(t.x && t.pe && (await page.evaluate(() => !!document.getElementById('mNova'))), `R23: ${w}x${h}: no menu (com New run) o X e o Close estão à vista sem rolar`)
+        if (w === 360) confere(!t.rola, 'R23: 360x740: o menu inteiro cabe sem rolar')
+        if (w === 320) await foto('menu-curto-320')
+      })
       if (botao) { await clique(botao); await espera(page, (q) => !!document.querySelector(q), pronto) }
       await medirTela(page, `${w}x${h} ${nome}`)
+      if (botao === '#mPlacar') await item(`${w}x${h} estrada de ontem`, page, async () => {
+        await clique('#placarAbaOntem'); await espera(page, () => !!document.getElementById('listaOntem') && !!document.querySelector('#listaOntem .km-ver'))
+        await medirTela(page, `${w}x${h} estrada de ontem`)
+        if (w === 360) await foto('ontem-celular')
+      })
+      if (botao === '#mLiga') await item(`${w}x${h} trocar o nome`, page, async () => {
+        await clique('#perfilNome'); await espera(page, () => document.getElementById('tela').dataset.tela === 'apelido' && !!document.querySelector('#apelidoCampo, #apelidoEspera'))
+        await medirTela(page, `${w}x${h} trocar o nome`)
+        const t = await topoEPe(page); confere(t.x && t.pe, `R23: ${w}x${h}: trocar o nome com o X e o pé à vista`)
+      })
     }
     await page.keyboard.press('Escape'); await espera(page, () => document.getElementById('tela').hidden)
     // o aviso de rede e os botões do jogo cabem
     await K(page, () => window.__keepmile.avisarServidor('SO_LEITURA'))
     await page.waitForTimeout(120)
     { const m = await modelo(page), css = (await K(page, () => window.__keepmile.css())).css; confere(!!m.statusRet && m.statusRet.x >= 0 && (m.statusRet.x + m.statusRet.w) * css <= w + 0.5 && (m.statusRet.y + m.statusRet.h) * css <= h, `${w}x${h}: o aviso do servidor cabe na tela`) }
+    confere(await avisoForaDoHud(page), `R23: ${w}x${h}: o aviso do servidor não cobre a 2ª linha do HUD`)
     const bts = await page.evaluate(() => [...document.querySelectorAll('#toques button')].map((b) => { const r = b.getBoundingClientRect(); return { id: b.id, ok: r.width >= 43.5 && r.height >= 43.5 && r.left >= -0.5 && r.top >= -0.5 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5 } }))
     confere(bts.length > 5 && bts.every((b) => b.ok), `${w}x${h}: botões do jogo com 44 px e dentro da tela` + (bts.every((b) => b.ok) ? '' : ' — ' + bts.filter((b) => !b.ok).map((b) => b.id).join(',')))
     confere(erros.length === 0, `${w}x${h}: zero erro de console` + (erros.length ? ' — ' + erros.slice(0, 3).join(' | ') : ''))
@@ -522,11 +737,36 @@ async function desenho({ sessao }) {
   await ctx.close()
 }
 
+// =============================================================== R23: sessão que não vale mais — dois pedidos juntos levam 401 e a tela cria UMA conta só
+async function sessaoVencida() {
+  console.log('\n=== sessão vencida: dois 401 juntos ===')
+  const velho = 'f'.repeat(64)
+  const ctx = await abrirContexto({ w: 360, h: 740, toque: true }, JSON.stringify({ token: velho, apelido: 'Ghost 00000' }))
+  const page = await ctx.newPage(), erros = [], pedidos = []
+  vigiar(page, erros, pedidos)
+  // o 2º 401 (perfil) chega DEPOIS de o 1º (partida) já ter criado a conta nova: é ele que não pode jogar o token novo fora
+  await page.route('**/api/reino/perfil', async (rota) => { if (rota.request().headers().authorization === `Bearer ${velho}`) await new Promise((ok) => setTimeout(ok, 900)); await rota.continue() })
+  await page.goto(URL_JOGO)
+  await espera(page, () => document.documentElement.dataset.pronto === '1' && window.__keepmile?.pronto && window.__keepmile.fase() === 'carta')
+  await page.waitForTimeout(300)
+  const n401 = pedidos.filter((p) => p.status === 401).length, contas = pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/api/conta' && p.status < 300).length
+  confere(n401 === 2, `a sessão guardada não vale mais: os dois pedidos do começo levaram 401 (${n401})`)
+  confere(contas === 1, `R23: dois 401 juntos criam uma conta só (POST /api/conta: ${contas})`)
+  const e = await srv(page), guardado = JSON.parse(await page.evaluate(() => localStorage.getItem('keepmile_sessao_v1')))
+  confere(e.temToken && guardado.token !== velho && /^Keeper \d{5}$/.test(e.apelido || '') && guardado.apelido === e.apelido, 'R23: a conta nova fica guardada no aparelho e o jogo abre nela')
+  confere((await api('GET', '/api/reino/perfil', guardado.token)).json.apelido === e.apelido, 'R23: o token guardado é o da conta que ficou')
+  confere(erros.length === 0, 'sessão vencida: zero erro de console' + (erros.length ? ' — ' + erros.slice(0, 3).join(' | ') : ''))
+  await ctx.close()
+}
+
 let codigo = 0
 try {
+  SORREL = await roboDeRanking('Aunt Sorrel', 2) // "ontem": conta criada e 1 partida de ranking terminada
+  relogio.desvio = 0
   const conta = await celular()
   await pc(conta)
   await desenho(conta)
+  await sessaoVencida()
 } catch (err) {
   falha('o teste parou: ' + (err?.stack || err))
   for (const c of browser.contexts()) for (const pg of c.pages()) console.log('  estado na parada: ' + JSON.stringify(await pg.evaluate(() => ({ fase: window.__keepmile?.fase(), srv: window.__keepmile?.servidor(), erros: window.__keepmile?.erros(), tela: document.getElementById('tela').hidden ? null : document.getElementById('tela').dataset.tela, v: (({ rodada, fase, cartaPosta, vidas }) => ({ rodada, fase, cartaPosta, vidas }))(window.__keepmile?.visao() || {}) })).catch((e) => String(e))))

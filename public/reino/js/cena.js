@@ -26,7 +26,7 @@ export function criarCena(canvas, CONFIG) {
     // partículas, efeitos animados, números
     pn: 0, px: new Float32Array(MAXP), py: new Float32Array(MAXP), pvx: new Float32Array(MAXP), pvy: new Float32Array(MAXP), pvida: new Float32Array(MAXP), pcor: new Uint8Array(MAXP), ptam: new Uint8Array(MAXP),
     ef: Array.from({ length: MAXE }, () => ({ p: null, x: 0, y: 0, t0: 0, flip: false, ate: 0, anim: null })),
-    num: Array.from({ length: MAXN }, () => ({ x: 0, y: 0, t0: -1e9, s: '', ouro: false })),
+    num: Array.from({ length: MAXN }, () => ({ x: 0, y: 0, t0: -1e9, s: '', ouro: false, grande: false })),
     proj: Array.from({ length: 12 }, () => ({ x0: 0, y0: 0, x1: 0, y1: 0, t0: -1e9, tipo: 0 })),
   }
   const CORES_P = ['#FFF6E0', '#E8C48A', '#FFD248', '#CC3C3E', '#4884E8', '#9248C8', '#7CC950', '#E0489B', '#CECAD8']
@@ -92,7 +92,7 @@ export function criarCena(canvas, CONFIG) {
   C.areaDoTerreno = (k) => {
     const t = C.geo.terrenos[k - 1]; let w = t.largura
     for (const o of C.geo.terrenos) if (o !== t && o.base_predio === t.base_predio) w = Math.min(w, Math.abs(o.x - t.x)) // vizinhos do mesmo patamar não se sobrepõem
-    return { x: C.ox + t.x - w / 2 - C.cam.x, y: C.oyBase + t.base_predio - 34, w, h: Math.min(t.estrada[1] - t.base_predio + 36, C.VH - (C.tipo === 'celular' ? 100 : 80) - (C.oyBase + t.base_predio - 34)) }
+    return { x: C.ox + t.x - w / 2 - C.cam.x, y: C.oyBase + t.base_predio - 34, w, h: Math.min(t.estrada[1] - t.base_predio + 36, C.VH - (C.tipo === 'celular' ? 78 + 44 / C.css : 80) - (C.oyBase + t.base_predio - 34)) }
   }
   C.centroDoTerreno = (k) => { const t = C.geo.terrenos[k - 1]; return { x: C.ox + t.x - C.cam.x, y: C.oy + (t.estrada[0] + t.estrada[1]) / 2, base: C.oy + t.base_predio } }
 
@@ -132,11 +132,11 @@ export function criarCena(canvas, CONFIG) {
     const a = p.anim[anim] || p.anim.play
     for (const e of C.ef) if (e.ate <= C.relogio) { e.p = p; e.x = x; e.y = y; e.t0 = C.relogio; e.flip = flip; e.anim = a; e.ate = C.relogio + Arte.duracao(a); return }
   }
-  C.numero = (x, y, s, ouro = false) => {
+  C.numero = (x, y, s, ouro = false, grande = false) => {
     let alvo = C.num[0]
     for (const n of C.num) if (n.t0 < alvo.t0) alvo = n
     if (C.relogio - alvo.t0 < 500 && !ouro) return // 8 ao mesmo tempo, no máximo
-    alvo.x = x; alvo.y = y; alvo.t0 = C.relogio; alvo.s = s; alvo.ouro = ouro
+    alvo.x = x; alvo.y = y; alvo.t0 = C.relogio; alvo.s = s; alvo.ouro = ouro; alvo.grande = grande
   }
   C.projetil = (x0, y0, x1, y1, tipo = 0) => { let a = C.proj[0]; for (const p of C.proj) if (p.t0 < a.t0) a = p; a.x0 = x0; a.y0 = y0; a.x1 = x1; a.y1 = y1; a.t0 = C.relogio; a.tipo = tipo }
   /** Tremida: no máximo 6 px e 120 ms. Com "Reduced motion" não treme. */
@@ -202,6 +202,13 @@ export function criarCena(canvas, CONFIG) {
       const i = (y * C.VW + x) * 4; a[i] = 43; a[i + 1] = 30; a[i + 2] = 58; a[i + 3] = Math.min(255, n * 64)
     }
     vg.putImageData(d, 0, 0); return c
+  }
+  /** Vida do cenário (só enfeite, fora da conta de partículas): pássaros de dia, vaga-lumes à noite, bandeirolas na festa do fim. */
+  function vida(cen) {
+    const lista = Arte.vidaDaHora(C.hora), T = C.relogioReal
+    if (lista.includes('bird') && !C.menos) { const p = Arte.peca('bird'); if (p) for (let i = 0; i < 2; i++) { const x = ((T * (0.012 + i * 0.005) + i * 140) % (C.VW + 60)) - 30, y = C.oy + (C.tipo === 'celular' ? 24 : 14) + i * 13 + Math.round(Math.sin(T / 600 + i) * 2); Arte.desenhar(g, p, quadroDaPeca(p, 'play', T + i * 200), Math.round(x), y) } }
+    if (lista.includes('firefly')) { const p = Arte.peca('firefly'); if (p) for (let i = 0; i < 6; i++) { const x = ((i * 73 + 20) % C.VW) + (C.menos ? 0 : Math.round(Math.sin(T / 900 + i * 2) * 5)), y = C.oy + C.tiers[i % C.tiers.length] - 20 - ((i * 37) % 24) + (C.menos ? 0 : Math.round(Math.cos(T / 700 + i) * 3)); Arte.desenhar(g, p, quadroDaPeca(p, 'play', C.menos ? 0 : T + i * 330), x, y) } }
+    if (C.fimDeJogo) { const p = Arte.peca('bunting'); if (p) { const y = C.oy + C.tiers[0] - (C.tipo === 'celular' ? 62 : 58); for (let x = -((Math.round(C.cam.x)) % 64) - 64; x < C.VW; x += 64) Arte.desenhar(g, p, quadroDaPeca(p, 'play', C.menos ? 0 : T), x, y) } }
   }
   const quadroDaPeca = (p, animNome, ms, vari = 0) => { const a = p.anim[animNome] || Object.values(p.anim)[0]; return (p.variantes ? p.variantes[vari] : p.quadros)[Arte.quadroDe(a, ms)] }
 
@@ -274,12 +281,14 @@ export function criarCena(canvas, CONFIG) {
   }
   C.sentido = new Int8Array(MAXU)
   const TRAS = '#C4BCD6'
-  /** Nível 3+: divisa de ouro sobre a cabeça; nível 5: duas divisas com brilho e o líder do grupo leva o estandarte. Só desenho. */
+  /** Nível 3+: o líder do grupo leva o estandarte (prata; ouro no 5, com os pinos do nível). Nível 5: cada soldado ganha também uma divisa de ouro que brilha. Só desenho. */
   function marcaDeNivel(i, p, X, Y) {
-    const topo = Y - p.ay + Arte.topoDe(p) - 5, max = C.nv[i] >= 5
-    g.fillStyle = '#2B1E3A'; g.fillRect(X - 3, topo - 1, 7, max ? 6 : 4)
-    g.fillStyle = '#FFD248'; g.fillRect(X - 2, topo + 1, 1, 1); g.fillRect(X - 1, topo, 3, 1); g.fillRect(X + 2, topo + 1, 1, 1)
-    if (max) { g.fillRect(X - 2, topo + 3, 1, 1); g.fillRect(X - 1, topo + 2, 3, 1); g.fillRect(X + 2, topo + 3, 1, 1); if (!C.menos && ((C.relogioReal + i * 97) % 900) < 220) { g.fillStyle = '#FFF096'; g.fillRect(X, topo - 3, 1, 3); g.fillRect(X - 1, topo - 2, 3, 1) } }
+    const topo = Y - p.ay + Arte.topoDe(p) - 4, max = C.nv[i] >= 5
+    if (max) {
+      g.fillStyle = '#2B1E3A'; g.fillRect(X - 2, topo, 5, 3)
+      g.fillStyle = '#FFD248'; g.fillRect(X - 1, topo + 1, 3, 1); g.fillRect(X, topo, 1, 1)
+      if (!C.menos && ((C.relogioReal + i * 97) % 1100) < 180) { g.fillStyle = '#FFF096'; g.fillRect(X, topo - 2, 1, 3); g.fillRect(X - 1, topo - 1, 3, 1) }
+    }
     if (C.lider[i]) { // estandarte do grupo
       const bx = X + (C.dir[i] * C.sentido[i] < 0 ? 7 : -8), by = topo - 9
       g.fillStyle = '#2B1E3A'; g.fillRect(bx - 1, by - 1, 3, 22); g.fillRect(bx + 1, by - 1, 9, max ? 9 : 7)
@@ -324,10 +333,11 @@ export function criarCena(canvas, CONFIG) {
     g.setTransform(C.e, 0, 0, C.e, 0, 0); g.imageSmoothingEnabled = false
     if (C.cam.zoom !== 1) { const z = C.cam.zoom; g.translate(C.cam.fx, C.cam.fy); g.scale(z, z); g.translate(-C.cam.fx, -C.cam.fy) }
     const frente = []
-    const camadas = (c, alfa) => { for (const p of c.planos) { if (p.nome === 'front') { frente.push(p, alfa); continue } plano(p, alfa); if (p.nome === 'sky') nuvens(c, alfa) } }
+    const camadas = (c, alfa) => { for (const p of c.planos) { if (p.nome === 'front' || p.nome === 'verge') { frente.push(p, alfa); continue } /* beira da estrada e primeiro plano: na frente dos bonecos */ plano(p, alfa); if (p.nome === 'sky') nuvens(c, alfa) } }
     if (de) camadas(de, 1)
     camadas(cen, de ? C.mix : 1)
     g.globalAlpha = 1
+    vida(cen)
     for (let tier = 0; tier < C.tiers.length; tier++) { moveis(tier, tinta, t); if (tier === C.tiers.length - 1 && C.antesDosBonecos) C.antesDosBonecos(g, t); bonecos(tier, tinta) }
     destaques(agora)
     // projéteis (só desenho: o tiro já acertou)
@@ -353,7 +363,7 @@ export function criarCena(canvas, CONFIG) {
     for (const n of C.num) {
       const f = (t - n.t0) / 500; if (f < 0 || f >= 1) continue
       if (f > 0.75 && ((C.quadro >> 1) & 1) && !C.menos) continue
-      Arte.texto(g, n.s, n.x - C.cam.x, n.y - Math.round(f * 10), { fonte: n.ouro ? 'reino-ouro' : 'reino-contorno', alinhar: 'centro' })
+      Arte.texto(g, n.s, n.x - C.cam.x, n.y - Math.round(f * 10) - (n.grande ? 6 : 0), { fonte: n.grande && /^[0-9!]+$/.test(n.s) && Arte.temFonte('dano-g-ouro') ? 'dano-g-ouro' : n.ouro ? 'reino-ouro' : 'reino-contorno', alinhar: 'centro' })
     }
     if (C.depoisDoMundo) C.depoisDoMundo(g, t)
     g.setTransform(C.e, 0, 0, C.e, 0, 0)

@@ -2,6 +2,7 @@
 // Nada aqui muda o resultado: velocidade, pausa de impacto e câmera lenta só mexem no relógio do desenho.
 import { AN } from './cena.js'
 
+const ANIM_MAGIA = { laco: 'grow', abelhas: 'swarm', corneta: 'blow', repeteco: 'serve', levanta: 'open', finale: 'launch' } // animação da peça do atlas quando a magia dispara
 const SOM_MAGIA = { barril: 'magiaFogo', piche: 'magiaGelo', abelhas: 'magiaRaio', corneta: 'invasorChega', repeteco: 'magiaCura', laco: 'magiaGelo', levanta: 'magiaCura', finale: 'magiaRaio' }
 
 export function criarBatalha(C, CONFIG, Som, expandirHorda) {
@@ -14,7 +15,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
   B.iniciar = ({ eventos, horda, terrenos, exercito, segundos = 0, rodada = 99 }, aoFim) => {
     B.ev = eventos; B.i = 0; B.ativa = true; B.resultado = null; B.aoFim = aoFim; B.fimEm = 0; B.pausaAte = 0; B.lentoAte = 0; B.silencio = false
     B.ritmo = rodada <= 4 && segundos > 0 ? Math.max(0.4, Math.min(1, segundos / 7)) : 1
-    B.chefeCaiuEm = 0; B.lento = false; danoT.fill(0); terrenoDe = {}; chefesVivos = 0
+    B.chefeCaiuEm = 0; B.lento = false; B.pausouNaQueda = false; danoT.fill(0); terrenoDe = {}; chefesVivos = 0
     // entrada: a horda marcha no portão ao som do tambor antes do primeiro passo da luta (só desenho; o resultado já está decidido)
     B.preludioAte = performance.now() + 1700; C.marcha = true; C.emLuta = true; C.noite = 0
     porTerreno = {}; contTerreno = {}; nivelTerreno = {}
@@ -72,7 +73,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
         if (Math.abs(xa - xo) > 60) { C.projetil(po.x + C.cam.x, po.y - 16, pa.x + C.cam.x, pa.y - 14, C.lado[o]); if (C.lado[o] === 0 && (t & 3) === 0) Som.tocar('flecha', { pan: pan(o), forca: 0.7 }) } else if ((e[3] + t) % 3 === 0) C.efeito('spark', pa.x + C.cam.x, pa.y - 14)
         if (C.peca[o].w > 100) { pausa(agora, 120, 6); Som.tocar('critico', { pan: pan(a) }) } else if (forte) { pausa(agora, 60, 3); Som.tocar('critico', { pan: pan(a), forca: 0.7 }) }
       }
-      C.numero(pa.x + C.cam.x + ((e[3] * 5) % 9) - 4, pa.y - C.peca[a].ay * C.k[a] + 6, forte ? valor + '!' : String(valor), forte)
+      C.numero(pa.x + C.cam.x + ((e[3] * 5) % 9) - 4, pa.y - C.peca[a].ay * C.k[a] + 6, forte ? valor + '!' : String(valor), forte, o >= 0 && C.peca[o].w > 100)
       if (!chocou) { chocou = true; Som.tocar('choque') }
     } else if (cod === 'h') {
       const i = B.mapa[e[2]]; if (i < 0) return
@@ -91,9 +92,9 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       if (chefe && chefesVivos <= 0) {
         // FESTA GRANDE: câmera lenta de 600 ms com zoom, ouro e confete (dentro do limite). Com Reduced motion: pausa + som.
         B.chefeCaiuEm = agora; lentoUsado = true; Som.tocar('chefeCai')
-        if (C.menos) B.pausaAte = agora + 450
+        if (C.menos) { B.pausaAte = agora + 450; B.pausouNaQueda = true }
         else {
-          B.lentoAte = agora + 600; C.zoom(p.x, p.y - 26, 600); C.flash('#FFD248', 220); C.tremer(6, 120)
+          B.lentoAte = agora + 600; B.lento = true; C.zoom(p.x, p.y - 26, 600); C.flash('#FFD248', 220); C.tremer(6, 120)
           C.estouro(p.x + C.cam.x, p.y - 30, 14, 2, 80)
           for (const dx of [-22, 0, 22]) C.efeito('confetti', p.x + C.cam.x + dx, p.y - 34)
           C.efeito('level-ring', p.x + C.cam.x, p.y - 6)
@@ -117,10 +118,10 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       const k = e[2], c = CONFIG.CARTAS[e[3]]
       if (quieto || !c) return
       const p = C.centroDoTerreno(k)
-      C.pulo[k] = C.relogio + 300; C.magiaAnim[k] = { nome: c.efeito === 'laco' ? 'grow' : 'idle', t0: C.relogio }
+      C.pulo[k] = C.relogio + 300; C.magiaAnim[k] = { nome: ANIM_MAGIA[c.efeito] || 'idle', t0: C.relogio }
       if (c.efeito === 'laco') setTimeout(() => { if (C.magiaAnim?.[k]) C.magiaAnim[k] = { nome: 'hold', t0: C.relogio } }, 300)
       Som.tocar(SOM_MAGIA[c.efeito] || 'magiaRaio'); C.numero(p.x + C.cam.x, p.base - 30, c.nome, true); C.efeito('level-ring', p.x + C.cam.x, p.y)
-      if (c.efeito === 'finale') C.flash('#F58CC4', 160)
+      if (c.efeito === 'finale') { C.flash('#F58CC4', 160); C.efeito('fireworks', p.x + C.cam.x, p.base - 20) }
     } else if (cod === 's') {
       const i = B.mapa[e[2]]; if (i < 0) return
       if (e[3] === 'preso') C.preso[i] = t + e[4]

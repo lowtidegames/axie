@@ -47,4 +47,16 @@ body { font: 600 15px/1.35 'Nunito', system-ui, sans-serif; color: var(--creme);
 .km-lista li.km-feita b::after { content: ' ★'; color: var(--ouro); }
 .km-melhores li { flex-direction: row; gap: 12px; align-items: baseline; opacity: 1; }
 .km-lista span { font-size: 13px; color: #CECAD8; }
+.km-chapa { gap: 12px; }
+.km-chapa span { display: flex; flex-direction: column; gap: 2px; }
+.km-chapa b { color: var(--ouro); }
+.km-chapa small { font: 600 12px/1.2 'Nunito', system-ui, sans-serif; color: #CECAD8; }
+.km-tela-topo canvas { max-width: calc(100% - 56px); height: auto !important; }
+.km-medalhas li { flex-direction: row; gap: 10px; align-items: center; }
+.km-medalha-texto { display: flex; flex-direction: column; }
+.km-medalha-texto b { font-size: 15px; color: var(--creme); }
+.km-liga-topo { display: flex; gap: 12px; align-items: center; padding: 8px 10px; background: var(--ameixa); border: 3px solid var(--filete); }
+.km-liga-topo > span { display: flex; flex-direction: column; }
+.km-liga-topo b { font: 800 18px/1.2 'Nunito', system-ui, sans-serif; color: var(--ouro); }
+.km-escada li { flex-direction: row; gap: 10px; align-items: center; padding: 4px 10px; }
 @media (prefers-reduced-motion: reduce) { #cena { transition: none; } .km-bt:active { transform: none; } }

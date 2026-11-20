@@ -16,7 +16,8 @@ function emTela(img) { const c = Cod.tela(img.width, img.height); c.getContext('
 
 /** Troca o roxo da família (matiz 255°–300°) por rosa-fúcsia dentro dos retângulos dados. */
 function trocarRoxo(c, rets) {
-  const g = c.getContext('2d')
+  const tmp = Cod.tela(c.width, c.height), g = tmp.getContext('2d', { willReadFrequently: true }) // lê e escreve numa cópia (várias leituras na folha de desenho deixam ela lenta)
+  g.drawImage(c, 0, 0)
   for (const [x, y, w, h] of rets) {
     const d = g.getImageData(x, y, w, h), a = d.data
     for (let i = 0; i < a.length; i += 4) {
@@ -31,6 +32,7 @@ function trocarRoxo(c, rets) {
     }
     g.putImageData(d, x, y)
   }
+  const gc = c.getContext('2d'); gc.clearRect(0, 0, c.width, c.height); gc.drawImage(tmp, 0, 0)
 }
 
 const NOME_FAMILIA = { Pikewall: 'pikewall', Thornbow: 'thornbow', Potluck: 'potluck', Fizzwick: 'fizzwick' }
@@ -65,15 +67,17 @@ export async function carregar(CONFIG) {
     for (const [id, p] of Object.entries(atlas.pecas)) if (p.tipo !== 'efeito') A.porNome[p.nome] = id
   }
   const provs = ['castelo', 'portao', 'quartel', 'moinho', 'tenda', 'ferraria', 'torre-mago', 'bruto', 'chefe', 'cavaleiro', 'mago']
-  const pi = await Promise.all(provs.map((n) => imagem(new URL(`arte-provisoria/${n}.png`, BASE))))
+  // as peças provisórias só são pedidas quando o atlas não veio (com a arte completa nenhuma é usada)
+  const pi = A.atlas ? [] : await Promise.all(provs.map((n) => imagem(new URL(`arte-provisoria/${n}.png`, BASE))))
   provs.forEach((n, i) => { if (pi[i]) A.prov[n] = emTela(pi[i]) })
   // fontes e ícones
-  const fc = Cod.fontesPorCodigo()
+  const fc = Cod.fontesPorCodigo(); A.fontesCod = fc
   for (const nome of Object.keys(fc)) {
     const f = atlas?.fontes?.[nome], img = f && A.folhas[f.folha]
     A.fontes[nome] = img ? { img, glifos: f.glifos, altura: f.altura, espaco: f.espaco } : fc[nome]
     A.origem['fonte:' + nome] = img ? 'atlas' : 'codigo'
   }
+  for (const [nome, f] of Object.entries(atlas?.fontes || {})) if (!A.fontes[nome] && A.folhas[f.folha]) { A.fontes[nome] = { img: A.folhas[f.folha], glifos: f.glifos, altura: f.altura, espaco: f.espaco }; A.origem['fonte:' + nome] = 'atlas' }
   const ic = Cod.iconesPorCodigo(), ia = atlas?.icones, iimg = ia && A.folhas[ia.folha]
   A.icones = { cod: ic, img: iimg, quadros: iimg ? ia.quadros : {} }
   A.origem.icones = iimg ? 'atlas' : 'codigo'
@@ -88,8 +92,8 @@ const PROV_UNIDADE = { T03: ['cavaleiro', 26, 28, false], T12: ['mago', 32, 32, 
 /** Peça animada de uma Tropa (id da carta), invasor ou chefe (id do motor). */
 export function unidade(id) {
   return guardada('u:' + id, () => {
-    const C = A.config, nome = C.CARTAS[id]?.nome || C.INVASORES[id]?.nome || C.CHEFES.find((c) => c.id === id)?.nome
-    const pa = [nome && A.porNome[nome], id].filter(Boolean).map(pecaAtlas).find((p) => p && p.anim.idle && p.anim.walk) // pelo nome do config primeiro: no atlas, 'spud' é a batata, não o Spud Slinger
+    const C = A.config, nome = C.CARTAS[id]?.nome || C.INVASORES[id]?.nome || C.CHEFES.find((c) => c.id === id)?.nome, ids = A.atlas?.ids
+    const pa = [ids?.invasores?.[id], ids?.chefes?.[id], id, nome && A.porNome[nome]].filter(Boolean).map(pecaAtlas).find((p) => p && p.anim.idle && p.anim.walk) // o id do config manda (o nome mostrado pode mudar); no atlas, 'spud' é a batata, não o Spud Slinger
     if (pa && pa.anim.idle) { marca(id, 'atlas'); return pa }
     const chefe = C.CHEFES.find((c) => c.id === id)
     if (chefe && A.prov.chefe) {
@@ -190,36 +194,46 @@ export function quadroDe(a, ms) {
 export function duracao(a) { if (!a.total) quadroDe(a, 0); return a.total }
 
 // ------------------------------------------------------------------ texto em pixel
-function fonteCor(nome, cor) {
-  const f = A.fontes[nome]
+const RESERVA = { 'mini-ouro': 'mini-contorno', 'reino-verde': 'reino-contorno', 'dano-g': 'reino-contorno', 'dano-g-ouro': 'reino-ouro' }
+function fonteCor(f, nome, cor) {
   if (!cor) return f
-  const k = nome + cor
+  const k = nome + cor + (f === A.fontes[nome] ? '' : 'c')
   if (!A.cores.has(k)) A.cores.set(k, { ...f, img: Cod.silhueta(f.img, cor) })
   return A.cores.get(k)
 }
+/** O glifo de `ch` na fonte; se a fonte do atlas não tiver a letra (ex.: "&"), usa a mesma fonte feita por código. Devolve [fonte, quadro]. */
+function glifo(nome, ch) {
+  const f = A.fontes[nome] || A.fontes[RESERVA[nome]] || A.fontes.reino
+  let q = f.glifos[ch] || f.glifos[ch.toLowerCase()]
+  if (q) return [f, q]
+  const c = A.fontesCod[nome] || A.fontesCod[RESERVA[nome]]
+  if (c && c !== f) { q = c.glifos[ch] || c.glifos[ch.toLowerCase()]; if (q) return [c, q] }
+  if (ch === ',' || ch === ';') return [f, f.glifos['.'] || f.glifos[' '], true]
+  return [f, f.glifos[' ']]
+}
 export function largura(s, fonte = 'reino') {
-  const f = A.fontes[fonte]; let w = 0
-  for (const ch of String(s).toUpperCase()) { const q = f.glifos[ch] || f.glifos[ch.toLowerCase()] || (ch === ',' && f.glifos['.']) || f.glifos[' ']; w += q[2] + f.espaco }
-  return w - f.espaco
+  let w = 0, esp = 0
+  for (const ch of String(s).toUpperCase()) { const [f, q] = glifo(fonte, ch); esp = (A.fontes[fonte] || f).espaco; w += q[2] + esp }
+  return w - esp
 }
 /** Escreve em pixel. `cor` só vale nas fontes sem contorno (reino, mini). Devolve a largura. */
 export function texto(g, s, x, y, { fonte = 'reino', cor = null, alinhar = 'esquerda' } = {}) {
   s = String(s).toUpperCase()
-  const f = fonteCor(fonte, fonte === 'reino' || fonte === 'mini' ? cor : null), w = largura(s, fonte)
+  const w = largura(s, fonte), pinta = fonte === 'reino' || fonte === 'mini' ? cor : null
   if (alinhar === 'centro') x -= w >> 1; else if (alinhar === 'direita') x -= w
   x = Math.round(x); y = Math.round(y)
+  const esp = (A.fontes[fonte] || A.fontes[RESERVA[fonte]] || A.fontes.reino).espaco
   for (const ch of s) {
-    let q = f.glifos[ch] || f.glifos[ch.toLowerCase()]
-    if (!q && ch === ',' && f.glifos['.']) { q = f.glifos['.']; g.drawImage(f.img, q[0], q[1], q[2], q[3], x - 1, y + 1, q[2], q[3]) } // fonte sem vírgula: ponto com rabinho
-    if (!q) q = f.glifos[' ']
+    const [f0, q, rabo] = glifo(fonte, ch), f = fonteCor(f0, fonte, pinta)
+    if (rabo) g.drawImage(f.img, q[0], q[1], q[2], q[3], x - 1, y + 1, q[2], q[3]) // fonte sem vírgula: ponto com rabinho
     if (ch !== ' ') g.drawImage(f.img, q[0], q[1], q[2], q[3], x, y, q[2], q[3])
-    x += q[2] + f.espaco
+    x += q[2] + esp
   }
   return w
 }
 /** Texto com contorno em qualquer tamanho inteiro `k` (títulos grandes). */
 export function titulo(g, s, x, y, k = 2, ouro = false) {
-  const fonte = ouro ? 'reino-ouro' : 'reino-contorno', w = largura(s, fonte), c = Cod.tela(w + 2, A.fontes[fonte].altura)
+  const fonte = ouro === true ? 'reino-ouro' : ouro || 'reino-contorno', w = largura(s, fonte), c = Cod.tela(w + 2, (A.fontes[fonte] || A.fontes['reino-contorno']).altura + 1)
   texto(c.getContext('2d'), s, 0, 0, { fonte })
   g.drawImage(c, 0, 0, c.width, c.height, Math.round(x - (w * k) / 2), Math.round(y), c.width * k, c.height * k)
   return w * k
@@ -278,9 +292,10 @@ function quebrarNome(nome) {
 function faceBase(id) {
   if (A.cartas.has(id)) return A.cartas.get(id)
   const c = Cod.tela(56, 78), g = c.getContext('2d'), ac = A.atlas?.cartas, img = ac && A.folhas[ac.folha], C = A.config.CARTAS[id]
-  if (img && ac.piloto?.[id]) {
-    const q = ac.piloto[id].quadro; g.drawImage(img, q[0], q[1], 56, 78, 0, 0, 56, 78); marca('carta:' + id, 'atlas')
-    if (ac.piloto[id].nome !== C.nome) { // o nome mostrado é o do config: a faixa do nome é repintada por cima da arte
+  const pronta = ac && [ac.todas?.[id], ac.piloto?.[id]].find((x) => x && A.folhas[x.folha || ac.folha])
+  if (pronta) {
+    const q = pronta.quadro; g.drawImage(A.folhas[pronta.folha || ac.folha], q[0], q[1], 56, 78, 0, 0, 56, 78); marca('carta:' + id, 'atlas')
+    if (pronta.nome !== C.nome) { // o nome mostrado é o do config: a faixa do nome é repintada por cima da arte
       const f = FAMILIA_COR[C.familia], lin = quebrarNome(C.nome)
       g.fillStyle = f.cor; g.fillRect(4, 5, 48, 11); g.fillStyle = f.claro; g.fillRect(4, 4, 48, 1); g.fillStyle = f.escuro; g.fillRect(4, 16, 48, 1)
       lin.forEach((s, i) => texto(g, s, 28, lin.length === 1 ? 8 : 5 + i * 6, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' }))
@@ -324,8 +339,8 @@ export function carta(g, id, nivel, x, y, { silhueta = false } = {}) {
   const ac = A.atlas?.cartas, pinos = ac?.pinos || [[14, 70], [20, 70], [26, 70], [32, 70], [38, 70]], tf = ac?.texto_forca || [34, 57]
   for (let i = 0; i < 5; i++) icone(g, i < nivel ? 'pin-on' : 'pin-off', x + pinos[i][0], y + pinos[i][1])
   const leg = legendaDaCarta(id)
-  texto(g, forcaDaCarta(id, nivel), x + tf[0], y + tf[1] + (leg ? -1 : 2), { fonte: 'reino', cor: COR.ameixa, alinhar: 'centro' })
-  if (leg) texto(g, leg, x + tf[0], y + tf[1] + 7, { fonte: 'mini', cor: '#6E4A3A', alinhar: 'centro' })
+  texto(g, forcaDaCarta(id, nivel), x + tf[0], y + tf[1] + (leg ? -2 : 2), { fonte: 'reino', cor: COR.ameixa, alinhar: 'centro' })
+  if (leg) texto(g, leg, x + tf[0], y + tf[1] + 6, { fonte: 'mini', cor: '#6E4A3A', alinhar: 'centro' })
 }
 export function costas(g, x, y) {
   const ac = A.atlas?.cartas, img = ac && A.folhas[ac.folha]
@@ -347,3 +362,53 @@ export function cenario(tipo, hora) {
 }
 export const temAtlas = () => !!A.atlas
 export { Cod }
+
+// ------------------------------------------------------------------ peças novas da folha `extras` (relíquias, conquistas, ligas, logo, fim)
+const lesma = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+const COR_REL = ['#CECAD8', '#FFF096', '#FFD248', '#F4BE3C', '#E87E2E', '#C48C54', '#4884E8', '#96ECE2']
+/** Ícone próprio da relíquia (13×13 do atlas; sem atlas, um selo por código diferente para cada uma). `k` amplia. */
+export function reliquia(g, id, x, y, k = 1) {
+  const r = A.atlas?.reliquias, img = r && A.folhas[r.folha], q = img && r.quadros[id]
+  if (q) { g.drawImage(img, q[0], q[1], q[2], q[3], x, y, q[2] * k, q[3] * k); return 'atlas' }
+  const ids = Object.keys(A.config.RELIQUIAS), i = Math.max(0, ids.indexOf(id)), nome = A.config.RELIQUIAS[id]?.nome || '?'
+  g.fillStyle = COR.ameixa; g.fillRect(x, y, 13 * k, 13 * k); g.fillStyle = COR_REL[i % 8]; g.fillRect(x + k, y + k, 11 * k, 11 * k)
+  g.fillStyle = COR.ameixa; for (let n = 0; n <= i; n++) g.fillRect(x + (2 + (n % 4) * 2) * k, y + (9 + ((n / 4) | 0) * 2) * k - 2 * k * 0, k, k) // i+1 pontinhos: cada relíquia tem o seu
+  const c = Cod.tela(8, 8), cg = c.getContext('2d'); texto(cg, nome[0], 1, 0, { fonte: 'reino', cor: COR.ameixa }); g.drawImage(c, 0, 0, 8, 8, x + 3 * k, y + k, 8 * k, 8 * k)
+  return 'codigo'
+}
+/** Medalha da conquista (19×21): de ouro quando ganha, apagada quando não. Devolve false sem atlas. */
+export function conquista(g, nome, x, y, ganha = true) {
+  const c = A.atlas?.conquistas, img = c && A.folhas[c.folha], id = lesma(nome)
+  if (!img || !c.icones?.[id]) return false
+  if (ganha && c.prontas?.[id]) { const q = c.prontas[id]; g.drawImage(img, q[0], q[1], q[2], q[3], x, y, q[2], q[3]); return true }
+  const m = c.molduras.locked, q = c.icones[id]
+  g.drawImage(img, m[0], m[1], m[2], m[3], x, y, m[2], m[3]); g.globalAlpha = 0.45; g.drawImage(img, q[0], q[1], q[2], q[3], x + c.icone_em[0], y + c.icone_em[1], q[2], q[3]); g.globalAlpha = 1
+  return true
+}
+/** Emblema da liga (27×30) pelo nome. Devolve false sem atlas. */
+export function liga(g, nome, x, y) {
+  const l = A.atlas?.ligas, img = l && A.folhas[l.folha], q = img && l.emblemas?.[lesma(nome)]?.quadro
+  if (!q) return false
+  g.drawImage(img, q[0], q[1], q[2], q[3], x, y, q[2], q[3]); return true
+}
+/** Logo do jogo centrado em cx ('small' | 'medium' | 'large'); `ms` anima o reflexo (a cada 3 s). Devolve a altura (0 sem atlas). */
+export function logo(g, tam, cx, y, ms = -1) {
+  const l = A.atlas?.logo?.[tam], img = l && A.folhas[A.atlas.logo.folha]
+  if (!img) return 0
+  let q = l.quadro
+  if (ms >= 0 && l.brilho) { const t = ms % 3000, i = Math.floor(t / 60); if (i < l.brilho.quadros.length) q = l.brilho.quadros[i] }
+  g.drawImage(img, q[0], q[1], q[2], q[3], Math.round(cx - q[2] / 2), y, q[2], q[3]); return q[3]
+}
+/** Peça de `fim` do atlas (faixa_recorde, selo_chefe: animadas; pergaminho). Devolve o retângulo ou false. */
+export function fimPeca(g, nome, x, y, ms = 0, w = 0, h = 0) {
+  const f = A.atlas?.fim, img = f && A.folhas[f.folha], p = img && f[nome]
+  if (!p) return false
+  let q = p.quadro
+  if (p.quadros) { let t = ms % p.ms.reduce((a, b) => a + b, 0), i = 0; while (t >= p.ms[i]) t -= p.ms[i++]; q = p.quadros[i] }
+  g.drawImage(img, q[0], q[1], q[2], q[3], x, y, w || q[2], h || q[3]); return q
+}
+/** Canvas pequeno com um desenho do atlas (para as telas em HTML). */
+export function miniatura(w, h, desenhar, k = 2) { const c = Cod.tela(w, h); c.className = 'km-px'; c.style.width = w * k + 'px'; c.style.height = h * k + 'px'; desenhar(c.getContext('2d')); return c }
+/** Efeitos de ambiente da hora (cenarios.vida do atlas). */
+export const vidaDaHora = (hora) => A.atlas?.cenarios?.vida?.[hora] || []
+export const temFonte = (nome) => !!A.fontes[nome]

@@ -143,22 +143,62 @@ export function chaveDoBloco48(endereco) {
   return gruposIPv6(ip).slice(0, 3).join(':') + '::/48'
 }
 
+/** IP canônico → { v: número (BigInt), bits: 32 ou 128 }. */
+function ipComoNumero(ip) {
+  if (isIP(ip) === 4) return { v: ip.split('.').reduce((a, o) => (a << 8n) | BigInt(o), 0n), bits: 32 }
+  const g = gruposIPv6(ip)
+  if (g.length !== 8) return null
+  return { v: g.reduce((a, h) => (a << 16n) | BigInt(parseInt(h || '0', 16)), 0n), bits: 128 }
+}
+
+/** Texto "ip/prefixo" → faixa { bits, base, mascara } ou null. Prefixo 0 (tudo) é recusado: confiaria no mundo inteiro. */
+function lerFaixa(item) {
+  const m = /^([^/]+)\/(\d{1,3})$/.exec(item)
+  if (!m) return null
+  const ip = ipCanonico(m[1])
+  const n = ip && ipComoNumero(ip)
+  const prefixo = Number(m[2])
+  if (!n || prefixo < 1 || prefixo > n.bits) return null
+  const mascara = ((1n << BigInt(prefixo)) - 1n) << BigInt(n.bits - prefixo)
+  return { bits: n.bits, base: n.v & mascara, mascara }
+}
+
+/** Conjunto de proxies confiáveis: IPs exatos (Set) + faixas CIDR. `has(ip)` vale para os dois. */
+export class ListaProxies extends Set {
+  faixas = []
+  has(ip) {
+    if (super.has(ip)) return true
+    if (!this.faixas.length || typeof ip !== 'string') return false
+    const c = ipCanonico(ip)
+    const n = c && ipComoNumero(c)
+    return !!n && this.faixas.some((f) => f.bits === n.bits && (n.v & f.mascara) === f.base)
+  }
+}
+
 /**
- * Proxies confiáveis, lidos no arranque (S2-4): TRUST_PROXY=1 E a lista TRUST_PROXY_IPS (IPs separados por vírgula).
+ * Proxies confiáveis, lidos no arranque (S2-4): TRUST_PROXY=1 E a lista TRUST_PROXY_IPS (separados por vírgula):
+ * IPs exatos e/ou faixas CIDR IPv4 ou IPv6 (ex.: 100.64.0.0/10, fd00::/8). Item inválido é ignorado com aviso.
  * TRUST_PROXY=1 sem a lista: não confia em ninguém (o cabeçalho é ignorado) e avisa no log. Devolve um Set (vazio = nenhum).
  */
 export function proxiesDoAmbiente(env = process.env, log = console.log) {
-  if (env.TRUST_PROXY !== '1') return new Set()
-  const lista = String(env.TRUST_PROXY_IPS ?? '').split(',').map((x) => semMapeado(x.trim())).filter(Boolean)
-  const validos = []
-  for (const item of lista) {
+  const lista = new ListaProxies()
+  if (env.TRUST_PROXY !== '1') return lista
+  const itens = String(env.TRUST_PROXY_IPS ?? '').split(',').map((x) => x.trim()).filter(Boolean)
+  for (const bruto of itens) {
+    if (bruto.includes('/')) {
+      const faixa = lerFaixa(semMapeado(bruto.split('/')[0]) + '/' + bruto.split('/').slice(1).join('/'))
+      if (faixa) lista.faixas.push(faixa)
+      else log(`AVISO: TRUST_PROXY_IPS: faixa inválida (${bruto.slice(0, 60)}); ignorada. Use ip/prefixo, ex.: 100.64.0.0/10 (prefixo de 1 a 32 no IPv4, 1 a 128 no IPv6).`)
+      continue
+    }
+    const item = semMapeado(bruto)
     const ip = ipCanonico(item)
-    if (ip) validos.push(ip)
+    if (ip) lista.add(ip)
     else if (isIP(item)) log(`AVISO: TRUST_PROXY_IPS: não consegui normalizar ${item.slice(0, 60)}; ignorado (escreva sem zona, ex.: ::1).`)
     else log('AVISO: TRUST_PROXY_IPS tem item que não é IP; ignorado.')
   }
-  if (!validos.length) log('AVISO: TRUST_PROXY=1 sem TRUST_PROXY_IPS: X-Forwarded-For será ignorado (vale o IP da conexão).')
-  return new Set(validos)
+  if (!lista.size && !lista.faixas.length) log('AVISO: TRUST_PROXY=1 sem TRUST_PROXY_IPS: X-Forwarded-For será ignorado (vale o IP da conexão).')
+  return lista
 }
 
 /**
@@ -358,7 +398,9 @@ const TOKEN = /^Bearer ([A-Za-z0-9_-]{43})$/
  */
 export function criarTratador({ jogo, agora = Date.now, log = console.log, limites = {}, banco = null, proxies, extras = {} }) {
   const P = { ...PARAMS_SERVIDOR, ...limites }
-  const confiaveis = proxies === undefined ? proxiesDoAmbiente(process.env, log) : new Set([...proxies].map((p) => ipCanonico(p) ?? semMapeado(p)))
+  const confiaveis = proxies === undefined ? proxiesDoAmbiente(process.env, log)
+    : proxies instanceof ListaProxies ? proxies : new Set([...proxies].map((p) => ipCanonico(p) ?? semMapeado(p)))
+  let avisouXff = false // aviso do X-Forwarded-For de conexão não confiável: no máximo uma vez por arranque
   const tipos = { nova: P.contasPorIp, nova48: P.contasPorBloco48, conta: P.pedidosPorConta, ip: P.pedidosPorIp, ip48: P.pedidosPorBloco48 }
   const mem = Object.fromEntries(Object.entries(tipos).map(([k, cfg]) => [k, criarLimite(cfg, agora)]))
   const naMemoria = (chave, cfg, tipo) => mem[tipo](chave)
@@ -438,6 +480,13 @@ export function criarTratador({ jogo, agora = Date.now, log = console.log, limit
         if (emManutencao()) throw recusa('MANUTENCAO', 'O jogo está em manutenção. Volte daqui a pouco.', 503)
         if (req.method === 'POST' && soLeitura()) throw recusa('SO_LEITURA', 'O jogo está só para leitura agora. Nada foi mudado; tente mais tarde.', 503)
         const ip = ipDoCliente(req, confiaveis)
+        if (!avisouXff && req.headers['x-forwarded-for']) {
+          const doSocket = ipCanonico(req.socket?.remoteAddress) ?? semMapeado(req.socket?.remoteAddress)
+          if (!confiaveis.has(doSocket)) {
+            avisouXff = true
+            log(`AVISO: chegou pedido com X-Forwarded-For de uma conexão que não é de proxy confiável (endereço da conexão: ${String(doSocket).slice(0, 60)}); o cabeçalho foi ignorado. Se esse é o proxy da hospedagem, ponha o endereço (ou a faixa) em TRUST_PROXY_IPS.`)
+          }
+        }
         if (!cabeNosDois('ip', 'ip48', ip)) throw recusa('MUITOS_PEDIDOS', 'Muitos pedidos. Espere um pouco.', 429)
         const doCaminho = rotas.filter(([, re]) => re.test(url.pathname))
         if (!doCaminho.length) throw recusa('NAO_ENCONTRADO', 'Rota não encontrada.', 404)

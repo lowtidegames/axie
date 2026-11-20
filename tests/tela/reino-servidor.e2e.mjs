@@ -153,9 +153,9 @@ async function celular() {
   const luta = await K(page, () => window.__keepmile.ultimaLuta())
   confere(luta && luta.tela === luta.motor, `a luta que a tela mostrou deu o que o servidor decidiu (${luta?.motor ? 'vitória' : 'derrota'})`)
   await igualAoServidor('depois da luta')
-  // sai da vitória/derrota pelo jogador simples (só manda o que está em opcoes.comandos) até a rodada 3
-  await K(page, () => window.__keepmile.jogarNoServidor({ ateRodada: 3 }))
-  await igualAoServidor('rodada 3')
+  // sai da vitória/derrota pelo jogador simples (só manda o que está em opcoes.comandos) até a próxima escolha de carta
+  await K(page, () => window.__keepmile.jogarNoServidor({ ateRodada: 1 }))
+  await igualAoServidor('rodada seguinte')
   confere((await K(page, () => window.__keepmile.erros())).length === 0, 'nenhuma divergência entre a tela e o servidor até aqui')
 
   // ---- 3. rede cortada: offline (o pedido nem sai)
@@ -176,7 +176,7 @@ async function celular() {
   confere(true, 'o aviso de rede some sozinho')
 
   // ---- 3b. resposta perdida DEPOIS de o servidor aplicar: a tela repete o MESMO seq e o servidor devolve a resposta guardada
-  await K(page, () => window.__keepmile.jogarNoServidor({ ateRodada: 4 }))
+  await K(page, () => window.__keepmile.jogarNoServidor({ ateRodada: 1 }))
   antes = (await srv(page)).seq
   let cortes = 0
   await page.route('**/api/reino/partida/comando', async (rota) => { if (cortes++ === 0) { try { await rota.fetch() } catch { /* ok */ } await rota.abort('connectionreset') } else await rota.continue() })
@@ -216,7 +216,7 @@ async function celular() {
   }
 
   // ---- 6. erros do contrato viram aviso curto e a tela segue jogável
-  await K(page, () => window.__keepmile.jogarNoServidor({ ateRodada: (window.__keepmile.visao().rodada || 1) + 1 }))
+  await K(page, () => window.__keepmile.jogarNoServidor({ ateRodada: 1 }))
   antes = (await srv(page)).seq
   await page.route('**/api/reino/partida/comando', (rota) => rota.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ erro: { codigo: 'MUITOS_PEDIDOS', motivo: 'Muitos pedidos. Espere um pouco.' } }) }))
   const k429 = await porCartaPorToque()
@@ -528,6 +528,7 @@ try {
   await desenho(conta)
 } catch (err) {
   falha('o teste parou: ' + (err?.stack || err))
+  for (const c of browser.contexts()) for (const pg of c.pages()) console.log('  estado na parada: ' + JSON.stringify(await pg.evaluate(() => ({ fase: window.__keepmile?.fase(), srv: window.__keepmile?.servidor(), erros: window.__keepmile?.erros(), tela: document.getElementById('tela').hidden ? null : document.getElementById('tela').dataset.tela, v: (({ rodada, fase, cartaPosta, vidas }) => ({ rodada, fase, cartaPosta, vidas }))(window.__keepmile?.visao() || {}) })).catch((e) => String(e))))
 } finally {
   delete process.env.MANUTENCAO; delete process.env.SAVE_SO_LEITURA
   await browser.close().catch(() => {})

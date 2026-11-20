@@ -107,3 +107,33 @@ describe('R24 2 — a lista compara na forma do apelido único (l/I/1, rn/m)', (
     } finally { await fechar() }
   })
 })
+
+describe('R24 3 — cursor do ranking', () => {
+  test('cursor forjado não numera errado nem entrega id de partida de fora do topo', async () => {
+    const { s, api, conta, fechar } = await subir({ params: { topoComReplay: 3, paginaDoRanking: 5 } })
+    try {
+      for (let i = 0; i < 8; i++) await jogarUmPouco(api, (await conta('Jog ' + i)).token, 4 + i)
+      const eu = await conta('Olheiro')
+      const todas = s.db.prepare('SELECT conta_id, soma, quando FROM reino_pontuacao ORDER BY soma DESC, quando ASC, conta_id ASC').all()
+      assert.equal(todas.length, 8)
+      const forjar = (l, posicao) => Buffer.from(`${l.soma}:${l.quando}:${l.conta_id}:${posicao}`).toString('base64url')
+
+      // depois do 5º, dizendo "posição 0": tem que vir 6, 7, 8 e nenhum id de partida
+      let r = await api('GET', '/api/reino/ranking?cursor=' + forjar(todas[4], 0), eu.token)
+      assert.equal(r.status, 200, r.texto)
+      assert.deepEqual(r.json.lista.map((l) => l.posicao), [6, 7, 8])
+      assert.deepEqual(r.json.lista.map((l) => l.partida), [null, null, null])
+
+      // depois do 1º, dizendo "posição 900": tem que vir 2..6, com id só para 2 e 3 (topo = 3)
+      r = await api('GET', '/api/reino/ranking?cursor=' + forjar(todas[0], 900), eu.token)
+      assert.deepEqual(r.json.lista.map((l) => l.posicao), [2, 3, 4, 5, 6])
+      assert.deepEqual(r.json.lista.map((l) => l.partida !== null), [true, true, false, false, false])
+
+      // o cursor de verdade continua igual
+      const p1 = (await api('GET', '/api/reino/ranking', eu.token)).json
+      assert.deepEqual(p1.lista.map((l) => l.posicao), [1, 2, 3, 4, 5])
+      const p2 = (await api('GET', '/api/reino/ranking?cursor=' + p1.proximo, eu.token)).json
+      assert.deepEqual(p2.lista.map((l) => l.posicao), [6, 7, 8])
+    } finally { await fechar() }
+  })
+})

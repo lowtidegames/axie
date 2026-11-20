@@ -167,6 +167,26 @@ body {
   .cena__botoes .cena__btn { flex: 1; }
 }
 
+/* ==== kit de interface (arte/ui/*.png por border-image, escala fixa 2x, pixelated) ==== */
+.cena__btn, .pagina-topo button {
+  background: none; border: 2px solid transparent; border-radius: 0; image-rendering: pixelated;
+  border-image: url('arte/ui/ui_btn_normal.png') 6 6 8 6 fill / 12px 12px 16px 12px;
+}
+.cena__btn:hover, .pagina-topo button:hover { border-color: transparent; filter: brightness(1.12); }
+.cena__btn:active, .pagina-topo button:active, .pagina-topo button[aria-pressed="true"] {
+  background: none; color: var(--ouro); border-color: transparent;
+  border-image: url('arte/ui/ui_btn_apertado.png') 8 6 6 6 fill / 16px 12px 12px 12px;
+}
+.cena__btn--primario, .cena__btn--primario:active { background: none; color: var(--acao-texto); border-color: transparent; border-image: url('arte/ui/ui_btn_destaque.png') 6 6 8 6 fill / 12px 12px 16px 12px; }
+.cena__btn-icone { width: 32px; height: 32px; margin: -6px 6px -6px 0; vertical-align: middle; image-rendering: pixelated; }
+.pagina-chip {
+  background: none; border: 2px solid transparent; border-radius: 0; box-shadow: none; image-rendering: pixelated;
+  border-image: url('arte/ui/ui_status.png') 6 fill / 12px;
+}
+.pagina-chip--calor[data-nivel="batida"] { border-color: transparent; outline: 3px solid var(--calor-fervendo); outline-offset: -1px; }
+.pagina-chip__barra { left: 8px; right: 8px; bottom: 3px; height: 8px; border-radius: 0; background: none; overflow: visible; image-rendering: pixelated; border-image: url('arte/ui/ui_barra_vazia.png') 0 4 0 4 fill / 0 4px 0 4px; }
+.pagina-chip__cheio { margin: 2px 1px; height: 4px; max-width: calc(100% - 2px); }
+
 /* Menos animação: sem movimento, sem transição */
 .cena--menos .cena__zoom, .cena--menos .cena__mundo { transition: none !important; }
 .cena--menos .cena__trilho { scroll-behavior: auto; }

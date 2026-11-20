@@ -167,7 +167,7 @@ export function criarCena(canvas, CONFIG) {
   const aFr = new Float32Array(NG), gFr = new Float32Array(NREG * NTIPO)
   const linR = new Float32Array(NG).fill(NaN), linL = new Float32Array(NG).fill(NaN), gMinM = new Float32Array(NG), gMaxM = new Float32Array(NG), gDes = new Float32Array(NG), gLo = new Float32Array(NG).fill(-1e9), gHi = new Float32Array(NG).fill(1e9), aOff = new Float32Array(NG), ordG = new Uint8Array(NG)
   const sFI = new Float32Array(NG + 1), sBI = new Float32Array(NG + 1), sLo = new Float32Array(NG + 1).fill(-1e9), sHi = new Float32Array(NG + 1).fill(1e9), secB = new Int16Array(NG + 1)
-  const bFr = new Float32Array(NREG * NTIPO), bSec = new Int8Array(NREG * NTIPO), bOff = new Float32Array(NREG * NTIPO), bPerto = new Uint8Array(NREG * NTIPO), bPrim = new Int16Array(NREG * NTIPO), gCnt = new Int16Array(NREG * NTIPO), pertos = new Int16Array(64), bAl = new Uint8Array(NREG * NTIPO), regFundo = new Float32Array(NREG), regFr = new Float32Array(NREG), silN = new Uint8Array(NREG), regPeso = new Uint8Array(NREG), secRes = new Float32Array(NG + 1)
+  const bFr = new Float32Array(NREG * NTIPO), bSec = new Int8Array(NREG * NTIPO), bOff = new Float32Array(NREG * NTIPO), bPerto = new Uint8Array(NREG * NTIPO), bPrim = new Int16Array(NREG * NTIPO), gCnt = new Int16Array(NREG * NTIPO), pertos = new Int16Array(64), bAl = new Uint8Array(NREG * NTIPO), regFundo = new Float32Array(NREG), regFr = new Float32Array(NREG), silN = new Uint8Array(NREG), regPeso = new Uint8Array(NREG), silUlt = new Float32Array(NREG), brN = new Uint8Array(NG + 1), secRes = new Float32Array(NG + 1)
   let nViv = 0
   C.sec = new Uint8Array(MAXU)
   /** As linhas de frente deste quadro (só contas do motor; roda ANTES de posicionar os bonecos). */
@@ -180,7 +180,7 @@ export function criarCena(canvas, CONFIG) {
     // R32 — o CHEFE com AR EM VOLTA: junto da linha ele fica na frente sozinho; os brutos e os pelotões formam atrás do corpo dele
     secRes.fill(0)
     for (let i = 0; i < C.n; i++) { C.grOff[i] = 0; if (C.lado[i] === 1 && C.est[i] === 1 && C.peca[i].w > 100 && C.xDe(i) > sHi[C.sec[i]] - 90) { C.grOff[i] = secRes[C.sec[i]]; secRes[C.sec[i]] += C.peca[i].w * 0.5 * C.k[i] / (C.ppc || 1) + 10 } }
-    for (let i = 0; i < C.n; i++) if (C.lado[i] === 1 && C.est[i] === 1 && C.peca[i].w > 60 && C.peca[i].w <= 100) C.grOff[i] = secRes[C.sec[i]]
+    brN.fill(0); for (let i = 0; i < C.n; i++) if (C.lado[i] === 1 && C.est[i] === 1 && C.peca[i].w > 60 && C.peca[i].w <= 100) C.grOff[i] = secRes[C.sec[i]] + brN[C.sec[i]]++ * 34 // (dois brutos nunca no mesmo ponto)
     // onde está o corpo de cada chefe (desenhado): ninguém do lado dele forma em cima (`foraDoChefe`)
     nCh = 0
     for (let i = 0; i < C.n && nCh < 4; i++) if (C.lado[i] === 1 && C.est[i] === 1 && C.peca[i].w > 100) { chX[nCh] = C.xDe(i) + C.dxe[i]; chM[nCh] = (C.peca[i].w * 0.38 * C.k[i] + 7 * C.kRep) / (C.ppc || 1) + 4; chS[nCh++] = C.sec[i] }
@@ -210,8 +210,8 @@ export function criarCena(canvas, CONFIG) {
   const chX = new Float32Array(4), chM = new Float32Array(4), chS = new Uint8Array(4); let nCh = 0
   /** R32 — AR EM VOLTA DO CHEFE: um lugar `X` (centésimos) do trecho `s` que cairia em cima do corpo de um chefe vai para trás dele
    *  (ou para a frente, se já estava na frente e cabe antes da linha). `extra` = meia largura de quem vai ocupar o lugar. */
-  function foraDoChefe(X, s, extra = 0) {
-    for (let c = 0; c < nCh; c++) { if (chS[c] !== s) continue; const m = chM[c] + extra; if (Math.abs(X - chX[c]) < m) X = X > chX[c] && chX[c] + m <= sHi[s] ? chX[c] + m : chX[c] - m }
+  function foraDoChefe(X, s, extra = 0, fila = 0) { // `fila`: o lugar de cada um na fila quando vai para trás (ninguém empilha na beira do chefe)
+    for (let c = 0; c < nCh; c++) { if (chS[c] !== s) continue; const m = chM[c] + extra; if (Math.abs(X - chX[c]) < m) X = X > chX[c] && chX[c] + m + fila <= sHi[s] ? chX[c] + m + fila : chX[c] - m - fila }
     return X
   }
   /** O mais perto da borda de entrada que um invasor GRANDE pode ser desenhado sem o corpo sair da tela. */
@@ -235,7 +235,7 @@ export function criarCena(canvas, CONFIG) {
       const vaga = sHi[bSec[k]] - prof - zig - secRes[bSec[k]]
       X = gFr[k] > -1e8 || X < C.xeBorda ? vaga : Math.min(X, vaga) // (quem ainda está do lado de fora do portão entra e forma na fila: o reino não espera diante de ninguém)
     }
-    X = foraDoChefe(X, C.sec[i]); LUG.dxe = Math.max(-200, Math.min(140, X - x))
+    X = foraDoChefe(X, C.sec[i], 0, col * passo + zig); LUG.dxe = Math.max(-200, Math.min(140, X - x))
   }
   /** Lugar do representante `r` (de K) de um grupo do REINO `k`: formação em volta de casa; no choque, em fila atrás da linha. */
   function lugarDef(r, K, i, k, passo, luta, recua) {
@@ -328,14 +328,17 @@ export function criarCena(canvas, CONFIG) {
       if (r >= bAl[k]) { // fora do teto: os primeiros esperam atrás da fila como SILHUETA escura e menor (multidão, não figura); o resto só na plaqueta
         C.oculto[i] = 1; C.chega[i] = 0
         const reg = (k / NTIPO) | 0, n = silN[reg]
-        if (n < (pc ? 6 : 4) && !C.atirador[i]) {
+        if (n < (pc ? 6 : 4) && !C.atirador[i] && !(reg & 1)) { // (só a faixa do choque tem multidão: a retaguarda fica nas plaquetas, para as duas fileiras não se encavalarem)
           silN[reg]++
           // R32 — MULTIDÃO COM RITMO: UMA fileira no alto da estrada (atrás dos representantes em Y), espaçada de 13 em 13, cada um num
           // degrau de altura — as cabeças fazem "dentes"; nunca na frente de um representante
           const x = C.xDe(i), h = hashDe(i), perto = bPerto[k] || (luta && sHi[C.sec[i]] < 1e8 && regFr[reg] > sHi[C.sec[i]] - 90), fundo = regFundo[reg] + secRes[C.sec[i]] + 10 + n * 13 + ((h >>> 9) % 4)
-          const X = foraDoChefe(Math.min(x, (perto ? sHi[C.sec[i]] : regFr[reg]) - fundo), C.sec[i])
+          let X = foraDoChefe(Math.min(x - n * 13, (perto ? sHi[C.sec[i]] : regFr[reg]) - fundo), C.sec[i], 0, n * 13)
+          if (n > 0 && X > silUlt[reg] - 11) { X = silUlt[reg] - 11; for (let c = 0; c < nCh; c++) if (chS[c] === C.sec[i] && Math.abs(X - chX[c]) < chM[c]) X = chX[c] - chM[c] } // a fileira é sempre espaçada: cada um pelo menos 11 atrás do anterior
+          silUlt[reg] = X
           C.laneT[i] = -1.12 + (n & 1) * 0.1; C.dxeT[i] = Math.max(-260, X - x)
-          if (!(portao && C.sec[i] === 0 && C.xeDes(i) < C.xeBorda)) { C.oculto[i] = 2; C.med.silhuetas++ }
+          if (X - x < -240) silN[reg]-- // longe demais de onde o motor diz que ele está: fica só na plaqueta (nunca empilha no limite)
+          else if (!(portao && C.sec[i] === 0 && C.xeDes(i) < C.xeBorda)) { C.oculto[i] = 2; C.med.silhuetas++ }
         }
         continue
       }
@@ -360,7 +363,7 @@ export function criarCena(canvas, CONFIG) {
       if (C.est[i] !== 1 || C.oculto[i] === 1) continue
       const d = C.xeDes(i), inv = C.lado[i] === 1
       if (inv) { const s = C.sec[i]; if (d > sHi[s] + 0.01 || d < sLo[s] - 0.01) errado = 1 } else { const k = C.grupo[i] % NG; if (d < gLo[k] - 0.01 || d > gHi[k] + 0.01) errado = 1 }
-      if (inv && C.peca[i].w > 100 && !C.fase[i]) { med.quadrosChefe++; const hw = C.peca[i].w * 0.36 * C.k[i]; for (let j = 0; j < C.n; j++) if (j !== i && C.lado[j] === 1 && C.est[j] === 1 && C.oculto[j] !== 1 && C.peca[j].w <= 100 && Math.abs(C.dxeT[j] - C.dxe[j]) < 3 && C.tier[j] === C.tier[i] && !C.fase[j] && !C.chega[j] && Math.abs(C.sx[j] - C.sx[i]) < hw + (C.peca[j].w > 60 ? C.peca[j].w * 0.28 * C.k[j] : 5 * C.k[j])) { med.chefeColado++; break } }
+      if (inv && C.peca[i].w > 100 && !C.fase[i]) { med.quadrosChefe++; const hw = C.peca[i].w * 0.36 * C.k[i]; for (let j = 0; j < C.n; j++) if (j !== i && C.lado[j] === 1 && C.est[j] === 1 && C.oculto[j] !== 1 && C.peca[j].w <= 100 && (C.peca[j].w > 60 ? foraDoChefe(C.xeDes(j), C.sec[j], C.peca[j].w * 0.3 * C.k[j] / (C.ppc || 1)) === C.xeDes(j) : Math.abs(C.dxeT[j] - C.dxe[j]) < 3) && C.tier[j] === C.tier[i] && !C.fase[j] && !C.chega[j] && Math.abs(C.sx[j] - C.sx[i]) < hw + (C.peca[j].w > 60 ? C.peca[j].w * 0.28 * C.k[j] : 5 * C.k[j])) { med.chefeColado++; break } }
       if (C.oculto[i]) continue
       if (inv && C.noPortao && C.sec[i] === 0 && C.peca[i].w <= 60) { const X = C.sx[i] - C.cam.x; if (X - 8 * C.k[i] < 0 || X + 8 * C.k[i] > C.VW) { cortado = 1; med.cortadoQuem = C.idTipo[i] + ' x=' + Math.round(X) + ' xe=' + Math.round(C.xeDes(i)) + ' cam=' + Math.round(C.cam.x) + ' chega=' + C.chega[i] } } // representante cortado pela borda no choque do portão
       if (!inv || C.peca[i].w > 60 || C.fase[i] || t - C.hitT[i] < 260) continue
@@ -706,6 +709,15 @@ export function criarCena(canvas, CONFIG) {
     if (!I) { g.drawImage(img, sx, q[1], w, h, esq, topo, W * k, H * k); return }
     for (let b = 0; b < 4; b++) { const y0 = (h * b) >> 2, y1 = (h * (b + 1)) >> 2, d0 = Math.round(H * b / 4), d1 = Math.round(H * (b + 1) / 4); g.drawImage(img, sx, q[1] + y0, w, y1 - y0, esq + Math.round(I * (1 - b / 3)) * k, topo + d0 * k, W * k, (d1 - d0) * k) }
   }
+  /** A folha de um boneco pronta para a MULTIDÃO (feita uma vez por folha, trecho e lado): os 2 tons dele em roxo médio com o contorno
+   *  da cor do trecho já embutido (dos lados e em cima) — um desenho só por figura. */
+  const MULT = new Map()
+  function folhaMultidao(img, trecho, flip) {
+    let m = MULT.get(img); if (!m) MULT.set(img, m = {})
+    const k = trecho * 2 + (flip ? 1 : 0)
+    if (!m[k]) { const b = Arte.folhaSil(img, COR_MULTIDAO[trecho], flip), c = Px.tela(b.width, b.height), q = c.getContext('2d'); q.drawImage(b, -1, 0); q.drawImage(b, 1, 0); q.drawImage(b, 0, -1); q.drawImage(Arte.folhaVar(img, '#9A88C4', flip), 0, 0); m[k] = c }
+    return m[k]
+  }
   /** Um quadro do risco de um gesto: nasce em (x, y) e cresce para o lado `fc` (espelha para a esquerda). */
   function riscoFx(v, qf, x, y, fc, k, forte = false) { const q = v.quadros[qf]; if (forte) { const s = Arte.folhaSil(v.img, '#2B1E3A', false); C.med.riscosFortes++; if (k > C.med.riscoK) C.med.riscoK = k; for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { if (fc > 0) g.drawImage(s, q[0], q[1], q[2], q[3], x + dx * k, y - v.ay * k + dy * k, q[2] * k, q[3] * k); else { g.save(); g.translate(x + dx * k, y - v.ay * k + dy * k); g.scale(-1, 1); g.drawImage(s, q[0], q[1], q[2], q[3], 0, 0, q[2] * k, q[3] * k); g.restore() } } } if (fc > 0) g.drawImage(v.img, q[0], q[1], q[2], q[3], x, y - v.ay * k, q[2] * k, q[3] * k); else { g.save(); g.translate(x, y - v.ay * k); g.scale(-1, 1); g.drawImage(v.img, q[0], q[1], q[2], q[3], 0, 0, q[2] * k, q[3] * k); g.restore() } C.med.riscos++ }
   /** Estrela de impacto em pixel no ponto do golpe (3 quadros; não é clarão de tela). */
@@ -739,9 +751,7 @@ export function criarCena(canvas, CONFIG) {
         if (C.oculto[i] === 2 && C.est[i] === 1) {
           const p = C.peca[i], fc = face(i), flip = (fc < 0) !== p.olhaEsquerda, qs = p.variantes ? p.variantes[C.vari[i]] : p.quadros, q = qs[C.qi[i]], h = hashDe(i)
           const A = ((h >>> 6) % 4) - 1, bal = C.menos ? 0 : Math.round(Math.sin(C.relogioReal / 380 + (h % 7))), X = Math.round(C.sx[i]) - cx, Y = Math.round(C.sy[i]) + ty + C.pDy[i] + bal
-          const borda = Arte.folhaSil(p.img, COR_MULTIDAO[C.trecho()], flip)
-          sprite(borda, p, q, X - 1, Y, flip, 0, A, 0, 1); sprite(borda, p, q, X + 1, Y, flip, 0, A, 0, 1); sprite(borda, p, q, X, Y - 1, flip, 0, A, 0, 1)
-          sprite(Arte.folhaVar(p.img, '#9A88C4', flip), p, q, X, Y, flip, 0, A, 0, 1)
+          sprite(folhaMultidao(p.img, C.trecho(), flip), p, q, X, Y, flip, 0, A, 0, 1)
         }
         continue
       }
@@ -824,7 +834,7 @@ export function criarCena(canvas, CONFIG) {
         // LINHA DE FRENTE DURA (R28): quem está vivo nunca é desenhado do lado errado da linha dele (nem andando, nem chegando)
         const x = C.xDe(i); let a, b
         if (inv) { const s = C.sec[i], m = p0.w > 100 ? 26 : p0.w > 60 ? 12 : 0; a = sLo[s]; b = sHi[s] - m - C.grOff[i]; if (m && s === 0) { const v = Math.min(loGrande(i), b); if (v > a) a = v } } else { const k = C.grupo[i] % NG; a = gLo[k]; b = gHi[k] }
-        if (inv && p0.w > 60 && p0.w <= 100 && nCh) { const v = foraDoChefe(x + C.dxe[i], C.sec[i], p0.w * 0.3 * C.k[i] / (C.ppc || 1)); if (v !== x + C.dxe[i]) C.dxe[i] += Math.max(-3, Math.min(3, v - x - C.dxe[i])) } // o bruto sai de cima do chefe andando
+        if (inv && p0.w > 60 && p0.w <= 100 && nCh) { const v = foraDoChefe(x + C.dxe[i], C.sec[i], p0.w * 0.3 * C.k[i] / (C.ppc || 1)); if (v !== x + C.dxe[i]) C.dxe[i] += Math.max(-5, Math.min(5, v - x - C.dxe[i])) } // o bruto sai de cima do chefe andando
         if (x + C.dxe[i] > b) C.dxe[i] = b - x; else if (x + C.dxe[i] < a) C.dxe[i] = a - x } }
       const p = pos(C.xDe(i) + C.dxe[i] - (inv && entra < 1 ? (1 - entra * (2 - entra)) * (60 + (i % 5) * 9) : 0), C.lane[i])
       C.sx[i] = p.x; C.sy[i] = p.y; C.tier[i] = p.tier; C.sentido[i] = p.sent

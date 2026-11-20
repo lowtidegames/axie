@@ -95,10 +95,10 @@ const gravarLinha = (page) => K(page, (k, C) => {
     const portao = minDef < 130
     // R32 — MULTIDÃO: quem espera fica ATRÁS (mais alto na tela) de qualquer representante que esteja no mesmo ponto, e espaçado dos outros
     { let tem = 0, frente = 0, junta = 0
-      for (let i = 0; i < C.n; i++) { if (C.est[i] !== 1 || C.oculto[i] !== 2) continue; tem = 1
+      for (let i = 0; i < C.n; i++) { if (C.est[i] !== 1 || C.oculto[i] !== 2 || Math.abs(C.dxeT[i] - C.dxe[i]) >= 3 || Math.abs(C.laneT[i] - C.lane[i]) >= 0.1) continue; tem = 1 // (só quem já está no lugar: quem ainda anda para a fileira não conta)
         for (let j = 0; j < C.n; j++) { if (j === i || C.est[j] !== 1 || C.tier[j] !== C.tier[i] || Math.abs(C.sx[j] - C.sx[i]) >= 5) continue
-          if (C.oculto[j] === 0 && C.peca[j].w <= 60 && C.sy[i] > C.sy[j]) frente = 1
-          if (C.oculto[j] === 2 && j > i && Math.abs(C.dxeT[i] - C.dxe[i]) < 3 && Math.abs(C.dxeT[j] - C.dxe[j]) < 3) junta = 1 } }
+          if (C.oculto[j] === 0 && C.peca[j].w <= 60 && !C.chega[j] && C.sy[i] > C.sy[j]) frente = 1 // (quem está saindo da multidão para a vaga não conta)
+          if (C.oculto[j] === 2 && j > i && Math.abs(C.dxeT[j] - C.dxe[j]) < 3) junta = 1 } }
       L.silQuadros += tem; L.silNaFrente += frente; L.silJuntas += junta }
     // R29 — VAGA: ninguém aparece de uma vez no lugar (quem estava fora de vista e passa a ser desenhado tem de estar CHEGANDO, andando)
     for (let i = 0; i < C.n; i++) { const o = C.est[i] === 1 ? C.oculto[i] : 3; if (o === 0 && L.ant[i] === 1 && !C.chega[i] && L.quadros > 0) L.aparicoes++; L.ant[i] = o }
@@ -277,7 +277,7 @@ async function rodar(fmt) {
     return { n: C.n }
   })
   await page.waitForTimeout(3200)
-  { const q = await K(page, (k, C) => { let ocultos = 0, vivos = 0; for (let i = 0; i < C.n; i++) { if (C.oculto[i]) ocultos++; if (C.est[i] === 1) vivos++ } clearInterval(window.__agito); return { ...k.quadros(), vivos, desenhados: vivos - ocultos, bote: C.med.bote, pico: C.picoParticulas, limite: C.limite } })
+  { const q = await K(page, (k, C) => { let ocultos = 0, vivos = 0; for (let i = 0; i < C.n; i++) { if (C.oculto[i] === 1) ocultos++; if (C.est[i] === 1) vivos++ } clearInterval(window.__agito); /* R32 — a regra de desenho mudou: o teto de representantes da horda é por faixa (R29) e o grande vale vagas; quem espera é desenhado como multidão (e conta como desenhado) */ return { ...k.quadros(), vivos, desenhados: vivos - ocultos, bote: C.med.bote, pico: C.picoParticulas, limite: C.limite } })
     // R25 — REGRA DE DESENHO MUDOU (decisão do diretor): o pelotão não é mais desenhado boneco a boneco; a medida passa a ser com 150+ bonecos
     // VIVOS na cena (todos atualizados) e os representantes deles desenhados grandes e animando
     const qps = 1000 / q.intervalo

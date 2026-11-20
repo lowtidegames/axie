@@ -343,6 +343,20 @@ const EFEITOS = {
     K.tambor({ f: 45, dur: 0.6, vol: 1 }); K.ruido({ dur: 0.7, f: 1800, f2: 150, tipo: 'lowpass', vol: 0.7, ataque: 0.003 }); K.tom({ f: 70, f2: 34, dur: 0.6, tipo: 'sawtooth', vol: 0.3, lp: 380 }); K.ruido({ dur: 0.04, f: 1500, q: 0.7, vol: 0.5, ataque: 0.001 })
     for (let i = 0; i < 6; i++) K.ruido({ dur: 0.024, f: 1800 + K.r() * 1500, q: 3, vol: 0.2, em: 0.22 + i * 0.07 + K.r() * 0.03 })
   } },
+  // ================================================================ R46 — a revanche (os dois por código, sem amostra)
+  // troca: duas peças do reino trocam de terreno — dois panos cruzando (um sobe, um desce) e dois "toc" de madeira assentando. Sem agudo: nada acima de ~1,6 kHz.
+  troca: { ms: 290, pri: 2, alvo: -15, camada: 'interface', vars: 3, max: 2, fn(K, v) {
+    K.ruido({ dur: 0.17, f: 420 * v.p, f2: 1300 * v.p, q: 1.1, vol: 0.45, ataque: 0.01 }); K.ruido({ dur: 0.17, f: 1500 * v.p, f2: 520 * v.p, q: 1.1, vol: 0.3, ataque: 0.04, em: 0.02 })
+    for (const [em, f, vol] of [[0.16, 300, 0.6], [0.212, 236, 0.5]]) { K.tom({ f: f * v.p, f2: f * v.p * 0.66, dur: 0.09, tipo: 'triangle', vol, em, ataque: 0.002, lp: 1600 }); K.ruido({ dur: 0.035, f: 620, tipo: 'lowpass', vol: vol * 0.5, em, ataque: 0.002 }) }
+  } },
+  // dica: "há uma troca que vence" — sininho de madeira, duas notas subindo (ré → sol, a nota de casa do tema). Baixo e de prioridade 3;
+  // `depois`: nunca toca por cima de fanfarra — se há som grande ou de prioridade 1 vivo, espera ele acabar (até 1,5 s).
+  dica: { ms: 380, pri: 3, alvo: -17, camada: 'interface', vars: 1, max: 1, depois: true, fn(K) {
+    for (const [m, em, dur] of [[74, 0, 0.2], [79, 0.17, 0.42]]) {
+      const f = N(m); K.tom({ f, dur, vol: 0.5, em, ataque: 0.003 }); K.tom({ f: f * 4, dur: dur * 0.22, vol: 0.07, em, ataque: 0.002 }) // lâmina de madeira: a fundamental + o 4º harmônico que some logo
+      K.tom({ f: f * 0.5, dur: dur * 0.5, tipo: 'triangle', vol: 0.12, em, ataque: 0.003 }); K.ruido({ dur: 0.012, f: 1300, tipo: 'lowpass', vol: 0.14, em, ataque: 0.001 }) // corpo e a baqueta
+    }
+  } },
 }
 
 // Pico de cada receita SEM ajuste, em dBFS (medido fora do tempo real). Recalibrar depois de mexer numa receita:
@@ -422,6 +436,8 @@ const PICO_BRUTO = {
   pisao: [3.7],
   chefeJoelho: [-2.8],
   chefeTomba: [2.7],
+  troca: [-5.3, -5.3, -4.3],
+  dica: [-4.4],
 }
 /* PICO_BRUTO:FIM */
 const POS = 0.61 // desfaz o ganho automático do compressor: som baixo sai da cadeia como entrou
@@ -648,10 +664,13 @@ function tocarVoz(nome, opc = {}) {
   S.ultimaVar[nome] = i
   // `varia`: som que se repete muito (golpe) nunca sai igual — a altura muda ±N semitons e a força de −2,5 a +1 dB a cada vez
   const tom = (opc.tom || 0) + (e.varia ? (Math.random() * 2 - 1) * e.varia : 0), jeito = e.varia ? 0.75 + Math.random() * 0.37 : 1
-  const forca = Math.max(0, Math.min(1.5, (opc.forca ?? 1) * jeito)) * (S.menos && e.grande ? 0.5 : 1), espera = Math.max(0, Math.min(2, opc.em || 0)), t = agora + 0.004 + espera
+  const forca = Math.max(0, Math.min(1.5, (opc.forca ?? 1) * jeito)) * (S.menos && e.grande ? 0.5 : 1)
+  // `depois` (R46, a dica): som gentil nunca entra por cima de fanfarra — espera o som grande ou de prioridade 1 que está vivo acabar (até 1,5 s)
+  const fanfarra = e.depois ? S.vozes.reduce((m, v) => (v.pri === 1 || v.grande ? Math.max(m, v.fim - 0.25 - agora) : m), 0) : 0
+  const espera = Math.max(0, Math.min(2, opc.em || 0), Math.min(1.5, fanfarra)), t = agora + 0.004 + espera
   const pan = Math.max(-PAN_MAX, Math.min(PAN_MAX, (opc.pan || 0) * PAN_MAX))
   let voz, saida
-  S.ultimaForca = forca; S.ultimoTom = tom; S.ultimoPan = pan
+  S.ultimaForca = forca; S.ultimoTom = tom; S.ultimoPan = pan; S.ultimaEspera = espera
   const am = S.amostras[nome]
   /** Uma amostra gravada entra pelo nó dado, na posição estéreo pedida. */
   const amostra = (a, ganho, destino) => {
@@ -674,7 +693,7 @@ function tocarVoz(nome, opc = {}) {
   } catch { return null }
   // quanto a voz ocupa o teto: a duração de verdade (a da amostra, se for amostra) + a cauda (golpe curto solta a vaga logo: `cauda`)
   const durMs = am?.length ? Math.max(e.somar ? e.ms : 0, am[i % am.length].b.duration * 1000 / 2 ** (tom / 12)) : e.ms
-  const v = { nome, pri: e.pri, tropa: !!e.tropa, t0: agora, fim: agora + espera + durMs / 1000 + (e.cauda ?? 0.3), no: voz, saida, n: 1 }
+  const v = { nome, pri: e.pri, tropa: !!e.tropa, grande: !!e.grande, t0: agora, fim: agora + espera + durMs / 1000 + (e.cauda ?? 0.3), no: voz, saida, n: 1 }
   S.vozes.push(v); setTimeout(() => { try { saida.disconnect() } catch { /* já saiu */ } }, espera * 1000 + durMs + 700)
   if (e.grande) { const dk = DUCK[nome]; abaixar(dk ? dk[0] : 0.5, dk ? dk[1] : Math.max(0.4, e.ms / 1000 * 0.7), espera) } // golpe grande: a música abaixa (6 dB; mais fundo no chefe caindo e no recorde) e volta
   S.tocados++; S.ultimo = nome; S.porNome[nome] = (S.porNome[nome] ?? 0) + 1; anota('som', nome)
@@ -778,12 +797,12 @@ const Som = {
   /** "Menos animação": o som continua; só os estouros grandes ficam 6 dB mais baixos. */
   menosAnimacao(v) { if (v !== undefined) S.menos = !!v; return S.menos },
   nomes: () => Object.keys(EFEITOS),
-  tabela: () => Object.entries(EFEITOS).map(([nome, e]) => ({ nome, ms: e.ms, pri: e.pri, alvo: e.alvo, camada: e.camada, vars: e.vars, grande: !!e.grande, tropa: !!e.tropa, max: e.max || 0, somar: !!e.somar, varia: e.varia || 0, certo: !!e.certo, duck: DUCK[nome] || null })),
+  tabela: () => Object.entries(EFEITOS).map(([nome, e]) => ({ nome, ms: e.ms, pri: e.pri, alvo: e.alvo, camada: e.camada, vars: e.vars, grande: !!e.grande, tropa: !!e.tropa, max: e.max || 0, somar: !!e.somar, varia: e.varia || 0, certo: !!e.certo, depois: !!e.depois, duck: DUCK[nome] || null })),
   estado() {
     if (S.ctx) limpar(S.ctx.currentTime)
     return { destravado: S.destravado, ligado: !!S.ctx, contexto: S.ctx?.state ?? null, mudo: S.pref.mudo, efeitos: S.pref.efeitos, musica: S.pref.musica, menos: S.menos, vozes: S.vozes.length, vivos: S.vozes.map((v) => v.nome + ':' + v.pri).join(' '), tropa: S.vozes.filter((v) => v.tropa).length,
       tocados: S.tocados, ultimo: S.ultimo, porNome: { ...S.porNome }, recusados: S.recusados, roubados: S.roubados, cortados: S.cortados, saida: S.no ? S.no.saida.gain.value : null, ultimaForca: S.ultimaForca ?? null, amostras: Object.keys(S.amostras), somados: S.somados ?? 0, historico: S.historico.slice(), atrasoMs: S.ctx ? Math.round(((S.ctx.baseLatency || 0) + 0.004) * 1000) : null,
-      golpes: S.golpes, agrupados: S.agrupados, ultimoGolpe: S.ultimoGolpe ?? null, golpesEm: S.golpesEm.slice(), cortes: S.cortes, ultimoCorte: S.ultimoCorte, corteHz: S.no ? S.no.corte.frequency.value : null, duck: S.duck, duckAgora: S.no ? S.no.musDuck.gain.value : null, fxAgora: S.no ? S.no.fx.gain.value : null, ultimoTom: S.ultimoTom ?? null, ultimoPan: S.ultimoPan ?? null,
+      golpes: S.golpes, agrupados: S.agrupados, ultimoGolpe: S.ultimoGolpe ?? null, golpesEm: S.golpesEm.slice(), cortes: S.cortes, ultimoCorte: S.ultimoCorte, corteHz: S.no ? S.no.corte.frequency.value : null, duck: S.duck, duckAgora: S.no ? S.no.musDuck.gain.value : null, fxAgora: S.no ? S.no.fx.gain.value : null, ultimoTom: S.ultimoTom ?? null, ultimoPan: S.ultimoPan ?? null, ultimaEspera: S.ultimaEspera ?? null,
       ambiente: S.amb?.nome ?? null, ambientePedido: S.ambPedido, ambienteGanho: S.amb ? S.amb.no.gain.value : 0, ambienteSaindo: S.ambSaindo ? { nome: S.ambSaindo.nome, ganho: S.ambSaindo.no.gain.value } : null, ambienteTrocas: S.ambTrocas }
   },
   /** Pico do que está saindo agora (0 a 1), para o medidor da folha e para o teste. */

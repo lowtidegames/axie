@@ -87,6 +87,7 @@ Object.assign(ROTULOS, {
   apelidoOk: 'Nickname saved', gancho: 'End hook (tomorrow\'s road)', rankUp: 'Rank up', impacto: 'Impact star', golpeCorte: 'Hit: slash', golpeEstocada: 'Hit: thrust', golpeFrigideira: 'Hit: frying pan', golpeBicada: 'Hit: goose peck', golpeEsmaga: 'Hit: smash',
   golpeMordida: 'Hit: bite', golpePortada: 'Hit: door bash', golpeInvestida: 'Hit: charge', golpeBarrigada: 'Hit: belly bump', arcoSolta: 'Bow release', arremesso: 'Throw', flechaFinca: 'Arrow sticks', splat: 'Pie / spud splat', fumaca: 'Smoke puff',
   grupoCai: 'Squad wiped', explosao: 'Blast', poeira: 'Horde dust', gritoTropa: 'Troops shout', festaTropa: 'Victory jumps', recuoTropa: 'Defeat step back', pisao: 'Boss stomp', chefeJoelho: 'Boss kneels', chefeTomba: 'Boss hits the ground',
+  troca: 'Rematch: swap two plots', dica: 'Rematch: a swap wins (hint)',
 })
 
 // O QUE DISPARA cada som no jogo (em português, para o dono conferir ouvindo)
@@ -107,6 +108,7 @@ const QUANDO = {
   arcoSolta: 'a flecha ou o virote SAI do arco (fim da antecipação)', arremesso: 'torta, batata ou falcão sai voando', flechaFinca: 'a flecha CHEGA e finca (quadro do dano)', splat: 'torta ou batata chega e espatifa',
   fumaca: 'a fumacinha de uma baixa', grupoCai: 'um pelotão inteiro do reino acaba (pausa de 250 ms)', explosao: 'estouro (Fuse Runner, barril)', poeira: 'a horda entra pelo portão levantando poeira', gritoTropa: 'os soldados dão o grito e o pulo antes da luta',
   festaTropa: 'vitória: quem venceu comemora com dois pulos', recuoTropa: 'derrota: o reino recua um passo', pisao: 'o chefe POUSA o pisão de entrada (quadro da poeira)', chefeJoelho: 'queda do chefe, etapa 2: ajoelha', chefeTomba: 'queda do chefe, etapa final: tomba no chão',
+  troca: 'revanche: os dois terrenos trocam de lugar (SWAPPED)', dica: 'revanche: o par que vence acende (THIS SWAP WINS AS IT STANDS); espera a fanfarra acabar',
 }
 const GRUPOS = { 'interface': 'Interface', 'nível': 'Level up', 'batalha': 'Battle', 'golpes': 'Hits — one sound per gesture, on the impact frame (R35)', 'cena': 'Battle scene (R35)', 'invasor': 'Invader', 'chefe': 'Boss', 'resultado': 'End of battle', 'fim': 'End of match', 'álbum': 'Album and achievements' }
 const MOMENTOS = { construir: 'Build (calm)', batalha: 'Battle (drums come in)', chefe: 'Boss (tense, minor)', porUmFio: 'Last life (muffled, heartbeat)', vitoria: 'Victory (short party)', derrota: 'Defeat (minor, no drums)', fim: 'End and record (party)', menu: 'Menu and album (lute only)' }

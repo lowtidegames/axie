@@ -2,7 +2,8 @@
 // comandos de `opcoes(estado).comandos`. A lista de comandos refaz a partida inteira (`reproduzir`) — é assim que a partida em curso
 // fica guardada e volta depois de recarregar.
 import * as CONFIG from '../../../shared/reino/config.js'
-import { aplicar, criarPartida, opcoes, reproduzir, resultado, visao } from '../../../shared/reino/partida.js'
+import { aplicar, criarPartida, opcoes, reproduzir, resistiu, resultado, visao } from '../../../shared/reino/partida.js'
+import { conquistasDoPasso } from '../../../shared/reino/conquistas.js'
 import { expandirHorda, montarExercito } from '../../../shared/reino/batalha.js'
 import { Musica, Som } from '../som-reino.js'
 import * as Arte from './arte.js'
@@ -14,14 +15,14 @@ import { criarInterface } from './interface.js'
 import { Srv } from './servidor.js'
 import { ligaDe, mediaDasMelhores } from './ligas.js'
 import { criarTelas } from './telas.js'
-import { CHEFE_CONQUISTA, CONQUISTAS, T } from './textos.js'
+import { CONQUISTAS, T } from './textos.js'
 
 const Q = new URLSearchParams(location.search)
 const TESTE = Q.get('teste') === '1'
 const canvas = document.getElementById('cena'), camada = document.getElementById('toques')
 const C = criarCena(canvas, CONFIG)
 C.aoSom = (nome, x = C.VW / 2, opc = {}) => { if (nome) Som.tocar(nome, { pan: Math.max(-0.8, Math.min(0.8, (x / C.VW) * 2 - 1)), ...opc }) } // R35: som da cena no quadro certo, com posição estéreo leve
-const J = { familias: [], e: null, v: null, op: null, comandos: [], semente: null, liberadas: [], ouroAlvo: 0, pos: null, ultimaLuta: null, lutas: [], espolioI: -1, semSorteio: true, anunciado: '', avisado: '', erros: [], chefesVistos: new Set(), emLuta: false, link: '', postou: '', infoAte: 0 }
+const J = { familias: [], e: null, v: null, op: null, comandos: [], semente: null, liberadas: [], ouroAlvo: 0, pos: null, ultimaLuta: null, lutas: [], espolioI: -1, conqPend: [], festasDoReino: 0, anunciado: '', avisado: '', erros: [], chefesVistos: new Set(), emLuta: false, link: '', postou: '', infoAte: 0 }
 let UI, M, Bat, Telas
 // MODO SERVIDOR (js/servidor.js): a partida mora no servidor. `J.v`/`J.op` são a `visao`/`opcoes` que ELE mandou; `J.e` vira só { fase }.
 const S = { on: false, id: null, modo: null, seq: 0, ocupado: false, abrindo: false, ultimo: null, energia: null, perfil: null, resultado: null, fora: null, novid: null, fimVisto: null, ligas: null, sessaoNova: false }
@@ -70,7 +71,11 @@ function mandar(cmd, entao = null) {
   const valido = J.op.comandos.some((c) => c.tipo === cmd.tipo && (c.carta ?? null) === (cmd.carta ?? null) && (c.terreno ?? null) === (cmd.terreno ?? null) && (c.indice ?? null) === (cmd.indice ?? null))
   const r = valido ? aplicar(J.e, cmd) : { ok: false }
   if (!r.ok) { Som.tocar('negado'); return null }
+  const antes = J.e
   J.e = r.estado; J.comandos.push(cmd); ler()
+  // R39: as conquistas do passo saem da MESMA regra do servidor (shared/reino/conquistas.js); ficam à espera até a tela chegar lá
+  // (a luta ainda vai passar) e só então são guardadas no aparelho e festejadas — `soltarConquistas`
+  J.conqPend.push(...conquistasDoPasso({ antes, depois: J.e, eventos: r.eventos, comandos: J.comandos, rodadasAntes: Guarda.get('rodadas'), tem: [...Guarda.get('conquistas'), ...J.conqPend] }))
   if (J.e.fase === 'fim') registrarFim()
   salvar()
   if (entao) entao(r.eventos)
@@ -123,11 +128,21 @@ function conquista(id, doServidor = false) {
   const c = CONQUISTAS.find((x) => x.id === id)
   festa({ tam: 2, tipo: 'brinde', ms: 2400, aposEspolio: true, titulo: T.conquista, texto: c.nome, icone: { tipo: 'conquista', nome: c.nome }, ao: () => { Som.tocar('conquista'); C.efeito('confetti', C.VW / 2 + C.cam.x, 60) } })
 }
-function conferirReino() {
-  const t = J.v.terrenos
-  if (t.every(Boolean)) { conquista('house'); if (new Set(t.map((x) => CONFIG.CARTAS[x.carta].familia)).size === 1) conquista('family') }
-  if (t.some((x) => x && x.nivel >= CONFIG.PARTIDA.nivelMax)) conquista('brass')
+/** (modo local) Guarda e festeja as conquistas que o motor já deu e a tela ainda não mostrou. `so`: filtro (as outras continuam à espera). */
+function soltarConquistas(so = null) {
+  if (S.on) return
+  const agora = so ? J.conqPend.filter(so) : J.conqPend.slice()
+  J.conqPend = so ? J.conqPend.filter((id) => !so(id)) : []
+  for (const id of agora) conquista(id)
 }
+/** (modo local) Os degraus de rodadas somadas que o aparelho JÁ tinha antes da R39 ligam sem festa e sem data (como a migração do servidor). */
+function ligarDegrausGuardados() {
+  const tem = Guarda.get('conquistas'), rodadas = Guarda.get('rodadas')
+  const novas = Object.entries(CONFIG.CONQUISTAS.rodadasSomadas).filter(([id, meta]) => rodadas >= meta && !tem.includes(id)).map(([id]) => id)
+  if (novas.length) Guarda.set('conquistas', [...tem, ...novas])
+}
+/** R39: o reino resistiu? O servidor (ou o motor) diz em `venceu`; servidor antigo sem o campo: a MESMA regra do motor, pelas rodadas vencidas. */
+const venceuDe = (o) => (o && typeof o.venceu === 'boolean' ? o.venceu : resistiu(o?.vencidas ?? 0))
 /** "Antes > depois" de um nível, só com números do config: a quantidade/valor; se não mudou, a força (vida e dano) em %. */
 function antesDepois(carta, nivel) {
   const c = CONFIG.CARTAS[carta], a = Arte.forcaDaCarta(carta, nivel - 1), b = Arte.forcaDaCarta(carta, nivel)
@@ -212,7 +227,8 @@ function descreverEspolios(v) {
 }
 function preencher() {
   const v = J.v, op = J.op
-  M.vidas = v.vidas; M.vidasMax = v.vidasMax; M.rodada = v.rodada; M.proximoChefe = v.proximoChefe; M.cartaPosta = v.cartaPosta
+  M.vidas = v.vidas; M.vidasMax = v.vidasMax; M.rodada = v.rodada; M.meta = CONFIG.PARTIDA.rodadaDaVitoria; M.venceu = venceuDe(v)
+  M.proximoChefe = v.proximoChefe; M.cartaPosta = v.cartaPosta
   M.mao = v.oferta.map((o) => { const n = nivelNaMao(o.carta); return { carta: o.carta, nivel: n ? n + 1 : 1, sobe: n > 0 } })
   const visivel = v.vidas < v.vidasMax && v.fase === 'carta'
   // guia do ouro parado: sempre que há vida perdida e ouro para consertar, o botão chama a atenção (qualquer rodada; mais forte na última vida)
@@ -254,8 +270,8 @@ function abrirRodada() {
 }
 function zerarPartida() {
   semTimers(); Bat.parar(); limparFestas()
-  J.comandos = []; J.lutas = []; J.semSorteio = true; J.anunciado = ''; J.avisado = ''; J.ultimaLuta = null; J.familias = []; J.chefesVistos = new Set(); J.emLuta = false
-  J.fimReg = null; J.melhor = null; J.desafio = null; J.sujo = false; J.relI = -1; J.infoPend = null
+  J.comandos = []; J.lutas = []; J.conqPend = []; J.anunciado = ''; J.avisado = ''; J.ultimaLuta = null; J.familias = []; J.chefesVistos = new Set(); J.emLuta = false
+  J.fimReg = null; J.melhor = null; J.desafio = null; J.sujo = false; J.relI = -1; J.infoPend = null; J.pularReino = null
   M.fim = null; M.selo = null; M.resumo = null; M.info = null; M.desafio = null; M.relSel = -1
   C.fimDeJogo = false
 }
@@ -282,7 +298,7 @@ function retomar(p, aviso = null) {
   try { r = reproduzir({ semente: p.semente, cartasLiberadas: p.liberadas, comandos: cmds }) } catch { return false }
   if (!r.ok || r.estado.fase === 'fim') return false
   zerarPartida(); Guarda.salvarFim(null)
-  J.semente = p.semente; J.liberadas = p.liberadas.slice(); J.e = r.estado; J.comandos = cmds.slice(); J.semSorteio = !cmds.some((c) => c.tipo === 'sortear')
+  J.semente = p.semente; J.liberadas = p.liberadas.slice(); J.e = r.estado; J.comandos = cmds.slice()
   J.desafio = p.desafio || null; M.desafio = J.desafio; J.melhor = p.melhor || null
   ler(); M.ouro = J.v.ouro; J.familias = J.v.familias.slice(); salvar()
   if (J.v.fase === 'espolio') mostrarEspolio()
@@ -348,7 +364,7 @@ function por(k, arrastou = false) {
     if (C.destaque) depois(1600, () => { if (M.fase === 'carta' && M.cartaPosta) C.destaque = null })
     // dica única, na 1ª carta da 1ª partida: o que as vidas valem e quem luta
     if (novato) { Guarda.set('dica', true); dizer(['#' + T.dica.vidas(J.v.vidasMax), T.dica.tropas], 7000) }
-    conferirReino(); UI.mudou()
+    soltarConquistas(); UI.mudou()
   })
 }
 function armar(qual, fazer) {
@@ -357,7 +373,7 @@ function armar(qual, fazer) {
 }
 function sortear() {
   mandar({ tipo: 'sortear' }, () => {
-    J.semSorteio = false; preencher(); M.sel = -1; M.infoSel = null; C.destaque = null; maoNova(); J.ouroAlvo = J.v.ouro
+    preencher(); M.sel = -1; M.infoSel = null; C.destaque = null; maoNova(); J.ouroAlvo = J.v.ouro
     Som.tocar('sortear'); UI.mudou()
   })
 }
@@ -386,7 +402,7 @@ function sobreAHorda() {
 // ---------------------------------------------------------------- batalha e depois
 function lutar(rapido = false) {
   if (M.fase !== 'carta') return
-  const pre = { terrenos: J.v.terrenos, reliquias: J.v.reliquias, rodada: J.v.rodada }
+  const pre = { terrenos: J.v.terrenos, reliquias: J.v.reliquias, rodada: J.v.rodada, venceu: venceuDe(J.v) }
   mandar({ tipo: 'batalhar' }, (evs) => {
     const bat = evs.find((x) => x.tipo === 'batalha')
     J.pos = { bat, ouro: evs.find((x) => x.tipo === 'ouro').valor, fim: evs.find((x) => x.tipo === 'fim') || null, pre }
@@ -416,21 +432,28 @@ function aoFimDaLuta(res) {
   if (bat.vitoria) {
     const limpo = res.quedasDeSoldado === 0, um = res.aliados === 1, chefe = bat.horda.chefe ? CONFIG.CHEFES.find((c) => c.id === bat.horda.chefe) : null
     const nomeMvp = R.mvp > 0 ? CONFIG.CARTAS[R.cartas[R.mvp]]?.nome : R.mvp === 0 ? T.resumo.magia : null
-    M.fase = 'vitoria'; M.vitoria = { t0: agoraMs(), ouro, ouroMostra: 0, pronto: false, chefe: bat.horda.chefe, chefeNome: chefe ? chefe.nome.split(' the ')[0] : null, selo: limpo ? T.limpo : um ? T.ultimo : null, mvp: nomeMvp ? `${T.resumo.mvp}: ${nomeMvp} ${R.dano[R.mvp]}` : null }
+    // R39 — O MOMENTO DO JOGO: esta luta fez o reino resistir (`venceu` passou de false para true). Uma vez só por partida.
+    const reino = !pre.venceu && venceuDe(J.v) ? { t0: agoraMs(), ms: FESTA_REINO, rodada: CONFIG.PARTIDA.rodadaDaVitoria, fim: false } : null
+    M.fase = 'vitoria'; M.vitoria = { t0: agoraMs(), ouro, ouroMostra: 0, pronto: false, reino, chefe: bat.horda.chefe, chefeNome: chefe ? chefe.nome.split(' the ')[0] : null, selo: limpo ? T.limpo : um ? T.ultimo : null, mvp: nomeMvp ? `${T.resumo.mvp}: ${nomeMvp} ${R.dano[R.mvp]}` : null }
     preencher(); M.vidas = J.v.vidas
-    Som.tocar('vitoria'); Musica.momento('vitoria'); C.flash('#FFD9A0', 300)
-    for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.3)
-    if (chefe) for (const dx of [-0.2, 0.2]) C.efeito('fireworks', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.22)
+    Som.tocar('vitoria'); Musica.momento('vitoria'); C.flash(reino ? '#FFD248' : '#FFD9A0', 300)
+    if (reino) festejarReino(reino)
+    else {
+      for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.3)
+      if (chefe) for (const dx of [-0.2, 0.2]) C.efeito('fireworks', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.22)
+    }
     // ouro contando, depois os 3 espólios viram cartas grandes
     // (R30) o ouro do HUD conta JUNTO com o letreiro, do que estava à vista até o número que o motor/servidor mandou (`J.v.ouro`)
-    const passos = Math.min(ouro, 12), ouroDe = M.ouro, ouroPara = J.v.ouro
-    for (let i = 1; i <= passos; i++) depois(350 + i * 70, () => { M.vitoria.ouroMostra = Math.round((ouro * i) / passos); J.ouroAlvo = ouroDe + Math.round(((ouroPara - ouroDe) * i) / passos); if (i < passos) Som.tocar('ouroTique', { tom: i, pan: -0.5 }); else Som.tocar('ouro', { tom: 4 }) })
-    depois(450 + passos * 70 + 250, () => { M.vitoria.pronto = true; M.vitoria.prontoT0 = agoraMs(); J.ouroAlvo = J.v.ouro; Som.tocar('espolio'); UI.mudou() })
-    conquista('supper'); if (limpo) conquista('plate'); if (um) conquista('last')
-    if (bat.horda.chefe && CHEFE_CONQUISTA[bat.horda.chefe]) conquista(CHEFE_CONQUISTA[bat.horda.chefe])
-    if (pre.rodada === 10 && J.semSorteio) conquista('penny')
+    const passos = Math.min(ouro, 12), ouroDe = M.ouro, ouroPara = J.v.ouro, V = M.vitoria
+    const pronto = () => { if (M.vitoria !== V || V.pronto) return; if (reino) reino.fim = true; V.ouroMostra = ouro; V.pronto = true; V.prontoT0 = agoraMs(); J.ouroAlvo = J.v.ouro; Som.tocar('espolio'); UI.mudou() }
+    // a festa do reino segura os espólios até acabar; um toque (depois do primeiro instante) pula e devolve o controle na hora
+    J.pularReino = reino ? () => { if (!cedoDemais(reino.t0)) pronto() } : null
+    for (let i = 1; i <= passos; i++) depois(350 + i * 70, () => { if (V.pronto) return; M.vitoria.ouroMostra = Math.round((ouro * i) / passos); J.ouroAlvo = ouroDe + Math.round(((ouroPara - ouroDe) * i) / passos); if (i < passos) Som.tocar('ouroTique', { tom: i, pan: -0.5 }); else Som.tocar('ouro', { tom: 4 }) })
+    depois(Math.max(450 + passos * 70 + 250, reino ? reino.ms : 0), pronto)
+    soltarConquistas((id) => id !== 'librarian') // R39: as da luta (a regra é a do módulo comum; a festa é a de sempre, depois do espólio)
     const nova = S.on ? null : Guarda.rodadaVencida(CONFIG.ALBUM) // modo servidor: a carta nova vem em `novidades`
-    if (nova) { festa({ tam: 2, tipo: 'brinde', ms: 2600, aposEspolio: true, titulo: T.cartaNova, texto: CONFIG.CARTAS[nova].nome, icone: { tipo: 'carta', id: nova }, ao: () => Som.tocar('cartaNova') }); if (Guarda.quantas(CONFIG.ALBUM) >= CONFIG.ALBUM.ordem.length) conquista('librarian') }
+    if (nova) festa({ tam: 2, tipo: 'brinde', ms: 2600, aposEspolio: true, titulo: T.cartaNova, texto: CONFIG.CARTAS[nova].nome, icone: { tipo: 'carta', id: nova }, ao: () => Som.tocar('cartaNova') })
+    soltarConquistas()
   } else {
     const nome = res.quem ? (CONFIG.INVASORES[res.quem] || CONFIG.CHEFES.find((c) => c.id === res.quem))?.nome : null
     // derrota como "quase": o quanto da horda caiu é o número do motor (`pctHorda`); a mesma rodada volta com mais uma carta
@@ -443,10 +466,26 @@ function aoFimDaLuta(res) {
     { const c = C.geo.castelo; C.estouro(C.ox + c[0], C.oy + c[1] - 40, 10, 8, 60) }
     depois(4500, () => { if (M.fase === 'derrota') seguir() })
   }
+  soltarConquistas()
   if (S.on) festejarNovidades()
   UI.mudou()
 }
+/** R39 — A FESTA DO REINO (a rodada da vitória foi vencida): a faixa "ROUND 20 HELD!" (a interface desenha por `M.vitoria.reino`), fogos e
+ *  confete em ondas enquanto ela dura, a fanfarra por cima do som de vitória. "Reduced motion": só a faixa e o som — sem flash (a cena
+ *  já recusa), sem fogos, sem confete, sem tremida. Pulada com um toque: as ondas que faltavam não saem. */
+const FESTA_REINO = 2200
+function festejarReino(R) {
+  J.festasDoReino++
+  depois(420, () => { if (!R.fim) Som.tocar('recorde') })
+  if (C.menos) return
+  const onda = (ms, nome, xs, y) => depois(ms, () => { if (R.fim || M.vitoria?.reino !== R) return; for (const dx of xs) C.efeito(nome, C.VW * (0.5 + dx) + C.cam.x, C.VH * y) })
+  for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.3)
+  for (const dx of [-0.24, 0.24]) C.efeito('fireworks', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.2)
+  onda(380, 'fireworks', [-0.2, 0.22], 0.62); onda(700, 'confetti', [-0.18, 0.18], 0.34); onda(950, 'fireworks', [-0.32, 0.3], 0.24)
+  onda(1300, 'fireworks', [0.1], 0.16); onda(1500, 'confetti', [-0.3, 0, 0.3], 0.3); onda(1750, 'fireworks', [-0.14, 0.26], 0.2)
+}
 function seguir() {
+  if (M.fase === 'vitoria') { J.pularReino?.(); return }
   if (M.fase === 'chefe') { M.fase = 'carta'; M.chefe = null; maoNova(); if (J.infoPend) { dizer(J.infoPend, 5000); J.infoPend = null } UI.mudou(); return }
   if (M.fase === 'fim') { if (M.fim && !M.fim.contou) J.pularFim?.(); return } // um toque pula a entrada do fim: tudo no lugar
   if (M.fase === 'derrota') { if (J.e.fase === 'fim') fimDaPartida(); else abrirRodada() }
@@ -476,7 +515,7 @@ function pegarEspolio(cmd) {
     Som.tocar('espolioEscolhe')
     const acabou = evs.find((x) => x.tipo === 'fim')
     if (acabou) { fimDaPartida(); return }
-    abrirRodada(); eventosDeTerreno(evs); conferirReino()
+    abrirRodada(); eventosDeTerreno(evs); soltarConquistas()
   })
 }
 
@@ -494,7 +533,7 @@ function fimDaPartida(direto = false) {
   const tFaixa = 450 + passos * 70 + 250, tSobe = tFaixa + (reg.novoRecorde ? 1300 : 1000), tBotoes = tSobe + 450
   const m = J.melhor, falta = (reg.rodadasAntes ?? n) - n, am = J.desafio && J.desafio.rodadas != null ? J.desafio.rodadas : null
   M.fase = 'fim'; M.fim = {
-    t0: agoraMs(), parado, tFaixa, tSobe, tBotoes, mostra: parado ? n : 0, vencidas: n, pontos: r.pontos, ouro: r.ouroGanho, recorde: reg.recorde, recordeAntes: reg.antes, novoRecorde: reg.novoRecorde,
+    t0: agoraMs(), parado, tFaixa, tSobe, tBotoes, mostra: parado ? n : 0, vencidas: n, venceu: venceuDe(S.on ? S.resultado ?? J.v : r), pontos: r.pontos, ouro: r.ouroGanho, recorde: reg.recorde, recordeAntes: reg.antes, novoRecorde: reg.novoRecorde,
     contado: parado, contou: false,
     media, liga: sit ? sit.liga : { nome: lg.liga.nome, i: lg.i, pct: lg.pct, proxima: lg.proxima ? lg.proxima.nome : null, falta: lg.falta }, album: S.on ? albumDoServidor() : Guarda.proximaCarta(CONFIG.ALBUM), semente: J.semente,
     // o fecho: o melhor momento (do resumo das lutas), quanto faltou para a partida mais comprida e, na estrada de um amigo, quem levou
@@ -513,7 +552,7 @@ function fimDaPartida(direto = false) {
   for (let i = 1; i <= passos; i++) depois(450 + i * 70, () => { M.fim.mostra = Math.round((n * i) / passos); M.fim.pulo = agoraMs(); Som.tocar('rankingSobe', { tom: i % 12 }) })
   depois(tFaixa, () => {
     M.fim.mostra = n; M.fim.contado = true
-    if (reg.novoRecorde) { Som.tocar('recorde'); C.flash('#FFD248', 250); for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.35); for (const dx of [-0.22, 0.24]) C.efeito('fireworks', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.2) } else Som.tocar('nivelPequeno')
+    if (reg.novoRecorde) { Som.tocar('recorde'); C.flash('#FFD248', 250); for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.35); for (const dx of [-0.22, 0.24]) C.efeito('fireworks', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.2) } else if (M.fim.venceu) { Som.tocar('nivelGrande'); for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.35) } else Som.tocar('nivelPequeno') // R39: fim com vitória tem festa própria (sem flash), mesmo sem recorde
   })
   if (reg.novoRecorde) depois(tFaixa + 450, () => { for (const dx of [-0.2, 0.2]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.3) })
   depois(tSobe, () => Som.tocar('espolio'))
@@ -531,7 +570,7 @@ async function postar() {
   const url = S.on ? location.origin + location.pathname : linkDaEstrada(f.semente, f.vencidas), texto = S.on ? T.srv.postar(f.vencidas, url) : T.postarTexto(f.vencidas, url)
   J.link = url; J.postou = ''
   let como = 'falhou'
-  try { como = await compartilhar(cartaoDoReino(C, { rodadas: f.vencidas, pontos: f.pontos, recorde: f.novoRecorde, titulo: T.jogo, url }), { texto, url }) } finally { J.postando = false; J.postouEm = agoraMs() }
+  try { como = await compartilhar(cartaoDoReino(C, { rodadas: f.vencidas, pontos: f.pontos, recorde: f.novoRecorde, venceu: f.venceu, titulo: T.jogo, url }), { texto, url }) } finally { J.postando = false; J.postouEm = agoraMs() }
   J.postou = como
   if (como === 'baixou+link') festa({ tam: 1, tipo: 'brinde', ms: 2200, titulo: T.postar, texto: T.copiado, icone: { tipo: 'carta' } })
 }
@@ -862,7 +901,7 @@ function replayParado(p) {
 function passoDoReplay() {
   const R = J.replay; if (!R) return
   const ps = R.rep.passos
-  if (R.i >= ps.length) { const r = R.rep.resultado || J.v; M.replay.fim = T.srv.replay.fim(r.vencidas, r.pontos); M.replay.pular = false; M.replay.passo = null; C.destaque = null; UI.mudou(); return } // fica na tela: WATCH AGAIN ou BACK
+  if (R.i >= ps.length) { const r = R.rep.resultado || J.v; M.replay.venceu = venceuDe(r); M.replay.fim = M.replay.venceu ? T.srv.replay.fimVenceu(r.vencidas, r.pontos) : T.srv.replay.fim(r.vencidas, r.pontos); M.replay.pular = false; M.replay.passo = null; C.destaque = null; UI.mudou(); return } // fica na tela: WATCH AGAIN ou BACK
   const p = ps[R.i], antes = J.v
   R.i++; M.replay.i = R.i
   const bat = p.comando.tipo === 'batalhar' ? p.eventos.find((x) => x.tipo === 'batalha') : null
@@ -977,6 +1016,7 @@ async function comecar() {
   menos(guardado ?? matchMedia('(prefers-reduced-motion: reduce)').matches)
   addEventListener('resize', ajustar)
   // retoma a partida guardada (a não ser que o endereço peça outra estrada ou `nova=1`)
+  if (!S.on) ligarDegrausGuardados()
   if (S.on) await comecarNoServidor(); else comecarPartida()
   // duas abas na MESMA partida: quando a outra anda, esta percebe e recarrega o estado antes de aceitar jogada
   if (!S.on) Guarda.aoMudarPartida(() => { J.sujo = true })
@@ -984,7 +1024,7 @@ async function comecar() {
   requestAnimationFrame(quadro)
   if (TESTE) {
     const { ligarGanchos } = await import('./teste.js')
-    await ligarGanchos({ J, M: () => M, C, Bat: () => Bat, UI: () => UI, F, Som, Musica, Guarda, Arte, CONFIG, QUADROS, CUSTO, nq: () => nq, lutar, novaPartida, abrirRodada, fimDaPartida, mandar, ler, preencher, aoFimDaLuta, semTimers, limparFestas, festa, reproduzir, resultado, montarExercito, expandirHorda, cartaoDoReino, seguir, menos, CONTORNO, maxTipoVisivel, S, Srv, por, sairDoReplay, abrirModo, avisarServidor, maoNova, pularParaLuta })
+    await ligarGanchos({ J, M: () => M, C, Bat: () => Bat, UI: () => UI, F, Som, Musica, Guarda, Arte, CONFIG, QUADROS, CUSTO, nq: () => nq, lutar, novaPartida, abrirRodada, fimDaPartida, mandar, ler, preencher, aoFimDaLuta, semTimers, limparFestas, festa, reproduzir, resultado, montarExercito, expandirHorda, cartaoDoReino, seguir, menos, CONTORNO, festejarReino, venceuDe, maxTipoVisivel, S, Srv, por, sairDoReplay, abrirModo, avisarServidor, maoNova, pularParaLuta })
   }
   document.documentElement.dataset.pronto = '1'
 }

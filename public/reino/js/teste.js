@@ -50,7 +50,7 @@ export async function ligarGanchos(X) {
       return { parou, rodada: J.e.rodada, comandos: J.comandos.length }
     },
     /** O robô põe a carta (e o que mais quiser) até a hora de lutar; a luta fica para a tela. */
-    roboAteLutar() { let n = 0, s = 999; const inteiro = (k) => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s % k }; while (n++ < 50) { const cmd = escolher('ganancioso', J.e, inteiro); if (cmd.tipo === 'batalhar') break; if (!X.mandar(cmd)) throw new Error('comando recusado') } X.abrirRodada(); if (X.M().fase === 'chefe') X.seguir(); return { rodada: J.e.rodada, posta: J.e.cartaPosta } },
+    roboAteLutar(robo = 'ganancioso') { let n = 0, s = 999; const inteiro = (k) => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s % k }; while (n++ < 50) { const cmd = escolher(robo, J.e, inteiro); if (cmd.tipo === 'batalhar') break; if (!X.mandar(cmd)) throw new Error('comando recusado') } X.abrirRodada(); if (X.M().fase === 'chefe') X.seguir(); return { rodada: J.e.rodada, posta: J.e.cartaPosta } },
     /** A lista de comandos refaz a mesma partida no motor? */
     reproduzir() { const r = X.reproduzir({ semente: J.semente, cartasLiberadas: J.liberadas, comandos: J.comandos }); return { ok: r.ok, igual: r.ok && JSON.stringify(r.resultado) === JSON.stringify(X.resultado(J.e)), resultado: r.resultado ?? null } },
     resultado: () => X.resultado(J.e),
@@ -72,9 +72,9 @@ export async function ligarGanchos(X) {
       return { soldados: X.Bat().aliadosTotal, invasores: X.Bat().inimigosTotal, segundos: b.segundos }
     },
     origem: () => ({ ...Arte.origem }), temAtlas: () => Arte.temAtlas(),
-    cartao() { const M = X.M(); return X.cartaoDoReino(C, { rodadas: M.fim?.vencidas ?? 0, pontos: M.fim?.pontos ?? 0, recorde: !!M.fim?.novoRecorde, titulo: 'Keepmile', url: J.link || location.href }).toDataURL('image/png') },
+    cartao() { const M = X.M(); return X.cartaoDoReino(C, { rodadas: M.fim?.vencidas ?? 0, pontos: M.fim?.pontos ?? 0, recorde: !!M.fim?.novoRecorde, venceu: !!M.fim?.venceu, titulo: 'Keepmile', url: J.link || location.href }).toDataURL('image/png') },
     /** O que o cartão de compartilhar escreve (o desafio, as linhas dele, os pontos e o endereço) e a hora do dia em que foi desenhado. */
-    cartaoInfo() { const M = X.M(); return X.cartaoDoReino(C, { rodadas: M.fim?.vencidas ?? 0, pontos: M.fim?.pontos ?? 0, recorde: !!M.fim?.novoRecorde, titulo: 'Keepmile', url: J.link || location.href }).info },
+    cartaoInfo() { const M = X.M(); return X.cartaoDoReino(C, { rodadas: M.fim?.vencidas ?? 0, pontos: M.fim?.pontos ?? 0, recorde: !!M.fim?.novoRecorde, venceu: !!M.fim?.venceu, titulo: 'Keepmile', url: J.link || location.href }).info },
     guarda: () => Guarda.tudo(),
     areaDoTerreno: (k) => { const a = C.areaDoTerreno(k); return { x: a.x * C.css, y: a.y * C.css, w: a.w * C.css, h: a.h * C.css } },
     seguir: () => X.seguir(),
@@ -147,5 +147,9 @@ export async function ligarGanchos(X) {
     maoFixar: (ms) => { const M = X.M(); M.maoFixo = ms ?? undefined; if (ms != null) { M.maoRevelada = false; M.maoLog = [] } },
     pularParaLuta: () => X.pularParaLuta(),
     revela: () => ({ ...X.UI().REVELA }),
+    // ---- R39: a vitória (meta/selo do HUD, a festa do reino e o fim) como a tela guarda e desenha
+    vitoria: () => { const M = X.M(), V = M.vitoria, R = V?.reino || null; return { festas: J.festasDoReino, meta: M.meta ?? null, venceu: !!M.venceu, metaRet: X.UI().metaRet ? { ...X.UI().metaRet } : null, pronto: !!V?.pronto, reino: R ? { ms: R.ms, fim: R.fim, rodada: R.rodada, ha: performance.now() - R.t0, ret: R.ret ? { ...R.ret } : null } : null } },
+    fimInfo: () => { const f = X.M().fim; return f ? { venceu: !!f.venceu, titulo: f.titulo ?? null, linhas: f.tituloLinhas ?? null, tituloW: f.tituloW ?? 0, VW: C.VW, vencidas: f.vencidas, contou: !!f.contou, fita: f.fitaRet ? { ...f.fitaRet } : null, veu: f.veuRet ? { ...f.veuRet } : null, painelY: X.UI().L.fimPainel.y, fecho: f.fechoRet ? { ...f.fechoRet } : null } : null },
+    replayInfo: () => { const r = X.M().replay; return r ? { fim: r.fim, venceu: !!r.venceu } : null },
   }
 }

@@ -107,6 +107,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     }
     if (f === 'fim') { if (!M.fim?.contou) { add('seguir', { x: 0, y: 0, w: C.VW, h: C.VH }, T.aria.pular); return b } add('denovo', L.fimBotoes[0], T.deNovo); add('postar', L.fimBotoes[1], T.postar); add('menu', L.menu, T.aria.menu); return b }
     if (f === 'chefe' || f === 'derrota') { add('seguir', { x: 0, y: 0, w: C.VW, h: C.VH }, T.aria.seguir); return b }
+    if (f === 'vitoria' && M.vitoria?.reino && !M.vitoria.pronto) { add('seguir', { x: 0, y: 0, w: C.VW, h: C.VH }, T.aria.pular); return b } // R39: a festa do reino pula com um toque
     add('menu', L.menu, T.aria.menu); add('som', L.som, T.aria.som)
     { const rr = reliquiasRet(); if (rr) add('reliquias', rr.toque, T.aria.reliquias) }
     if (f === 'luta') { add('vel', L.lutar, T.aria.vel(M.vel)); return b }
@@ -266,6 +267,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       g.fillStyle = '#68A0F8'; g.fillRect(bx, by, meio, 1); g.fillStyle = COR.creme; g.fillRect(bx + meio - 1, by - 2, 2, 9)
       Arte.texto(g, String(M.forca.aliados), bx, by + 8, { fonte: 'mini-contorno' }); Arte.texto(g, String(M.forca.inimigos), bx + w, by + 8, { fonte: 'mini-contorno', alinhar: 'direita' })
     }
+    metaDoReino(HW)
     g.restore()
     if (M.fase === 'chefe' || M.fase === 'derrota') return
     if (M.replay) hudBt('red', L.menu, 'sair-replay', (x0, y0, w) => Arte.texto(g, 'X', x0 + (w >> 1), y0 + 7, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }))
@@ -277,6 +279,19 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       hudBt('green', { ...L.lutar, y: L.lutar.y - pulsa }, 'lutar', (x0, y0, w) => Arte.texto(g, T.lutar, x0 + (w >> 1), y0 + 7, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }))
       if (M.pulsaLutar && C.menos) { moldura(L.lutar.x - 1, L.lutar.y - 1, L.lutar.w + 2, 26 * bs + 2); viu('lutarFixo') } // Reduced motion: destaque parado
     }
+  }
+  /** R39 — A META DA PARTIDA à vista na fase de carta: "HOLD TO ROUND 20" (letra miúda, no céu, fora do caminho do HUD); depois de
+   *  vencer, no MESMO lugar, o selo de ouro "HELD". Celular: à direita dos botões de sortear/consertar, abaixo das relíquias. PC:
+   *  centrado sob a rodada (sob o logo, na abertura). Desenhado dentro do espaço ×bs do HUD. */
+  function metaDoReino(HW) {
+    UI.metaRet = null
+    if (!M.meta || M.fase !== 'carta' || M.replay) return
+    const L = UI.L, bs = L.bs, s = M.venceu ? T.resistiu : T.meta(M.meta), fo = M.venceu && Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno', w = Arte.largura(s, fo)
+    const x = L.cel ? Math.min(Math.ceil((L.consertar.x + L.consertar.w) / bs) + 4, Math.floor(HW) - w - 6) : Math.floor(HW / 2) - (w >> 1), y = L.cel ? Math.ceil(L.sortear.y / bs) + 17 : M.primeira ? 30 : 15
+    if (M.venceu) { g.fillStyle = COR.ameixa; g.fillRect(x - 4, y - 3, w + 8, 12); g.fillStyle = COR.ouro; g.fillRect(x - 4, y - 3, w + 8, 1); g.fillRect(x - 4, y + 8, w + 8, 1); g.fillRect(x - 5, y - 2, 1, 10); g.fillRect(x + w + 4, y - 2, 1, 10) }
+    Arte.texto(g, s, x, y, { fonte: fo })
+    UI.metaRet = { x: (x - 5) * bs, y: (y - 3) * bs, w: (w + 10) * bs, h: 12 * bs, texto: s }
+    viu(M.venceu ? 'resistiu' : 'meta')
   }
   function ouroBt(r, id, icone, st, agora, nome) {
     const bs = UI.L.bs, armado = M.armado === id
@@ -516,6 +531,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   }
   function vitoria(agora) {
     const v = M.vitoria, L = UI.L, dt = agora - v.t0, cx = C.VW >> 1, ey = L.espolio[0].y
+    if (v.reino && !v.pronto) { faixaDoReino(agora, v.reino); return } // R39: a festa do reino segura a tela; os espólios vêm depois
     escurecer(Math.min(0.5, dt / 600))
     const k = L.cel ? 2 : 3, pop = C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 180) * 10), ty = ey - (L.cel ? 62 : 56) - pop
     if (v.chefe) {
@@ -590,17 +606,27 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const fixo = f.parado || f.contou || C.menos, dt = fixo ? 1e9 : agora - f.t0, ouro = f.novoRecorde && f.contado
     bordaEscura(Math.min(1, dt / 450))
     // o número grande no centro
-    const yT = cel ? Math.ceil((L.menu.y + 26 * L.bs)) + 4 : 6, k = P.y - yT >= 150 ? 4 : 3, grande = Arte.temFonte('dano-g')
-    const hN = (grande ? 16 : 9) * k, pulo = !fixo && f.pulo && agora - f.pulo < 70 ? 2 : 0, yH = yT + 24 + hN + 4, rot = T.aguentou(f.vencidas)
+    // R39: fim com vitória = "THE KINGDOM HELD" em ouro (quebra em duas linhas quando não cabe); sem vitória, "RUN OVER" como sempre
+    const tit = f.venceu ? T.fimVenceu : T.fim, linT = quebrar(tit, (C.VW - 8) / 2, 'reino-contorno'), mais = (linT.length - 1) * 20, wT = Math.max(...linT.map((s) => Arte.largura(s, 'reino-contorno'))) * 2
+    const yT = cel ? Math.ceil((L.menu.y + 26 * L.bs)) + 4 : 6, k = P.y - yT - mais >= 150 ? 4 : 3, grande = Arte.temFonte('dano-g')
+    const hN = (grande ? 16 : 9) * k, pulo = !fixo && f.pulo && agora - f.pulo < 70 ? 2 : 0, yH = yT + 24 + mais + hN + 4, rot = T.aguentou(f.vencidas)
     if (cel) {
       // celular: uma PLACA escura atrás do bloco (título, número e legenda) — o número não se mistura com os soldados do reino
-      const wv = Math.min(C.VW - 8, Math.max(Arte.largura(T.fim, 'reino-contorno') * 2, Arte.largura(String(f.vencidas), grande ? 'dano-g' : 'reino-contorno') * k, Arte.largura(rot, 'reino-contorno')) + 16), v = { x: cx - (wv >> 1), y: yT - 4, w: wv, h: yH + 12 - (yT - 4) }
+      const wv = Math.min(C.VW - 8, Math.max(wT + (f.venceu ? 8 : 0), Arte.largura(String(f.vencidas), grande ? 'dano-g' : 'reino-contorno') * k, Arte.largura(rot, 'reino-contorno')) + 16), v = { x: cx - (wv >> 1), y: yT - 4, w: wv, h: yH + 12 - (yT - 4) }
       g.fillStyle = '#1C1230'; g.globalAlpha = 0.74; g.fillRect(v.x, v.y, v.w, v.h); g.globalAlpha = 0.4; g.fillRect(v.x - 2, v.y + 2, 2, v.h - 4); g.fillRect(v.x + v.w, v.y + 2, 2, v.h - 4); g.globalAlpha = 1
-      g.fillStyle = ouro ? COR.ouro : COR.filete; g.fillRect(v.x, v.y, v.w, 1); g.fillRect(v.x, v.y + v.h - 1, v.w, 1)
+      g.fillStyle = ouro || f.venceu ? COR.ouro : COR.filete; g.fillRect(v.x, v.y, v.w, 1); g.fillRect(v.x, v.y + v.h - 1, v.w, 1)
       f.veuRet = v; viu('fimVeu')
     }
-    Arte.titulo(g, T.fim, cx, yT, 2)
-    Arte.titulo(g, String(f.mostra), cx, yT + 24 - pulo, k, grande ? (ouro ? 'dano-g-ouro' : 'dano-g') : ouro)
+    if (f.venceu) {
+      // a fita da vitória atrás do título: escura com filete de ouro e as pontas em degrau (a derrota não tem nada disto)
+      const fw = Math.min(C.VW - 4, wT + 20), fx = cx - (fw >> 1), fh = linT.length * 20 + 3
+      g.fillStyle = COR.carmim; g.fillRect(fx + 3, yT - 3, fw - 6, fh); g.fillStyle = '#7C2030'; g.fillRect(fx, yT, 3, fh - 6); g.fillRect(fx + fw - 3, yT, 3, fh - 6)
+      g.fillStyle = COR.ouro; g.fillRect(fx + 3, yT - 3, fw - 6, 1); g.fillRect(fx + 3, yT + fh - 4, fw - 6, 1); g.fillStyle = '#FFF096'; g.fillRect(fx + 3, yT - 2, fw - 6, 1)
+      f.fitaRet = { x: fx, y: yT - 3, w: fw, h: fh }; viu('fimVenceu')
+    }
+    linT.forEach((s, i) => Arte.titulo(g, s, cx, yT + i * 20, 2, !!f.venceu))
+    f.titulo = tit; f.tituloLinhas = linT; f.tituloW = wT
+    Arte.titulo(g, String(f.mostra), cx, yT + 24 + mais - pulo, k, grande ? (ouro || f.venceu ? 'dano-g-ouro' : 'dano-g') : ouro || !!f.venceu)
     Arte.texto(g, rot, cx, yH, { fonte: 'reino-contorno', alinhar: 'centro' })
     f.numeroRet = { x: cx - 30, y: yT, w: 60, h: yH + 9 - yT, k }
     viu('fimNumero')
@@ -725,6 +751,28 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     { const w = Math.max(...lin.map((s) => Arte.largura(s, 'reino-contorno'))) * k; C.zonaTitulo = { x: cx - (w >> 1) - 4, y: y - 4, w: w + 8, h: lin.length * 10 * k + 8 } } // os números de dano não passam por cima do título
     if (a.sub) quebrar(a.sub, C.VW - 12).forEach((s, i) => Arte.texto(g, s, cx, y + lin.length * 10 * k + 3 + i * 7, { fonte: 'mini-contorno', alinhar: 'centro' }))
   }
+  /** R39 — A FAIXA DO REINO: "ROUND 20 HELD!" grande, em ouro, numa faixa que atravessa a tela, e "KEEP GOING FOR SCORE" embaixo. Os fogos e
+   *  o confete são da cena (o app solta). "Reduced motion": a faixa já no lugar, parada, sem brilho piscando. */
+  function faixaDoReino(agora, R) {
+    const dt = agora - R.t0, cx = C.VW >> 1, cel = UI.L.cel, texto = T.festaReino(R.rodada)
+    let k = 2, lin = quebrar(texto, (C.VW - 12) / 2, 'reino-ouro')
+    for (const q of [4, 3]) { const l = quebrar(texto, (C.VW - 12) / q, 'reino-ouro'); if (l.length <= (cel ? 2 : 1)) { k = q; lin = l; break } }
+    const hT = lin.length * 10 * k, h = hT + 27, y = Math.floor(C.VH * (cel ? 0.3 : 0.27)), abre = C.menos ? 1 : Math.min(1, dt / 220), w = Math.round(C.VW * abre), x = cx - (w >> 1)
+    escurecer(C.menos ? 0.4 : Math.min(0.4, dt / 500))
+    g.fillStyle = COR.carmim; g.fillRect(x, y - 3, w, 2); g.fillRect(x, y + h + 1, w, 2)
+    g.fillStyle = '#1C1230'; g.globalAlpha = 0.9; g.fillRect(x, y, w, h); g.globalAlpha = 1
+    g.fillStyle = COR.ouro; g.fillRect(x, y, w, 2); g.fillRect(x, y + h - 2, w, 2); g.fillStyle = '#FFF096'; g.fillRect(x, y, w, 1); g.fillRect(x, y + h - 2, w, 1)
+    if (abre >= 1) {
+      const pop = C.menos ? 0 : Math.round(Math.max(0, 1 - (dt - 220) / 160) * 6)
+      lin.forEach((s, i) => Arte.titulo(g, s, cx, y + 9 + i * 10 * k - pop, k, true))
+      Arte.texto(g, T.festaReinoSub, cx, y + 9 + hT + 4, { fonte: 'reino-contorno', alinhar: 'centro' })
+      // brilhos de ouro andando pelas bordas da faixa (parados fora com Reduced motion)
+      if (!C.menos) for (let i = 0; i < 6; i++) { const t = ((agora / 9 + i * 71) % (C.VW + 20)) - 10; g.fillStyle = '#FFF096'; g.fillRect(Math.round(i & 1 ? t : C.VW - t), i & 1 ? y - 1 : y + h - 1, 3, 1) }
+    }
+    C.zonaTitulo = { x: 0, y: y - 4, w: C.VW, h: h + 8 }
+    R.ret = { x, y: y - 3, w, h: h + 6, linhas: lin, k, sub: T.festaReinoSub, maior: Math.max(...lin.map((q) => Arte.largura(q, 'reino-ouro'))) * k, VW: C.VW, VH: C.VH }
+    viu('festaReino')
+  }
   /** Aviso pequeno em placa (conquista, carta nova, relíquia): sempre abaixo do HUD, nunca por cima dele. */
   function brinde(agora) {
     const b = M.brinde; if (!b || agora > b.t0 + b.ms || agora < b.t0) return
@@ -765,7 +813,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const x0 = R.x + (p ? 64 : 4), larg = R.x + R.w - 4 - x0, cx = x0 + (larg >> 1), lin = [], logica = []
     const por = (t, fo, max = 2) => { logica.push(t); for (const q of quebrar(t, larg, fo).slice(0, max)) lin.push([q, fo]) }
     por(T.srv.replay.de(r.nome), 'reino-ouro'); por(T.srv.replay.passo(M.rodada, r.i, r.n), 'reino-contorno')
-    if (r.fim) por(r.fim, 'reino', 3); else { if (r.linha) por(r.linha, 'reino'); if (r.mvp) { por(r.mvp, Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno'); viu('replayMvp') } }
+    if (r.fim) por(r.fim, r.venceu ? 'reino-ouro' : 'reino', 3); else { if (r.linha) por(r.linha, 'reino'); if (r.mvp) { por(r.mvp, Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno'); viu('replayMvp') } }
     let y = R.y + (L.cel ? 7 : 8)
     for (const [t, fo] of lin) { Arte.texto(g, t, cx, y, { fonte: fo, cor: COR.creme, alinhar: 'centro' }); y += fo.startsWith('mini') ? 9 : 11 }
     r.faixa = logica; r.faixaFim = y

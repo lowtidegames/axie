@@ -202,7 +202,9 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
   const btDuplo = (id, titulo, sub, clique, marca = '') => h('button', { type: 'button', class: 'km-bt km-bt--fraco km-chapa km-modo', id, clique: () => { Som.tocar('toque'); clique() } }, [h('span', {}, [letra(titulo + (marca ? ' · ' + marca : ''), { fonte: 'reino-ouro', larg: LARG() - 30 }), letra(sub, { fonte: 'mini', cor: CINZA, larg: LARG() - 30 })])])
   function chapaDoPerfil(id, clique) {
     const s = sv.situacao(), p = sv.cache(), k = clique ? 1 : 2
-    const dentro = [emblema(s.liga.nome, k), h('span', {}, [letra(sv.apelido() || p?.apelido || '', { fonte: 'reino-ouro', larg: LARG() - 80 }), letra(s.posicao != null ? `${s.liga.nome} · ${T.srv.ranking.voce(s.posicao, s.media)}` : T.srv.ranking.semVoce, { fonte: 'mini', cor: CINZA, larg: LARG() - 80 })])]
+    const dentro = [emblema(s.liga.nome, k), h('span', {}, [letra(sv.apelido() || p?.apelido || '', { fonte: 'reino-ouro', larg: LARG() - 80 }), letra(s.posicao != null ? `${s.liga.nome} · ${T.srv.ranking.voce(s.posicao, s.media)}` : T.srv.ranking.semVoce, { fonte: 'mini', cor: CINZA, larg: LARG() - 80 }),
+      // (R30) liga que veio por POSIÇÃO: a legenda diz o que ela é (só no perfil; o botão do menu fica curto)
+      !clique && s.topo ? letra(T.srv.ranking.topoN(s.topo), { fonte: 'mini', cor: COR.ouro, larg: LARG() - 80, id: id + 'Posicao' }) : null])]
     return clique ? h('button', { type: 'button', class: 'km-bt km-bt--fraco km-chapa', id, clique: () => { Som.tocar('toque'); clique() } }, dentro) : h('div', { class: 'km-liga-topo', id }, dentro)
   }
   /** SETTINGS: som, música, efeitos e Reduced motion numa tela só (o menu do celular fica curto). */
@@ -262,9 +264,11 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
       let cursor = rk.proximo
       const mais = bt(R.mais, async () => { try { const pg = await sv.ranking(cursor); for (const l of pg.lista) lista.appendChild(itemDoTopo(l, !!v && l.posicao === v.posicao && l.apelido === eu, ver)); cursor = pg.proximo; if (!cursor) mais.remove() } catch (e) { mais.replaceWith(linha(erroTexto(e.codigo), { cor: COR.ouro })) } }, 'km-bt--fraco'); mais.id = 'rankMais'
       const nomeV = v ? nomeDaLiga(v.liga) : T.srv.semLiga, e = sv.energia()
+      // (R30) a liga da conta veio por POSIÇÃO (o título dela na lista do servidor traz `primeiros`): legenda "Top 10 this season" sob o nome
+      const porPosicao = v ? rk.ligas.find((l) => l.id === v.liga && l.primeiros) : null
       return [
         linha(t.fechada ? R.fechada(t.numero) : R.temporada(t.numero, falta(t.termina)), { pid: 'rankTemporada', fonte: 'reino' }),
-        h('div', { class: 'km-liga-topo', id: 'rankLiga', 'data-liga': v ? v.liga : '' }, [emblema(nomeV, 2), h('span', {}, [letra(nomeV, { fonte: 'reino-ouro', larg: w }), letra(v ? R.voce(v.posicao, v.pontos) : R.semVoce, { fonte: 'mini', larg: w, id: 'rankVoce' }), sobe ? letra(R.proxima(nomeDaLiga(v.faltaParaProxima.liga), v.faltaParaProxima.pontos), { fonte: 'mini', cor: CINZA, larg: w, id: 'rankProxima' }) : null, passar ? letra(passar, { fonte: 'mini', cor: COR.ouro, larg: w, id: 'rankPassar' }) : null])]),
+        h('div', { class: 'km-liga-topo', id: 'rankLiga', 'data-liga': v ? v.liga : '' }, [emblema(nomeV, 2), h('span', {}, [letra(nomeV, { fonte: 'reino-ouro', larg: w }), porPosicao ? letra(R.topoN(porPosicao.primeiros), { fonte: 'mini', cor: COR.ouro, larg: w, id: 'rankPosicao' }) : null, letra(v ? R.voce(v.posicao, v.pontos) : R.semVoce, { fonte: 'mini', larg: w, id: 'rankVoce' }), sobe ? letra(R.proxima(nomeDaLiga(v.faltaParaProxima.liga), v.faltaParaProxima.pontos), { fonte: 'mini', cor: CINZA, larg: w, id: 'rankProxima' }) : null, passar ? letra(passar, { fonte: 'mini', cor: COR.ouro, larg: w, id: 'rankPassar' }) : null])]),
         linha(R.regra(t.melhoresQueContam), { pid: 'rankRegra', cor: CINZA }),
         e ? linhaDaEnergia(e) : null,
         h('h3', {}, [letra(R.topo, { fonte: 'reino-ouro' })]), ver.aviso, lista, cursor ? mais : null,

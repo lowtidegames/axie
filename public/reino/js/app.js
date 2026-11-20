@@ -755,7 +755,9 @@ function situacaoDoServidor() {
   // "X more for <liga>" só quando essa liga é MAIOR que a atual (com poucas contas o topo já é Legend e o servidor ainda manda a faixa de baixo)
   const ordem = [...L.map((l) => l.id), CONFIG.BETA.lenda.id], sobe = v.faltaParaProxima && ordem.indexOf(v.faltaParaProxima.liga) > ordem.indexOf(v.liga)
   const i = L.findIndex((l) => l.id === v.liga), f = sobe ? v.faltaParaProxima : null, de = i >= 0 ? L[i].min : 0, ate = f ? v.pontos + f.pontos : de
-  return { media: v.pontos, posicao: v.posicao, liga: { nome: nomeDe(v.liga), i, pct: f && ate > de ? Math.max(0, Math.min(100, Math.floor(((v.pontos - de) * 100) / (ate - de)))) : 100, proxima: f ? nomeDe(f.liga) : null, falta: f ? f.pontos : 0, marca: T.srv.posicaoMarca(v.posicao) } }
+  // (R30) liga que vem por POSIÇÃO (a lista de títulos do servidor traz `primeiros` nela): a legenda diz o que ela é — "TOP 10 THIS SEASON"
+  const topo = (S.ligas || []).find((l) => l.id === v.liga && l.primeiros)?.primeiros ?? (v.liga === CONFIG.BETA.lenda.id ? CONFIG.BETA.lenda.primeiros : null)
+  return { media: v.pontos, posicao: v.posicao, topo, liga: { nome: nomeDe(v.liga), i, linha: topo ? T.srv.ranking.topoN(topo).toUpperCase() : undefined, pct: f && ate > de ? Math.max(0, Math.min(100, Math.floor(((v.pontos - de) * 100) / (ate - de)))) : 100, proxima: f ? nomeDe(f.liga) : null, falta: f ? f.pontos : 0, marca: T.srv.posicaoMarca(v.posicao) } }
 }
 function albumDoServidor() {
   const a = S.perfil?.album; if (!a || !a.proxima) return a ? null : { falta: 0, pct: 0, carta: null }
@@ -777,7 +779,7 @@ async function depoisDoFim() {
   const id = S.id, antes = S.perfil?.temporada?.voce || null, nova = S.fimVisto?.id !== S.id // `antes`: a posição e a liga que o servidor tinha dito ANTES desta partida
   try {
     const [p, rk] = await Promise.all([Srv.perfil(), Srv.ranking()])
-    S.perfil = p; S.energia = p.energia
+    S.perfil = p; S.energia = p.energia; S.ligas = rk.ligas || S.ligas
     if (M.fase !== 'fim' || !M.fim || S.id !== id || J.replay) return
     const sit = situacaoDoServidor()
     // (R30) fim de RANKING: os pontos desta partida e a conta da temporada, com os números do servidor (resultado, perfil e a regra do ranking)
@@ -967,7 +969,7 @@ async function comecar() {
     if (tipo === 'chefe') { const c = CONFIG.CHEFES.find((x) => x.id === dado); festa({ tam: 2, tipo: 'aviso', ms: 1600, texto: c.nome, ouro: true, k: kAviso(), fase: 'luta' }) }
     if (tipo === 'chefeCaiu') { const c = CONFIG.CHEFES.find((x) => x.id === dado); if (c) festa({ tam: 3, tipo: 'aviso', ms: 1100, texto: T.caiu(c.nome.split(' the ')[0]), ouro: true, k: 2, fase: 'luta' }) } // festa grande: título ×2 também no celular (quebra em duas linhas)
   }
-  Telas = criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos: (v) => { if (v !== undefined) { menos(v); Guarda.set('menos', !!v) } return C.menos }, novaPartida: () => (S.on ? desistirNoServidor() : novaPartida()), servidor: S.on ? { agora: Srv.agora, apelido: () => Srv.apelido, aberta: () => Srv.aberta(), ranking: (c) => Srv.ranking(c), perfil: async () => (S.perfil = await Srv.perfil()), trocarApelido: async (a) => (S.perfil = await Srv.trocarApelido(a)), cache: () => S.perfil, energia: () => S.energia, situacao: situacaoDoServidor, jogar: abrirModo, assistir } : null, emPartida: () => M.fase !== 'fim', aoFechar: () => { if (!J.v || J.replay) return; UI.focar(); if (M.fase !== 'fim') Musica.momento(M.fase === 'luta' ? 'batalha' : J.v.vidas === 1 ? 'porUmFio' : 'construir'); else Musica.momento('fim') } })
+  Telas = criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos: (v) => { if (v !== undefined) { menos(v); Guarda.set('menos', !!v) } return C.menos }, novaPartida: () => (S.on ? desistirNoServidor() : novaPartida()), servidor: S.on ? { agora: Srv.agora, apelido: () => Srv.apelido, aberta: () => Srv.aberta(), ranking: async (c) => { const rk = await Srv.ranking(c); S.ligas = rk.ligas || S.ligas; return rk }, perfil: async () => (S.perfil = await Srv.perfil()), trocarApelido: async (a) => (S.perfil = await Srv.trocarApelido(a)), cache: () => S.perfil, energia: () => S.energia, situacao: situacaoDoServidor, jogar: abrirModo, assistir } : null, emPartida: () => M.fase !== 'fim', aoFechar: () => { if (!J.v || J.replay) return; UI.focar(); if (M.fase !== 'fim') Musica.momento(M.fase === 'luta' ? 'batalha' : J.v.vidas === 1 ? 'porUmFio' : 'construir'); else Musica.momento('fim') } })
   menos(guardado ?? matchMedia('(prefers-reduced-motion: reduce)').matches)
   addEventListener('resize', ajustar)
   // retoma a partida guardada (a não ser que o endereço peça outra estrada ou `nova=1`)

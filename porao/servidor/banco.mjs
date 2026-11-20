@@ -20,6 +20,8 @@ export const CAMINHO_PADRAO = './dados/porao-teste.db'
 export const MARCA = 'porao'
 /** Quantas cópias de antes-da-migração ficam guardadas (limite técnico, não é número de jogo). */
 export const COPIAS_GUARDADAS = 10
+/** Pedidos (chaves de repetição) mais velhos que isto são apagados no boot (limite técnico: 1 dia). */
+export const PEDIDOS_GUARDADOS_MS = 24 * 3600 * 1000
 
 export const MIGRACOES = [
   // v1 — tarefa 4: meta, save (1 linha), diário de caixa, pedidos.
@@ -129,6 +131,7 @@ export function abrirBancoPorao(caminho = CAMINHO_PADRAO, { modo = 'teste', agor
       const s = typeof semente === 'string' && semente.length > 0 ? semente : randomBytes(32).toString('hex')
       gravarSave(db, estadoInicial({ semente: s, agora: agora() }), agora())
     })
+    transacao(db, () => { db.prepare('DELETE FROM pedidos WHERE em < ?').run(Math.floor(agora()) - PEDIDOS_GUARDADOS_MS) })
     return db
   } catch (e) {
     db.close()

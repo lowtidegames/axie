@@ -14,10 +14,10 @@ const passar = ms => { relogio += ms }
 const chave = () => `chave-teste-${++n}-${Math.random().toString(36).slice(2, 10)}`
 
 /** Pedido cru (permite Host/Origin/caminho estranhos, que o fetch não deixa). */
-function pedir(metodo, caminho, { corpo, headers = {}, json = true, porta: p = porta } = {}) {
+function pedir(metodo, caminho, { corpo, headers = {}, json = true, porta: p = porta, semMarca = false } = {}) {
   return new Promise((resolve, reject) => {
     const bruto = corpo === undefined ? undefined : (typeof corpo === 'string' ? corpo : JSON.stringify(corpo))
-    const h = { ...(bruto !== undefined && json ? { 'Content-Type': 'application/json' } : {}), ...headers }
+    const h = { ...(bruto !== undefined && json ? { 'Content-Type': 'application/json' } : {}), ...(!semMarca && caminho.startsWith('/api/') ? { 'X-Porao': '1' } : {}), ...headers }
     if (bruto !== undefined) h['Content-Length'] = Buffer.byteLength(bruto)
     const req = http.request({ host: '127.0.0.1', port: p, method: metodo, path: caminho, headers: h }, res => {
       const partes = []
@@ -173,5 +173,55 @@ describe('tarefa 5 — servidor HTTP do porão', () => {
     for (const host of ['0.0.0.0', '::', '192.168.0.10', 'localhost', '']) {
       await assert.rejects(() => iniciarServidor({ porta: 0, host, caminhoBanco: ':memory:' }), /127\.0\.0\.1/)
     }
+  })
+})
+
+describe('P8 — segurança', () => {
+  test('SAVE_SO_LEITURA: GET /api/estado não muda o save', async () => {
+    const lerSave = () => srv.db.prepare('SELECT estado, atualizado_em FROM save').all()
+    const nDiario = () => srv.db.prepare('SELECT COUNT(*) AS n FROM diario').get().n
+    assert.equal((await post('/api/imprimir', {}, { 'Idempotency-Key': chave() })).status, 200)
+    await pedir('GET', '/api/estado') // aqui pode gravar
+    try {
+      process.env.SAVE_SO_LEITURA = '1'
+      passar(30_000)
+      const antes = JSON.stringify(lerSave()); const d = nDiario()
+      const r = await pedir('GET', '/api/estado')
+      assert.equal(r.status, 200)
+      assert.equal(r.json.ok, true)
+      assert.equal(JSON.stringify(lerSave()), antes)
+      assert.equal(nDiario(), d)
+    } finally { delete process.env.SAVE_SO_LEITURA }
+  })
+
+  test('toda rota /api exige o cabeçalho X-Porao: 1 (GET e POST)', async () => {
+    const g = await pedir('GET', '/api/estado', { semMarca: true })
+    assert.equal(g.status, 403)
+    assert.equal(g.json.ok, false)
+    const p = await pedir('POST', '/api/imprimir', { corpo: {}, semMarca: true, headers: { 'Idempotency-Key': chave() } })
+    assert.equal(p.status, 403)
+    const errado = await pedir('GET', '/api/estado', { semMarca: true, headers: { 'X-Porao': '0' } })
+    assert.equal(errado.status, 403)
+    assert.equal((await pedir('GET', '/api/estado')).status, 200)
+    assert.equal((await pedir('GET', '/')).status, 200) // estáticos não precisam
+  })
+
+  test('link simbólico para fora da pasta não é servido', async () => {
+    const raiz = fs.mkdtempSync(path.join(os.tmpdir(), 'porao-link-'))
+    const tela = path.join(raiz, 'tela'); const fora = path.join(raiz, 'fora')
+    fs.mkdirSync(tela); fs.mkdirSync(fora)
+    fs.writeFileSync(path.join(tela, 'index.html'), '<p>ola</p>')
+    fs.writeFileSync(path.join(fora, 'segredo.html'), 'SEGREDO')
+    fs.symlinkSync(path.join(fora, 'segredo.html'), path.join(tela, 'link.html'))
+    fs.symlinkSync(fora, path.join(tela, 'pasta'))
+    const s2 = await iniciarServidor({ porta: 0, caminhoBanco: path.join(raiz, 'l.db'), pastas: { tela, comum: tela, arte: tela } })
+    try {
+      assert.equal((await pedir('GET', '/', { porta: s2.porta })).status, 200)
+      for (const c of ['/link.html', '/pasta/segredo.html']) {
+        const r = await pedir('GET', c, { porta: s2.porta })
+        assert.equal(r.status, 404, c)
+        assert.ok(!r.texto.includes('SEGREDO'))
+      }
+    } finally { await s2.fechar(); fs.rmSync(raiz, { recursive: true, force: true }) }
   })
 })

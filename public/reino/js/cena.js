@@ -27,7 +27,7 @@ const VOO_MS = 210 // VAO: quanto cada frente segura da LINHA do choque (centés
 const GESTOS = { T01: 1, T02: 7, T03: 8, T07: 2, T11: 3, muncher: 6, stilt: 1, mole: 2, drum: 2, bloater: 9 }
 
 export function criarCena(canvas, CONFIG) {
-  let VAO = 36 // (PC 36, celular 34: entre as duas frentes cabe 1 boneco inteiro de ar)
+  let VAO = 36 // (PC 44, celular 34: entre as duas frentes cabe 1 boneco inteiro de ar)
   const g = canvas.getContext('2d', { alpha: false })
   const C = {
     g, tipo: 'celular', e: 2, VW: 180, VH: 370, ox: 0, oy: 0, geo: null, pts: [], tiers: [],
@@ -120,7 +120,7 @@ export function criarCena(canvas, CONFIG) {
    *  horda caber inteira; `fundoMax` = quanto a fila pode crescer para trás antes de se apertar. */
   function bordaDoPortao() {
     const pc = C.tipo === 'pc', passo = pc ? 30 : 34, cols = Math.ceil(C.repMax / (pc ? 3 : 2)), a = C.pts[0], b = C.pts[1]
-    VAO = pc ? 36 : 34
+    VAO = pc ? 44 : 34
     const margem = (pc ? 6 : 4) + Math.ceil(10 * C.kRep), cam = C.menos || !pc ? 0 : C.camMin, ppc = (b[1] - a[1]) / (b[0] - a[0]) // px de arte por centésimo
     C.xeBorda = ppc > 0 ? a[0] + (margem + cam - C.ox - a[1]) / ppc : -1e9
     C.linMin = C.xeBorda + VAO + (cols - 1) * passo + passo * 0.42 + 4

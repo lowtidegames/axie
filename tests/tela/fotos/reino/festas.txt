@@ -6,15 +6,15 @@ Regra: uma por vez, 400 ms entre elas, a maior por último; conquista e carta no
    esperando a vez: First Supper, Clean Plate
 
 == depois da escolha: as conquistas da vitória, uma por vez, e a festa de nível
-    1. brinde tam 2  fase carta       7855 →   10255  (2400 ms)  First Supper
-    2. brinde tam 2  fase carta      10655 →   13072  (2417 ms, 400 ms depois da anterior)  Clean Plate
+    1. brinde tam 2  fase carta       7835 →   10251  (2417 ms)  First Supper
+    2. brinde tam 2  fase carta      10651 →   13068  (2417 ms, 400 ms depois da anterior)  Clean Plate
 
 == queda do chefe (rodada 5)
-    1. aviso  tam 2  fase luta        3237 →    4853  (1617 ms)  Gutbucket the Wide
-    2. aviso  tam 3  fase luta       11653 →       0  (-11653 ms, 6800 ms depois da anterior)  Gutbucket DOWN!
+    1. aviso  tam 2  fase luta        3228 →    4845  (1616 ms)  Gutbucket the Wide
+    2. aviso  tam 3  fase luta       11645 →       0  (-11645 ms, 6800 ms depois da anterior)  Gutbucket DOWN!
 
 == fim com recorde
    (nenhuma festa na fila)
 
 == fim sem recorde
-    1. brinde tam 1  fase fim         5090 →       0  (-5090 ms)  LINK COPIED: SAME ROAD
+    1. brinde tam 1  fase fim         5123 →       0  (-5123 ms)  LINK COPIED: SAME ROAD

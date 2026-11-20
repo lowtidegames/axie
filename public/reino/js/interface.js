@@ -632,7 +632,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   function brinde(agora) {
     const b = M.brinde; if (!b || agora > b.t0 + b.ms || agora < b.t0) return
     const L = UI.L, dt = agora - b.t0, cel = L.cel, hudFim = Math.ceil((L.pinos.y + L.pinos.h) / 1) + 2
-    const canto = !cel && M.fase === 'vitoria' // PC na escolha do espólio: a placa vai para o canto livre de baixo (nunca por cima dos 3 espólios)
+    const canto = !cel && (M.fase === 'vitoria' || M.fase === 'luta') // PC na escolha do espólio e na luta: a placa vai para o canto de baixo (nunca por cima dos 3 espólios nem da horda no portão)
     const w = canto ? L.premios.w : Math.min(C.VW - 8, 150)
     const x = canto ? L.premios.x : cel || M.fase === 'fim' ? (C.VW - w) >> 1 : 4
     const y = canto ? L.premios.y + 15 : M.fase === 'fim' ? L.fimPainel.y - 34 : cel ? (M.fase === 'carta' || M.fase === 'terreno' ? L.odds.y + L.odds.h + 3 : M.fase === 'luta' ? Math.max(48, hudFim) : L.mesa.y - 34) : Math.max(32, hudFim)

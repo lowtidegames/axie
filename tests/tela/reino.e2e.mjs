@@ -10,6 +10,11 @@
 // último, nada por cima do chefe), espólio com efeito/texto/ícone próprio, derrota "quase", queda do chefe em câmera lenta, resumo da
 // luta, horda legível, nível "antes > depois", fim de tela cheia com liga provisória, Best runs no menu, marcas de nível, anúncio curto
 // do chefe, partida que volta depois de recarregar, "REPLACE?" no espólio, duas abas sem apagar, telas pequenas legíveis.
+// R17 (polimento 2, função `r17`): toque repetido não confirma, fim guardado na hora em que o motor decide, link de amigo que pergunta
+// e é a MESMA ESTRADA (só o álbum inicial), relíquias no HUD, duas abas na mesma partida, foco depois de mudar de fase, fim em
+// sequência (com e sem recorde, e com Reduced motion), horda legível, conquista só depois do espólio, telas na letra do jogo, cartão
+// de compartilhar, guia do ouro parado, volume; fotos de cada festa em dupla (antes e pico) e o registro da fila em fotos/reino/festas.txt.
+// Só uma parte: REINO_SO=celular|pc|r17celular|r17pc|desenho (a bateria completa é sem a variável).
 // Fotos em tests/tela/fotos/reino/.
 // Rode pela trava:  node tools/trava-robos.mjs rodar "timeout 800 node tests/tela/reino.e2e.mjs"
 import { createRequire } from 'node:module'
@@ -663,7 +668,9 @@ async function r17(fmt) {
   // ---------------------------------------------------------------- B3: o fim fica guardado na hora em que o motor decide
   {
     const ctx = await novoCtx(), p = await abrir(ctx, '?teste=1&nova=1&semente=e2e-keepmile-1')
-    await p.goto(base + '?teste=1'); await pronto(p) // sem `nova=1`: recarregar retoma o que está guardado
+    await toca(p, 'carta0'); await toca(p, 'terreno1') // 1 comando: a partida (de semente fixa) fica guardada
+    await p.goto(base + '?teste=1'); await pronto(p) // sem `nova=1`: abrir e recarregar retomam o que está guardado
+    confere((await K(p, (k) => k.semente())) === SEM && (await K(p, (k) => k.comandos())).length === 1, 'B3: a partida de semente fixa volta ao abrir sem `nova=1`')
     const ate = await K(p, (k) => k.jogarAteALutaFinal())
     confere(ate.parou && (await K(p, (k) => k.visao())).vidas === 1, `B3: o robô joga até a luta que acaba a partida (rodada ${ate.rodada}, última vida)`)
     await toca(p, (await p.locator('#bt-lutar2').count()) ? 'lutar2' : 'lutar'); await fase(p, 'luta')
@@ -789,6 +796,13 @@ async function r17(fmt) {
     await conferirLayout(p, 'guia do ouro')
     await K(p, (k) => k.jogarSozinho({ ateRodada: 4 }))
     m = await modelo(p)
+    { // na última vida o destaque é o forte (pisca mais depressa e ganha a seta)
+      const pu = await abrir(ctx, `?teste=1&nova=1&semente=${SEM}`)
+      for (let i = 0; i < 2; i++) { await lutarAteOFim(pu); await toca(pu, 'seguir'); await fase(pu, 'carta') }
+      let mu = await modelo(pu)
+      for (let r = 2; r <= 8 && !mu.consertar.forte; r++) { const x = await K(pu, (k, r) => k.jogarSozinho({ ateRodada: r }), r); if (x.fim) break; if ((await K(pu, (k) => k.fase())) === 'chefe') { await toca(pu, 'seguir'); await fase(pu, 'carta') } mu = await modelo(pu) }
+      confere(mu.vidas === 1 && mu.consertar.forte === true && mu.consertar.destaque === true && (await viuJa(pu, 'consertoForte')), `D9: na última vida, com ${mu.ouro} de ouro, o destaque do conserto é o forte (rodada ${mu.rodada})`)
+      await pu.close() }
     confere(m.rodada === 4 && (m.info || []).join(' ').includes('BOSS NEXT ROUND') && (m.info || []).join(' ').includes(String(m.consertar.custo)) && (m.info || []).length === 1 && (await viuJa(p, 'info')), `D9: na véspera do chefe, um lembrete de 1 linha: "${(m.info || [])[0]}"`)
     await p.close(); await ctx.close()
   }

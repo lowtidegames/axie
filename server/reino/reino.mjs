@@ -3,7 +3,7 @@
 // shared/reino/, grava o resultado que ELE calculou e refaz a partida ao terminar (reproduzir) antes de contar.
 // Números de economia só de shared/reino/config.js (BETA); aqui só limites técnicos do servidor (PARAMS_REINO).
 import { createHash, createHmac, randomBytes } from 'node:crypto'
-import { aplicar, criarPartida, opcoes, reproduzir, resultado as resultadoDoMotor, visao as visaoDoMotor } from '../../shared/reino/partida.js'
+import { aplicar as aplicarDoMotor, criarPartida, opcoes, reproduzir as reproduzirDoMotor, resultado as resultadoDoMotor, visao as visaoDoMotor } from '../../shared/reino/partida.js'
 import { ALBUM, BETA, CARTAS, FAMILIAS, PARTIDA } from '../../shared/reino/config.js'
 import { transacao } from '../db.mjs'
 import { ErroDoJogo } from '../jogo.mjs'
@@ -15,6 +15,10 @@ export const PARAMS_REINO = {
   partidasPorConta: { max: 30, janelaMs: 60 * 60 * 1000 }, // aberturas de partida por conta
   partidasPorIp: { max: 120, janelaMs: 60 * 60 * 1000 }, // aberturas de partida por IP (IPv6: /64)
   replaysPorConta: { max: 30, janelaMs: 60 * 1000 }, // replays pedidos por conta
+  replaysPorIp: { max: 120, janelaMs: 60 * 1000 }, // replays pedidos por IP (IPv6: /64), somando todas as contas (K1)
+  replayPassosPorPagina: 100, // passos por resposta do replay; partida maior vem em páginas (?desde=) (K1)
+  replayCacheBytes: 32 * 1024 * 1024, // replays montados guardados na memória (partida terminada não muda) (K1)
+  fechoPorPedido: 20, // partidas terminadas por pedido no fecho da temporada; o resto fica para os pedidos seguintes (K3)
   paginaDoRanking: 50,
   placarDoDia: 10, // linhas do placar da estrada do dia
   topoComReplay: 10, // replay de partida alheia só de quem está até esta posição (temporada ou estrada de dia passado)
@@ -88,9 +92,24 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
   const P = { ...PARAMS_REINO, ...params }
   const E = { ...BETA.energia, ...energiaOpc }
   const prazoMs = P.prazoParadaMin * 60_000
-  const segredoDaEstrada = segredo ?? (process.env.REINO_SEGREDO && process.env.REINO_SEGREDO.length >= 32 ? process.env.REINO_SEGREDO : null) ??
-    db.prepare("SELECT valor FROM meta WHERE chave = 'reino_segredo'").get()?.valor
+
+  // segredo da estrada do dia: o de teste, ou REINO_SEGREDO (32+ letras), ou o sorteado na migração v5 (com aviso: ele
+  // vai junto nas cópias do banco). Variável curta nunca é usada em silêncio (K5). O valor nunca vai ao log.
+  function escolherSegredo() {
+    if (segredo) return segredo
+    const env = process.env.REINO_SEGREDO
+    if (env && env.length >= 32) return env
+    if (env) log(`AVISO: REINO_SEGREDO curta demais (${env.length} letras; precisa de 32 ou mais): recusada. A estrada do dia usa o segredo guardado no banco, que vai junto nas cópias do banco.`)
+    else log('AVISO: REINO_SEGREDO não definida: a estrada do dia usa o segredo guardado no banco, que vai junto nas cópias do banco. Defina REINO_SEGREDO (32+ letras) antes do lançamento.')
+    return db.prepare("SELECT valor FROM meta WHERE chave = 'reino_segredo'").get()?.valor
+  }
+  const segredoDaEstrada = escolherSegredo()
   if (!segredoDaEstrada) throw new Error('Sem segredo da estrada do dia (banco sem a migração v5?).')
+
+  // o motor contado: refazer partida é o que custa CPU; o teste confere que repetição e replay guardado não chamam (K1)
+  const contagem = { aplicar: 0, reproduzir: 0 }
+  const aplicar = (e, cmd) => { contagem.aplicar++; return aplicarDoMotor(e, cmd) }
+  const reproduzir = (x) => { contagem.reproduzir++; return reproduzirDoMotor(x) }
 
   const q = {
     conta: db.prepare('SELECT * FROM reino_contas WHERE conta_id = ?'),
@@ -107,6 +126,9 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     nova: db.prepare(`INSERT INTO reino_partidas (id, conta_id, modo, dia, temporada, semente, liberadas, estado, status, criada_em, tocada_em)
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aberta', ?, ?)`),
     salvar: db.prepare("UPDATE reino_partidas SET estado = ?, comandos = ?, tempos = ?, novidades = ?, seq = ?, tocada_em = ? WHERE id = ? AND seq = ? AND status = 'aberta'"),
+    guardarResposta: db.prepare('UPDATE reino_partidas SET resposta = ? WHERE id = ?'),
+    contaCriada: db.prepare('SELECT criada_em FROM contas WHERE id = ?'),
+    temRanking: db.prepare("SELECT 1 FROM reino_partidas WHERE conta_id = ? AND modo = 'ranking' AND status = 'terminada' AND conferida = 1 LIMIT 1"),
     terminar: db.prepare(`UPDATE reino_partidas SET status = 'terminada', estado = NULL, motivo = ?, pontos = ?, vencidas = ?, rodada = ?,
                           conferida = ?, terminada_em = ? WHERE id = ? AND status = 'aberta'`),
     paradas: db.prepare("SELECT * FROM reino_partidas WHERE conta_id = ? AND status = 'aberta' AND tocada_em < ?"),
@@ -124,16 +146,20 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     // só as temporadas depois da última fechada (fecham em ordem): a consulta não cresce com o histórico
     temporadasPorFechar: db.prepare(`SELECT DISTINCT temporada FROM reino_partidas WHERE modo = 'ranking' AND temporada < ?
                                      AND temporada > COALESCE((SELECT MAX(numero) FROM reino_temporadas), -1) ORDER BY temporada`),
-    abertasDaTemporada: db.prepare("SELECT * FROM reino_partidas WHERE temporada = ? AND modo = 'ranking' AND status = 'aberta'"),
+    abertasDaTemporada: db.prepare("SELECT * FROM reino_partidas WHERE temporada = ? AND modo = 'ranking' AND status = 'aberta' ORDER BY rowid LIMIT ?"),
     fecharTemporada: db.prepare('INSERT INTO reino_temporadas (numero, fechada_em, contas) VALUES (?, ?, ?)'),
     titulo: db.prepare('INSERT INTO reino_titulos (temporada, conta_id, posicao, media, liga) VALUES (?, ?, ?, ?, ?)'),
     titulos: db.prepare('SELECT temporada, posicao, media, liga FROM reino_titulos WHERE conta_id = ? ORDER BY temporada DESC'),
+    // placar do dia (K2): só conta criada antes das 00:00 UTC do dia (2º parâmetro) e com 1 ranking terminado e conferido
     placarDoDia: db.prepare(`SELECT p.id, p.conta_id, p.pontos, p.vencidas, c.apelido FROM reino_partidas p JOIN contas c ON c.id = p.conta_id
-                             WHERE p.modo = 'estrada' AND p.dia = ? AND p.status = 'terminada' AND p.conferida = 1
+                             WHERE p.modo = 'estrada' AND p.dia = ? AND p.status = 'terminada' AND p.conferida = 1 AND c.criada_em < ?
+                             AND EXISTS (SELECT 1 FROM reino_partidas r WHERE r.conta_id = p.conta_id AND r.modo = 'ranking' AND r.status = 'terminada' AND r.conferida = 1)
                              ORDER BY p.pontos DESC, p.terminada_em ASC, p.conta_id ASC LIMIT ?`),
     minhaEstrada: db.prepare("SELECT pontos, terminada_em, status, conferida FROM reino_partidas WHERE conta_id = ? AND modo = 'estrada' AND dia = ?"),
-    posicaoNaEstrada: db.prepare(`SELECT COUNT(*) n FROM reino_partidas WHERE modo = 'estrada' AND dia = ? AND status = 'terminada' AND conferida = 1
-                                  AND (pontos > ? OR (pontos = ? AND (terminada_em < ? OR (terminada_em = ? AND conta_id < ?))))`),
+    posicaoNaEstrada: db.prepare(`SELECT COUNT(*) n FROM reino_partidas p JOIN contas c ON c.id = p.conta_id
+                                  WHERE p.modo = 'estrada' AND p.dia = ? AND p.status = 'terminada' AND p.conferida = 1 AND c.criada_em < ?
+                                  AND EXISTS (SELECT 1 FROM reino_partidas r WHERE r.conta_id = p.conta_id AND r.modo = 'ranking' AND r.status = 'terminada' AND r.conferida = 1)
+                                  AND (p.pontos > ? OR (p.pontos = ? AND (p.terminada_em < ? OR (p.terminada_em = ? AND p.conta_id < ?))))`),
     melhores: db.prepare(`SELECT id, modo, dia, temporada, pontos, vencidas, rodada, terminada_em FROM reino_partidas
                           WHERE conta_id = ? AND status = 'terminada' AND conferida = 1 ORDER BY pontos DESC, terminada_em ASC LIMIT ?`),
     maisRodadas: db.prepare("SELECT MAX(vencidas) n FROM reino_partidas WHERE conta_id = ? AND status = 'terminada' AND conferida = 1"),
@@ -144,9 +170,12 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
   }
 
   // limites de abertura de partida e de replay, guardados no banco (sobrevivem a reinício); com SAVE_SO_LEITURA, em memória
-  const janelas = { rpc: P.partidasPorConta.janelaMs, rpi: P.partidasPorIp.janelaMs, rrc: P.replaysPorConta.janelaMs }
+  const janelas = { rpc: P.partidasPorConta.janelaMs, rpi: P.partidasPorIp.janelaMs, rrc: P.replaysPorConta.janelaMs, rri: P.replaysPorIp.janelaMs }
   const noBanco = criarLimitesNoBanco(db, agora, { intervaloMs: 60_000, lote: 2000, janelas, idadeMaxMs: Infinity })
-  const mem = { rpc: criarLimite(P.partidasPorConta, agora), rpi: criarLimite(P.partidasPorIp, agora), rrc: criarLimite(P.replaysPorConta, agora) }
+  const mem = {
+    rpc: criarLimite(P.partidasPorConta, agora), rpi: criarLimite(P.partidasPorIp, agora),
+    rrc: criarLimite(P.replaysPorConta, agora), rri: criarLimite(P.replaysPorIp, agora),
+  }
   const cabe = (tipo, chave, cfg) => (soLeitura() ? mem[tipo](`${tipo}:${chave}`) : noBanco(`${tipo}:${chave}`, cfg))
 
   // ---------------------------------------------------------------- conta e energia
@@ -221,7 +250,34 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
       novidades: novidades ?? { cartaNova: null, conquistas: [] },
       resultado: aberta ? null : resultadoGravado(linha),
       prazo: aberta ? new Date(linha.tocada_em + prazoMs).toISOString() : null,
+      ...(linha.modo === 'estrada' ? { foraDoPlacar: foraDoPlacar(linha.conta_id, linha.dia) } : {}),
     }
+  }
+
+  /**
+   * K1/K6: a última resposta de comando, guardada na linha (sem refazer a partida). Se a partida terminou DEPOIS dela
+   * (tempo, fecho da temporada, teto), sai com o status verdadeiro e o resultado gravado. null: linha de antes da v6.
+   */
+  function respostaGuardada(linha) {
+    if (!linha.resposta) return null
+    const r = JSON.parse(linha.resposta)
+    if (linha.status === 'terminada' && r.status !== 'terminada') return { ...r, status: 'terminada', opcoes: null, resultado: resultadoGravado(linha), prazo: null }
+    return r
+  }
+
+  /**
+   * K2: a conta entra no placar da estrada do dia? Só conta criada antes das 00:00 UTC daquele dia e com 1 partida de
+   * ranking terminada (e conferida). Quem não cumpre joga, mas fica fora do placar: { codigo, motivo }; cumpre: null.
+   */
+  function foraDoPlacar(contaId, dia) {
+    const criada = q.contaCriada.get(contaId)?.criada_em
+    if (criada === undefined || criada >= dia * DIA_MS) {
+      return { codigo: 'CONTA_NOVA', motivo: 'Fora do placar hoje: o placar do dia é só de conta criada antes do dia. Jogue à vontade; a partir de amanhã, com 1 partida de ranking terminada, você entra.' }
+    }
+    if (!q.temRanking.get(contaId)) {
+      return { codigo: 'SEM_RANKING', motivo: 'Fora do placar hoje: termine 1 partida de ranking para entrar no placar da estrada do dia.' }
+    }
+    return null
   }
 
   function partidaDaConta(contaId, id) {
@@ -284,16 +340,22 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     const atual = temporadaDoDia(diaUtc(t))
     for (const { temporada } of q.temporadasPorFechar.all(atual)) {
       if (t < inicioDaTemporada(temporada + 1) + prazoMs) continue
-      transacao(db, () => {
-        if (q.temporadaFechada.get(temporada)) return
-        for (const linha of q.abertasDaTemporada.all(temporada)) terminar(linha, estadoDe(linha), 'fim_da_temporada')
+      // K3: no máximo fechoPorPedido partidas terminadas por pedido (cada uma é refeita pelo motor); sobrou, os
+      // pedidos seguintes continuam. Os títulos só saem quando não há mais nenhuma aberta (uma vez só: idempotente).
+      const fechou = transacao(db, () => {
+        if (q.temporadaFechada.get(temporada)) return true
+        const abertas = q.abertasDaTemporada.all(temporada, P.fechoPorPedido + 1)
+        for (const linha of abertas.slice(0, P.fechoPorPedido)) terminar(linha, estadoDe(linha), 'fim_da_temporada')
+        if (abertas.length > P.fechoPorPedido) return false
         const lista = q.todosDaTemporada.all(temporada)
         lista.forEach((l, i) => {
           const media = mediaDe(l.soma)
           q.titulo.run(temporada, l.conta_id, i + 1, media, ligaDe(media, i + 1))
         })
         q.fecharTemporada.run(temporada, t, lista.length)
+        return true
       })
+      if (!fechou) return // temporadas fecham em ordem
     }
   }
 
@@ -346,22 +408,6 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
 
   // ---------------------------------------------------------------- comando
 
-  /** Resposta de um comando já aplicado (seq menor): refeita pelo motor, igual à primeira. */
-  function repetir(linha, seq) {
-    const cmds = comandosDe(linha)
-    const r = reproduzir({ semente: linha.semente, cartasLiberadas: JSON.parse(linha.liberadas), comandos: cmds.slice(0, seq) })
-    const a = r.ok ? aplicar(r.estado, cmds[seq]) : null
-    if (!a || !a.ok) {
-      log(`ERRO partida ${linha.id}: não refaz o comando ${seq}`)
-      throw erro(500, 'PARTIDA_ILEGIVEL', 'Não consegui remontar esta partida. Ela ficou guardada; avise a equipe.')
-    }
-    const ultimo = seq === linha.seq - 1
-    // como estava logo depois daquele comando (só termina aqui se foi ele que terminou a partida)
-    const como = { ...linha, seq: seq + 1, status: a.estado.fase === 'fim' ? 'terminada' : 'aberta' }
-    const novidades = ultimo && linha.novidades ? JSON.parse(linha.novidades) : null
-    return { ...resposta(como, a.estado, a.eventos, novidades), repetido: true }
-  }
-
   /** Conquistas novas e carta nova depois de um comando aplicado. Dentro de transação. */
   function novidadesDoPasso(linha, antes, depois, eventos, cmds) {
     const c = garantirConta(linha.conta_id)
@@ -398,20 +444,25 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
   }
 
   /**
-   * Um comando da tela. seq = quantos comandos já foram aceitos nesta partida. seq igual → aplica; seq menor com o
-   * MESMO comando → devolve a mesma resposta (não aplica de novo); seq menor com outro comando → 409; seq maior → 409.
+   * Um comando da tela. seq = quantos comandos já foram aceitos nesta partida. seq igual → aplica; o ÚLTIMO seq com o
+   * MESMO comando → devolve a resposta guardada (não aplica nem refaz nada); último seq com outro comando → 409
+   * SEQ_JA_USADA; seq mais antigo → 409 SEQ_ANTIGA (K1: nada de refazer a partida por pedido); seq maior → 409.
    */
   function comando(contaId, { partida, seq, comando: cmdBruto }) {
     const cmd = comandoLimpo(cmdBruto)
-    let linha = partidaDaConta(contaId, partida)
-    if (seq < linha.seq) {
+    partidaDaConta(contaId, partida)
+    arrumar(contaId) // partida parada ou temporada acabada terminam ANTES: a repetição diz o status verdadeiro (K6)
+    const linha = partidaDaConta(contaId, partida)
+    const antiga = () => erro(409, 'SEQ_ANTIGA', 'Esse comando é antigo: a partida já seguiu. Recarregue a partida.', { seq: linha.seq })
+    if (seq < linha.seq - 1) throw antiga()
+    if (seq === linha.seq - 1) {
       if (json(comandosDe(linha)[seq]) !== json(cmd)) throw erro(409, 'SEQ_JA_USADA', 'Esse número de comando já foi usado com outro comando.', { seq: linha.seq })
-      return repetir(linha, seq)
+      const guardada = respostaGuardada(linha)
+      if (!guardada) throw antiga() // partida de antes da v6 sem resposta guardada: a tela recarrega
+      return { ...guardada, repetido: true }
     }
     if (seq > linha.seq) throw erro(409, 'SEQ_FORA_DE_ORDEM', 'Número de comando fora de ordem.', { seq: linha.seq })
-    arrumar(contaId)
-    linha = q.partida.get(linha.id)
-    if (linha.status !== 'aberta') throw erro(409, 'PARTIDA_ACABOU', 'A partida já acabou.', { partida: resposta(linha, estadoAtual(linha)) })
+    if (linha.status !== 'aberta') throw erro(409, 'PARTIDA_ACABOU', 'A partida já acabou.', { partida: respostaGuardada(linha) ?? resposta(linha, estadoAtual(linha)) })
     const e = estadoDe(linha)
     const r = aplicar(e, cmd)
     if (!r.ok) {
@@ -430,7 +481,9 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
       if (Number(ok.changes) !== 1) throw erro(409, 'CONCORRENCIA', 'A partida mudou agora há pouco. Tente de novo.')
       let nova = { ...linha, estado: json(r.estado), comandos: json(cmds), tempos: json(tempos), seq: seq + 1, tocada_em: t }
       if (r.estado.fase === 'fim') nova = terminar(nova, r.estado, r.estado.fim.motivo)
-      return resposta(nova, r.estado, r.eventos, novidades)
+      const resp = resposta(nova, r.estado, r.eventos, novidades)
+      q.guardarResposta.run(json(resp), linha.id) // a repetição deste seq devolve esta mesma (K1)
+      return resp
     })
   }
 
@@ -474,14 +527,17 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
   }
 
   function placarDoDia(dia, contaId) {
-    const lista = q.placarDoDia.all(dia, P.placarDoDia).map((l, i) => ({ posicao: i + 1, apelido: l.apelido, pontos: l.pontos, vencidas: l.vencidas, partida: l.id }))
+    const lista = q.placarDoDia.all(dia, dia * DIA_MS, P.placarDoDia).map((l, i) => ({ posicao: i + 1, apelido: l.apelido, pontos: l.pontos, vencidas: l.vencidas, partida: l.id }))
     const minha = q.minhaEstrada.get(contaId, dia)
+    const fora = foraDoPlacar(contaId, dia)
     let voce = null
     if (minha) {
-      voce = { status: minha.status, pontos: minha.pontos, posicao: null }
-      if (minha.status === 'terminada' && minha.conferida === 1) voce.posicao = q.posicaoNaEstrada.get(dia, minha.pontos, minha.pontos, minha.terminada_em, minha.terminada_em, contaId).n + 1
+      voce = { status: minha.status, pontos: minha.pontos, posicao: null, foraDoPlacar: fora }
+      if (!fora && minha.status === 'terminada' && minha.conferida === 1) {
+        voce.posicao = q.posicaoNaEstrada.get(dia, dia * DIA_MS, minha.pontos, minha.pontos, minha.terminada_em, minha.terminada_em, contaId).n + 1
+      }
     }
-    return { dia: new Date(dia * DIA_MS).toISOString().slice(0, 10), lista, voce, jogou: !!minha }
+    return { dia: new Date(dia * DIA_MS).toISOString().slice(0, 10), lista, voce, jogou: !!minha, foraDoPlacar: fora }
   }
 
   function ranking(contaId, { cursor = '', temporada: pedida } = {}) {
@@ -548,29 +604,21 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
       const p = posicaoNaTemporada(linha.temporada, linha.conta_id)
       return !!p && p.posicao <= P.topoComReplay
     }
-    if (linha.modo === 'estrada') return q.placarDoDia.all(linha.dia, P.topoComReplay).some((l) => l.id === linha.id)
+    if (linha.modo === 'estrada') return q.placarDoDia.all(linha.dia, linha.dia * DIA_MS, P.topoComReplay).some((l) => l.id === linha.id)
     return false
   }
 
-  /**
-   * Refaz uma partida TERMINADA e devolve comandos, eventos e a visão de cada passo para a tela reproduzir.
-   * Própria, ou alheia do topo do ranking (ranking) ou do placar de um dia passado (estrada). A semente só sai
-   * quando já não ajuda ninguém: nunca a da estrada de hoje (é a mesma para todos).
-   */
-  function replay(contaId, id) {
-    if (!cabe('rrc', String(contaId), P.replaysPorConta)) throw erro(429, 'MUITOS_PEDIDOS', 'Muitos replays em pouco tempo. Espere um pouco.')
-    arrumar(contaId)
-    const linha = typeof id === 'string' ? q.partida.get(id) : undefined
-    const naoAchou = () => erro(404, 'PARTIDA_NAO_ENCONTRADA', 'Partida não encontrada.')
-    if (!linha) throw naoAchou()
-    const propria = linha.conta_id === contaId
-    const hoje = diaUtc(agora())
-    const estradaDeHoje = linha.modo === 'estrada' && linha.dia >= hoje
-    if (!propria && (linha.modo === 'treino' || estradaDeHoje || linha.conferida !== 1)) throw naoAchou()
-    // estrada de um dia passado: quem ainda tem a estrada DAQUELE dia aberta (abriu antes da meia-noite) não vê a dos outros
-    if (!propria && linha.modo === 'estrada' && q.estradaDoDia.get(contaId, linha.dia)?.status === 'aberta') throw naoAchou()
-    if (linha.status !== 'terminada') throw erro(409, 'PARTIDA_ABERTA', 'O replay só sai depois que a partida termina.')
-    if (!propria && !noTopo(linha)) throw naoAchou()
+  // K1: replay montado de partida TERMINADA (não muda mais) guardado na memória, do mais usado para o menos, até
+  // replayCacheBytes. Chave = id da partida (sorteado, nunca reaproveitado); a linha é sempre conferida antes.
+  const replaysGuardados = new Map()
+  let bytesGuardados = 0
+  function replayMontado(linha) {
+    const ja = replaysGuardados.get(linha.id)
+    if (ja) {
+      replaysGuardados.delete(linha.id)
+      replaysGuardados.set(linha.id, ja)
+      return ja.dados
+    }
     const liberadas = JSON.parse(linha.liberadas)
     const cmds = comandosDe(linha)
     let e = criarPartida({ semente: linha.semente, cartasLiberadas: liberadas })
@@ -585,17 +633,60 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
       e = r.estado
       passos.push({ comando: cmds[i], eventos: r.eventos, visao: visaoDoMotor(e) })
     }
+    const dados = { liberadas, inicio, passos }
+    const bytes = json(dados).length
+    if (bytes <= P.replayCacheBytes) {
+      replaysGuardados.set(linha.id, { dados, bytes })
+      bytesGuardados += bytes
+      for (const [k, v] of replaysGuardados) {
+        if (bytesGuardados <= P.replayCacheBytes) break
+        replaysGuardados.delete(k)
+        bytesGuardados -= v.bytes
+      }
+    }
+    return dados
+  }
+
+  /**
+   * Devolve comandos, eventos e a visão de cada passo de uma partida TERMINADA para a tela reproduzir, em páginas de
+   * replayPassosPorPagina passos (desde = 1º passo da página; proximo = o da página seguinte ou null).
+   * Própria, ou alheia do topo do ranking (ranking) ou do placar de um dia passado (estrada). A estrada de hoje não sai
+   * para ninguém antes da virada do dia (nem a própria: K2). Limite por conta e por IP (K1).
+   */
+  function replay(contaId, id, { desde = 0 } = {}, chaveIp = null) {
+    if (!cabe('rrc', String(contaId), P.replaysPorConta)) throw erro(429, 'MUITOS_PEDIDOS', 'Muitos replays em pouco tempo. Espere um pouco.')
+    if (chaveIp && !cabe('rri', chaveIp, P.replaysPorIp)) throw erro(429, 'MUITOS_PEDIDOS', 'Muitos replays daqui em pouco tempo. Espere um pouco.')
+    arrumar(contaId)
+    const linha = typeof id === 'string' ? q.partida.get(id) : undefined
+    const naoAchou = () => erro(404, 'PARTIDA_NAO_ENCONTRADA', 'Partida não encontrada.')
+    if (!linha) throw naoAchou()
+    const propria = linha.conta_id === contaId
+    const hoje = diaUtc(agora())
+    const estradaDeHoje = linha.modo === 'estrada' && linha.dia >= hoje
+    if (!propria && (linha.modo === 'treino' || estradaDeHoje || linha.conferida !== 1)) throw naoAchou()
+    // estrada de um dia passado: quem ainda tem a estrada DAQUELE dia aberta (abriu antes da meia-noite) não vê a dos outros
+    if (!propria && linha.modo === 'estrada' && q.estradaDoDia.get(contaId, linha.dia)?.status === 'aberta') throw naoAchou()
+    if (linha.status !== 'terminada') throw erro(409, 'PARTIDA_ABERTA', 'O replay só sai depois que a partida termina.')
+    if (estradaDeHoje) throw erro(409, 'ESTRADA_DE_HOJE', 'O replay da estrada de hoje sai depois da virada do dia (00:00 UTC).')
+    if (!propria && !noTopo(linha)) throw naoAchou()
+    const total = linha.seq
+    if (!Number.isSafeInteger(desde) || desde < 0 || desde > total) throw erro(400, 'CAMPO_INVALIDO', 'Campo inválido: desde.')
+    const { liberadas, inicio, passos } = replayMontado(linha)
+    const ate = Math.min(total, desde + P.replayPassosPorPagina)
     return {
       id: linha.id, modo: linha.modo, dia: new Date(linha.dia * DIA_MS).toISOString().slice(0, 10), temporada: linha.temporada,
       apelido: q.apelido.get(linha.conta_id)?.apelido ?? null, propria,
-      cartasLiberadas: liberadas,
-      ...(estradaDeHoje ? {} : { semente: linha.semente }),
-      inicio, passos, resultado: resultadoGravado(linha),
+      cartasLiberadas: liberadas, semente: linha.semente,
+      inicio, passos: passos.slice(desde, ate), totalPassos: total, desde, proximo: ate < total ? ate : null,
+      resultado: resultadoGravado(linha),
     }
   }
 
   // só para testes e ferramentas: a semente nunca sai por rota
-  const _interno = { sementeDaEstrada, energiaAgora: (contaId) => energiaAgora(contaDoReino(contaId)), fecharTemporadas, hash: (x) => createHash('sha256').update(x).digest('hex') }
+  const _interno = {
+    sementeDaEstrada, energiaAgora: (contaId) => energiaAgora(contaDoReino(contaId)), fecharTemporadas, hash: (x) => createHash('sha256').update(x).digest('hex'),
+    motor: () => ({ ...contagem }), replaysGuardados: () => ({ partidas: replaysGuardados.size, bytes: bytesGuardados }),
+  }
 
   return { abrir, comando, desistir, verAberta, ranking, perfil, replay, _interno }
 }

@@ -467,9 +467,12 @@ describe('R14 — estrada do dia', () => {
   })
 
   test('placar do dia: só terminadas e conferidas, posição da própria conta', async () => {
-    const { s, api, conta } = await subir()
+    // regra mudou (R16, K2): o placar do dia só aceita conta criada antes do dia e com 1 ranking terminado
+    const { s, api, conta, relogio } = await subir({ t: T0 - DIA })
     try {
       const a = await conta('Ana'), b = await conta('Bia'), c = await conta('Caio')
+      for (const x of [a, b, c]) await terminarPartida(api, x.token, await abrir(api, x.token, 'ranking'))
+      relogio.t = T0
       const fa = await jogar(api, a.token, await abrir(api, a.token, 'estrada'))
       const pb = await vencerBatalhas(api, b.token, await abrir(api, b.token, 'estrada'), 1)
       const fb = { resultado: await terminarPartida(api, b.token, pb) }
@@ -669,17 +672,24 @@ describe('R14 — álbum, conquistas e perfil', () => {
       const cheio = JSON.stringify(Array.from({ length: 6 }, () => ({ carta: 'T01', nivel: 5 })))
       s.db.prepare("UPDATE reino_partidas SET estado = json_set(estado, '$.terrenos', json(?)) WHERE id = ?").run(cheio, q.id)
       const r = await api('POST', '/api/reino/partida/comando', a.token, { partida: q.id, seq: 0, comando: { tipo: 'desistir' } })
-      assert.deepEqual(r.json.novidades.conquistas.filter((c) => ['house', 'family', 'brass'].includes(c)).sort(), ['brass', 'family', 'house'])
+      // (R16: a 1ª partida às vezes já ganha Top Brass de verdade — aí ela não é "nova" agora; o teste falhava ~1 em 4)
+      const tinha = new Set(p.conquistas.filter((c) => c.feita).map((c) => c.id))
+      assert.deepEqual(r.json.novidades.conquistas.filter((c) => ['house', 'family', 'brass'].includes(c)).sort(), ['brass', 'family', 'house'].filter((c) => !tinha.has(c)))
+      const depois = (await api('GET', '/api/reino/perfil', a.token)).json
+      assert.deepEqual(depois.conquistas.filter((c) => ['house', 'family', 'brass'].includes(c.id) && c.feita).length, 3)
       assert.equal(r.json.resultado.conta, true) // terrenos mexidos não mudam pontos nem rodadas
     } finally { await fechar(s) }
   })
 })
 
 describe('R14 — replay', () => {
-  test('própria: sim (estrada de hoje sem semente); aberta: não; alheia: só do topo e nunca a estrada de hoje', async () => {
-    const { s, api, conta, relogio } = await subir({ reino: { params: { ...reinoFolgado, topoComReplay: 1 } } })
+  test('própria: sim (a estrada de hoje só depois da virada); aberta: não; alheia: só do topo e nunca a estrada de hoje', async () => {
+    // regra mudou (R16, K2): contas criadas ontem (o placar do dia só aceita conta de antes do dia) e a própria
+    // estrada de hoje não sai antes da virada
+    const { s, api, conta, relogio } = await subir({ t: T0 - DIA, reino: { params: { ...reinoFolgado, topoComReplay: 1 } } })
     try {
       const a = await conta('Topo'), b = await conta('Meio')
+      relogio.t = T0
       const ra = await vencerBatalhas(api, a.token, await abrir(api, a.token, 'ranking'), 3)
       await terminarPartida(api, a.token, ra)
       const rb = await abrir(api, b.token, 'ranking')
@@ -698,8 +708,8 @@ describe('R14 — replay', () => {
       // estrada de hoje
       const ea = await jogar(api, a.token, await abrir(api, a.token, 'estrada'))
       const propria = await api('GET', `/api/reino/replay/${ea.id}`, a.token)
-      assert.equal(propria.status, 200)
-      assert.equal('semente' in propria.json, false)
+      assert.equal(propria.status, 409)
+      assert.equal(propria.json.erro.codigo, 'ESTRADA_DE_HOJE')
       assert.ok(!propria.texto.includes(s.reino._interno.sementeDaEstrada(SEGUNDA)))
       assert.equal((await api('GET', `/api/reino/replay/${ea.id}`, b.token)).status, 404)
       // quem abriu a estrada de hoje e passou da meia-noite com ela aberta não vê a dos outros daquele dia

@@ -342,8 +342,9 @@ describe('tarefa 16 — migração v3 → v4 com banco usado', () => {
       return { status: r.status, json: await r.json() }
     }
     try {
-      assert.equal(VERSAO_DO_BANCO, 4)
-      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, 4)
+      // regra mudou (R14): o banco ganhou a v5 (Keepmile); a v3 migra até a versão atual, com a cópia da v3 antes
+      assert.ok(VERSAO_DO_BANCO >= 4)
+      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, VERSAO_DO_BANCO)
       assert.ok(fs.readdirSync(path.join(pasta, 'copias')).some((n) => n.startsWith('v3.db.v3.')))
       const ap = Object.fromEntries(s.db.prepare('SELECT id, apelido FROM contas').all().map((c) => [c.id, c.apelido]))
       assert.deepEqual(nomes.map((n) => ap[ids[n]]), ['Camila', 'Carnila 2', 'Ana', '.Ana. 2', 'Bia'])

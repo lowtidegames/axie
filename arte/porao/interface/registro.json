@@ -1,0 +1,322 @@
+[
+ {
+  "peca": "ui_btn_normal",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "a chunky rounded rectangular game button, plum body, light top edge, thick dark outline, 2 px darker lip at the bottom, empty face, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 886.5098459895798,
+  "saldo_depois": 885.5098459895798,
+  "hora_brt": "20/11 07:32",
+  "arquivo": "bruto/ui_btn_normal-1.png"
+ },
+ {
+  "peca": "ui_status",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "a small rounded status plate, dark night-blue body, thick dark outline, thin light line on top, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 885.5098459895798,
+  "saldo_depois": 884.5098459895798,
+  "hora_brt": "20/11 07:32",
+  "arquivo": "bruto/ui_status-1.png"
+ },
+ {
+  "peca": "ui_janela",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   48,
+   48
+  ],
+  "texto": "a retro computer window frame, thick dark outline, title bar at the top with three small square buttons on the right (cream, gold, red), empty dark plum body, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 885.5098459895798,
+  "saldo_depois": 883.5098459895798,
+  "hora_brt": "20/11 07:32",
+  "arquivo": "bruto/ui_janela-1.png"
+ },
+ {
+  "peca": "ui_aba_ligada",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "a folder tab with rounded top corners, cream paper color, thick dark outline, open at the bottom, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 885.5098459895798,
+  "saldo_depois": 882.5098459895798,
+  "hora_brt": "20/11 07:32",
+  "arquivo": "bruto/ui_aba_ligada-1.png"
+ },
+ {
+  "peca": "ui_barra_vazia",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "an empty horizontal progress bar slot, rounded ends, dark inside, thick dark outline, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 885.5098459895798,
+  "saldo_depois": 881.5098459895798,
+  "hora_brt": "20/11 07:32",
+  "arquivo": "bruto/ui_barra_vazia-1.png"
+ },
+ {
+  "peca": "papel_projeto",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   64,
+   64
+  ],
+  "texto": "seamless tileable wallpaper pattern, dark blue with faint tiny game controllers and stars, low contrast, two tones, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 881.5098459895798,
+  "saldo_depois": 879.5098459895798,
+  "hora_brt": "20/11 07:33",
+  "arquivo": "bruto/papel_projeto-1.png"
+ },
+ {
+  "peca": "papel_grafico",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   64,
+   64
+  ],
+  "texto": "seamless tileable wallpaper pattern, dark green graph paper with faint tiny candlestick doodles, low contrast, two tones, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 881.5098459895798,
+  "saldo_depois": 879.5098459895798,
+  "hora_brt": "20/11 07:33",
+  "arquivo": "bruto/papel_grafico-1.png"
+ },
+ {
+  "peca": "papel_comunidade",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   64,
+   64
+  ],
+  "texto": "seamless tileable wallpaper pattern, dark purple with faint tiny speech bubbles and hearts, low contrast, two tones, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 881.5098459895798,
+  "saldo_depois": 878.5098459895798,
+  "hora_brt": "20/11 07:33",
+  "arquivo": "bruto/papel_comunidade-1.png"
+ },
+ {
+  "peca": "icone_comunidade",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "app icon, three little round heads side by side, centered, flat front view, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 878.5098459895798,
+  "saldo_depois": 877.5098459895798,
+  "hora_brt": "20/11 07:33",
+  "arquivo": "bruto/icone_comunidade-1.png"
+ },
+ {
+  "peca": "icone_impressora",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "app icon, an office printer with a white sheet coming out, centered, flat front view, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 878.5098459895798,
+  "saldo_depois": 875.5098459895798,
+  "hora_brt": "20/11 07:33",
+  "arquivo": "bruto/icone_impressora-1.png"
+ },
+ {
+  "peca": "icone_porao",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "app icon, a basement wooden door with stairs going down, centered, flat front view, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 878.5098459895798,
+  "saldo_depois": 875.5098459895798,
+  "hora_brt": "20/11 07:33",
+  "arquivo": "bruto/icone_porao-1.png"
+ },
+ {
+  "peca": "icone_chat",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "app icon, a speech bubble, centered, flat front view, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 878.5098459895798,
+  "saldo_depois": 873.5098459895798,
+  "hora_brt": "20/11 07:33",
+  "arquivo": "bruto/icone_chat-1.png"
+ },
+ {
+  "peca": "icone_projetos",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "app icon, a game cartridge, centered, flat front view, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 878.5098459895798,
+  "saldo_depois": 873.5098459895798,
+  "hora_brt": "20/11 07:33",
+  "arquivo": "bruto/icone_projetos-1.png"
+ },
+ {
+  "peca": "icone_ideias",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "app icon, a glowing light bulb, centered, flat front view, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 878.5098459895798,
+  "saldo_depois": 872.5098459895798,
+  "hora_brt": "20/11 07:33",
+  "arquivo": "bruto/icone_ideias-1.png"
+ },
+ {
+  "peca": "icone_grafico",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "app icon, a rising green bar chart with an arrow, centered, flat front view, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 878.5098459895798,
+  "saldo_depois": 870.5098459895798,
+  "hora_brt": "20/11 07:33",
+  "arquivo": "bruto/icone_grafico-1.png"
+ },
+ {
+  "peca": "icone_caixa",
+  "tentativa": "1",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "app icon, a stack of gold coins, centered, flat front view, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 878.5098459895798,
+  "saldo_depois": 870.5098459895798,
+  "hora_brt": "20/11 07:33",
+  "arquivo": "bruto/icone_caixa-1.png"
+ },
+ {
+  "peca": "icone_caixa",
+  "tentativa": "2",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "app icon, three gold coins stacked in a short column, side view, shiny yellow, centered, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 870.5098459895798,
+  "saldo_depois": 869.5098459895798,
+  "hora_brt": "20/11 07:34",
+  "arquivo": "bruto/icone_caixa-2.png"
+ },
+ {
+  "peca": "ui_janela",
+  "tentativa": "2",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   48,
+   48
+  ],
+  "texto": "a flat front view window frame filling the whole image: a tall wide title bar strip at the top about 12 pixels high in cream color with three tiny square buttons on its right (cream, gold, red), below it a large empty dark plum body, thick dark outline around everything, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 869.5098459895798,
+  "saldo_depois": 868.5098459895798,
+  "hora_brt": "20/11 07:34",
+  "arquivo": "bruto/ui_janela-2.png"
+ },
+ {
+  "peca": "icone_comunidade",
+  "tentativa": "2",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "app icon, three small cute round faces in a row, smiling, different skin colors, centered, flat front view, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 869.5098459895798,
+  "saldo_depois": 867.5098459895798,
+  "hora_brt": "20/11 07:34",
+  "arquivo": "bruto/icone_comunidade-2.png"
+ },
+ {
+  "peca": "ui_status",
+  "tentativa": "2",
+  "ferramenta": "pixflux",
+  "tamanho": [
+   32,
+   32
+  ],
+  "texto": "a flat horizontal rounded rectangle panel seen straight from the front, dark navy blue fill, thick dark outline, thin light blue line along the top inside edge, nothing inside, flat front view pixel art user interface asset, thick dark plum outline, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no text, no letters, no logos, original design",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 869.5098459895798,
+  "saldo_depois": 866.5098459895798,
+  "hora_brt": "20/11 07:34",
+  "arquivo": "bruto/ui_status-2.png"
+ }
+]

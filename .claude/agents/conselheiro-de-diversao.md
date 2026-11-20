@@ -2,7 +2,7 @@
 name: conselheiro-de-diversao
 description: Use junto com o guardião para dar nota de DIVERSÃO (0 a 100) a cada ideia, tela ou mecânica nova do jogo que o jogador sente — recompensa, revelação, ritmo, batalha, cruzamento, "game feel" e vontade de voltar amanhã — com até 3 melhorias práticas. Só aconselha; não muda nada.
 tools: Read, Grep, Glob
-model: sonnet
+model: opus
 effort: medium
 color: yellow
 skills: oficio-conselheiro-de-diversao, trindade, conselheiros

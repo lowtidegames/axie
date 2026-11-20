@@ -1,0 +1,257 @@
+[
+ {
+  "peca": "sala",
+  "ferramenta": "create-room",
+  "pedido": {
+   "theme": "The basement of a grandmother's house used as a home office: warm red brick walls, wooden plank floor, one long wooden desk with three computer monitors against the back wall, an office chair, a wooden staircase going up, an old sofa, a hanging light bulb.",
+   "doors": [
+    {
+     "side": "w",
+     "col": 0,
+     "row": 1
+    }
+   ],
+   "view": "isometric",
+   "tile_size": 32,
+   "pieces": false,
+   "name": "porao-regua"
+  },
+  "ok": true,
+  "status": "completed",
+  "saldo_antes": 916.51,
+  "saldo_depois": 896.51,
+  "gasto": 20.0,
+  "segundos": 169,
+  "arquivos": [
+   "bruto/sala-image_url.png"
+  ],
+  "hora_brt": "20/11 07:13"
+ },
+ {
+  "peca": "rugrigo",
+  "tentativa": 1,
+  "ferramenta": "map-objects (dentro da sala)",
+  "recorte": [
+   92,
+   34,
+   96,
+   96
+  ],
+  "mascara": [
+   28,
+   18,
+   70,
+   74
+  ],
+  "texto": "a sly young man sitting on a plain black office chair, seen from an isometric camera, facing the back-right towards a desk, head turned so part of his face shows, messy dark brown hair, thin mustache, smug grin, plain red hoodie, grey sweatpants, slippers, one small gold wristwatch, hands forward as if typing, chibi proportions with a big head, isometric pixel art game asset, 2:1 dimetric angle, 32x16 pixel floor tiles, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no cast shadow on the ground, transparent background, original design, no text, no logos, no letters, exactly the same scale as the reference",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 896.51,
+  "saldo_depois": 895.51,
+  "gasto": 1.0,
+  "segundos": 29,
+  "arquivo": "bruto/rugrigo-1.png",
+  "hora_brt": "20/11 07:14"
+ },
+ {
+  "peca": "rugrigo",
+  "tentativa": 2,
+  "ferramenta": "map-objects (dentro da sala)",
+  "recorte": [
+   92,
+   34,
+   96,
+   96
+  ],
+  "mascara": [
+   30,
+   26,
+   66,
+   72
+  ],
+  "texto": "a sly young man sitting on a plain black office chair, seen from behind in three-quarter view, his body facing the top-right towards the desk, his head turned over his shoulder so his face shows, cute chibi proportions with a big round head and a small body, messy black hair, thin black mustache, smug grin, plain red hoodie with the hood down, grey sweatpants, slippers, one small gold wristwatch, no hat, no cap, isometric pixel art game asset, 2:1 dimetric angle, 32x16 pixel floor tiles, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no cast shadow on the ground, transparent background, original design, no text, no logos, no letters, exactly the same scale as the reference",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 895.51,
+  "saldo_depois": 894.51,
+  "gasto": 1.0,
+  "segundos": 36,
+  "arquivo": "bruto/rugrigo-2.png",
+  "hora_brt": "20/11 07:15"
+ },
+ {
+  "peca": "rugrigo",
+  "tentativa": 3,
+  "ferramenta": "edit-image-pixen",
+  "base": "../../piloto-porao/bruto/rugrigo-2.png",
+  "texto": "redraw exactly the same character and the same pose at this smaller size with fewer, bigger pixels: sly young man with messy black hair, thin mustache and smug grin, red hoodie, grey sweatpants, sitting on a black office chair, dark outline, no shadow on the ground",
+  "ok": true,
+  "status": "completed",
+  "saldo_antes": 894.51,
+  "saldo_depois": 893.51,
+  "gasto": 1.0,
+  "segundos": 28,
+  "arquivo": "bruto/rugrigo-3.png",
+  "hora_brt": "20/11 07:16"
+ },
+ {
+  "peca": "mesa",
+  "tentativa": 1,
+  "ferramenta": "map-objects (dentro da sala)",
+  "recorte": [
+   84,
+   10,
+   128,
+   128
+  ],
+  "mascara": [
+   38,
+   26,
+   110,
+   94
+  ],
+  "texto": "one long wooden computer desk seen from an isometric camera, three flat computer monitors standing side by side on top, a keyboard and a mouse, a dark PC tower with purple lights under the desk, no people, no chair, isometric pixel art game asset, 2:1 dimetric angle, 32x16 pixel floor tiles, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no cast shadow on the ground, transparent background, original design, no text, no logos, no letters, exactly the same scale as the reference, lit screens: left screen a green rising chart, middle screen blue chat bubbles, right screen a colorful game",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 893.51,
+  "saldo_depois": 892.51,
+  "gasto": 1.0,
+  "segundos": 63,
+  "arquivo": "bruto/mesa-1.png",
+  "hora_brt": "20/11 07:17"
+ },
+ {
+  "peca": "aquario",
+  "tentativa": 1,
+  "ferramenta": "map-objects (dentro da sala)",
+  "recorte": [
+   60,
+   70,
+   96,
+   96
+  ],
+  "mascara": [
+   18,
+   16,
+   78,
+   76
+  ],
+  "texto": "a rectangular fish aquarium on a low black wooden cabinet, seen from an isometric camera, clear blue water, orange and yellow fish, green plants, pebbles, white highlight on the glass edge, isometric pixel art game asset, 2:1 dimetric angle, 32x16 pixel floor tiles, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no cast shadow on the ground, transparent background, original design, no text, no logos, no letters, exactly the same scale as the reference",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 892.51,
+  "saldo_depois": 891.51,
+  "gasto": 1.0,
+  "segundos": 43,
+  "arquivo": "bruto/aquario-1.png",
+  "hora_brt": "20/11 07:18"
+ },
+ {
+  "peca": "trouxa",
+  "tentativa": 1,
+  "ferramenta": "map-objects (dentro da sala)",
+  "recorte": [
+   60,
+   70,
+   96,
+   96
+  ],
+  "mascara": [
+   34,
+   28,
+   62,
+   74
+  ],
+  "texto": "a small gullible young person standing, seen from an isometric camera, facing the back-right, plain blue t-shirt, jeans, holding a smartphone up with both hands, wide happy eyes, chibi proportions with a big head, isometric pixel art game asset, 2:1 dimetric angle, 32x16 pixel floor tiles, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no cast shadow on the ground, transparent background, original design, no text, no logos, no letters, exactly the same scale as the reference",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 891.51,
+  "saldo_depois": 890.51,
+  "gasto": 1.0,
+  "segundos": 56,
+  "arquivo": "bruto/trouxa-1.png",
+  "hora_brt": "20/11 07:19"
+ },
+ {
+  "peca": "rugrigo",
+  "tentativa": 4,
+  "ferramenta": "edit-image-pixen",
+  "base": "../../piloto-porao/bruto/rugrigo-1.png",
+  "texto": "redraw exactly the same character and the same pose at this smaller size with fewer, bigger pixels: young man with messy black hair seen from behind, red hoodie, grey sweatpants, sitting on a black office chair, dark outline, no shadow on the ground",
+  "ok": true,
+  "status": "completed",
+  "saldo_antes": 890.51,
+  "saldo_depois": 889.51,
+  "gasto": 1.0,
+  "segundos": 28,
+  "arquivo": "bruto/rugrigo-4.png",
+  "hora_brt": "20/11 07:19"
+ },
+ {
+  "peca": "mesa",
+  "tentativa": 2,
+  "ferramenta": "edit-image-pixen",
+  "base": "bruto/mesa-piloto-espelhada.png",
+  "texto": "redraw exactly the same wooden computer desk with its three lit monitors, keyboard, mouse and PC tower at this smaller size with fewer, bigger pixels, same angle, dark outline, no shadow on the ground, no text",
+  "ok": true,
+  "status": "completed",
+  "saldo_antes": 889.51,
+  "saldo_depois": 888.51,
+  "gasto": 1.0,
+  "segundos": 22,
+  "arquivo": "bruto/mesa-2.png",
+  "hora_brt": "20/11 07:20"
+ },
+ {
+  "peca": "cadeira_gamer",
+  "tentativa": 1,
+  "ferramenta": "map-objects (dentro da sala)",
+  "recorte": [
+   -1,
+   0,
+   128,
+   128
+  ],
+  "mascara": [
+   30,
+   44,
+   62,
+   90
+  ],
+  "texto": "an empty luxurious gaming chair, seen from an isometric camera, facing the top-right, tall padded backrest, black leather with crimson red stripes, chrome star base with wheels, no person, isometric pixel art game asset, 2:1 dimetric angle, 32x16 pixel floor tiles, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no cast shadow on the ground, transparent background, original design, no text, no logos, no letters, exactly the same scale as the reference",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 888.51,
+  "saldo_depois": 887.51,
+  "gasto": 1.0,
+  "segundos": 63,
+  "arquivo": "bruto/cadeira_gamer-1.png",
+  "hora_brt": "20/11 07:24"
+ },
+ {
+  "peca": "cadeira_gamer",
+  "tentativa": 2,
+  "ferramenta": "map-objects (dentro da sala)",
+  "recorte": [
+   -1,
+   0,
+   128,
+   128
+  ],
+  "mascara": [
+   30,
+   44,
+   62,
+   90
+  ],
+  "texto": "a luxurious gaming chair, seen from an isometric camera, facing the top-right, tall padded backrest, black leather with crimson red stripes, chrome star base with wheels, isometric pixel art game asset, 2:1 dimetric angle, 32x16 pixel floor tiles, dark plum outline around every shape, bold saturated colors, 3-tone cel shading, light from the top left, crisp clean pixels, no cast shadow on the ground, transparent background, original design, no text, no logos, no letters, exactly the same scale as the reference",
+  "ok": true,
+  "status": 200,
+  "saldo_antes": 887.51,
+  "saldo_depois": 886.51,
+  "gasto": 1.0,
+  "segundos": 42,
+  "arquivo": "bruto/cadeira_gamer-2.png",
+  "hora_brt": "20/11 07:25"
+ }
+]

@@ -1,0 +1,232 @@
+{
+ "rugrigo_a": {
+  "w": 36,
+  "h": 48,
+  "ax": 18,
+  "ay": 46,
+  "nota": "gente: base no chão"
+ },
+ "rugrigo_b": {
+  "w": 36,
+  "h": 48,
+  "ax": 18,
+  "ay": 46,
+  "nota": "gente: base no chão"
+ },
+ "rugrigo_rindo": {
+  "w": 36,
+  "h": 48,
+  "ax": 18,
+  "ay": 46,
+  "nota": "gente: base no chão"
+ },
+ "rugrigo_batida": {
+  "w": 36,
+  "h": 48,
+  "ax": 18,
+  "ay": 46,
+  "nota": "gente: base no chão"
+ },
+ "trouxa_1": {
+  "w": 24,
+  "h": 44,
+  "ax": 12,
+  "ay": 42,
+  "nota": "gente: base no chão"
+ },
+ "trouxa_2": {
+  "w": 24,
+  "h": 44,
+  "ax": 12,
+  "ay": 42,
+  "nota": "gente: base no chão"
+ },
+ "trouxa_3": {
+  "w": 24,
+  "h": 44,
+  "ax": 12,
+  "ay": 42,
+  "nota": "gente: base no chão"
+ },
+ "trouxa_4": {
+  "w": 24,
+  "h": 44,
+  "ax": 12,
+  "ay": 42,
+  "nota": "gente: base no chão"
+ },
+ "cadeira_gamer": {
+  "w": 29,
+  "h": 53,
+  "ax": 14,
+  "ay": 42,
+  "nota": "caixa: ay = H - 3 - (largura+fundo) x 4"
+ },
+ "ar_condicionado": {
+  "w": 24,
+  "h": 26,
+  "ax": 3,
+  "ay": 3,
+  "nota": "parede da direita; âncora no canto de fixação"
+ },
+ "letreiro_neon": {
+  "w": 27,
+  "h": 41,
+  "ax": 24,
+  "ay": 3,
+  "nota": "parede da esquerda; âncora no canto de fixação"
+ },
+ "maquina_bebida": {
+  "w": 39,
+  "h": 59,
+  "ax": 19,
+  "ay": 48,
+  "nota": "caixa: ay = H - 3 - (largura+fundo) x 4"
+ },
+ "tela_curva": {
+  "w": 29,
+  "h": 33,
+  "ax": 14,
+  "ay": 26,
+  "nota": "caixa: ay = H - 3 - (largura+fundo) x 4"
+ },
+ "garagem": {
+  "w": 97,
+  "h": 61,
+  "ax": 48,
+  "ay": 36,
+  "nota": "caixa: ay = H - 3 - (largura+fundo) x 4"
+ },
+ "aquario": {
+  "w": 54,
+  "h": 61,
+  "ax": 27,
+  "ay": 45,
+  "nota": "caixa: ay = H - 3 - (largura+fundo) x 4"
+ },
+ "moldura_carta_comum": {
+  "w": 48,
+  "h": 64,
+  "ax": null,
+  "ay": null,
+  "fatia": 6,
+  "nota": "miolo transparente 38x54; borda na cor da raridade"
+ },
+ "moldura_carta_incomum": {
+  "w": 48,
+  "h": 64,
+  "ax": null,
+  "ay": null,
+  "fatia": 6,
+  "nota": "miolo transparente 38x54; borda na cor da raridade"
+ },
+ "moldura_carta_raro": {
+  "w": 48,
+  "h": 64,
+  "ax": null,
+  "ay": null,
+  "fatia": 6,
+  "nota": "miolo transparente 38x54; borda na cor da raridade"
+ },
+ "moldura_carta_epico": {
+  "w": 48,
+  "h": 64,
+  "ax": null,
+  "ay": null,
+  "fatia": 6,
+  "nota": "miolo transparente 38x54; borda na cor da raridade"
+ },
+ "moldura_carta_lendario": {
+  "w": 48,
+  "h": 64,
+  "ax": null,
+  "ay": null,
+  "fatia": 6,
+  "nota": "miolo transparente 38x54; borda na cor da raridade"
+ },
+ "moldura_carta_mitico": {
+  "w": 48,
+  "h": 64,
+  "ax": null,
+  "ay": null,
+  "fatia": 6,
+  "nota": "miolo transparente 38x54; borda na cor da raridade"
+ },
+ "retrato_rugrigo_malandro": {
+  "w": 96,
+  "h": 96,
+  "ax": 48,
+  "ay": 96,
+  "nota": "busto, quadro fixo, paleta de retrato (48 cores)"
+ },
+ "retrato_rugrigo_rindo": {
+  "w": 96,
+  "h": 96,
+  "ax": 48,
+  "ay": 96,
+  "nota": "busto, quadro fixo, paleta de retrato (48 cores)"
+ },
+ "retrato_rugrigo_assustado": {
+  "w": 96,
+  "h": 96,
+  "ax": 48,
+  "ay": 96,
+  "nota": "busto, quadro fixo, paleta de retrato (48 cores)"
+ },
+ "retrato_influ_nano_1": {
+  "w": 96,
+  "h": 96,
+  "ax": 48,
+  "ay": 96,
+  "nota": "busto, quadro fixo, paleta de retrato (48 cores)"
+ },
+ "retrato_influ_nano_2": {
+  "w": 96,
+  "h": 96,
+  "ax": 48,
+  "ay": 96,
+  "nota": "busto, quadro fixo, paleta de retrato (48 cores)"
+ },
+ "retrato_influ_nano_3": {
+  "w": 96,
+  "h": 96,
+  "ax": 48,
+  "ay": 96,
+  "nota": "busto, quadro fixo, paleta de retrato (48 cores)"
+ },
+ "retrato_influ_medio_1": {
+  "w": 96,
+  "h": 96,
+  "ax": 48,
+  "ay": 96,
+  "nota": "busto, quadro fixo, paleta de retrato (48 cores)"
+ },
+ "retrato_influ_medio_2": {
+  "w": 96,
+  "h": 96,
+  "ax": 48,
+  "ay": 96,
+  "nota": "busto, quadro fixo, paleta de retrato (48 cores)"
+ },
+ "retrato_influ_medio_3": {
+  "w": 96,
+  "h": 96,
+  "ax": 48,
+  "ay": 96,
+  "nota": "busto, quadro fixo, paleta de retrato (48 cores)"
+ },
+ "retrato_influ_mega_1": {
+  "w": 96,
+  "h": 96,
+  "ax": 48,
+  "ay": 96,
+  "nota": "busto, quadro fixo, paleta de retrato (48 cores)"
+ },
+ "retrato_influ_mega_2": {
+  "w": 96,
+  "h": 96,
+  "ax": 48,
+  "ay": 96,
+  "nota": "busto, quadro fixo, paleta de retrato (48 cores)"
+ }
+}

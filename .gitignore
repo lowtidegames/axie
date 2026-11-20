@@ -6,3 +6,6 @@ node_modules/
 .env.*
 .cache/
 dados/
+porao/nomes.local.json
+porao/arte.local/
+.claude/worktrees/

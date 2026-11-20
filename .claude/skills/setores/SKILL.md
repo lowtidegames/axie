@@ -15,6 +15,17 @@ Os setores dividem o código por **dono de arquivo**, para dois agentes nunca me
 | ARTE E SOM | `diretor-de-arte`, `designer-de-som` | `teste-arte-som` | Sonnet | `arte/`, sons (a criar) |
 | TESTES E CONSERTOS | `testador`, `cacador-de-bugs` | `teste-qualidade` | Sonnet | testes de tela e checagens, bateria completa |
 
+## Porão (jogo-sátira) — dono de cada pasta (20/11)
+| Setor | Agente (modelo) | Dono dos arquivos |
+|---|---|---|
+| NÚCLEO | `nucleo-do-jogo` (Opus alto) | `porao/comum/regras.js`, `porao/servidor/`, `porao/tests/regras|jogo|api.test.js` |
+| PROGRESSÃO | `designer-de-progressao` (Opus alto) | números de `porao/comum/config.js`, `porao/ferramentas/` |
+| HUMOR E TEXTO | `humorista` (Fable alto) | `porao/comum/nomes.js`, `porao/tests/nomes.test.js` |
+| TELA | `dev-tela` (Sonnet; Opus para tela grande) | `porao/tela/*.js|html|css`, `porao/tests/tela.e2e.mjs` |
+| ARTE | `diretor-de-arte` (Fable, julga) + `artista-pixel` (Sonnet, produz) | `porao/tela/arte/`, `arte/porao/`, `arte/piloto-porao/` |
+| JUÍZES (só leem) | `conselheiro-de-diversao` (Opus; diversão + trindade), `guardiao`, `seguranca`, `revisor-de-codigo` | — |
+A trindade (Dopamina · Congruência · Coerência) é uma skill que todo agente aplica ao próprio trabalho; quem dá a nota final é o `conselheiro-de-diversao`, olhando a foto inteira.
+
 Pedido que toca 2 setores: o diretor divide em 2 lotes (um por setor), e o que depende do outro espera o "pronto" do primeiro.
 
 ## Como o diretor manda (1 pedido por lote, na hora em que o dono decide)

@@ -2,7 +2,7 @@
 name: diretor-de-arte
 description: Use quando entrar ou mudar arte que o jogador vê no jogo — criaturas, partes, cartas, cenários e interface — conferir licença, escala, paleta e sprites (borda, pé, tamanho, quadros) e a congruência pela trindade, apontando problemas com foto lado a lado. Arte é sempre própria: nunca copiar jogo existente.
 tools: Read, Grep, Glob, Bash, Edit, Write
-model: sonnet
+model: fable
 effort: medium
 color: green
 skills: oficio-diretor-de-arte, trindade

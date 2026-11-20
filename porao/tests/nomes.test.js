@@ -98,3 +98,50 @@ test('.gitignore da raiz protege nomes.local.json', () => {
   const g = fs.readFileSync(path.join(RAIZ, '.gitignore'), 'utf8').split('\n').map((l) => l.trim());
   assert.ok(g.includes('porao/nomes.local.json'));
 });
+
+test('ideias: exatamente 5 por raridade, nomes sem repetir', () => {
+  const nomes = new Set();
+  for (const r of RARIDADES) {
+    const n = N.CHAVES.filter((k) => new RegExp(`^ideia\\.${r}\\.\\d+\\.nome$`).test(k)).length;
+    assert.equal(n, 5, `ideias em ${r}`);
+    for (let i = 1; i <= 5; i++) {
+      for (const c of ['nome', 'lancamento', 'fim']) assert.ok(N.TEXTOS[`ideia.${r}.${i}.${c}`], `falta ideia.${r}.${i}.${c}`);
+      nomes.add(N.TEXTOS[`ideia.${r}.${i}.nome`]);
+    }
+  }
+  assert.equal(nomes.size, 30);
+});
+
+test('rebrand: 5 jeitos, todos com {nome} e diferentes', () => {
+  const lista = N.CHAVES.filter((k) => /^rebrand\.\d+$/.test(k));
+  assert.equal(lista.length, 5);
+  for (let i = 1; i <= 5; i++) assert.ok(N.TEXTOS[`rebrand.${i}`].includes('{nome}'), `rebrand.${i}`);
+  assert.equal(new Set(lista.map((k) => N.TEXTOS[k])).size, 5);
+});
+
+test('celular: oferta do video 1 usa {valor}; video 2 pelo mesmo preco cita {projeto}', () => {
+  const oferta = N.TEXTOS['msg.video1.oferta'];
+  assert.ok(oferta.includes('{valor}'));
+  assert.ok(oferta.includes('{projeto}'));
+  assert.ok(!/\d+ mil/.test(oferta), 'valor fixo na oferta');
+  assert.ok(N.TEXTOS['msg.video2.mesmo_preco'].includes('{projeto}'));
+});
+
+test('batida: 5 frases curtas; medidor de confianca tem rotulo', () => {
+  for (let i = 1; i <= 5; i++) {
+    const t = N.TEXTOS[`batida.${i}`];
+    assert.ok(t && t.length <= 60, `batida.${i}`);
+  }
+  assert.ok(N.TEXTOS['ui.confianca'] && N.TEXTOS['ui.confianca'].length <= 24);
+});
+
+test('marcadores: so {projeto}, {valor} e {nome}', () => {
+  for (const [k, v] of Object.entries(N.TEXTOS)) {
+    for (const m of v.match(/\{[^}]*\}/g) ?? []) assert.ok(['{projeto}', '{valor}', '{nome}'].includes(m), `${k}: ${m}`);
+  }
+});
+
+test('sorteio do servidor: 7 frases de tapete e 8 de chat', () => {
+  assert.equal(N.CHAVES.filter((k) => k.startsWith('tapete.')).length, 7);
+  assert.equal(N.CHAVES.filter((k) => k.startsWith('chat.')).length, 8);
+});

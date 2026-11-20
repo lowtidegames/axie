@@ -1,7 +1,7 @@
 # Equipe do jogo
 
-25 agentes em `.claude/agents/`, cada um com a sua skill de ofício (`.claude/skills/oficio-<cargo>/`, carregada pelo campo `skills:`; só o diretor edita; evolui pela skill `evolucao`). A sessão principal é o diretor: fala com o dono, divide o trabalho, junta e faz o commit.
-Máximo 4 agentes rodando juntos. Nunca dois agentes no mesmo arquivo ou na mesma tela. Agentes não fazem commit no `teste`.
+30 agentes em `.claude/agents/`, cada um com a sua skill de ofício (`.claude/skills/oficio-<cargo>/`, carregada pelo campo `skills:`; só o diretor edita; evolui pela skill `evolucao`). A sessão principal é o diretor: fala com o dono, divide o trabalho, junta e faz o commit.
+Máximo 6 agentes rodando juntos (dono, 20/11 05:14). Nunca dois agentes no mesmo arquivo ou na mesma tela. Agentes não fazem commit no `teste`.
 Modelos: Opus só para pensar (plano, economia, segurança, auditoria, regras); Sonnet para escrever código e textos; Haiku para rodar e pesquisar.
 Jeito de trabalhar: `docs/orquestra.md` (vias expressa, trem e cofre). Bateria já verde não se repete (`tools/verde.mjs`).
 Agentes marcados **(só com a rede decidida)** esperam o dono escolher a rede do token.
@@ -38,6 +38,10 @@ Agentes marcados **(só com a rede decidida)** esperam o dono escolher a rede do
 |---|---|---|---|
 | `designer-de-jogo` | Ideias de mecânica | Opus médio | Quando o dono pedir ideias |
 | `designer-de-criaturas` | Inventa e redesenha as criaturas (conceito, silhueta, identidade, nome), escreve a bíblia das criaturas e julga a arte gerada | Fable alto | Antes de qualquer geração de imagem de criatura; criado em 15/11 a pedido do dono |
+| `nucleo-do-jogo` | Núcleo do Porão: regras puras, relógio, banco, ações e servidor local, com teste antes | Opus alto | Toda mudança de regra ou servidor do Porão; criado em 20/11 a pedido do dono |
+| `designer-de-progressao` | Ritmo e progressão do Porão (desbloqueios, custos, chances, luxos, prestígio) no simulador | Opus alto | Todo número de `porao/comum/config.js`; criado em 20/11 |
+| `humorista` | Humor e sátira do Porão: nomes, frases, posts, mensagens, chat, avaliações falsas | Fable alto | Todo texto que o jogador lê no Porão; criado em 20/11 |
+| `artista-pixel` | Produz os sprites em pixel art (PixelLab), recorta na grade e entrega com foto na tela | Sonnet médio | Depois que o `diretor-de-arte` aprova o caminho; criado em 20/11 |
 | `guardiao` | Nota de regras com vetos (`docs/regua-do-guardiao.md`) | Opus médio | Regra, prêmio, preço, sorteio ou tela nova — junto com o conselheiro, uma rodada por pacote (máx. 2) |
 | `conselheiro-de-diversao` | Nota de diversão (`docs/kit-diversao.md`) | Sonnet médio | Junto com o guardião, no desenho, antes do código |
 | `qa-jogador` | Tabela de pagamento × parte do jogo e conforto do jogador | Sonnet médio | Antes de chamar uma parte de "verde" e antes do site de teste |

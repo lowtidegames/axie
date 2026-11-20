@@ -318,6 +318,8 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
     }
     comDados('placar', aba === 'ontem' ? P.tituloOntem : P.titulo, () => sv.ranking(), (rk) => montar(rk, aba))
   }
+  /** (R33) A linha do aparelho com o prazo da conta que o SERVIDOR diz (perfil.conta.diasSemUsoAtePerder); servidor velho sem o campo: a frase sem número. */
+  const textoDoAparelho = (p) => { const d = p?.conta?.diasSemUsoAtePerder; return Number.isSafeInteger(d) && d > 0 ? T.srv.aparelhoPrazo(d) : T.srv.aparelho }
   /** PERFIL: nome, recordes, energia, temporada, títulos e as melhores partidas (cada uma com "Watch": o replay na tela de batalha). */
   function perfil(nota = null) {
     Musica.momento('menu')
@@ -329,7 +331,7 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
         chapaDoPerfil('perfilTopo', null),
         nota ? linha(nota, { pid: 'perfilNota', fonte: 'reino', cor: COR.ouro }) : null,
         Object.assign(bt(T.srv.apelido.menu, () => apelido(), 'km-bt--fraco'), { id: 'perfilNome' }),
-        linha(T.srv.aparelho, { pid: 'perfilAparelho', cor: CINZA }), // (R30) a conta mora só neste aparelho: dito em 1 linha, sem promessa de recuperar
+        linha(textoDoAparelho(p), { pid: 'perfilAparelho', cor: CINZA }), // (R30) a conta mora só neste aparelho: dito em 1 linha, sem promessa de recuperar
         linha(P.recordes(r.pontos, r.rodadasVencidas, r.partidas), { pid: 'perfilRecordes' }),
         linhaDaEnergia(p.energia),
         linha(P.temporada(p.temporada.numero, falta(p.temporada.termina)), { pid: 'perfilTemporada', cor: CINZA }),

@@ -104,7 +104,7 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | P3 | Cena isométrica do porão + zoom nos 3 monitores (arte provisória trocável) | dev-tela | porao/tela/index.html, estilo.css, sprites.js, cena.js | — | PRONTO (16862f4 juntado; fotos PC e celular, trindade ≥70) |
 | P4 | Banco e ações do jogo | dev-servidor (Opus) | porao/servidor/banco.mjs, jogo.mjs, porao/tests/jogo.test.js | P1, P2 | PRONTO (0219960 juntado; 9 testes; acertar depois: ids dos luxos config × nomes × cena, valor fixo na msg do vídeo 1) |
 | P5 | Servidor HTTP local (127.0.0.1:4900) | dev-servidor | porao/servidor/index.mjs, porao/tests/api.test.js | P4 | PRONTO (048af3c juntado; GO do seguranca: 2 médios e 3 baixos → P8) |
-| P6 | Conteúdo dos 3 monitores, celular da mesa, e2e | dev-tela | porao/tela/monitores.js, api.js, app.js, porao/tests/tela.e2e.mjs | P1, P3 | RODANDO |
+| P6 | Conteúdo dos 3 monitores, celular da mesa, e2e | dev-tela | porao/tela/monitores.js, api.js, app.js, porao/tests/tela.e2e.mjs | P1, P3 | PRONTO (c9f01c9 juntado; e2e verde no modo falso, 1º tapete 14,9 s; falta servir /shared/rng.js e testar com servidor real) |
 | P7 | Simulador e ritmo dos números | economista (Opus) | porao/ferramentas/simular.mjs, números de porao/comum/config.js | P1 | RODANDO |
 | P8 | Consertos do parecer de segurança do Porão: só-leitura no GET, relógio de 61 s, links, limpeza de pedidos, cabeçalho X-Porao | dev-servidor | porao/servidor/index.mjs, jogo.mjs, banco.mjs, porao/comum/regras.js, porao/tests/api.test.js, jogo.test.js, regras.test.js | P5 | RODANDO |
 | PA | Piloto de arte lado a lado (PixelLab × pacote itch.io) | diretor-de-arte | arte/piloto-porao/ | — | ESPERA DONO |

@@ -75,7 +75,7 @@ Sir Dent usa ×1,0 / 1,5 / 2,0 / 2,7 / 3,5 no lugar da regra geral. Squib Runner
 | id | Nome | Fam. | R | P | Texto do jogo | Valor por nível | Brilha com |
 |---|---|---|---|---|---|---|---|
 | B01 | Smithy | Pikewall | C | P | Neighbors deal more damage. | +20/30/40/50/60% | Frypan Cook, Clockwork Geese |
-| B02 | Bunkhouse | Pikewall | C | | Neighbor troops get extra soldiers. | +1/1/2/2/3 soldados; vida +5/10/15/20/25% | Pikeman, Squib Runner |
+| B02 | Bunkhouse | Pikewall | C | | Neighbor troops get extra soldiers. | +1/1/1/2/2 soldados; vida +5/10/15/20/25% | Pikeman, Squib Runner |
 | B03 | Stone Wall | Pikewall | U | | Neighbors take less damage. | −30/36/42/48/55% | Doorman, Sir Dent |
 | B04 | Watchtower | Thornbow | C | P | Neighbor shooters see farther and hit harder. | alcance +0,5/0,75/1/1,25/1,5 e dano +10/15/20/25/30% | Hedge Archer, Granny Bolt |
 | B05 | Fletcher's Hut | Thornbow | U | | Neighbors attack faster. | +15/20/25/30/35% | Granny Bolt, Frypan Cook |

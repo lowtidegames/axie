@@ -18,7 +18,8 @@
     "e2e:reino": "node tools/trava-robos.mjs rodar \"timeout 800 node tests/tela/reino.e2e.mjs\"",
     "e2e": "node tools/trava-robos.mjs rodar \"node tests/tela/prototipo.e2e.mjs\" && node tools/trava-robos.mjs rodar \"node tests/tela/tela2.e2e.mjs\" && node tools/trava-robos.mjs rodar \"node tests/tela/som.e2e.mjs\"",
     "porao": "node porao/servidor/index.mjs",
-    "e2e:porao": "node tools/trava-robos.mjs rodar \"node porao/tests/tela.e2e.mjs\""
+    "e2e:porao": "node tools/trava-robos.mjs rodar \"node porao/tests/tela.e2e.mjs\"",
+    "e2e:porao-abertura": "node tools/trava-robos.mjs rodar \"node porao/tests/abertura.e2e.mjs\""
   },
   "engines": {
     "node": ">=22.13"

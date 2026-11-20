@@ -565,7 +565,7 @@ export function criarCena(canvas, CONFIG) {
     if (chave >= 0) { let q = 0; for (const n of C.num) if (n.tipo !== 3 && t - n.t0 < DUR_NUM && n.chave === chave) q++; if (q > C.med.numPorGrupo) C.med.numPorGrupo = q }
   }
   /** Um número de OUTRO pelotão ainda na tela que ficaria colado em (x, y)? */
-  function vizinho(x, y, chave, t) { const cel = C.tipo === 'celular', dx = cel ? 36 : 24, dy = cel ? 16 : 10; for (const n of C.num) if (n.tipo !== 3 && n.chave !== chave && t - n.t0 < DUR_NUM && Math.abs(n.x - x) < dx && Math.abs(n.y - y) < dy) return n; return null }
+  function vizinho(x, y, chave, t) { const cel = C.tipo === 'celular', dx = cel ? 42 : 24, dy = cel ? 16 : 10; for (const n of C.num) if (n.tipo !== 3 && n.chave !== chave && t - n.t0 < DUR_NUM && Math.abs(n.x - x) < dx && Math.abs(n.y - y) < dy) return n; return null }
   /** Degrau de altura entre dois números vizinhos: a altura da letra do número + 2 (PC 11; celular 17, R38: a letra de lá tem 16 px). */
   const DEGRAU = () => (C.tipo === 'celular' ? 17 : 11)
   /** Chave do pelotão de um boneco (para os números de dano): grupo do reino, balde da horda, ou ele mesmo se é grande. */

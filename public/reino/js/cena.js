@@ -3,6 +3,11 @@
 import * as Arte from './arte.js'
 
 const MAXU = 320, MAXP = 60, MAXE = 28, MAXN = 8
+// HORDA LEGÍVEL (docs/reino/arte.md, "multidão embolada"): do mesmo tipo de invasor, na mesma região da estrada, aparecem no máximo
+// MAX_TIPO; o resto vira "pelotão" com a etiqueta "x56". Contorno claro e de cor diferente em cada lado (de relance: quem é quem).
+const MAX_TIPO = 12, NREG = 8, NTIPO = 32
+export const CONTORNO = { aliado: '#F4F8FF', invasor: '#FFE45C' }
+const TOM_FILEIRA = [null, '#E2DCEC', '#C4BCD6'] // frente, meio, fundo: cada fileira um tom abaixo
 const ANIMS = ['idle', 'walk', 'attack', 'hit', 'fall']
 export const AN = { idle: 0, walk: 1, attack: 2, hit: 3, fall: 4 }
 
@@ -98,6 +103,32 @@ export function criarCena(canvas, CONFIG) {
 
   // ---------------------------------------------------------------- bonecos
   C.limparBonecos = () => { C.n = 0; ordenar = true }
+  // pelotões: contagem por (região, tipo) refeita a cada quadro em vetores fixos (nada de objeto por quadro)
+  C.oculto = new Uint8Array(MAXU); C.etiquetas = []
+  const gN = new Int16Array(NREG * NTIPO), gVis = new Int16Array(NREG * NTIPO), gX = new Float32Array(NREG * NTIPO), gTopo = new Float32Array(NREG * NTIPO), gTier = new Int8Array(NREG * NTIPO), tipoDe = new Map()
+  function agrupar() {
+    gN.fill(0); gVis.fill(0); gX.fill(0); gTopo.fill(1e9)
+    for (let i = 0; i < C.n; i++) {
+      C.oculto[i] = 0
+      if (C.lado[i] !== 1 || C.est[i] !== 1 || C.peca[i].w > 60) continue
+      let t = tipoDe.get(C.peca[i]); if (t === undefined) { t = tipoDe.size % NTIPO; tipoDe.set(C.peca[i], t) }
+      const k = Math.max(0, Math.min(NREG - 1, Math.floor((C.xDe(i) + 100) / 100))) * NTIPO + t
+      if (++gN[k] > MAX_TIPO) { C.oculto[i] = 1; continue }
+      gVis[k]++; gX[k] += C.sx[i]; gTier[k] = C.tier[i]; const topo = C.sy[i] - C.peca[i].ay + Arte.topoDe(C.peca[i]); if (topo < gTopo[k]) gTopo[k] = topo
+    }
+  }
+  /** As etiquetas "x56" por cima de cada pelotão (um tipo com mais de MAX_TIPO na mesma região). */
+  function etiquetas() {
+    C.etiquetas.length = 0
+    const cx = Math.round(C.cam.x - C.trem.x)
+    for (let k = 0; k < gN.length; k++) {
+      if (gN[k] <= MAX_TIPO || !gVis[k]) continue
+      const s = 'x' + gN[k], w = Arte.largura(s, 'reino-contorno') + 6, x = Math.max(2 + (w >> 1), Math.min(C.VW - 2 - (w >> 1), Math.round(gX[k] / gVis[k]) - cx)), y = Math.round(gTopo[k]) - 12 - ((k % NTIPO) % 2) * 9
+      g.fillStyle = '#2B1E3A'; g.globalAlpha = 0.85; g.fillRect(x - (w >> 1), y - 1, w, 11); g.globalAlpha = 1; g.fillStyle = CONTORNO.invasor; g.fillRect(x - (w >> 1), y + 10, w, 1)
+      Arte.texto(g, s, x, y, { fonte: 'reino-contorno', alinhar: 'centro' })
+      C.etiquetas.push(gN[k])
+    }
+  }
   /** Fileira e desvio de um soldado j de n no terreno (a mesma conta parado e na luta). */
   C.formacao = (j, n) => {
     const R = Math.min(n, C.tipo === 'pc' ? 4 : 3), row = j % R, col = Math.floor(j / R), cols = Math.ceil(n / R), passo = Math.min(24, 78 / cols)
@@ -253,13 +284,13 @@ export function criarCena(canvas, CONFIG) {
     const sh = Arte.peca('shadow'), cen = Arte.cenario(C.tipo, C.hora), cx = Math.round(C.cam.x - C.trem.x), ty = Math.round(C.trem.y)
     g.globalAlpha = cen.luz.sombra.alfa
     for (let o = 0; o < C.n; o++) {
-      const i = C.ordem[o]; if (C.tier[i] !== tier || C.est[i] === 0 || C.est[i] >= 3) continue
+      const i = C.ordem[o]; if (C.tier[i] !== tier || C.est[i] === 0 || C.est[i] >= 3 || C.oculto[i]) continue
       const X = Math.round(C.sx[i]) - cx + cen.luz.sombra.dx, Y = Math.round(C.sy[i]) + ty
       if (sh) { const q = sh.quadros[C.peca[i].w > 100 ? 3 : C.peca[i].w > 60 ? 1 : 0]; g.drawImage(sh.img, q[0], q[1], q[2], q[3], X - (q[2] >> 1), Y - 3, q[2], q[3]) } else { g.fillStyle = '#2B1E3A'; g.fillRect(X - 7, Y - 1, 14, 2); g.fillRect(X - 5, Y - 2, 10, 4) }
     }
     g.globalAlpha = 1
     for (let o = 0; o < C.n; o++) {
-      const i = C.ordem[o]; if (C.tier[i] !== tier || C.est[i] === 0 || C.est[i] >= 3) continue
+      const i = C.ordem[o]; if (C.tier[i] !== tier || C.est[i] === 0 || C.est[i] >= 3 || C.oculto[i]) continue
       const p = C.peca[i]
       let an = C.anim[i], ms = C.relogio - C.animT[i], a = p.anim[ANIMS[an]]
       if (!a.loop && ms >= Arte.duracao(a)) {
@@ -271,16 +302,16 @@ export function criarCena(canvas, CONFIG) {
       const flip = (C.dir[i] * C.sentido[i] < 0) !== p.olhaEsquerda
       const X = Math.round(C.sx[i]) - cx, Y = Math.round(C.sy[i]) + ty
       const q = qs[Arte.quadroDe(a, ms)], grandao = p.w > 60
-      // leitura da multidão: contorno claro no aliado e escuro no invasor; quem está na fileira de trás fica um tom abaixo
-      if (!grandao) { const sil = Arte.folhaSil(p.img, C.lado[i] ? '#3C1450' : '#F4F8FF', flip), w = q[2], h = q[3], sx = flip ? sil.width - q[0] - w : q[0], ax = flip ? w - 1 - p.ax : p.ax; g.drawImage(sil, sx, q[1], w, h, X - ax - 1, Y - p.ay, w, h); g.drawImage(sil, sx, q[1], w, h, X - ax + 1, Y - p.ay, w, h); g.drawImage(sil, sx, q[1], w, h, X - ax, Y - p.ay - 1, w, h) }
-      Arte.desenhar(g, p, q, X, Y, flip, tinta || (C.lane[i] < -0.3 && !grandao ? TRAS : null), C.k[i])
+      // leitura da multidão: contorno CLARO nos dois lados, de cor diferente (aliado branco-azulado, invasor amarelo-vivo: roxo sobre
+      // roxo sumia); cada fileira um tom abaixo da da frente
+      if (!grandao) { const sil = Arte.folhaSil(p.img, C.lado[i] ? CONTORNO.invasor : CONTORNO.aliado, flip), w = q[2], h = q[3], sx = flip ? sil.width - q[0] - w : q[0], ax = flip ? w - 1 - p.ax : p.ax; g.drawImage(sil, sx, q[1], w, h, X - ax - 1, Y - p.ay, w, h); g.drawImage(sil, sx, q[1], w, h, X - ax + 1, Y - p.ay, w, h); g.drawImage(sil, sx, q[1], w, h, X - ax, Y - p.ay - 1, w, h) }
+      Arte.desenhar(g, p, q, X, Y, flip, tinta || (grandao ? null : TOM_FILEIRA[C.lane[i] < -0.5 ? 2 : C.lane[i] < 0.1 ? 1 : 0]), C.k[i])
       if (C.nv[i] >= 3 && C.lado[i] === 0 && C.est[i] === 1) marcaDeNivel(i, p, X, Y)
       if (C.barra[i] && C.hp[i] < C.hpMax[i]) { const w = p.w > 100 ? 40 : 24, yb = Y - p.ay - 1 + (p.w > 100 ? 14 : 8); g.fillStyle = '#2B1E3A'; g.fillRect(X - (w >> 1) - 1, yb - 1, w + 2, 5); g.fillStyle = '#CC3C3E'; g.fillRect(X - (w >> 1), yb, Math.max(0, Math.round(w * C.hp[i] / C.hpMax[i])), 3) }
       if (C.preso[i] > C.tb) { g.fillStyle = '#286840'; g.fillRect(X - 6, Y - 4, 12, 2); g.fillStyle = '#469C48'; g.fillRect(X - 4, Y - 7, 2, 4); g.fillRect(X + 2, Y - 8, 2, 5) }
     }
   }
   C.sentido = new Int8Array(MAXU)
-  const TRAS = '#C4BCD6'
   /** Nível 3+: o líder do grupo leva o estandarte (prata; ouro no 5, com os pinos do nível). Nível 5: cada soldado ganha também uma divisa de ouro que brilha. Só desenho. */
   function marcaDeNivel(i, p, X, Y) {
     const topo = Y - p.ay + Arte.topoDe(p) - 4, max = C.nv[i] >= 5
@@ -310,7 +341,7 @@ export function criarCena(canvas, CONFIG) {
       ordenar = false
     }
   }
-  C.quadro = 0; C.relogioReal = 0
+  C.quadro = 0; C.relogioReal = 0; C.zonaTitulo = null; C.numerosPulados = 0
 
   /** Um quadro do mundo. `dtAnim` = ms de animação que passaram (0 = parado). */
   C.desenhar = (agora, dtReal, dtAnim) => {
@@ -326,7 +357,7 @@ export function criarCena(canvas, CONFIG) {
       C.camY += Math.abs(d) <= passo ? d : Math.sign(d) * passo; C.oy = C.oyBase + Math.round(C.camY)
     }
     if (C.mix < 1) C.mix = Math.min(1, C.mix + dtReal / 2000)
-    atualizarBonecos()
+    atualizarBonecos(); agrupar()
     const cen = Arte.cenario(C.tipo, C.hora), de = C.mix < 1 ? Arte.cenario(C.tipo, C.horaDe) : null
     const escuro = (c) => parseInt(c.luz.ambiente.slice(1, 3), 16) + parseInt(c.luz.ambiente.slice(3, 5), 16) < 400
     const tinta = escuro(C.mix >= 0.5 ? cen : de) ? (C.mix >= 0.5 ? cen : de).luz.ambiente : null
@@ -339,6 +370,7 @@ export function criarCena(canvas, CONFIG) {
     g.globalAlpha = 1
     vida(cen)
     for (let tier = 0; tier < C.tiers.length; tier++) { moveis(tier, tinta, t); if (tier === C.tiers.length - 1 && C.antesDosBonecos) C.antesDosBonecos(g, t); bonecos(tier, tinta) }
+    etiquetas()
     destaques(agora)
     // projéteis (só desenho: o tiro já acertou)
     for (const p of C.proj) {
@@ -359,10 +391,15 @@ export function criarCena(canvas, CONFIG) {
     if (np > C.picoParticulas) C.picoParticulas = np
     for (let i = 0; i < frente.length; i += 2) plano(frente[i], frente[i + 1])
     g.globalAlpha = 1
+    const zt = C.zonaTitulo
     // números de dano: creme com contorno; forte em ouro com "!"; sobem 10 px e somem em 500 ms
     for (const n of C.num) {
       const f = (t - n.t0) / 500; if (f < 0 || f >= 1) continue
       if (f > 0.75 && ((C.quadro >> 1) & 1) && !C.menos) continue
+      if (zt) { // a zona do título (letreiro grande na tela): o número que cairia em cima dele não é desenhado
+        const z = C.cam.zoom, nx = n.x - C.cam.x, ny = n.y - Math.round(f * 10) - (n.grande ? 6 : 0), sx = z === 1 ? nx : C.cam.fx + (nx - C.cam.fx) * z, sy = z === 1 ? ny : C.cam.fy + (ny - C.cam.fy) * z, mw = (n.grande ? 22 : 12) * z, mh = (n.grande ? 18 : 10) * z
+        if (sx + mw > zt.x && sx - mw < zt.x + zt.w && sy + mh > zt.y && sy - 2 < zt.y + zt.h) { C.numerosPulados++; continue }
+      }
       Arte.texto(g, n.s, n.x - C.cam.x, n.y - Math.round(f * 10) - (n.grande ? 6 : 0), { fonte: n.grande && /^[0-9!]+$/.test(n.s) && Arte.temFonte('dano-g-ouro') ? 'dano-g-ouro' : n.ouro ? 'reino-ouro' : 'reino-contorno', alinhar: 'centro' })
     }
     if (C.depoisDoMundo) C.depoisDoMundo(g, t)

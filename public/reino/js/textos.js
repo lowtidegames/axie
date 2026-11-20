@@ -34,6 +34,8 @@ export const T = {
     guarda: 'Your current run will be saved: you come back to it after this one.', troca: "This replaces the friend's road you are on now.",
     sim: "Start friend's road", nao: 'Keep my run',
   },
+  // a regra do chefe do config fala em terrenos sem dizer a unidade ("within 0.5"): a tela acrescenta "plots" (o número é o do config)
+  comUnidade: (s) => String(s).replace(/(within \d+(?:\.\d+)?)(?=\.?$)/i, '$1 plots'),
   toqueCarta: 'TAP A CARD', sortearNome: 'REROLL', consertarNome: 'REPAIR', chefeAmanha: (c) => `BOSS NEXT ROUND: REPAIR A HEART FOR ${c} GOLD`, dicaConserto: (c) => `SPARE GOLD? REPAIR A HEART FOR ${c}`,
   proximaMao: 'NEXT HAND', unidadeTerreno: (x) => `${x} PLOTS`,
   cartaNova: 'NEW CARD', conquista: 'ACHIEVEMENT', limpo: 'CLEAN PLATE', maisNivel: '+1 LEVEL', pegue: 'PICK 1 REWARD', continua: (r) => `RUN RESUMED: ROUND ${r}`,

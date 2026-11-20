@@ -7,7 +7,7 @@ import { expandirHorda, montarExercito } from '../../../shared/reino/batalha.js'
 import { Musica, Som } from '../som-reino.js'
 import * as Arte from './arte.js'
 import { criarBatalha } from './batalha-tela.js'
-import { criarCena } from './cena.js'
+import { CONTORNO, criarCena } from './cena.js'
 import { cartaoDoReino, compartilhar, linkDaEstrada } from './fim.js'
 import { Guarda } from './guarda.js'
 import { criarInterface } from './interface.js'
@@ -194,7 +194,8 @@ function preencher() {
   M.vidas = v.vidas; M.vidasMax = v.vidasMax; M.rodada = v.rodada; M.proximoChefe = v.proximoChefe; M.cartaPosta = v.cartaPosta
   M.mao = v.oferta.map((o) => { const n = nivelNaMao(o.carta); return { carta: o.carta, nivel: n ? n + 1 : 1, sobe: n > 0 } })
   const visivel = v.vidas < v.vidasMax && v.fase === 'carta'
-  M.sortear = op.sortear; M.consertar = { ...op.consertar, visivel, destaque: visivel && op.consertar.pode && v.rodada <= 2 } // rodadas 1–2: lembra o novato que o ouro parado conserta a vida
+  // guia do ouro parado: sempre que há vida perdida e ouro para consertar, o botão chama a atenção (qualquer rodada; mais forte na última vida)
+  M.sortear = op.sortear; M.consertar = { ...op.consertar, visivel, destaque: visivel && op.consertar.pode, forte: visivel && op.consertar.pode && v.vidas === 1 }
   M.espolios = v.espolios; M.espolioPode = v.espolios.map((_, i) => op.comandos.some((c) => c.tipo === 'espolio' && c.indice === i)); M.espolioDesc = descreverEspolios(v)
   M.mudo = Som.mudo(); M.vel = Bat.vel; M.reliquias = v.reliquias.slice()
   M.chances = CONFIG.RARIDADES.map((r) => ({ id: r.id, nome: r.nome, chance: r.chance, cor: Arte.Cod.RARIDADE_COR[r.id].cor, claro: Arte.Cod.RARIDADE_COR[r.id].claro }))
@@ -216,13 +217,16 @@ function abrirRodada() {
   if (v.horda.chefe && J.anunciado !== chave) {
     // anúncio inteiro só na 1ª vez de cada chefe na partida; nas repetições, a versão curta (0,8 s)
     const curto = J.chefesVistos.has(v.horda.chefe); J.chefesVistos.add(v.horda.chefe)
-    J.anunciado = chave; M.fase = 'chefe'; M.chefe = { id: v.horda.chefe, t0: agoraMs(), curto }
+    J.anunciado = chave; M.fase = 'chefe'; M.chefe = { id: v.horda.chefe, t0: agoraMs(), curto, texto: T.comUnidade(CONFIG.CHEFES.find((x) => x.id === v.horda.chefe).texto) }
     Som.tocar('chefeAnuncia', curto ? { forca: 0.6 } : {}); Musica.momento('chefe')
     depois(curto ? 800 : 3200, () => { if (M.fase === 'chefe') seguir() })
   } else {
     Musica.momento(v.horda.chefe ? 'chefe' : v.vidas === 1 ? 'porUmFio' : 'construir')
-    if (v.proximoChefe.avisado && !v.horda.chefe && J.avisado !== chave) { J.avisado = chave; const c = CONFIG.CHEFES.find((x) => x.id === v.proximoChefe.chefe); festa({ tam: 1, tipo: 'aviso', ms: 3200, texto: T.emRodadas(v.proximoChefe.rodada - v.rodada), sub: `${c.nome}: ${c.texto}`, k: 1, fase: 'carta' }) }
+    if (v.proximoChefe.avisado && !v.horda.chefe && J.avisado !== chave) { J.avisado = chave; const c = CONFIG.CHEFES.find((x) => x.id === v.proximoChefe.chefe); festa({ tam: 1, tipo: 'aviso', ms: 3200, texto: T.emRodadas(v.proximoChefe.rodada - v.rodada), sub: `${c.nome}: ${T.comUnidade(c.texto)}`, k: 1, fase: 'carta' }) }
+    // véspera do chefe com vida perdida e ouro parado: um lembrete de 1 linha
+    if (!v.horda.chefe && v.proximoChefe.rodada - v.rodada === 1 && M.consertar.destaque) dizer(['#' + T.chefeAmanha(M.consertar.custo)], 7000)
   }
+  M.setaCarta = M.primeira && !Guarda.get('dica') && !J.tocouCarta
   UI.mudou()
 }
 function zerarPartida() {
@@ -294,7 +298,7 @@ function selecionar(i) {
   if (M.fase !== 'carta' || M.cartaPosta) return
   M.trocar = 0; M.armado = null; M.info = null; M.infoSel = null
   if (i < 0 || M.sel === i) { M.sel = -1; C.destaque = null; Som.tocar('toque'); return }
-  M.sel = i; M.infoSel = infoDaCarta(i)
+  M.sel = i; M.infoSel = infoDaCarta(i); J.tocouCarta = true; M.setaCarta = false
   const carta = M.mao[i].carta
   destacar(carta, J.op.comandos.filter((c) => c.tipo === 'por' && c.carta === carta))
   Som.tocar('cartaEscolhe'); if (M.mao[i].sobe) depois(180, () => Som.tocar('faltaUm'))
@@ -347,7 +351,7 @@ function sobreAsReliquias() {
 function sobreAHorda() {
   const h = J.v.horda, cont = {}, out = ['#' + T.dica.horda(M.hordaN)]
   for (const t of h.ordem) if (t !== h.chefe) cont[t] = (cont[t] || 0) + 1
-  if (h.chefe) { const c = CONFIG.CHEFES.find((x) => x.id === h.chefe); out.push(`#${T.chefe}: ${c.nome}`, c.texto) }
+  if (h.chefe) { const c = CONFIG.CHEFES.find((x) => x.id === h.chefe); out.push(`#${T.chefe}: ${c.nome}`, T.comUnidade(c.texto)) }
   for (const [t, n] of Object.entries(cont)) { const i = CONFIG.INVASORES[t]; out.push(`#${n} x ${i.nome}: ${i.texto}`) }
   dizer(out.slice(0, 7), 6500)
 }
@@ -589,6 +593,12 @@ function quadro(agora) {
 }
 function ajustar() { C.ajustar(innerWidth, innerHeight); if (UI) { UI.mudou(); if (J.e && (M.fase === 'carta' || M.fase === 'fim')) { montarReino(M.fase === 'carta'); if (M.fase === 'fim') C.vidas = 1 } } }
 
+/** (teste) O maior número de invasores do MESMO tipo desenhados na mesma região da estrada. */
+function maxTipoVisivel() {
+  const cont = new Map(), ids = new Map(); let m = 0
+  for (let i = 0; i < C.n; i++) { if (C.lado[i] !== 1 || C.est[i] !== 1 || C.oculto[i] || C.peca[i].w > 60) continue; if (!ids.has(C.peca[i])) ids.set(C.peca[i], ids.size); const k = Math.max(0, Math.min(7, Math.floor((C.xDe(i) + 100) / 100))) * 64 + ids.get(C.peca[i]); const n = (cont.get(k) || 0) + 1; cont.set(k, n); if (n > m) m = n }
+  return m
+}
 // ---------------------------------------------------------------- começo
 /** Link de amigo: `?semente=` (a estrada) e `&rodadas=` (quantas ele aguentou). */
 function lerLink() {
@@ -645,7 +655,7 @@ async function comecar() {
   requestAnimationFrame(quadro)
   if (TESTE) {
     const { ligarGanchos } = await import('./teste.js')
-    await ligarGanchos({ J, M: () => M, C, Bat: () => Bat, UI: () => UI, F, Som, Musica, Guarda, Arte, CONFIG, QUADROS, CUSTO, nq: () => nq, lutar, novaPartida, abrirRodada, fimDaPartida, mandar, ler, preencher, aoFimDaLuta, semTimers, limparFestas, festa, reproduzir, resultado, montarExercito, expandirHorda, cartaoDoReino, seguir, menos })
+    await ligarGanchos({ J, M: () => M, C, Bat: () => Bat, UI: () => UI, F, Som, Musica, Guarda, Arte, CONFIG, QUADROS, CUSTO, nq: () => nq, lutar, novaPartida, abrirRodada, fimDaPartida, mandar, ler, preencher, aoFimDaLuta, semTimers, limparFestas, festa, reproduzir, resultado, montarExercito, expandirHorda, cartaoDoReino, seguir, menos, CONTORNO, maxTipoVisivel })
   }
   document.documentElement.dataset.pronto = '1'
 }

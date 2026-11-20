@@ -3,13 +3,14 @@
 // Duas abas não se apagam: cada gravação MESCLA com o que está no armazenamento naquela hora (maior recorde, união das conquistas e
 // das melhores partidas, rodadas somadas pela diferença) e a aba ouve o evento `storage`.
 const CHAVE = 'keepmile_v1', CHAVE_PARTIDA = 'keepmile_partida_v1', CHAVE_FIM = 'keepmile_fim_v1', CHAVE_OUTRA = 'keepmile_partida2_v1'
-const PADRAO = { recorde: 0, melhores: [], rodadas: 0, conquistas: [], vel: 1, menos: null, partidas: 0, dica: false }
+const PADRAO = { recorde: 0, melhores: [], rodadas: 0, conquistas: [], conquistasEm: {}, vel: 1, menos: null, partidas: 0, dica: false }
 const copia = (o) => JSON.parse(JSON.stringify(o))
 function doDisco() {
   let d = { ...PADRAO }
   try { const p = JSON.parse(localStorage.getItem(CHAVE) || 'null'); if (p && typeof p === 'object') d = { ...PADRAO, ...p } } catch { /* sem armazenamento: vale só nesta visita */ }
   if (!Array.isArray(d.melhores)) d.melhores = []
   if (!Array.isArray(d.conquistas)) d.conquistas = []
+  if (!d.conquistasEm || typeof d.conquistasEm !== 'object') d.conquistasEm = {}
   for (const k of ['recorde', 'rodadas', 'partidas']) if (!Number.isFinite(d[k])) d[k] = 0
   return d
 }
@@ -21,6 +22,7 @@ function mesclar(meu, base, disco) {
   out.rodadas = disco.rodadas + Math.max(0, meu.rodadas - base.rodadas)
   out.partidas = disco.partidas + Math.max(0, meu.partidas - base.partidas)
   out.conquistas = [...new Set([...disco.conquistas, ...meu.conquistas])]
+  out.conquistasEm = { ...meu.conquistasEm, ...disco.conquistasEm } // a data mais antiga gravada fica
   const vistos = new Set()
   out.melhores = [...meu.melhores, ...disco.melhores].filter((m) => { const k = chaveDe(m); if (vistos.has(k)) return false; vistos.add(k); return true }).sort((a, b) => b.pontos - a.pontos).slice(0, 5)
   out.dica = !!(meu.dica || disco.dica)
@@ -72,7 +74,7 @@ export const Guarda = {
     return { novoRecorde: novo, recorde: D.recorde, antes }
   },
   /** Marca a conquista; devolve true só na primeira vez. */
-  conquista(id) { if (D.conquistas.includes(id)) return false; D.conquistas.push(id); gravar(); return true },
+  conquista(id) { if (D.conquistas.includes(id)) return false; D.conquistas.push(id); D.conquistasEm = { ...D.conquistasEm, [id]: new Date().toISOString().slice(0, 10) }; gravar(); return true },
   /** Partida em curso: grava a cada passo; `null` apaga. */
   salvarPartida: (p) => gravarPartida(CHAVE_PARTIDA, p),
   partidaSalva: () => lerPartida(CHAVE_PARTIDA),

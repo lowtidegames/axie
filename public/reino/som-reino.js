@@ -718,6 +718,7 @@ const Som = {
     if (!EFEITOS[nome] || !S.destravado || !S.ctx) return false
     const relogio = performance.now(), chave = nome + ':' + (opc.grupo ?? ''), g = S.grupos[chave], mesmoSom = S.grupos[nome + ':*']
     S.golpes++; S.golpesEm.push(Math.round(relogio * 10) / 10); if (S.golpesEm.length > 400) S.golpesEm.shift()
+    if (S.golpes % 400 === 0) for (const k of Object.keys(S.grupos)) if (relogio - S.grupos[k].em > 1000) delete S.grupos[k] // não guarda voz velha
     // junta: o mesmo pelotão em até 60 ms · o mesmo som em menos de 35 ms · e, com a tela cheia, QUALQUER golpe a menos de 40 ms do anterior (no máximo ~25 golpes novos por segundo: nunca metralhadora)
     const ultimo = S.grupos['*']
     const junta = g && relogio - g.em <= JANELA_GRUPO ? g : mesmoSom && relogio - mesmoSom.em < 35 ? mesmoSom : ultimo && relogio - ultimo.em < 40 ? ultimo : null

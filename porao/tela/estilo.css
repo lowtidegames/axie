@@ -45,6 +45,7 @@
   --pix-sofa: #a23b5a; --pix-sofa-c: #c25577; --pix-sofa-e: #7a2b43;
   --pix-carro: #e8c13a; --pix-carro-c: #f7de7a; --pix-carro-e: #b08f22; --pix-roda: #23202b; --pix-farol: #fff4a8;
   --pix-lugar: #f2e6c9; --pix-janela-ceu: #7fb2e8; --pix-porta: #2a1f2e; --pix-luz: #fff4a8;
+  --pix-painel-c: #31283f;
   --pix-lata-a: #e05a4f; --pix-lata-b: #4fa0e0; --pix-lata-c: #f0c64a; --pix-gamer: #d1344c; --pix-gamer-e: #2b2833;
 }
 
@@ -193,4 +194,79 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .cena__zoom, .cena__mundo { transition: none !important; }
   .cena__trilho { scroll-behavior: auto; }
+}
+
+/* ==== abertura: logo, carregando, título, aviso, carteira, Hall (abertura.js) ==== */
+.pagina-topo[hidden], .pagina-palco[hidden] { display: none; }
+.ab {
+  position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; background: var(--noite-funda); color: var(--linho);
+}
+.ab__fundo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; opacity: 0; }
+.ab--com-fundo .ab__fundo { opacity: 1; }
+.ab__palco {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  width: 100%; max-width: 560px; max-height: 100%; padding: 64px 16px 24px; overflow-y: auto; text-align: center;
+}
+.ab canvas { image-rendering: pixelated; image-rendering: crisp-edges; image-rendering: pixelated; }
+.ab-btn.ab__menos { position: absolute; top: 10px; right: 10px; z-index: 2; width: auto; font-size: 14px; }
+.ab__menos[aria-pressed="true"] { color: var(--ouro); border-image: url('arte/ui/ui_btn_apertado.png') 8 6 6 6 fill / 16px 12px 12px 12px; }
+.ab-btn { width: 100%; max-width: 340px; font-size: 1.05rem; }
+.ab-btn:disabled { filter: grayscale(0.6) brightness(0.8); cursor: default; }
+.ab__dica { margin: 0; color: var(--linho-apagado); font-size: 14px; }
+
+/* LOGO e CARREGANDO: surgem devagar (com "Menos animação", parados) */
+.ab[data-tela="logo"] .ab__logo-estudio { animation: ab-surge 0.7s ease-out both; }
+.ab__frase { margin: 0; min-height: 2.8em; max-width: 340px; font-weight: 700; color: var(--linho); }
+@keyframes ab-surge { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* TÍTULO */
+.ab__marca { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 18px; background: color-mix(in srgb, var(--noite-funda) 72%, transparent); border: 3px solid var(--pix-contorno); }
+.ab__nome { margin: 0; font-family: var(--fonte-gorda); font-weight: 900; font-size: clamp(2rem, 9vw, 3.2rem); line-height: 1; letter-spacing: 0.03em; color: var(--ouro); text-shadow: 0 4px 0 var(--pix-contorno); overflow-wrap: anywhere; }
+.ab__slogan { margin: 0; font-weight: 700; color: var(--linho); max-width: 420px; }
+.ab__botoes { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.ab__erro { margin: 0; min-height: 1.4em; font-weight: 700; color: var(--calor-quente); }
+.ab__erro:empty { min-height: 0; }
+
+/* janelas: aviso, carteiras, assinando, Hall */
+.ab__janela {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; max-width: 460px; padding: 20px 18px 18px;
+  image-rendering: pixelated; border: 2px solid transparent; border-image: url('arte/ui/ui_status.png') 6 fill / 12px;
+}
+.ab__titulo { margin: 0; font-family: var(--fonte-gorda); font-weight: 900; font-size: 1.5rem; color: var(--ouro); overflow-wrap: anywhere; }
+.ab__texto { margin: 0; text-align: left; overflow-wrap: anywhere; }
+.ab__linha { display: flex; gap: 10px; width: 100%; }
+.ab__linha .ab-btn { flex: 1; min-width: 0; }
+.ab__carteiras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; width: 100%; align-items: center; }
+.ab__carteiras li { width: 100%; display: flex; justify-content: center; }
+.ab__carteira { display: flex; align-items: center; gap: 12px; text-align: left; }
+.ab__carteira-icone { width: 28px; height: 28px; }
+.ab__carteira-letra {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none;
+  background: var(--painel); border: 2px solid var(--pix-contorno); font-family: var(--fonte-gorda); color: var(--ouro);
+}
+.ab__espera { margin: 0; color: var(--linho-apagado); font-weight: 700; }
+.ab__espera::after { content: "..."; display: inline-block; width: 1.4em; text-align: left; }
+.ab__silhuetas { list-style: none; margin: 4px 0 0; padding: 0; display: flex; align-items: flex-end; justify-content: center; gap: 8px; width: 100%; }
+.ab__silhueta { position: relative; flex: 0 1 56px; height: 104px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.ab__silhueta[data-lugar="1"] { order: 3; height: 128px; }
+.ab__silhueta[data-lugar="2"] { order: 2; } .ab__silhueta[data-lugar="3"] { order: 4; }
+.ab__silhueta[data-lugar="4"] { order: 1; height: 88px; } .ab__silhueta[data-lugar="5"] { order: 5; height: 88px; }
+.ab__silhueta::before { content: ""; width: 26px; height: 26px; border-radius: 50%; background: var(--noite-funda); border: 3px solid var(--borda); margin-bottom: 3px; }
+.ab__silhueta::after { content: ""; width: 44px; height: 32px; border-radius: 18px 18px 0 0; background: var(--noite-funda); border: 3px solid var(--borda); border-bottom: 0; }
+.ab__silhueta-num {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 1; padding: 0 4px;
+  font-family: var(--fonte-gorda); font-size: 14px; color: var(--linho-apagado); background: var(--painel);
+}
+.ab__silhueta[data-lugar="1"] .ab__silhueta-num { color: var(--ouro); }
+.ab__janela--hall .ab__texto { text-align: center; }
+
+@media (max-width: 720px) {
+  .ab__palco { padding: 60px 12px 16px; gap: 12px; }
+  .ab__janela { padding: 16px 12px 14px; }
+}
+/* Menos animação: nada surge, nada anda */
+.ab--menos *, .ab--menos *::before, .ab--menos *::after { animation: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .ab *, .ab *::before, .ab *::after { animation: none !important; transition: none !important; }
 }

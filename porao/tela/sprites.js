@@ -31,6 +31,7 @@ const RESERVA = {
   carro: '#e8c13a', carro_c: '#f7de7a', carro_e: '#b08f22', roda: '#23202b', farol: '#fff4a8',
   lugar: '#f2e6c9', janela_ceu: '#7fb2e8', porta: '#2a1f2e', luz: '#fff4a8',
   lata_a: '#e05a4f', lata_b: '#4fa0e0', lata_c: '#f0c64a', gamer: '#d1344c', gamer_e: '#2b2833',
+  painel_c: '#31283f',
 };
 const P = { ...RESERVA };
 export function lerPaleta(el = document.documentElement) {
@@ -279,6 +280,81 @@ for (const [nome, [w, d]] of Object.entries(LUXOS_PEGADA)) {
   }, { contorno: false });
 }
 
+// ---------- abertura (formas provisórias; o PNG do artista entra no lugar pelo indice.json) ----------
+// casa_vo_noite: fundo do título (casa da vó à noite, janelinha do porão acesa). Opaco, sem contorno.
+def('casa_vo_noite', 'interface', 240, 160, 0, 0, (c) => {
+  px(c, 0, 0, 240, 160, P.tela_f);
+  px(c, 0, 0, 240, 40, P.contorno);
+  [[14, 8], [40, 22], [70, 6], [96, 30], [132, 12], [170, 26], [204, 9], [226, 34], [58, 44], [150, 46], [190, 52]].forEach(([x, y]) => px(c, x, y, 1, 1, P.lugar));
+  px(c, 192, 14, 12, 12, P.lugar); px(c, 189, 17, 3, 6, P.lugar); px(c, 204, 17, 3, 6, P.lugar); px(c, 196, 16, 4, 3, P.metal_c);
+  px(c, 0, 128, 240, 32, P.chao_l); px(c, 0, 128, 240, 2, P.planta);
+  for (let x = 4; x < 240; x += 14) px(c, x, 124, 4, 4, P.planta);
+  // casa
+  poli(c, [[52, 64], [120, 26], [188, 64]], P.sofa_e);
+  poli(c, [[60, 62], [120, 30], [180, 62]], P.sofa);
+  px(c, 64, 62, 112, 66, P.parede_e);
+  for (let y = 68; y < 128; y += 8) px(c, 64, y, 112, 1, P.junta_e);
+  px(c, 148, 34, 10, 18, P.parede_d);
+  // janelas de cima (uma acesa, a da vó) e porta
+  px(c, 76, 72, 20, 18, P.contorno); px(c, 78, 74, 16, 14, P.janela_ceu); px(c, 85, 74, 2, 14, P.contorno);
+  px(c, 144, 72, 20, 18, P.contorno); px(c, 146, 74, 16, 14, P.luz); px(c, 153, 74, 2, 14, P.contorno);
+  px(c, 110, 96, 20, 32, P.contorno); px(c, 112, 98, 16, 30, P.porta); px(c, 124, 112, 2, 2, P.hype);
+  // janelinha do porão, rente ao chão: é ali que o Rugrigo trabalha
+  px(c, 140, 120, 18, 10, P.contorno); px(c, 142, 122, 14, 6, P.tela_a); px(c, 144, 123, 4, 2, P.tela_c);
+  px(c, 136, 130, 26, 2, P.tela_a);
+}, { contorno: false });
+// logo_jogo: plaquinha com o tapete listrado (o nome vai escrito em texto embaixo, com a fonte do jogo).
+def('logo_jogo', 'interface', 96, 40, 0, 0, (c) => {
+  px(c, 2, 4, 92, 32, P.contorno); px(c, 4, 6, 88, 28, P.hype);
+  px(c, 10, 12, 62, 16, P.sofa); for (let x = 12; x < 72; x += 8) px(c, x, 12, 3, 16, P.sofa_c);
+  px(c, 10, 28, 62, 2, P.sofa_e);
+  px(c, 72, 14, 4, 2, P.lugar); px(c, 72, 18, 4, 2, P.lugar); px(c, 72, 22, 4, 2, P.lugar);
+  px(c, 78, 10, 6, 6, P.pele); px(c, 78, 9, 6, 2, P.cabelo); px(c, 77, 16, 8, 10, P.moletom); px(c, 74, 18, 4, 2, P.pele);
+}, { contorno: false });
+// logo_estudio: marca do estúdio (provisória), um porão visto de lado com uma onda.
+def('logo_estudio', 'interface', 48, 48, 0, 0, (c) => {
+  px(c, 6, 6, 36, 36, P.contorno); px(c, 8, 8, 32, 32, P.painel_c);
+  px(c, 8, 26, 32, 14, P.tela_a); px(c, 8, 26, 32, 2, P.tela_c);
+  for (let x = 8; x < 40; x += 8) { px(c, x, 24, 4, 2, P.tela_c); px(c, x + 4, 22, 2, 2, P.tela_c); }
+  px(c, 16, 12, 16, 8, P.hype); px(c, 18, 14, 12, 4, P.luz);
+});
+// retrato_vo: a vó tutora (retrato grande, coque branco e óculos).
+def('retrato_vo', 'interface', 48, 48, 0, 0, (c) => {
+  px(c, 4, 4, 40, 40, P.janela_ceu);
+  px(c, 18, 4, 12, 8, P.lugar); px(c, 12, 10, 24, 10, P.lugar);
+  px(c, 14, 16, 20, 18, P.pele); px(c, 12, 18, 2, 10, P.lugar); px(c, 34, 18, 2, 10, P.lugar);
+  px(c, 16, 22, 6, 4, P.metal_e); px(c, 26, 22, 6, 4, P.metal_e); px(c, 17, 23, 4, 2, P.vidro); px(c, 27, 23, 4, 2, P.vidro); px(c, 22, 23, 4, 1, P.metal_e);
+  px(c, 21, 29, 6, 1, P.moletom_e);
+  px(c, 10, 34, 28, 10, P.trouxa_3); px(c, 22, 34, 4, 4, P.lugar);
+});
+// carregando_rugrigo: tira horizontal de quadros quadrados (quantos quadros = largura / altura).
+// O Rugrigo puxa o tapete: a cada quadro o tapete anda para ele e ele inclina mais.
+const QUADROS_CARREGANDO = 4;
+def('carregando_rugrigo', 'interface', 48 * QUADROS_CARREGANDO, 48, 0, 0, (c) => {
+  for (let q = 0; q < QUADROS_CARREGANDO; q++) {
+    const o = q * 48, d = q * 3, inc = q % 2;
+    px(c, o + 2, 40, 44, 2, P.chao_l);
+    px(c, o + 4 + d, 36, 26, 4, P.sofa); for (let x = 6; x < 28; x += 6) px(c, o + x + d, 36, 2, 4, P.sofa_c);
+    px(c, o + 30 + d, 37, 6, 2, P.sofa_e);
+    const x = o + 34 + inc;
+    px(c, x, 20, 8, 11, P.moletom); px(c, x + 1, 11, 7, 9, P.pele); px(c, x + 1, 10, 7, 3, P.cabelo);
+    px(c, x + 2, 15, 1, 1, P.contorno); px(c, x - 4 - inc, 24, 5, 2, P.moletom); px(c, x - 6 - inc, 24, 2, 3, P.pele);
+    px(c, x, 31, 3, 9, P.contorno); px(c, x + 5 + inc, 31, 3, 9, P.contorno);
+  }
+}, { tira: true });
+
+/** Fonte de desenho de um sprite (imagem final ou forma provisória) e o tamanho dela. */
+export function fonteDe(nome) {
+  const s = CATALOGO.get(nome);
+  const fonte = s && (s.img || s.canvas);
+  return fonte ? { fonte, w: s.w, h: s.h, final: !!s.img } : null;
+}
+/** Quantos quadros tem uma tira horizontal de quadros quadrados (1 se for imagem comum). */
+export function quadrosDe(nome) {
+  const f = fonteDe(nome);
+  return f && CATALOGO.get(nome).tira ? Math.max(1, Math.round(f.w / f.h)) : 1;
+}
+
 // ---------- geração e carregador ----------
 function finalizar(canvas, contorno, cor) {
   const c = canvas.getContext('2d'), W = canvas.width, H = canvas.height;
@@ -329,7 +405,10 @@ export const arteCarta = (ideia) => ARTE_CARTAS.get('carta_' + ideia) || null;
 
 // Procura imagens de arte final. Cada pasta (arte/, ../arte.local/) pode ter um indice.json
 // com a lista de nomes (sem .png). Sem indice, nada é pedido e nada falha.
-export async function carregarArte() {
+let carregandoArte = null;
+/** Uma vez só por página: a abertura e a cena pedem e recebem a mesma promessa. */
+export function carregarArte() { return (carregandoArte ??= carregarArteAgora()); }
+async function carregarArteAgora() {
   const pastas = [new URL('./arte/', import.meta.url), new URL('../arte.local/', import.meta.url)];
   // sala-âncora (fundo pintado do porão): fica fora do índice; sem ela a cena volta ao chão desenhado
   const sala = new Promise((ok) => {

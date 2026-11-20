@@ -118,7 +118,7 @@ describe('R40 — medida E com as 30 conquistas da regra única (shared/reino/co
 
   test('variantes das conquistas só valem dentro da tarefa: CONQUISTAS volta igual', async () => {
     const antes = JSON.stringify(CONQUISTAS)
-    for (const variante of ['tally300', 'bis22', 'bis21']) await medirE({ n: 1, nBom: 0, partidas: 1, aleatorio: false, semente: 'm40v', variante, trabalhos: 1 })
+    for (const variante of ['tally300', 'bis22', 'bis21', 'bolsos4']) await medirE({ n: 1, nBom: 0, partidas: 1, aleatorio: false, semente: 'm40v', variante, trabalhos: 1 })
     assert.equal(JSON.stringify(CONQUISTAS), antes)
   })
 

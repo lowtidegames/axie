@@ -3,7 +3,7 @@
 //   medidas: A (novato no 1º chefe) · B (qualidade da decisão) · C (posição) · D (cartas e planos) · E (longo prazo) · F (tempo) · todas
 //   --n      partidas (A, D, F; padrão 2000) ou ofertas (B 400, C 300); E usa n/10 contas atentas e aleatórias e n/50 do planejador
 //            (padrão 200 e 40), cada conta com --partidas partidas seguidas (padrão 60; R40: as 30 conquistas e a vitória da rodada 20)
-//   --sem-ranking  E sem o ranking semanal (mais rápido)
+//   --sem-ranking  E sem o ranking semanal (mais rápido) · --sem-aleatorio  E sem as contas do aleatório
 //   --planos partidas por robô de plano no D (padrão 300; 0 = sem planos)
 //   --k      continuações por opção (B, C; padrão 8)
 //   --saida arquivo.json  guarda os números crus (para comparar variantes com as mesmas sementes)
@@ -56,6 +56,7 @@ export const VARIANTES = {
   tally300: { cfg: () => por(CONQUISTAS.rodadasSomadas, 'tally400', 300) }, // último degrau longe do álbum cheio (398)
   bis22: { cfg: () => por(CONQUISTAS, 'rodadaDoBis', 22) }, // Encore! mais perto da vitória (20)
   bis21: { cfg: () => por(CONQUISTAS, 'rodadaDoBis', 21) },
+  bolsos4: { cfg: () => por(CONQUISTAS, 'reliquias', 4) }, // Pocketful: os 3 chefes dão 3 relíquias (cai junto com Mole Patrol)
 }
 
 function aplicarVariante(nome) {
@@ -821,6 +822,7 @@ function argumentos(argv) {
     else if (argv[i] === '--planos') a.planos = Number(argv[++i])
     else if (argv[i] === '--partidas') a.partidas = Number(argv[++i])
     else if (argv[i] === '--sem-ranking') a.semRanking = true
+    else if (argv[i] === '--sem-aleatorio') a.semAleatorio = true
   }
   if (!VARIANTES[a.variante]) throw new Error(`variante desconhecida: ${a.variante} (há: ${Object.keys(VARIANTES).join(', ')})`)
   return a
@@ -851,7 +853,7 @@ if (!isMainThread && parentPort) {
     const pontos = a.semRanking ? null : {}
     if (pontos) for (const robo of ['aleatorio', 'ganancioso-puro', 'novato-atento', 'planejador']) pontos[robo] = await medirPontos({ ...base, robo, n: a.n ?? 2000 })
     const partidas = a.partidas ?? 60
-    mostrar(`E — longo prazo: as 30 conquistas e a vitória em ${partidas} partidas por conta${pontos ? ', e o ranking' : ''}`, await medirE({ ...base, n: a.n ? Math.max(10, Math.round(a.n / 10)) : 200, nBom: a.n ? Math.max(2, Math.round(a.n / 50)) : 40, partidas, pontos }))
+    mostrar(`E — longo prazo: as 30 conquistas e a vitória em ${partidas} partidas por conta${pontos ? ', e o ranking' : ''}`, await medirE({ ...base, n: a.n ? Math.max(10, Math.round(a.n / 10)) : 200, nBom: a.n ? Math.max(2, Math.round(a.n / 50)) : 40, partidas, aleatorio: !a.semAleatorio, pontos }))
   }
   if (quer('F')) {
     const por = {}

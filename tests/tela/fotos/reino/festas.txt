@@ -2,19 +2,21 @@ Keepmile — registro da fila de festas (F.log) nas festas fotografadas. Tempos 
 Regra: uma por vez, 400 ms entre elas, a maior por último; conquista e carta nova só depois da escolha do espólio.
 
 == vitória (rodada 1): na escolha do espólio a fila fica parada
-   (nenhuma festa na fila)
+   (nenhuma festa nova passou pela fila)
    esperando a vez: First Supper, Clean Plate
 
 == depois da escolha: as conquistas da vitória, uma por vez, e a festa de nível
-    1. brinde tam 2  fase carta       7835 →   10251  (2417 ms)  First Supper
-    2. brinde tam 2  fase carta      10651 →   13068  (2417 ms, 400 ms depois da anterior)  Clean Plate
+    1. brinde tam 2  fase carta       7842 →   10259  (2417 ms)  First Supper
+    2. brinde tam 2  fase carta      10659 →   13076  (2417 ms, 400 ms depois da anterior)  Clean Plate
 
 == queda do chefe (rodada 5)
-    1. aviso  tam 2  fase luta        3228 →    4845  (1616 ms)  Gutbucket the Wide
-    2. aviso  tam 3  fase luta       11645 →       0  (-11645 ms, 6800 ms depois da anterior)  Gutbucket DOWN!
+    1. aviso  tam 2  fase luta        3220 →    4820  (1600 ms)  Gutbucket the Wide
+    2. aviso  tam 3  fase luta       11653 → na tela  (ainda na tela, 6833 ms depois da anterior)  Gutbucket DOWN!
 
 == fim com recorde
-   (nenhuma festa na fila)
+   (nenhuma festa nova passou pela fila)
+   sequência do fim (não passa pela fila; ms depois de abrir a tela de fim): o número conta de 0 a 14 a partir de +450; faixa NEW RECORD com confete em +1680; a placa sobe em +2980; botões em +3430; fecho: Fuse Runner 638 DMG IN ROUND 14
 
 == fim sem recorde
-    1. brinde tam 1  fase fim         5123 →       0  (-5123 ms)  LINK COPIED: SAME ROAD
+    1. brinde tam 1  fase fim         5160 →    5733  (573 ms)  LINK COPIED: SAME ROAD
+   sequência do fim (não passa pela fila; ms depois de abrir a tela de fim): o número conta de 0 a 1 a partir de +450; fecho sem recorde em +770; a placa sobe em +1770; botões em +2220; fecho: Doorman 48 DMG IN ROUND 1 / 13 ROUNDS TO YOUR BEST

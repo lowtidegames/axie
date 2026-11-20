@@ -73,7 +73,7 @@ function sementeNova() { const a = new Uint32Array(2); crypto.getRandomValues(a)
 const F = { fila: [], atual: null, livreEm: 0, log: [], n: 0 }
 const VAO_FESTA = 400
 function festa(f) { f.n = F.n++; F.fila.push(f); F.fila.sort((a, b) => a.tam - b.tam || a.n - b.n) }
-function limparFestas() { F.fila.length = 0; if (F.atual) { M[F.atual.tipo] = null; F.atual = null } }
+function limparFestas() { F.fila.length = 0; if (F.atual) { M[F.atual.tipo] = null; if (F.atual.log) F.atual.log.fim = agoraMs(); F.atual = null } }
 /** Festa que espera: conquista e carta nova do álbum só DEPOIS da escolha do espólio (nada cai junto com a escolha); no fim de
  *  partida, só depois da entrada em sequência. */
 const seguraFesta = (f) => (f.aposEspolio && (M.fase === 'vitoria' || M.fase === 'terreno')) || (M.fase === 'fim' && M.fim && !M.fim.contou)

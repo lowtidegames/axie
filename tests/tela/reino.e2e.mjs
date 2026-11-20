@@ -756,7 +756,8 @@ async function r17(fmt) {
     await p1.close(); await p2.close(); await ctxB.close()
   }
   const registro = [] // o registro da fila de festas (F.log) de cada festa fotografada
-  const anotar = async (page, qual) => { const f = await K(page, (k) => k.festas()); registro.push({ qual, log: f.log, fila: f.fila }) }
+  const jaAnotado = new WeakMap() // por página: quantas festas do registro já foram anotadas (cada anotação leva só as novas)
+  const anotar = async (page, qual) => { const f = await K(page, (k) => k.festas()), de = jaAnotado.get(page) || 0, fim = (await modelo(page)).fim; jaAnotado.set(page, f.log.length); registro.push({ qual, log: f.log.slice(de), fila: f.fila, seq: fim ? { t0: fim.t0, tFaixa: fim.tFaixa, tSobe: fim.tSobe, tBotoes: fim.tBotoes, n: fim.vencidas, recorde: fim.novoRecorde, fecho: [fim.melhor, fim.faltaLinha].filter(Boolean) } : null }) }
   /** Pega um espólio (de preferência um que não pede terreno) e espera a fase seguinte. */
   const pegar = async (page) => {
     await espolioPronto(page); await page.waitForTimeout(450)
@@ -1020,8 +1021,9 @@ async function r17(fmt) {
     const linhas = ['Keepmile — registro da fila de festas (F.log) nas festas fotografadas. Tempos em ms desde a abertura da página.', 'Regra: uma por vez, 400 ms entre elas, a maior por último; conquista e carta nova só depois da escolha do espólio.', '']
     for (const r of registro) {
       linhas.push(`== ${r.qual}`)
-      if (!r.log.length) linhas.push('   (nenhuma festa na fila)')
-      r.log.forEach((l, i) => linhas.push(`   ${String(i + 1).padStart(2)}. ${l.tipo.padEnd(6)} tam ${l.tam}  fase ${String(l.fase).padEnd(8)} ${String(Math.round(l.ini)).padStart(7)} → ${String(Math.round(l.fim)).padStart(7)}  (${Math.round(l.fim - l.ini)} ms${i ? `, ${Math.round(l.ini - r.log[i - 1].fim)} ms depois da anterior` : ''})  ${l.texto}${l.adiada ? '  [esperou o chefe]' : ''}`))
+      if (!r.log.length) linhas.push('   (nenhuma festa nova passou pela fila)')
+      r.log.forEach((l, i) => linhas.push(`   ${String(i + 1).padStart(2)}. ${l.tipo.padEnd(6)} tam ${l.tam}  fase ${String(l.fase).padEnd(8)} ${String(Math.round(l.ini)).padStart(7)} → ${l.fim ? String(Math.round(l.fim)).padStart(7) : 'na tela'}  (${l.fim ? Math.round(l.fim - l.ini) + ' ms' : 'ainda na tela'}${i && r.log[i - 1].fim ? `, ${Math.round(l.ini - r.log[i - 1].fim)} ms depois da anterior` : ''})  ${l.texto}${l.adiada ? '  [esperou o chefe]' : ''}`))
+      if (r.seq) linhas.push(`   sequência do fim (não passa pela fila; ms depois de abrir a tela de fim): o número conta de 0 a ${r.seq.n} a partir de +450; ${r.seq.recorde ? 'faixa NEW RECORD com confete' : 'fecho sem recorde'} em +${r.seq.tFaixa}; a placa sobe em +${r.seq.tSobe}; botões em +${r.seq.tBotoes}` + (r.seq.fecho.length ? `; fecho: ${r.seq.fecho.join(' / ')}` : ''))
       if (r.fila.length) linhas.push('   esperando a vez: ' + r.fila.map((f) => f.texto).join(', '))
       linhas.push('')
     }

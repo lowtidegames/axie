@@ -618,7 +618,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       f.fitaRet = { x: fx, y: yT - 3, w: fw, h: fh }; viu('fimVenceu')
     }
     linT.forEach((s, i) => Arte.titulo(g, s, cx, yT + i * 20, 2, !!f.venceu))
-    f.titulo = tit; f.tituloLinhas = linT
+    f.titulo = tit; f.tituloLinhas = linT; f.tituloW = wT
     Arte.titulo(g, String(f.mostra), cx, yT + 24 + mais - pulo, k, grande ? (ouro || f.venceu ? 'dano-g-ouro' : 'dano-g') : ouro || !!f.venceu)
     Arte.texto(g, rot, cx, yH, { fonte: 'reino-contorno', alinhar: 'centro' })
     f.numeroRet = { x: cx - 30, y: yT, w: 60, h: yH + 9 - yT, k }
@@ -763,7 +763,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       if (!C.menos) for (let i = 0; i < 6; i++) { const t = ((agora / 9 + i * 71) % (C.VW + 20)) - 10; g.fillStyle = '#FFF096'; g.fillRect(Math.round(i & 1 ? t : C.VW - t), i & 1 ? y - 1 : y + h - 1, 3, 1) }
     }
     C.zonaTitulo = { x: 0, y: y - 4, w: C.VW, h: h + 8 }
-    R.ret = { x, y: y - 3, w, h: h + 6, linhas: lin, k, sub: T.festaReinoSub }
+    R.ret = { x, y: y - 3, w, h: h + 6, linhas: lin, k, sub: T.festaReinoSub, maior: Math.max(...lin.map((q) => Arte.largura(q, 'reino-ouro'))) * k, VW: C.VW, VH: C.VH }
     viu('festaReino')
   }
   /** Aviso pequeno em placa (conquista, carta nova, relíquia): sempre abaixo do HUD, nunca por cima dele. */

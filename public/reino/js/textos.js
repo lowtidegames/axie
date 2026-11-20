@@ -23,7 +23,7 @@ export const T = {
   resumo: { dano: 'DAMAGE BY PLOT', mvp: 'MVP', magia: 'MAGIC', ajuda: 'EACH BAR IS THE DAMAGE OF ONE PLOT' },
   ganheAjuda: 'WIN, THEN PICK 1',
   // R39 — vitória: a meta à vista, o selo depois dela, a festa da rodada da vitória e o fim com vitória (o número vem do config)
-  meta: (n) => `HOLD TO ROUND ${n}`, resistiu: 'HELD', metaDica: (n) => `HOLD ROUND ${n} AND THE KINGDOM STANDS. AFTER THAT, KEEP GOING FOR SCORE.`, resistiuDica: (n) => `YOU HELD ROUND ${n}. EVERY ROUND NOW IS FOR SCORE.`,
+  meta: (n) => `HOLD TO ROUND ${n}`, resistiu: 'HELD',
   festaReino: (n) => `ROUND ${n} HELD!`, festaReinoSub: 'KEEP GOING FOR SCORE', fimVenceu: 'THE KINGDOM HELD', cartaoVenceu: 'THE KINGDOM HELD',
   grupos: { chefes: 'Bosses', lutas: 'Battles', reino: 'Kingdom', marcos: 'Milestones' },
   fim: 'RUN OVER', aguentou: (n) => (n === 1 ? 'ROUND HELD' : 'ROUNDS HELD'), recorde: 'NEW RECORD!', melhor: 'BEST SCORE', pontos: 'SCORE', ouroGanho: 'GOLD', deNovo: 'PLAY AGAIN', postar: 'SHARE',
@@ -96,7 +96,7 @@ export const T = {
       fora: (pts) => `Your run: ${pts} - not on the board`, vazio: 'Nobody on the board yet', jogar: "Play today's road", replays: "Replays of today's road open tomorrow.", linha: (pts, n) => `${pts} - ${n} round${n === 1 ? '' : 's'}`,
     },
     perfil: {
-      titulo: 'Profile', menu: 'Profile', recordes: (p, r, n) => `Best ${p} - Longest ${r} round${r === 1 ? '' : 's'} - ${n} run${n === 1 ? '' : 's'}`, temporada: (n, quando) => `Season ${n} ends in ${quando}`, titulos: 'Past seasons',
+      titulo: 'Profile', menu: 'Profile', vitorias: (n) => `Kingdom held in ${n} run${n === 1 ? '' : 's'}`, recordes: (p, r, n) => `Best ${p} - Longest ${r} round${r === 1 ? '' : 's'} - ${n} run${n === 1 ? '' : 's'}`, temporada: (n, quando) => `Season ${n} ends in ${quando}`, titulos: 'Past seasons',
       titulo1: (t, pos, liga, pts) => `Season ${t}: rank ${pos} - ${liga} - ${pts}`, melhores: 'Best runs', ver: 'Watch', nenhuma: 'No runs yet', corrida: (n, modo, dia) => `${n} round${n === 1 ? '' : 's'} - ${modo} - ${dia}`, nome: (n) => `Name: ${n}`,
     },
     // trocar o nome (POST apelido): a regra em 1 linha e as recusas do servidor em texto curto. O tempo de espera é o `podeEm` dele.

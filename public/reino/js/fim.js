@@ -7,7 +7,7 @@ import { T } from './textos.js'
 /** Desenha o mundo limpo (sem interface), DE DIA, e monta o cartão: em cima o logo e o desafio lido de uma vez ("BEAT MY 9 ROUNDS",
  *  as duas partes juntas); embaixo os pontos e o ENDEREÇO escrito (com a estrada e as rodadas a bater). Devolve um canvas; `info`
  *  diz o que foi escrito (para o teste). */
-export function cartaoDoReino(C, { rodadas, pontos, recorde, titulo, url = '' }) {
+export function cartaoDoReino(C, { rodadas, pontos, recorde, venceu = false, titulo, url = '' }) {
   const antes = C.depoisDoMundo, d = C.destaque, hora = C.hora, noite = C.noite, mix = C.mix, horaDe = C.horaDe, zona = C.zonaTitulo
   C.depoisDoMundo = null; C.destaque = null; C.noite = 0; C.zonaTitulo = null
   if (hora === 'boss-night') { C.hora = 'afternoon'; C.mix = 1 }
@@ -36,6 +36,15 @@ export function cartaoDoReino(C, { rodadas, pontos, recorde, titulo, url = '' })
     Arte.titulo(g, a, W >> 1, 20, 2); Arte.titulo(g, b, W >> 1, 37, kb, true)
     linhas.push({ texto: a, y: 20, h: 18 }, { texto: b, y: 37, h: 9 * kb })
   }
+  // R39 — FAIXA DE VITÓRIA: quem venceu a rodada da vitória leva "THE KINGDOM HELD" numa fita de ouro por cima da foto do reino
+  let faixa = null
+  if (venceu) {
+    const t = T.cartaoVenceu, kf = Arte.largura(t, 'reino-ouro') * 2 <= W - 24 ? 2 : 1, hf = 9 * kf + 8, yf = topo + 5, wf = Math.min(W - 8, Arte.largura(t, 'reino-ouro') * kf + 28), xf = (W - wf) >> 1
+    g.fillStyle = '#7C2030'; g.fillRect(xf, yf + 3, wf, hf); g.fillStyle = COR.carmim; g.fillRect(xf + 4, yf, wf - 8, hf)
+    g.fillStyle = COR.ouro; g.fillRect(xf + 4, yf, wf - 8, 1); g.fillRect(xf + 4, yf + hf - 1, wf - 8, 1); g.fillStyle = '#FFF096'; g.fillRect(xf + 4, yf + 1, wf - 8, 1)
+    Arte.titulo(g, t, W >> 1, yf + 4, kf, true)
+    faixa = { texto: t, x: xf, y: yf, w: wf, h: hf + 3, k: kf }
+  }
   // rodapé: pontos e o endereço escrito (letra de verdade: o endereço diferencia maiúscula de minúscula)
   const y0 = topo + rec.h
   g.fillStyle = COR.ameixa; g.fillRect(0, y0, W, 1); g.fillStyle = COR.ouro; g.fillRect(0, y0 + 1, W, 1); g.fillStyle = COR.painel; g.fillRect(0, y0 + 2, W, pe - 2)
@@ -50,7 +59,7 @@ export function cartaoDoReino(C, { rodadas, pontos, recorde, titulo, url = '' })
     if (cel) partes.forEach((t, i) => g.fillText(t, 6, y0 + 15 + i * 8, W - 12)); else { g.textAlign = 'right'; partes.forEach((t, i) => g.fillText(t, W - 6, y0 + (partes.length > 1 ? 4 : 8) + i * 8, W - 150)); g.textAlign = 'left' }
   }
   g.strokeStyle = COR.ameixa; g.lineWidth = 2; g.strokeRect(1, 1, W - 2, H - 2)
-  c.info = { desafio: `${a} ${b}`, linhas, umaLinha, pontos: pontosTxt, endereco: partes.join(''), hora: horaDoCartao, w: c.width, h: c.height }
+  c.info = { desafio: `${a} ${b}`, faixa, linhas, umaLinha, pontos: pontosTxt, endereco: partes.join(''), hora: horaDoCartao, w: c.width, h: c.height }
   return c
 }
 

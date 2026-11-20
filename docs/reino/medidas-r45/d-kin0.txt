@@ -1,0 +1,56 @@
+Keepmile — medidas R36 (semente "keepmile36", variante kin0) — números PROVISÓRIOS; nada no config muda
+
+## D — cartas, planos e ouro (planejador, álbum completo)
+
+Planejador, álbum completo, 2000 partidas: rodada final mediana 17 (p10 10, p90 24), média 17.43.
+
+| carta | tipo | raridade | oferecida (mãos) | escolhida quando oferecida | vitória das lutas com ela no reino | rodada final média com ela no fim (vs todas) | nos 10% melhores reinos |
+|---|---|---|---|---|---|---|---|
+| Pikeman | tropa | C | 20462 | 36.2% | 71.7% | 16.4 (-1.0) | 34.5% |
+| Sir Dent | tropa | R | 8638 | 35.6% | 69.8% | 17.9 (+0.4) | 28.5% |
+| Fuse Runner | tropa | U | 9088 | 34.3% | 60.9% | 17.1 (-0.3) | 35.5% |
+| Frypan Cook | tropa | C | 16801 | 30.1% | 68.2% | 17.0 (-0.4) | 32.0% |
+| Granny Bolt | tropa | R | 8258 | 28.3% | 64.3% | 18.2 (+0.8) | 37.0% |
+| Angry Bees | magia | U | 6318 | 23.4% | 65.4% | 17.7 (+0.3) | 21.0% |
+| Pie Thrower | tropa | R | 7879 | 23.3% | 67.1% | 15.5 (-1.9) | 5.5% |
+| Hedge Archer | tropa | C | 15362 | 23.1% | 70.1% | 17.1 (-0.3) | 19.0% |
+| Falconer | tropa | U | 7236 | 22.9% | 68.7% | 18.5 (+1.1) | 26.0% |
+| Bunkhouse | construcao | C | 13824 | 20.9% | 61.7% | 18.5 (+1.0) | 45.0% |
+| Boom Barrel | magia | C | 11957 | 20.1% | 61.7% | 17.6 (+0.2) | 29.5% |
+| Stone Wall | construcao | U | 5849 | 19.8% | 65.2% | 19.6 (+2.2) | 20.0% |
+| Doorman | tropa | U | 6048 | 19.7% | 68.3% | 19.0 (+1.6) | 24.5% |
+| Seconds! | magia | E | 3778 | 18.9% | 68.4% | 20.5 (+3.0) | 18.5% |
+| Rally Horn | magia | U | 5559 | 17.3% | 58.0% | 19.3 (+1.9) | 20.5% |
+| Clockwork Geese | tropa | U | 5524 | 14.4% | 73.3% | 16.3 (-1.2) | 4.0% |
+| Soup Carrier | tropa | U | 5080 | 13.5% | 68.8% | 17.0 (-0.4) | 5.0% |
+| Fuse Depot | construcao | E | 3097 | 12.8% | 55.6% | 17.4 (-0.1) | 5.5% |
+| Fletcher's Hut | construcao | U | 5256 | 12.7% | 58.5% | 18.9 (+1.4) | 10.5% |
+| Grand Finale | magia | L | 1780 | 12.6% | 54.4% | 18.9 (+1.5) | 7.0% |
+| Second Helping | magia | U | 4919 | 12.1% | 54.2% | 18.2 (+0.7) | 9.0% |
+| Feast Hall | construcao | R | 5341 | 9.9% | 64.0% | 17.7 (+0.2) | 5.0% |
+| Tar Puddle | magia | U | 4514 | 8.6% | 57.0% | 20.3 (+2.9) | 10.0% |
+| Sparkwright | tropa | E | 3475 | 8.5% | 70.2% | 16.3 (-1.2) | 3.0% |
+| Bramble Snare | magia | C | 10561 | 8.5% | 61.2% | 19.4 (+1.9) | 15.5% |
+| Smithy | construcao | C | 10038 | 7.4% | 61.7% | 18.8 (+1.4) | 8.5% |
+| Cookhouse | construcao | C | 9818 | 7.0% | 73.2% | 17.8 (+0.4) | 6.0% |
+| Watchtower | construcao | C | 9848 | 6.9% | 61.6% | 19.0 (+1.6) | 11.0% |
+| Tinker's Shed | construcao | R | 4891 | 6.0% | 56.8% | 22.4 (+5.0) | 12.0% |
+| Market Stall | construcao | U | 3950 | 0.8% **morta** | 61.5% | 15.9 (-1.6) | 0.0% |
+
+Mortas (escolhidas < 5% das vezes em que aparecem): Market Stall · dominantes (> 45% dos 10% melhores reinos): nenhuma.
+
+Ouro por partida (planejador): ganho 203.0 = inicio 3.0 + vitoria 65.7 + limpos 42.2 + mercado 0.1 + chefe 28.1 + ledger 14.7 + derrota 13.9 + bolsa 35.4 + guardar 0.0 · gasto 163.3 = sortear 26.4 + consertar 136.8 · conserto = 83.8% do gasto · sobra no fim 39.8.
+Luta de agora pela 1ª mão da rodada: ganha com QUALQUER carta/terreno (só olhando) 10.9% · perde com qualquer uma 35.6% · a escolha decide 53.5%.
+
+| plano (robô preso ao plano) | partidas | rodada final mediana | p90 | média | a até 20% do melhor? |
+|---|---|---|---|---|---|
+| Wall & arrows | 300 | 19 | 24 | 19.52 | sim |
+| Crowd & Smithy | 300 | 18 | 23 | 17.81 | sim |
+| Lone champion | 300 | 18 | 24 | 18.08 | sim |
+| Trap road | 300 | 19 | 28 | 19.84 | sim |
+| Kitchen | 300 | 17 | 20 | 16.65 | sim |
+| Boom | 300 | 18 | 26 | 17.72 | sim |
+| Gold | 300 | 16 | 21 | 16.32 | sim |
+Planos viáveis (média a até 20% do melhor): 7 de 7.
+
+tempo total: 1556.2 s

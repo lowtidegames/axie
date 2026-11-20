@@ -1,0 +1,16 @@
+Keepmile — medidas R36 (semente "keepmile36", variante base) — números PROVISÓRIOS; nada no config muda
+
+## B — qualidade da decisão (valor esperado com 6 continuações do planejador)
+
+| rodadas | ofertas | interessantes (2 melhores a ≤ 10%, tipos diferentes) | 2 melhores a ≤ 10% e cartas/ações diferentes | leitura dura (tipos diferentes, 10% do que FALTA) | óbvias (1ª > 25%) | nulas (todas a < 3%) | 1ª acima do ruído | melhor opção mais comum |
+|---|---|---|---|---|---|---|---|---|
+| 1–5 | 160 | 46.9% (±7.7) | 59.4% | 43.8% | 0.6% | 0.0% | 2.5% | tropa 43.1%, magia 17.5%, construcao 15.0% |
+| 6–10 | 199 | 72.4% (±6.2) | 72.9% | 46.7% | 0.0% | 3.0% | 1.0% | subir 38.7%, tropa 23.1%, sortear 14.1% |
+| 11–15 | 154 | 75.3% (±6.8) | 76.6% | 40.3% | 0.6% | 9.1% | 3.2% | subir 39.0%, sortear 22.7%, tropa 15.6% |
+| 16+ | 87 | 87.4% (±7.0) | 73.6% | 48.3% | 0.0% | 24.1% | 2.3% | subir 36.8%, sortear 28.7%, tropa 12.6% |
+| todas | 600 | 68.5% (±3.7) | 70.3% | 44.5% | 0.3% | 6.8% | 2.2% | subir 30.3%, tropa 25.0%, sortear 17.2% |
+
+Posição (a mesma carta nos seus 2 melhores terrenos): diferença mediana 6.0% · p90 19.9% da rodada final. Erro da média de cada opção (mediana): ±0.96 rodada.
+Quanto cada tipo de opção perde para a melhor da oferta (rodadas, média): tropa -2.31 · subir -1.30 · sortear -1.76 · guardar -2.30 · magia -2.26 · construcao -2.37 · consertar -1.15
+
+tempo total: 2532.3 s

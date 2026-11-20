@@ -1,0 +1,76 @@
+Keepmile — medidas R36 (semente "keepmile36", variante rematch) — números PROVISÓRIOS; nada no config muda
+
+## A — novato no 1º chefe (álbum inicial; o álbum cresce entre as partidas)
+
+| robô | partida | n | vence o chefe 5: na 1ª tentativa | até a 2ª | até a 3ª | chega ao chefe | rodada final mediana / p90 | cartas no álbum |
+|---|---|---|---|---|---|---|---|---|
+| aleatorio | 1 | 2000 | 1.6% | 2.3% | 2.6% (±0.7) | 65.3% | 5 / 5 | 12.0 |
+| aleatorio | 2 | 2000 | 1.6% | 2.5% | 3.1% (±0.8) | 65.8% | 5 / 5 | 12.0 |
+| aleatorio | 3 | 2000 | 4.3% | 6.1% | 7.5% (±1.2) | 67.0% | 5 / 5 | 12.4 |
+| aleatorio | **passou do 1º chefe em alguma das 3 partidas** | 2000 | | | **12.8%** (±1.5) | | | |
+| ganancioso-puro | 1 | 2000 | 40.5% | 64.3% | 81.8% (±1.7) | 100.0% | 10 / 13 | 12.0 |
+| ganancioso-puro | 2 | 2000 | 72.9% | 87.3% | 93.2% (±1.1) | 100.0% | 10 / 15 | 12.7 |
+| ganancioso-puro | 3 | 2000 | 83.1% | 94.0% | 97.9% (±0.6) | 100.0% | 10 / 15 | 13.2 |
+| ganancioso-puro | **passou do 1º chefe em alguma das 3 partidas** | 2000 | | | **99.8%** (±0.2) | | | |
+| novato-atento | 1 | 2000 | 15.0% | 41.8% | 53.4% (±2.2) | 99.1% | 9 / 16 | 12.0 |
+| novato-atento | 2 | 2000 | 16.4% | 48.6% | 59.5% (±2.2) | 99.2% | 10 / 18 | 12.6 |
+| novato-atento | 3 | 2000 | 19.3% | 56.3% | 66.0% (±2.1) | 99.6% | 10 / 18 | 13.3 |
+| novato-atento | **passou do 1º chefe em alguma das 3 partidas** | 2000 | | | **96.5%** (±0.8) | | | |
+
+REMATCH — derrotas (que não acabam a partida) em que alguma troca de 2 terrenos vencia a mesma horda: aleatorio 20.9% (trocas feitas 0) · ganancioso-puro 28.5% (trocas feitas 0) · novato-atento 37.2% (trocas feitas 9649)
+
+## D — cartas, planos e ouro (planejador, álbum completo)
+
+Planejador, álbum completo, 2000 partidas: rodada final mediana 16 (p10 11, p90 22), média 16.62.
+
+| carta | tipo | raridade | oferecida (mãos) | escolhida quando oferecida | vitória das lutas com ela no reino | rodada final média com ela no fim (vs todas) | nos 10% melhores reinos |
+|---|---|---|---|---|---|---|---|
+| Pikeman | tropa | C | 20009 | 36.9% | 70.5% | 15.8 (-0.8) | 33.5% |
+| Fuse Runner | tropa | U | 8963 | 34.8% | 61.3% | 17.2 (+0.5) | 43.5% |
+| Sir Dent | tropa | R | 8257 | 33.7% | 69.0% | 17.6 (+1.0) | 40.0% |
+| Frypan Cook | tropa | C | 16462 | 30.4% | 67.3% | 16.4 (-0.2) | 34.0% |
+| Granny Bolt | tropa | R | 8203 | 26.3% | 64.4% | 16.5 (-0.2) | 27.0% |
+| Hedge Archer | tropa | C | 15116 | 23.8% | 66.6% | 16.5 (-0.1) | 27.5% |
+| Angry Bees | magia | U | 6146 | 22.9% | 64.2% | 16.3 (-0.3) | 17.0% |
+| Pie Thrower | tropa | R | 7698 | 22.7% | 65.3% | 15.2 (-1.4) | 9.5% |
+| Boom Barrel | magia | C | 11862 | 21.6% | 61.5% | 17.4 (+0.8) | 37.5% |
+| Falconer | tropa | U | 6904 | 20.8% | 67.1% | 16.5 (-0.2) | 17.0% |
+| Bunkhouse | construcao | C | 13184 | 20.5% | 60.2% | 16.8 (+0.1) | 39.0% |
+| Seconds! | magia | E | 3853 | 20.3% | 63.5% | 19.5 (+2.8) | 20.5% |
+| Stone Wall | construcao | U | 5755 | 19.4% | 63.9% | 18.5 (+1.9) | 20.5% |
+| Doorman | tropa | U | 5847 | 17.1% | 69.6% | 17.1 (+0.4) | 15.0% |
+| Rally Horn | magia | U | 5318 | 15.6% | 56.5% | 17.0 (+0.4) | 9.5% |
+| Clockwork Geese | tropa | U | 5497 | 13.8% | 72.3% | 16.7 (+0.1) | 9.0% |
+| Soup Carrier | tropa | U | 4953 | 13.1% | 68.6% | 16.2 (-0.5) | 2.5% |
+| Fletcher's Hut | construcao | U | 4938 | 12.8% | 56.6% | 18.0 (+1.4) | 13.0% |
+| Fuse Depot | construcao | E | 2978 | 12.7% | 55.9% | 16.5 (-0.1) | 5.5% |
+| Grand Finale | magia | L | 1875 | 12.5% | 52.6% | 18.1 (+1.4) | 4.5% |
+| Second Helping | magia | U | 4714 | 11.8% | 52.2% | 17.1 (+0.5) | 6.5% |
+| Sparkwright | tropa | E | 3352 | 9.4% | 67.5% | 15.1 (-1.6) | 3.0% |
+| Feast Hall | construcao | R | 5110 | 9.2% | 64.2% | 17.1 (+0.5) | 5.0% |
+| Tar Puddle | magia | U | 4354 | 8.5% | 59.1% | 20.8 (+4.1) | 13.0% |
+| Bramble Snare | magia | C | 9876 | 7.5% | 62.7% | 17.6 (+1.0) | 11.0% |
+| Watchtower | construcao | C | 9446 | 6.7% | 56.6% | 16.9 (+0.3) | 8.0% |
+| Smithy | construcao | C | 9665 | 6.7% | 61.7% | 16.9 (+0.3) | 4.0% |
+| Cookhouse | construcao | C | 9578 | 6.3% | 74.9% | 16.2 (-0.4) | 3.0% |
+| Tinker's Shed | construcao | R | 4723 | 5.0% **morta** | 52.3% | 21.8 (+5.1) | 12.5% |
+| Market Stall | construcao | U | 3928 | 0.7% **morta** | 56.0% | 16.5 (-0.1) | 0.0% |
+
+Mortas (escolhidas < 5% das vezes em que aparecem): Tinker's Shed, Market Stall · dominantes (> 45% dos 10% melhores reinos): nenhuma.
+
+Ouro por partida (planejador): ganho 192.1 = inicio 3.0 + vitoria 62.5 + limpos 39.7 + mercado 0.1 + chefe 27.0 + ledger 13.1 + derrota 13.6 + bolsa 33.2 + guardar 0.0 · gasto 154.5 = sortear 26.2 + consertar 128.3 · conserto = 83.0% do gasto · sobra no fim 37.6.
+REMATCH (planejador): derrotas em que alguma troca vencia a mesma horda 12.5% · trocas feitas por partida 4.90.
+Luta de agora pela 1ª mão da rodada: ganha com QUALQUER carta/terreno (só olhando) 11.1% · perde com qualquer uma 35.7% · a escolha decide 53.2%.
+
+## F — tempo de tela
+
+| robô | partidas | lutas por partida | só luta no 1× (min, mediana / p90) | só luta no 2× | partida inteira no 1× com 20 s de escolha por rodada (mediana / p90) | idem no 2× |
+|---|---|---|---|---|---|---|
+| aleatorio (álbum inicial, 1ª partida) | 2000 | 6.4 | 1.5 / 2.2 | 0.8 / 1.2 | 3.8 / 4.5 | 3.1 / 3.5 |
+| ganancioso-puro (álbum inicial, 1ª partida) | 2000 | 11.5 | 3.2 / 4.2 | 1.7 / 2.3 | 7.2 / 9.1 | 5.7 / 7.2 |
+| novato-atento (álbum inicial, 1ª partida) | 2000 | 13.9 | 2.9 / 6.2 | 1.6 / 3.4 | 7.3 / 13.4 | 6.0 / 10.6 |
+| planejador (álbum completo) | 2000 | 22.4 | 6.8 / 9.3 | 3.8 / 5.1 | 14.3 / 18.7 | 11.3 / 14.6 |
+
+"Só olhando" (planejador): 11.1% das lutas já estavam ganhas com qualquer escolha; 35.7% perdidas com qualquer escolha; a escolha decidiu 53.2%.
+
+tempo total: 1724.5 s

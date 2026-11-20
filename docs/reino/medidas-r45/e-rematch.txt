@@ -1,0 +1,113 @@
+Keepmile — medidas R36 (semente "keepmile36", variante rematch) — números PROVISÓRIOS; nada no config muda
+
+## E — longo prazo: as 30 conquistas e a vitória em 60 partidas por conta
+
+| robô | jogadores | partidas com VITÓRIA (rodada 15): todas / 1–5 / 6–20 / 21–60 | 1ª vitória: partida mediana / p90 (% que vence alguma) | conquistas em 60 partidas: mediana / p10 | sem alcançar: mediana / p90 | maior vazio sem conquista nova: mediana / p90 (começa na partida, mediana) |
+|---|---|---|---|---|---|---|
+| novato-atento | 200 | 21.0% / 23.4% / 22.6% / 20.1% | 3 / 9 (100.0%) | 28 / 27 de 30 | 2 / 3 | 16 / 21 (42) |
+| planejador | 40 | 60.6% / 53.0% / 62.3% / 60.9% | 2 / 4 (100.0%) | 30 / 29 de 30 | 0 / 1 | 13 / 33 (27) |
+| aleatorio | 200 | 0.0% / 0.0% / 0.0% / 0.0% | > 60 / > 60 (0.0%) | 15 / 15 de 30 | 15 / 15 | 25 / 28 (29) |
+
+| conquista | novato-atento: partida mediana / p90 · % alcança · % na 1ª | planejador: partida mediana / p90 · % alcança · % na 1ª | aleatorio: partida mediana / p90 · % alcança · % na 1ª |
+|---|---|---|---|
+| road | 1 / 3 · 100.0% · 65.0% | 1 / 1 · 100.0% · 95.0% | 8 / 18 · 100.0% · 3.0% |
+| double | 2 / 4 · 100.0% · 32.5% | 1 / 2 · 100.0% · 85.0% | > 60 / > 60 · 0.5% · 0.0% |
+| mole | 3 / 9 · 100.0% · 11.5% | 2 / 4 · 100.0% · 37.5% | > 60 / > 60 · 0.0% · 0.0% |
+| pudding | > 60 / > 60 · 43.5% · 0.0% | 7 / 24 · 100.0% · 5.0% | > 60 / > 60 · 0.0% · 0.0% |
+| nopatch | 21 / > 60 · 87.5% · 0.5% | 2 / 7 · 100.0% · 15.0% | > 60 / > 60 · 0.5% · 0.0% |
+| scratch | 5 / 20 · 100.0% · 6.5% | 2 / 7 · 100.0% · 20.0% | > 60 / > 60 · 0.0% · 0.0% |
+| supper | 1 / 1 · 100.0% · 100.0% | 1 / 1 · 100.0% · 100.0% | 1 / 1 · 100.0% · 100.0% |
+| plate | 1 / 2 · 100.0% · 78.0% | 1 / 1 · 100.0% · 100.0% | 1 / 2 · 100.0% · 77.5% |
+| last | 2 / 4 · 100.0% · 36.5% | 2 / 7 · 100.0% · 22.5% | 3 / 6 · 100.0% · 29.0% |
+| penny | 2 / 4 · 100.0% · 32.5% | 3 / 10 · 100.0% · 12.5% | > 60 / > 60 · 0.5% · 0.0% |
+| thread | 3 / 7 · 100.0% · 26.0% | 2 / 8 · 100.0% · 30.0% | 5 / 16 · 100.0% · 15.0% |
+| seconds | 1 / 2 · 100.0% · 63.0% | 1 / 1 · 100.0% · 95.0% | 2 / 6 · 100.0% · 30.5% |
+| encore | 6 / 21 · 99.0% · 5.5% | 2 / 5 · 100.0% · 20.0% | > 60 / > 60 · 0.0% · 0.0% |
+| house | 2 / 5 · 100.0% · 23.5% | 1 / 1 · 100.0% · 100.0% | 4 / 11 · 100.0% · 17.5% |
+| family | > 60 / > 60 · 11.5% · 0.0% | 12 / 45 · 95.0% · 0.0% | > 60 / > 60 · 26.5% · 0.5% |
+| brass | 1 / 1 · 100.0% · 100.0% | 1 / 1 · 100.0% · 92.5% | > 60 / > 60 · 20.0% · 0.0% |
+| shields | 2 / 5 · 100.0% · 47.5% | 1 / 1 · 100.0% · 95.0% | 1 / 3 · 100.0% · 59.0% |
+| bows | 4 / 10 · 100.0% · 7.5% | 2 / 6 · 100.0% · 15.0% | 4 / 8 · 100.0% · 11.0% |
+| dish | 7 / 22 · 100.0% · 5.0% | 3 / 6 · 100.0% · 22.5% | 9 / 22 · 100.0% · 4.0% |
+| sparks | 5 / 29 · 99.5% · 12.0% | 1 / 4 · 100.0% · 62.5% | 5 / 16 · 100.0% · 15.0% |
+| mason | 1 / 4 · 100.0% · 54.0% | 6 / 21 · 100.0% · 7.5% | > 60 / > 60 · 1.0% · 0.0% |
+| spicy | 1 / 3 · 100.0% · 59.0% | 7 / 14 · 100.0% · 2.5% | > 60 / > 60 · 0.5% · 0.0% |
+| pockets | 3 / 8 · 100.0% · 11.5% | 1 / 3 · 100.0% · 62.5% | > 60 / > 60 · 2.0% · 0.0% |
+| grand | > 60 / > 60 · 47.0% · 0.0% | 37 / > 60 · 87.5% · 0.0% | > 60 / > 60 · 0.0% · 0.0% |
+| tally25 | 3 / 4 · 100.0% · 0.0% | 2 / 3 · 100.0% · 0.0% | 7 / 8 · 100.0% · 0.0% |
+| tally50 | 6 / 7 · 100.0% · 0.0% | 4 / 4 · 100.0% · 0.0% | 14 / 16 · 100.0% · 0.0% |
+| tally100 | 11 / 13 · 100.0% · 0.0% | 7 / 8 · 100.0% · 0.0% | 28 / 31 · 100.0% · 0.0% |
+| tally200 | 21 / 24 · 100.0% · 0.0% | 13 / 14 · 100.0% · 0.0% | 55 / 59 · 98.0% · 0.0% |
+| tally400 | 31 / 35 · 100.0% · 0.0% | 20 / 21 · 100.0% · 0.0% | > 60 / > 60 · 0.0% · 0.0% |
+| librarian | 42 / 46 · 100.0% · 0.0% | 26 / 27 · 100.0% · 0.0% | > 60 / > 60 · 0.0% · 0.0% |
+
+Avisos: 
+- novato-atento: pudding passa da partida 56 (mediana > 60, p90 > 60, alcança 43.5%)
+- novato-atento: nopatch passa da partida 56 (mediana 21, p90 > 60, alcança 87.5%)
+- novato-atento: supper automática na 1ª partida (100.0%)
+- novato-atento: family passa da partida 56 (mediana > 60, p90 > 60, alcança 11.5%)
+- novato-atento: brass automática na 1ª partida (100.0%)
+- novato-atento: grand passa da partida 56 (mediana > 60, p90 > 60, alcança 47.0%)
+- novato-atento: caem na mesma partida depois da 1ª (≥ 90% das contas que alcançam alguma das duas): double+penny 100.0% (135 contas), mole+pockets 98.9% (177 contas)
+- planejador: road automática na 1ª partida (95.0%)
+- planejador: supper automática na 1ª partida (100.0%)
+- planejador: plate automática na 1ª partida (100.0%)
+- planejador: seconds automática na 1ª partida (95.0%)
+- planejador: house automática na 1ª partida (100.0%)
+- planejador: shields automática na 1ª partida (95.0%)
+- aleatorio: double praticamente impossível (0.5% em 60 partidas)
+- aleatorio: mole praticamente impossível (0.0% em 60 partidas)
+- aleatorio: pudding praticamente impossível (0.0% em 60 partidas)
+- aleatorio: nopatch praticamente impossível (0.5% em 60 partidas)
+- aleatorio: scratch praticamente impossível (0.0% em 60 partidas)
+- aleatorio: supper automática na 1ª partida (100.0%)
+- aleatorio: penny praticamente impossível (0.5% em 60 partidas)
+- aleatorio: encore praticamente impossível (0.0% em 60 partidas)
+- aleatorio: mason praticamente impossível (1.0% em 60 partidas)
+- aleatorio: spicy praticamente impossível (0.5% em 60 partidas)
+- aleatorio: grand praticamente impossível (0.0% em 60 partidas)
+- aleatorio: tally400 praticamente impossível (0.0% em 60 partidas)
+- aleatorio: librarian praticamente impossível (0.0% em 60 partidas)
+
+### V — vencidas por partida (o álbum cresce; mediana / p75 / p90 / máximo)
+
+| robô | partidas 1–5 | partidas 6–15 | partidas 16–30 | partidas 31–60 |
+|---|---|---|---|---|
+| novato-atento | 9 / 14 / 17 / 23 | 9 / 14 / 16 / 23 | 10 / 15 / 17 / 25 | 9 / 13 / 16 / 25 |
+| planejador | 15 / 18 / 20 / 27 | 16 / 19 / 21 / 33 | 15 / 18 / 21 / 34 | 15 / 18 / 20 / 36 |
+| aleatorio | 4 / 4 / 4 / 9 | 4 / 4 / 5 / 12 | 4 / 4 / 4 / 8 | 4 / 4 / 6 / 9 |
+
+### V — vitória na rodada R (luta de chefe nas rodadas 5, 10, 15, 20)
+
+| R | chefe? | robô | partidas com vitória | 1ª vitória: partida mediana / p90 | contas que já venceram em 10 / 20 / 30 / 60 partidas |
+|---|---|---|---|---|---|
+| 12 | não | novato-atento | 35.3% | 2 / 5 | 99.5% / 100.0% / 100.0% / 100.0% |
+| 12 | não | planejador | 83.4% | 1 / 2 | 100.0% / 100.0% / 100.0% / 100.0% |
+| 12 | não | aleatorio | 0.0% | > 60 / > 60 | 0.5% / 0.5% / 0.5% / 0.5% |
+| 15 | sim | novato-atento | 21.0% | 3 / 9 | 96.0% / 99.5% / 100.0% / 100.0% |
+| 15 | sim | planejador | 60.6% | 2 / 4 | 100.0% / 100.0% / 100.0% / 100.0% |
+| 15 | sim | aleatorio | 0.0% | > 60 / > 60 | 0.0% / 0.0% / 0.0% / 0.0% |
+| 16 | não | novato-atento | 14.5% | 4 / 15 | 86.0% / 96.0% / 100.0% / 100.0% |
+| 16 | não | planejador | 49.3% | 2 / 4 | 100.0% / 100.0% / 100.0% / 100.0% |
+| 16 | não | aleatorio | 0.0% | > 60 / > 60 | 0.0% / 0.0% / 0.0% / 0.0% |
+| 18 | não | novato-atento | 5.2% | 10 / 45 | 51.0% / 71.0% / 83.0% / 95.5% |
+| 18 | não | planejador | 30.5% | 2 / 7 | 97.5% / 100.0% / 100.0% / 100.0% |
+| 18 | não | aleatorio | 0.0% | > 60 / > 60 | 0.0% / 0.0% / 0.0% / 0.0% |
+| 20 | sim | novato-atento | 1.0% | > 60 / > 60 | 15.0% / 22.0% / 30.5% / 43.5% |
+| 20 | sim | planejador | 12.8% | 7 / 24 | 67.5% / 87.5% / 92.5% / 100.0% |
+| 20 | sim | aleatorio | 0.0% | > 60 / > 60 | 0.0% / 0.0% / 0.0% / 0.0% |
+
+### V — Encore! acompanhando a vitória (vencer a rodada B): % das contas que alcançam em 60 partidas · partida mediana
+
+| B | novato-atento | planejador | aleatorio |
+|---|---|---|---|
+| 14 | 100.0% · 3 | 100.0% · 1 | 0.0% · > 60 |
+| 17 (hoje) | 99.0% · 6 | 100.0% · 2 | 0.0% · > 60 |
+| 18 | 95.5% · 10 | 100.0% · 2 | 0.0% · > 60 |
+| 20 | 43.5% · > 60 | 100.0% · 7 | 0.0% · > 60 |
+| 21 | 21.0% · > 60 | 100.0% · 9 | 0.0% · > 60 |
+| 22 | 9.0% · > 60 | 100.0% · 13 | 0.0% · > 60 |
+| 23 | 5.0% · > 60 | 90.0% · 16 | 0.0% · > 60 |
+| 25 | 1.0% · > 60 | 77.5% · 32 | 0.0% · > 60 |
+
+tempo total: 1230.6 s

@@ -6,9 +6,12 @@
 // Fotos (opcional): PORAO_FOTOS=/pasta  node tools/trava-robos.mjs rodar "node porao/tests/tela.e2e.mjs"
 import { createRequire } from 'node:module'
 import { createServer } from 'node:http'
-import { readFile, mkdir } from 'node:fs/promises'
+import { readFile, mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import zlib from 'node:zlib'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { RARIDADES, IDEIAS_POR_RARIDADE } from '../comum/config.js'
 
 const require = createRequire('/opt/node-tools/node_modules/')
 const { chromium } = require('playwright')
@@ -21,12 +24,15 @@ const falhas = []
 const falha = (m) => { falhas.push(m); console.log('FALHA: ' + m) }
 const confere = (ok, m) => { if (!ok) falha(m); else console.log('  ok: ' + m) }
 
+let arteTemp = null
 const servidor = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://local')
   let p
   try { p = decodeURIComponent(url.pathname) } catch { res.writeHead(400); return res.end() }
-  const arq = path.join(RAIZ, p)
-  if (!arq.startsWith(RAIZ + path.sep)) { res.writeHead(403); return res.end() }
+  // arte.local: só existe quando o teste cria a pasta temporária (nunca a do dono)
+  let arq = path.join(RAIZ, p)
+  if (p.startsWith('/porao/arte.local/')) arq = arteTemp ? path.join(arteTemp, p.slice('/porao/arte.local/'.length)) : '/inexistente/x'
+  if (arq !== '/inexistente/x' && !arq.startsWith(RAIZ + path.sep) && !(arteTemp && arq.startsWith(arteTemp + path.sep))) { res.writeHead(403); return res.end() }
   try {
     const dados = await readFile(arq)
     res.writeHead(200, { 'content-type': TIPOS[path.extname(arq)] || 'application/octet-stream', 'cache-control': 'no-store', 'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'" })
@@ -120,6 +126,17 @@ async function puxarEMedir(page, fotosNome) {
   return max
 }
 
+/** PNG pequeno 16x8 (mais largo que alto, para provar o recorte), gerado aqui mesmo. */
+function pngPequeno(r, g, b) {
+  const W = 16, H = 8, crcT = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0 })
+  const crc = (buf) => { let c = 0xffffffff; for (const x of buf) c = crcT[(c ^ x) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0 }
+  const bloco = (tipo, dados) => { const t = Buffer.concat([Buffer.from(tipo), dados]), l = Buffer.alloc(4), c = Buffer.alloc(4); l.writeUInt32BE(dados.length); c.writeUInt32BE(crc(t)); return Buffer.concat([l, t, c]) }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4); ihdr[8] = 8; ihdr[9] = 2
+  const linhas = Buffer.alloc((W * 3 + 1) * H)
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * (W * 3 + 1) + 1 + x * 3; linhas[i] = r; linhas[i + 1] = g; linhas[i + 2] = x < W / 2 ? b : 255 }
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), bloco('IHDR', ihdr), bloco('IDAT', zlib.deflateSync(linhas)), bloco('IEND', Buffer.alloc(0))])
+}
+
 try {
   // ===================== PC 1280×800: o 1º minuto e as fotos de cada monitor =====================
   console.log('PC 1280x800')
@@ -140,6 +157,7 @@ try {
     await foto(page, 'pc-03-revelacao-raridade')
     await q(page, '[data-pm="folha"][data-etapa="3"]').waitFor({ timeout: 5000 })
     await foto(page, 'pc-04-revelacao-nome')
+    confere(await page.locator('[data-pm="arte-carta"]').count() === 0, 'sem arte.local: a carta continua desenhada por código (nenhuma imagem)')
     await q(page, '[data-pm="lancar-agora"]').click()
     await q(page, '[data-pm="projeto"]').waitFor({ timeout: 8000 })
     await esperarPuxar(page)
@@ -224,6 +242,7 @@ try {
     await aba(page, 'projeto', 'projetos')
     await aba(page, 'grafico', 'grafico')
     await foto(page, 'pc-14-todos-monitores')
+    await page.evaluate(() => window.poraoApp.api.depurar((e) => { e.calor = 99 })) // o Calor cai com o tempo: reforça logo antes de puxar
     await puxarEMedir(page, null)
     await q(page, '[data-pm="tapete-fechar"]').click()
     await q(page, '[data-pm="janela-batida"]').waitFor({ timeout: 5000 })
@@ -306,6 +325,7 @@ try {
     await imprimirELancar(page); await page.waitForTimeout(3300); await imprimirELancar(page)
     await page.locator('.cena__ponto').nth(0).click()
     await esperarPuxar(page)
+    await page.evaluate(() => window.poraoApp.api.depurar((e) => { e.calor = 99 })) // o Calor cai com o tempo: reforça logo antes de puxar
     await puxarEMedir(page, null)
     await q(page, '[data-pm="tapete-fechar"]').click()
     await q(page, '[data-pm="janela-batida"]').waitFor({ timeout: 5000 })
@@ -348,6 +368,69 @@ try {
     confere(trans.every((d) => /^0s(, 0s)*$/.test(d)), 'Menos animação: folha sem transição')
     await ctx.close()
   }
+
+  // ===================== arte própria das cartas (arte.local de teste, criada aqui) =====================
+  console.log('Arte própria das cartas')
+  arteTemp = await mkdtemp(path.join(tmpdir(), 'porao-arte-'))
+  {
+    const nomes = []
+    for (const r of RARIDADES) for (let n = 1; n <= IDEIAS_POR_RARIDADE[r]; n++) {
+      const nome = `carta_${r}_${n}`; nomes.push(nome)
+      await writeFile(path.join(arteTemp, nome + '.png'), pngPequeno(40 + n * 20, 160, 90))
+    }
+    await writeFile(path.join(arteTemp, 'indice.json'), JSON.stringify(nomes))
+    for (const [rotulo, vp, movel] of [['pc', [1280, 800], false], ['cel', [390, 844], true]]) {
+      const { ctx, page } = await nova({ largura: vp[0], altura: vp[1], movel })
+      await page.goto(BASE + PAGINA)
+      await q(page, '.cena__btn--primario').click()
+      await q(page, '.cena__zoom--aberto').waitFor({ timeout: 5000 })
+      await aba(page, 'projeto', 'impressora')
+      await q(page, '[data-pm="imprimir"]').click()
+      await q(page, '[data-pm="folha"][data-etapa="2"]').waitFor({ timeout: 5000 })
+      const op2 = await page.evaluate(() => { const a = document.querySelector('[data-pm="folha"] [data-pm="arte-carta"]'); return a ? getComputedStyle(a).opacity : null })
+      const chip2 = await q(page, '[data-pm="folha"] .pm-folha__rar .pm-chip').isVisible()
+      confere(chip2 && (op2 === null || Number(op2) < 0.5 || !!(await q(page, '[data-pm="folha"][data-etapa="3"]').count())), `${rotulo}: com arte, a raridade aparece antes da imagem e do nome`)
+      await q(page, '[data-pm="folha"][data-etapa="3"]').waitFor({ timeout: 5000 })
+      await page.waitForTimeout(600)
+      await foto(page, `arte-${rotulo}-01-revelacao`)
+      const info = await page.evaluate(() => {
+        const a = document.querySelector('[data-pm="folha"] [data-pm="arte-carta"]')
+        if (!a) return null
+        const f = document.querySelector('[data-pm="folha"]').getBoundingClientRect(), r = a.getBoundingClientRect()
+        return { ok: a.naturalWidth > 0, fit: getComputedStyle(a).objectFit, op: getComputedStyle(a).opacity, cabe: r.width <= f.width + 1 && r.height <= f.height + 1, nome: document.querySelector('.pm-folha__nome').textContent.length > 0 }
+      })
+      confere(!!info && info.ok && info.fit === 'cover' && Number(info.op) === 1 && info.cabe && info.nome, `${rotulo}: revelação mostra a imagem recortada (cover) com o nome por cima`)
+      await q(page, '[data-pm="lancar-agora"]').click()
+      await q(page, '[data-pm="projeto"]').waitFor({ timeout: 8000 })
+      confere(await page.locator('[data-pm="projeto"] [data-pm="arte-carta"]').count() > 0, `${rotulo}: projeto no ar mostra a arte`)
+      await page.evaluate(() => window.poraoApp.api.depurar((e) => { e.caixa = 5000 }))
+      await page.waitForTimeout(3300)
+      await aba(page, 'projeto', 'impressora')
+      await q(page, '[data-pm="imprimir"]:not([disabled])').click({ timeout: 8000 })
+      await q(page, '[data-pm="folha"][data-etapa="3"]').waitFor({ timeout: 8000 })
+      await aba(page, 'projeto', 'ideias')
+      await page.waitForTimeout(300)
+      await foto(page, `arte-${rotulo}-02-ideias-album`)
+      confere(await page.locator('[data-pm="carta"] [data-pm="arte-carta"]').count() > 0, `${rotulo}: gaveta mostra a arte`)
+      confere(await page.locator('[data-pm="album-visto"] [data-pm="arte-carta"]').count() > 0, `${rotulo}: álbum mostra a arte`)
+      const nomeAlbum = await page.evaluate(() => [...document.querySelectorAll('[data-pm="album-visto"]')].every((e) => { const n = e.querySelector('.pm-arte-nome'); return n && n.textContent.trim().length > 0 && n.getBoundingClientRect().right <= e.getBoundingClientRect().right + 1 }))
+      confere(nomeAlbum, `${rotulo}: nome legível sobre a arte no álbum`)
+      confere(await semRolagemLateral(page), `${rotulo}: com arte, sem rolagem lateral`)
+      await ctx.close()
+    }
+    // Menos animação: a imagem aparece sem transição
+    const { ctx, page } = await nova({ largura: 1280, altura: 800, menos: true })
+    await page.goto(BASE + PAGINA)
+    await q(page, '.cena__btn--primario').click()
+    await q(page, '.cena__zoom--aberto').waitFor({ timeout: 5000 })
+    await aba(page, 'projeto', 'impressora')
+    await q(page, '[data-pm="imprimir"]').click()
+    await q(page, '[data-pm="folha"][data-etapa="3"]').waitFor({ timeout: 5000 })
+    const tr = await page.evaluate(() => getComputedStyle(document.querySelector('.pm-folha__arte')).transitionDuration)
+    confere(/^0s(, 0s)*$/.test(tr), 'Menos animação: imagem da carta sem transição')
+    await ctx.close()
+  }
+  await rm(arteTemp, { recursive: true, force: true }); arteTemp = null
 
   confere(erros.length === 0, `sem erro no console nem pedido quebrado${erros.length ? ': ' + erros.slice(0, 5).join(' | ') : ''}`)
 } catch (e) {

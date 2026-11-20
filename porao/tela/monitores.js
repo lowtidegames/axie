@@ -2,6 +2,7 @@
 // A tela NÃO decide nada: cada botão chama a API e mostra o que o servidor devolveu (a "visão").
 //   const m = criarMonitores({ cena, api, raiz, aoAtualizar });   (aoAtualizar(visao): a cada visão nova, inclusive depois de ações)   m.atualizar(visao);  m.abrirCelular();  m.aoMudarVista(v)
 import { TEXTOS, citar } from '../comum/nomes.js';
+import { arteCarta } from './sprites.js';
 import { RARIDADES, IDEIAS_POR_RARIDADE, TROUXAS, GAVETA, CALOR } from '../comum/config.js';
 
 // ---------------------------------------------------------------------------------------------
@@ -149,6 +150,20 @@ const CSS = `
 .pm-folha__nome { font-size: 1.05rem; }
 .pm-folha[data-etapa="2"] .pm-folha__rar, .pm-folha[data-etapa="3"] .pm-folha__rar, .pm-folha[data-etapa="3"] .pm-folha__nome { opacity: 1; transition: opacity 0.4s ease; }
 .pm-folha__rar .pm-chip { background: var(--acao-texto); }
+/* arte própria da carta: recorte cover dentro da moldura da raridade */
+.pm-arte { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pm-arte-caixa { position: relative; overflow: hidden; border-radius: 6px; border: 2px solid var(--rc, var(--borda)); background: var(--noite-funda); box-shadow: 0 0 8px var(--rc, transparent); }
+.pm-arte-caixa--faixa { height: 84px; margin-bottom: 6px; }
+.pm-arte-caixa--mini { height: 52px; margin-bottom: 4px; }
+.pm-arte-caixa--cheia { height: 100%; min-height: 96px; }
+.pm-arte-nome { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 6px 4px; font-weight: 800; font-size: 13px; line-height: 1.15; color: var(--linho); text-align: center; background: linear-gradient(transparent, var(--noite-funda) 85%); overflow-wrap: anywhere; }
+.pm-ideia--arte { padding: 0; min-height: 96px; overflow: hidden; position: relative; }
+.pm-folha--arte { padding: 0; }
+.pm-folha--arte .pm-folha__rar { position: absolute; top: 4px; left: 0; right: 0; z-index: 2; }
+.pm-folha--arte .pm-folha__nome { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 16px 6px 4px; color: var(--linho); background: linear-gradient(transparent, var(--noite-funda) 85%); font-size: 14px; }
+.pm-folha__arte { position: absolute; inset: 0; opacity: 0; }
+.pm-folha[data-etapa="3"] .pm-folha__arte { opacity: 1; transition: opacity 0.4s ease; }
+.pm-folha--arte .pm-folha__rar .pm-chip { background: var(--noite-funda); color: var(--linho); }
 
 .pm-tapete { position: absolute; inset: 0; z-index: 5; background: var(--pix-tela-f); display: flex; flex-direction: column; padding: 8px; gap: 8px; }
 .pm-tapete__palco { flex: 1; min-height: 0; border: 2px solid var(--borda); border-radius: 8px; background: var(--noite-funda); overflow: hidden; position: relative; }
@@ -175,8 +190,8 @@ const CSS = `
 .pm-batida-frase { margin: 0; font-family: var(--fonte-gorda); font-weight: 900; font-size: 1.05rem; color: var(--calor-fervendo); }
 .pm-btn__sub { display: block; font-size: 13px; font-weight: 800; opacity: 0.85; overflow-wrap: anywhere; }
 
-.cena--menos .pm-folha, .cena--menos .pm-folha__rar, .cena--menos .pm-folha__nome { transition: none !important; }
-@media (prefers-reduced-motion: reduce) { .pm-folha, .pm-folha__rar, .pm-folha__nome { transition: none !important; } }
+.cena--menos .pm-folha__arte, .cena--menos .pm-folha, .cena--menos .pm-folha__rar, .cena--menos .pm-folha__nome { transition: none !important; }
+@media (prefers-reduced-motion: reduce) { .pm-folha, .pm-folha__arte, .pm-folha__rar, .pm-folha__nome { transition: none !important; } }
 `;
 
 function h(tag, props = {}, ...filhos) {
@@ -249,6 +264,15 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
 
   // ----- textos (o servidor pode trocar por chave em visao.nomes) -----
   const T = (k, f = '') => visao?.nomes?.[k] ?? TEXTOS[k] ?? f;
+  // Arte própria da carta (se o dono pôs a imagem). Sem imagem: null e a tela fica como era.
+  const imgCarta = (ideia, classe = 'pm-arte') => {
+    const a = arteCarta(ideia);
+    return a ? h('img', { class: classe, src: a.src, alt: '', 'data-pm': 'arte-carta', 'data-ideia': ideia, draggable: 'false' }) : null;
+  };
+  const caixaArte = (ideia, raridade, tam, comNome) => {
+    const im = imgCarta(ideia);
+    return im ? h('div', { class: `pm-arte-caixa pm-arte-caixa--${tam} pm-rar--${raridade}` }, im, comNome ? h('div', { class: 'pm-arte-nome' }, nomeIdeia(ideia)) : null) : null;
+  };
   const nomeIdeia = (ideia) => { const [r, n] = String(ideia).split('_'); return T(`ideia.${r}.${n}.nome`, ideia); };
   const chaveInflu = (id) => {
     const inf = visao.influenciadores.find((i) => i.id === id);
@@ -677,6 +701,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     lista.forEach((p) => {
       const previa = visao.previas.tapete[p.id];
       t.corpo.append(h('div', { class: 'pm-card', 'data-pm': 'projeto', 'data-projeto': String(p.id) },
+        caixaArte(p.ideia, p.raridade, 'mini', false),
         h('div', { class: 'pm-linha' }, h('strong', {}, nomeIdeia(p.ideia)), chipRar(p.raridade)),
         h('p', { class: 'pm-pequeno' }, `${ROTULO_FASE[p.fase]} · ${fmt(p.trouxas)} trouxas · rende ${din(visao.rendimentos[p.id] || 0)}/h`),
         medidorConfianca(p),
@@ -717,6 +742,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     g.forEach((x) => {
       const maior = x.raridade === RARIDADES[RARIDADES.length - 1];
       t.corpo.append(h('div', { class: `pm-card pm-rar--${x.raridade}`, style: 'border-color: var(--rc)', 'data-pm': 'carta' },
+        caixaArte(x.ideia, x.raridade, 'faixa', false),
         h('div', { class: 'pm-linha' }, h('strong', {}, `${x.ids.length}× ${nomeIdeia(x.ideia)}`), chipRar(x.raridade)),
         h('div', { class: 'pm-botoes' },
           h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-k': `lancar-${x.ids[0]}`, 'data-pm': 'lancar', onclick: () => lancar(x.ids[0]) }, 'Lançar'),
@@ -730,8 +756,10 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
         h('div', { class: 'pm-linha' }, chipRar(raridade), h('span', { class: 'pm-pequeno' }, `${fmt(chance, 1)}% por impressão`)),
         h('div', { class: 'pm-grade', style: 'margin-top:4px' }, Array.from({ length: n }, (_, i) => {
           const id = `${raridade}_${i + 1}`;
+          const arte = visao.estado.album[id] ? caixaArte(id, raridade, 'cheia', true) : null;
           return visao.estado.album[id]
-            ? h('div', { class: `pm-ideia pm-rar--${raridade}`, 'data-pm': 'album-visto' }, nomeIdeia(id))
+            ? (arte ? h('div', { class: `pm-ideia pm-ideia--arte pm-rar--${raridade}`, 'data-pm': 'album-visto' }, arte)
+              : h('div', { class: `pm-ideia pm-rar--${raridade}`, 'data-pm': 'album-visto' }, nomeIdeia(id)))
             : h('div', { class: 'pm-ideia pm-ideia--oculta', 'aria-label': 'Ideia ainda não vista', 'data-pm': 'album-oculto' }, '?');
         }))));
     });
@@ -758,6 +786,8 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
       const c = revelada.carta;
       folha.className = `pm-folha pm-rar--${c.raridade}`; folha.dataset.etapa = cenaAtiva.revelacao ? '0' : '3';
       rar.append(chipRar(c.raridade)); nome.textContent = nomeIdeia(c.ideia);
+      const arte = imgCarta(c.ideia, 'pm-arte pm-folha__arte');
+      if (arte) { folha.classList.add('pm-folha--arte'); folha.prepend(arte); }
       if (cenaAtiva.revelacao) iniciarRevelacao(folha);
     }
     t.corpo.append(h('div', { class: 'pm-slot', 'data-pm': 'slot' }, folha));

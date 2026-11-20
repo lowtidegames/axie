@@ -481,7 +481,7 @@ function festejarReino(R) {
   const onda = (ms, nome, xs, y) => depois(ms, () => { if (R.fim || M.vitoria?.reino !== R) return; for (const dx of xs) C.efeito(nome, C.VW * (0.5 + dx) + C.cam.x, C.VH * y) })
   for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.3)
   for (const dx of [-0.24, 0.24]) C.efeito('fireworks', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.2)
-  onda(380, 'fireworks', [0], 0.14); onda(700, 'confetti', [-0.18, 0.18], 0.34); onda(950, 'fireworks', [-0.32, 0.3], 0.24)
+  onda(380, 'fireworks', [-0.2, 0.22], 0.62); onda(700, 'confetti', [-0.18, 0.18], 0.34); onda(950, 'fireworks', [-0.32, 0.3], 0.24)
   onda(1300, 'fireworks', [0.1], 0.16); onda(1500, 'confetti', [-0.3, 0, 0.3], 0.3); onda(1750, 'fireworks', [-0.14, 0.26], 0.2)
 }
 function seguir() {

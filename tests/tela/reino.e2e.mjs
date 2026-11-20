@@ -1330,9 +1330,11 @@ async function r39(fmt) {
     await K(page, (k, r) => k.roboAteLutar(r), ROBO39); await page.waitForTimeout(200)
     const antes = await V(page), v = await K(page, (k) => k.visao())
     await apertarLutar(page)
+    // rodada 20 = luta de chefe: a barra de vida dele (R38) aparece com a horda — guarda onde ela fica
+    const barra = await page.waitForFunction(() => window.__keepmile.med().chefeBarraRet || null, null, { timeout: 8000 }).then((h) => h.jsonValue(), () => null)
     await K(page, (k) => k.zerarMedidas()); await espiar(page)
-    await K(page, (k) => k.avancarBatalha()); await fase(page, 'vitoria', 10000)
-    return { antes, rodada: v.rodada, venceuAntes: v.venceu }
+    await K(page, (k) => k.avancarBatalha()); await fase(page, 'vitoria', 10000); await viuJa(page, 'festaReino')
+    return { antes, rodada: v.rodada, venceuAntes: v.venceu, barra }
   }
 
   // ---- a semente: o motor diz que este robô chega à rodada 20 e vence (se o balanceamento mudar, procurar outra semente)
@@ -1354,6 +1356,8 @@ async function r39(fmt) {
   { const r = m.reino?.ret
     confere(!!r && r.linhas.join(' ') === `ROUND ${META} HELD!` && r.sub === 'KEEP GOING FOR SCORE' && r.linhas.join(' ') === T.festaReino(META), `R39 festa: a faixa diz "${r?.linhas.join(' ')}" e embaixo "${r?.sub}"`)
     confere(!!r && r.maior <= r.VW - 4 && r.y >= 0 && r.y + r.h <= r.VH && r.linhas.length <= 2, `R39 festa: a faixa cabe na tela (título ×${r?.k}, ${r?.maior} de ${r?.VW} px de arte, ${r?.linhas.length} linha(s))`) }
+  { const br = L1.barra, r = m.reino?.ret // rodada 20 = luta de chefe (R38: barra de vida própria)
+    confere(!!br && !!r && (r.y + r.h <= br.y || r.y >= br.y + br.h), `R39 festa: a faixa (y ${r?.y}–${r ? r.y + r.h : '?'}) não tapa a barra do chefe ${br?.nome} (y ${br?.y}–${br ? br.y + br.h : '?'})`) }
   { const b = await page.evaluate(() => [...document.querySelectorAll('#toques button')].map((x) => x.id))
     confere(b.length === 1 && b[0] === 'bt-seguir', `R39 festa: durante a festa o único toque é o de pular (${b.join(', ')})`) }
   await page.waitForTimeout(650)

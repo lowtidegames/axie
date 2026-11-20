@@ -44,3 +44,6 @@ Quem perde uma rodada e continua na partida enfrenta a MESMA horda. Antes de lut
 "Só a mesma horda" · mais de uma troca ou troca paga · rota de dica para arranjo qualquer · dica feita pela tela · subir `VERSAO` · mudar fotos e testes antigos.
 
 Lição: partida terminada guarda só semente e comandos; regra nova de partida precisa de versão gravada fora do estado (coluna com DEFAULT = regra antiga) e o motor com a regra antiga como padrão.
+
+## Emenda (20/11 17:30, decisão do diretor)
+A dica é recalculada quando o reino muda (pôr carta); a troca continua valendo depois de pôr carta (só `batalhar` e a própria troca gastam). A tela mostra o par só no "SHOW ME". Texto: "SWAP TWO PLOTS ONCE". Festa "REVENGE!" ao vencer a revanche.

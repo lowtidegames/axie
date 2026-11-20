@@ -5,7 +5,7 @@
 
 | Nº | Gravidade | Estado |
 |---|---|---|
-| K1 seq antigo e replay refazem a partida | média | FECHADO (R16, rechecado com GO): repetir 1,9 ms sem motor; seq antigo 409; replay 120/min por IP. Fica: cache de replay ocupa ~6,7× o contado na memória (médio novo, conserto na R19) |
+| K1 seq antigo e replay refazem a partida | média | FECHADO (R16, rechecado com GO): repetir 1,9 ms sem motor; seq antigo 409; replay 120/min por IP. Fica: cache de replay ocupa ~6,7× o contado na memória (médio novo, FECHADO na R19: 1,11×) |
 | K2 estrada do dia com conta descartável | média | FECHADO (R16): replay da própria estrada de hoje 409; placar com `foraDoPlacar`. Fica: conta das 23:59 com 1 ranking desistido entra no placar (baixo, risco aceito; placar é só enfeite). A estrada do dia serve para título, NUNCA para prêmio |
 | K3 fecho da temporada num pedido só | baixa | FECHADO (R16): lotes de 20; corrida sem título repetido |
 | K4 modo.json com %xx diz "local" | baixa | FECHADO (R16): 8 variações dão "servidor" |

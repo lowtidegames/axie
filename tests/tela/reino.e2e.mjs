@@ -1063,7 +1063,7 @@ async function r17(fmt) {
       confere(!!m.fim.faixaRet && m.fim.faixaRet.x === m.fim.faixaAlvo.x && m.fim.faixaRet.y === m.fim.faixaAlvo.y && m.fim.faixaRet.y >= lay.fimPainel.y && m.fim.faixaRet.y <= lay.fimPainel.y + 12, '"NEW RECORD" pousa junto do número que é o recorde: na linha do SCORE, dentro da placa')
       confere(/ \d+ DMG IN ROUND \d+$/.test(m.fim.melhor || ''), `D8: o melhor momento da partida, tirado do resumo das lutas: "BEST MOMENT: ${m.fim.melhor}"`)
       let maxFl = 0; for (const t of cn.flashes) maxFl = Math.max(maxFl, cn.flashes.filter((x) => x >= t && x < t + 1000).length)
-      confere(s.filter((x) => x === 'rankingSobe').length >= 2 && s.includes('recorde') && cn.tremidaMax <= 6 && maxFl <= 3 && cn.picoParticulas <= cn.limite, `D8: a contagem tem som e a festa fica nos limites (${maxFl} clarões/s, tremida ${cn.tremidaMax}, partículas ${cn.picoParticulas} de ${cn.limite})`) }
+      confere(s.filter((x) => x === 'rankingSobe').length >= 2 && s.includes('recorde') && cn.tremidaMax <= 6 && maxFl <= 3 && cn.picoParticulas <= cn.limite, `D8: a contagem tem som e a festa fica nos limites (${s.filter((x) => x === "rankingSobe").length} tiques, fanfarra ${s.includes("recorde")}, ${s.length} sons no registro; ${maxFl} clarões/s, tremida ${cn.tremidaMax}, partículas ${cn.picoParticulas} de ${cn.limite})`) }
     // R27, itens 1 e 3: no celular uma placa escura atrás do bloco do número; a silhueta da próxima carta com "N ROUNDS TO UNLOCK"
     { const f = (await modelo(p)).fim, d = await viu(p), lay = await K(p, (k) => k.layout()), nr = f.numeroRet, v = f.veuRet
       if (fmt.toque) confere(d.includes('fimVeu') && !!v && v.x <= nr.x && v.x + v.w >= nr.x + nr.w && v.y <= nr.y && v.y + v.h >= nr.y + nr.h && v.x >= 0 && v.x + v.w <= lay.VW && v.y + v.h <= lay.fimPainel.y, `R27: fim no celular: placa escura atrás de "RUN OVER", do número e de "${T.aguentou(f.vencidas)}" (${v?.w}×${v?.h} px de arte), acima da placa de pontos`)
@@ -1408,7 +1408,7 @@ async function r39(fmt) {
   await page.keyboard.press('Escape')
   // ---- fim SEM vitória (mesmo aparelho): "RUN OVER", sem fita, sem faixa no cartão, sem selo na lista
   await abrir(page, `?teste=1&nova=1&semente=${SEM}`)
-  await K(page, (k) => k.jogarSozinho({})); await fase(page, 'fim'); await page.waitForFunction(() => window.__keepmile.fimInfo()?.contou, null, { timeout: 12000 }); await page.waitForTimeout(400)
+  await K(page, (k) => k.jogarSozinho({ robo: 'aleatorio' })) /* R42 (a regra mudou: vitória 20 → 15): o robô ganancioso desta semente passava da 15; para o fim SEM vitória joga o robô aleatório */; await fase(page, 'fim'); await page.waitForFunction(() => window.__keepmile.fimInfo()?.contou, null, { timeout: 12000 }); await page.waitForTimeout(400)
   { const f = await K(page, (k) => k.fimInfo()), dd = await viu(page), ci = await K(page, (k) => k.cartaoInfo()), v = await V(page)
     confere(!f.venceu && f.vencidas < META && f.titulo === 'RUN OVER' && f.titulo === T.fim && !dd.includes('fimVenceu') && !f.fita && ci.faixa === null && v.festas === 0, `R39 fim: sem vitória (${f.vencidas} rodadas) o título é "${f.titulo}", sem fita e sem faixa no cartão`)
     await fot(page, 'r39-fim-sem-vitoria') }

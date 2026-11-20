@@ -445,13 +445,13 @@ function aoFimDaLuta(res) {
     // R39 — O MOMENTO DO JOGO: esta luta fez o reino resistir (`venceu` passou de false para true). Uma vez só por partida.
     // R42: a rodada da vitória é luta de chefe — PRIMEIRO a queda dele ("... DOWN!" e o selo, `REINO_DEPOIS_DO_CHEFE` ms), DEPOIS a festa do reino
     const espera = bat.horda.chefe ? REINO_DEPOIS_DO_CHEFE : 0
-    const reino = !pre.venceu && venceuDe(J.v) ? { t0: agoraMs() + espera, ms: FESTA_REINO, rodada: CONFIG.PARTIDA.rodadaDaVitoria, fim: false } : null
+    const reino = !pre.venceu && venceuDe(J.v) ? { t0: agoraMs() + espera, ms: FESTA_REINO, rodada: CONFIG.PARTIDA.rodadaDaVitoria, fim: false, bate: C.menos ? 0 : REINO_BATE, sai: REINO_SAI } : null
     if (reino) J.festasDoReino++
     M.fase = 'vitoria'; M.vitoria = { t0: agoraMs(), ouro, ouroMostra: 0, pronto: false, reino, chefe: bat.horda.chefe, chefeNome: chefe ? chefe.nome.split(' the ')[0] : null, selo: limpo ? T.limpo : um ? T.ultimo : null, mvp: nomeMvp ? `${T.resumo.mvp}: ${nomeMvp} ${R.dano[R.mvp]}` : null }
     preencher(); M.vidas = J.v.vidas
     Som.tocar('vitoria'); Musica.momento('vitoria'); C.flash(reino ? '#FFD248' : '#FFD9A0', 300)
     if (reino) depois(espera, () => { if (M.vitoria?.reino === reino && !reino.fim) festejarReino(reino) })
-    if (!reino || espera) {
+    if (!reino || (espera && !C.menos)) { // (Reduced motion na festa do reino: só a faixa)
       for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.3)
       if (chefe) for (const dx of [-0.2, 0.2]) C.efeito('fireworks', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.22)
     }
@@ -488,7 +488,6 @@ function aoFimDaLuta(res) {
  *  já recusa), sem fogos, sem confete, sem tremida. Pulada com um toque: as ondas que faltavam não saem. */
 const FESTA_REINO = 2200, REINO_BATE = 560, REINO_SAI = 1500, REINO_DEPOIS_DO_CHEFE = 900 // a contagem pousa no número (batida); depois a faixa encolhe e sai do campo
 function festejarReino(R) {
-  R.bate = C.menos ? 0 : REINO_BATE; R.sai = REINO_SAI
   depois(R.bate || 420, () => { if (R.fim) return; Som.tocar('recorde'); C.tremer(4, 120) }) // a batida: fanfarra + tremida leve (a cena recusa a tremida com Reduced motion)
   if (C.menos) return
   // o número da rodada conta rolando até a rodada da vitória, com um tique por passo (no máximo 8 tiques)

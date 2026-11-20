@@ -159,8 +159,9 @@ export function criarReino(db, {
     melhores: db.prepare(`SELECT id, modo, dia, temporada, pontos, vencidas, rodada, terminada_em FROM reino_partidas
                           WHERE conta_id = ? AND status = 'terminada' AND conferida = 1 ORDER BY pontos DESC, terminada_em ASC LIMIT ?`),
     maisRodadas: db.prepare("SELECT MAX(vencidas) n FROM reino_partidas WHERE conta_id = ? AND status = 'terminada' AND conferida = 1"),
-    // R39: partidas conferidas em que o reino resistiu (venceu a rodada da vitória)
-    vitorias: db.prepare("SELECT COUNT(*) n FROM reino_partidas WHERE conta_id = ? AND status = 'terminada' AND conferida = 1 AND vencidas >= ?"),
+    // R39: partidas conferidas em que o reino resistiu (venceu a rodada da vitória). Treino não entra: treino além do
+    // teto (treinosGuardados) é apagado, e o número desceria (achado da segurança).
+    vitorias: db.prepare("SELECT COUNT(*) n FROM reino_partidas WHERE conta_id = ? AND status = 'terminada' AND conferida = 1 AND modo <> 'treino' AND vencidas >= ?"),
     treinosAlemDoTeto: db.prepare(`SELECT id FROM reino_partidas WHERE conta_id = ? AND modo = 'treino' AND status = 'terminada'
                                    AND id NOT IN (SELECT id FROM reino_partidas WHERE conta_id = ? AND status = 'terminada' ORDER BY pontos DESC, terminada_em ASC LIMIT ?)
                                    ORDER BY terminada_em DESC, rowid DESC LIMIT -1 OFFSET ?`),

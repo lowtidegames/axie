@@ -98,13 +98,20 @@ export function migracaoV7(db) {
  * v8 — tarefa R39: só dados (nenhuma tabela muda). As conquistas novas que o banco já prova ficam feitas, SEM data
  * (quando: null na tela): os degraus de rodadas vencidas somadas (tally*, por reino_contas.rodadas_vencidas) e Encore!
  * (pela maior quantidade de vencidas numa partida terminada e CONFERIDA). As de luta valem só daqui para frente.
- * Idempotente: só acrescenta id que falta, no fim da lista; nunca tira id nem mexe em conquistas_quando.
+ * Idempotente: só acrescenta id que falta, no fim da lista; nunca tira id nem mexe em conquistas_quando. Conta com a
+ * lista estragada (não é array JSON) é pulada, com AVISO no log.
  */
 export function migracaoV8(db) {
   const melhor = db.prepare("SELECT MAX(vencidas) n FROM reino_partidas WHERE conta_id = ? AND status = 'terminada' AND conferida = 1")
   const gravar = db.prepare('UPDATE reino_contas SET conquistas = ? WHERE conta_id = ?')
   for (const c of db.prepare('SELECT conta_id, rodadas_vencidas, conquistas FROM reino_contas ORDER BY conta_id').all()) {
-    const tem = JSON.parse(c.conquistas)
+    let tem = null
+    try { tem = JSON.parse(c.conquistas) } catch { /* estragado: fica como está */ }
+    if (!Array.isArray(tem)) {
+      // conta com a lista de conquistas estragada não derruba o boot: fica como está (só o número da conta no aviso)
+      console.log(`AVISO migração v8: conquistas ilegíveis na conta ${Number(c.conta_id)}; não mexi nela.`)
+      continue
+    }
     const novas = Object.entries(CONQUISTAS.rodadasSomadas).filter(([, meta]) => c.rodadas_vencidas >= meta).map(([id]) => id)
     if ((melhor.get(c.conta_id)?.n ?? 0) >= CONQUISTAS.rodadaDoBis) novas.push('encore')
     const faltam = novas.filter((id) => !tem.includes(id))

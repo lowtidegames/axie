@@ -144,9 +144,9 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | A5 | Arte da abertura: casa da vó à noite, logo do jogo, logo do estúdio, retrato da vó | artista-pixel | arte/porao/abertura/, porao/tela/arte/ (só nomes novos) | — | PRONTO (ffc8d93; 10 de 15 gerações) |
 | P14 | Contas e migração v2 (T1) | nucleo-do-jogo | porao/servidor/banco.mjs, porao/tests/contas.test.js | P12 | PRONTO (5c967d4; 7 testes; banco usado migra igual byte a byte) |
 | P15 | base58 e conferência da assinatura (T3) | engenheiro-de-carteira (Opus) | porao/comum/base58.js, porao/servidor/assinatura.mjs, porao/tests/assinatura.test.js | P12 | PRONTO (b8d258f; 25 testes; recusa chaves fracas) |
-| P16 | Telas da abertura (T5) | dev-tela (Opus) | porao/tela/abertura.js, index.html, estilo.css, app.js, sprites.js | P12 | RODANDO |
-| P17 | Carteira no navegador e api de sessão (T6) | dev-tela (Opus) | porao/tela/carteira-navegador.js, api.js, porao/tests/carteira-navegador.test.mjs | P12 | RODANDO |
-| P18 | Vó tutora, apelido, história (T7) | dev-tela | porao/tela/vo.js | P16 | FILA |
+| P16 | Telas da abertura (T5) | dev-tela (Opus) | porao/tela/abertura.js, index.html, estilo.css, app.js, sprites.js | P12 | PRONTO (c221e80; ~110 conferências nas fotos; e2e com ?pular=abertura) |
+| P17 | Carteira no navegador e api de sessão (T6) | dev-tela (Opus) | porao/tela/carteira-navegador.js, api.js, porao/tests/carteira-navegador.test.mjs | P12 | PRONTO (dda2cc0; 11 testes, agora no npm test) |
+| P18 | Vó tutora, apelido, história + trocar os stubs da abertura pela api e carteira reais (T7) | dev-tela (Opus) | porao/tela/vo.js, abertura.js, app.js | P16, P17 | RODANDO |
 | P19 | Contas no jogo e apelido (T2) | nucleo-do-jogo | porao/servidor/jogo.mjs, porao/comum/apelido.js, porao/tests/jogo.test.js | P14 | PRONTO (c5717ff; 124 testes; ponte do save antigo sai na P20) |
 | P20 | Sessão e rotas (T4) | engenheiro-de-carteira (Opus) | porao/servidor/sessao.mjs, index.mjs, porao/tests/api.test.js, sessao.test.js | P14, P15, P19 | RODANDO |
 | P21 | e2e da abertura (T8) | dev-tela | porao/tests/tela.e2e.mjs | P16, P17, P18 | FILA |

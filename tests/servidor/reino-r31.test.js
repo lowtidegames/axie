@@ -3,7 +3,7 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { ALBUM, CARTAS, PARTIDA, RARIDADES } from '../../shared/reino/config.js'
-import { chancesReais } from '../../shared/reino/partida.js'
+import { chancesDaMao } from '../../shared/reino/partida.js'
 import { iniciar } from '../../server/index.mjs'
 
 const DIA = 86_400_000
@@ -49,7 +49,8 @@ async function ateRodada2(api, token, r) {
 }
 
 describe('R31 — chances verdadeiras na Partida do servidor', () => {
-  test('ranking, treino e estrada: visao.chances = chancesReais das cartas da mão (álbum inicial: 50/50, o resto 0); chanceReliquia do motor', async () => {
+  // R34 (a regra mudou): a chance é a da MÃO (chancesDaMao, sem repetir carta): rodada 1 do álbum inicial = 54/46, não 50/50
+  test('ranking, treino e estrada: visao.chances = chancesDaMao das cartas da mão (álbum inicial, rodada 1: 54/46, o resto 0); chanceReliquia do motor', async () => {
     const { api, conta, fechar } = await subir()
     try {
       const token = await conta('Chance Um')
@@ -57,8 +58,8 @@ describe('R31 — chances verdadeiras na Partida do servidor', () => {
         const r = await api('POST', '/api/reino/partida', token, { modo })
         assert.equal(r.status, 201, r.texto)
         const v = r.json.visao
-        assert.deepEqual(v.chances, chancesReais(tropas), modo)
-        assert.deepEqual(mapa(v.chances), { C: 50, U: 50, R: 0, E: 0, L: 0 }, modo)
+        assert.deepEqual(v.chances, chancesDaMao({ cartas: tropas }), modo)
+        assert.deepEqual(mapa(v.chances), { C: 54, U: 46, R: 0, E: 0, L: 0 }, modo)
         assert.equal(v.chances.reduce((s, x) => s + x.chance, 0), 100)
         assert.deepEqual(v.chances.map((x) => x.nome), RARIDADES.map((x) => x.nome))
         assert.equal(v.chanceReliquia, PARTIDA.bolsa.chanceReliquia)
@@ -67,7 +68,8 @@ describe('R31 — chances verdadeiras na Partida do servidor', () => {
         if (modo === 'ranking') {
           const r2 = await ateRodada2(api, token, r.json)
           assert.equal(r2.visao.rodada, 2)
-          assert.deepEqual(r2.visao.chances, chancesReais(ALBUM.inicial))
+          const sobe = [...new Set(r2.visao.terrenos.filter((t) => t && t.nivel < PARTIDA.nivelMax).map((t) => t.carta))]
+          assert.deepEqual(r2.visao.chances, chancesDaMao({ cartas: ALBUM.inicial, sobe }))
         }
         assert.equal((await api('POST', '/api/reino/partida/desistir', token, { partida: r.json.id })).status, 200)
       }

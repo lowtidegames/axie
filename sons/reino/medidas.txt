@@ -190,7 +190,7 @@ menu            -12.6      -31.4       2.3  88
 == Ao vivo: cada botão da folha toca o seu som
   ok: os 73 botões tocam (cada um contou 1 vez)
   ok: áudio ligado depois do toque; atraso do toque ao som: 14 ms (limite 50)
-  ok: som saiu de verdade e o pico ao vivo ficou em -5.8 dBFS (teto −3)
+  ok: som saiu de verdade e o pico ao vivo ficou em -5.0 dBFS (teto −3)
   ok: nenhuma voz fica viva depois que os sons acabam
 
 == Teto de vozes
@@ -206,24 +206,24 @@ menu            -12.6      -31.4       2.3  88
 == Música ao vivo: troca de momento na virada do compasso
   ok: "construir" começa a tocar depois do toque (100 batidas por minuto)
   ok: pedida a batalha, a música NÃO troca na hora: fica pedida
-  ok: a troca caiu na linha do compasso (1139.0 ms depois do pedido; compasso de 2400.0 ms)
+  ok: a troca caiu na linha do compasso (1142.0 ms depois do pedido; compasso de 2400.0 ms)
   ok: os 4 momentos pedidos (construir, batalha, chefe, vitória) tocam ao vivo; pico da música -12.7 dBFS
   ok: parar a música: silêncio (pico 0.0011)
 
 == "Simulate a round": a rodada inteira
-  ok: a rodada tocou na ordem: cartas → escolher → pôr → invasor → marcha → choque → vitória → espólio → ouro (83 sons)
+  ok: a rodada tocou na ordem: cartas → escolher → pôr → invasor → marcha → choque → vitória → espólio → ouro (82 sons)
   ok: 3 cartas aparecem e 3 moedas caem
-  ok: a batalha dura 12.0 s e tem 69 sons (dezenas lutando sem virar barulho)
+  ok: a batalha dura 12.0 s e tem 68 sons (dezenas lutando sem virar barulho)
   ok: no pior momento: 6 vozes (teto 12), 6 de tropa (teto 6)
   ok: a música acompanhou: construir → batalha → vitoria → construir
-  ok: pico da rodada inteira ao vivo: -7.5 dBFS (teto −3)
+  ok: pico da rodada inteira ao vivo: -8.0 dBFS (teto −3)
 
 == Celular (390 × 844)
   ok: toca com o dedo, sem rolagem de lado, botões com 44 px ou mais de altura
 
 == Amostra gravada (manifesto de teste) no lugar do código
   ok: a amostra boa toca no lugar do código; arquivo estragado e nome desconhecido caem para o código, sem erro
-  ok: amostra entra no mesmo alvo de pico (-10.9 dBFS com os dois sons)
+  ok: amostra entra no mesmo alvo de pico (-10.7 dBFS com os dois sons)
 
 == Amostras reais do manifesto: carrega, pico, duração, começo sem atraso, tamanho
   ok: choque-1.mp3: carrega, mono, 290.7 ms, pico -11.2 dBFS (alvo -11), começa em 0.0 ms, 4 KB
@@ -290,27 +290,27 @@ noite         -24.7      -41.1      -71.1        -107.9     -70.2    -104.6
   ok: 73 efeitos no motor (37 antigos + os da tela nova)
   ok: as amostras novas carregam e a folha marca quais sons são gravados (14)
   ok: ambiente "manha" toca sozinho, baixo (pico ao vivo -23.7 dBFS), sem gastar voz de efeito
-  ok: trocar de trecho cruza um ambiente no outro: a 0,75 s a noite está em 0.50 e a manhã em 0.50
+  ok: trocar de trecho cruza um ambiente no outro: a 0,75 s a noite está em 0.51 e a manhã em 0.49
   ok: em 1,5 s o cruzamento acabou: só a noite toca
   ok: ambiente desligado: silêncio em 2 s (pico 0.0000)
   ok: 5 golpes do mesmo pelotão em 60 ms viram UM som só, mais forte (1 voz, 4 juntados)
   ok: 5 pelotões com gestos diferentes, 50 ms entre eles: cada um soa com o som do seu gesto (corte, estocada, esmaga, portada, investida)
   ok: os 10 gestos têm som próprio: golpeCorte, golpeEstocada, golpeFrigideira, golpeBicada, golpeEsmaga, impacto, golpeMordida, golpePortada, golpeInvestida, golpeBarrigada
-  ok: o mesmo golpe 16 vezes nunca sai igual: altura de -2.0 a 1.8 semitons (±2), força de -2.0 a 0.4 dB
+  ok: o mesmo golpe 16 vezes nunca sai igual: altura de -1.7 a 1.8 semitons (±2), força de -2.0 a 0.9 dB
   ok: posição pelo X da tela entra leve: ponta direita = 0.6, meio-esquerda = -0.3 (teto ±0,6)
   ok: som com espera (o grito no pulo, 620 ms depois): silêncio antes (0.0000), som na hora marcada (0.203)
   ok: hit-stop: o agudo some (corte em 1100 Hz aos 35 ms) e volta (22000 Hz) — 60 ms
   ok: som grande comum: a música abaixa 6 dB (0.50)
   ok: chefe caindo: a música abaixa 10.5 dB, segura a queda inteira (0.30 aos 2,1 s) e volta (1.00)
   ok: faixa de recorde: a música abaixa 9.1 dB e volta (1.00)
-  ok: luta cheia (150 unidades, 975 golpes pedidos em 4.0 s): no pior momento 7 vozes (teto 12), 6 de tropa (teto 6)
-  ok: sem metralhadora: 24.9 sons novos por segundo (teto 27); 837 golpes juntados no som que já tocava, 42 barrados pelo teto
-  ok: pico ao vivo da luta cheia com música, ambiente, crítico, explosão e pisão: -7.2 dBFS (teto −3)
+  ok: luta cheia (150 unidades, 980 golpes pedidos em 4.0 s): no pior momento 7 vozes (teto 12), 6 de tropa (teto 6)
+  ok: sem metralhadora: 25.2 sons novos por segundo (teto 27); 840 golpes juntados no som que já tocava, 43 barrados pelo teto
+  ok: pico ao vivo da luta cheia com música, ambiente, crítico, explosão e pisão: -7.1 dBFS (teto −3)
   ok: "Simulate a fight" toca a luta inteira da cena nova (31 sons, 10 fases)
-  ok: pico da luta simulada ao vivo: -7.4 dBFS (teto −3)
-  ok: mudo vale para os sons novos e para o ambiente (pico 0.0000; sem mudo 0.487)
-  ok: volume de efeitos vale para os novos: em 0 silêncio (0.0000), em 40% mais baixo (0.114 contra 0.487)
-  ok: Reduced motion NÃO tira som: golpe, carta, pisão, hit-stop e ambiente continuam (golpe na força 1.03; só o estouro grande 6 dB abaixo: 0.5)
+  ok: pico da luta simulada ao vivo: -6.5 dBFS (teto −3)
+  ok: mudo vale para os sons novos e para o ambiente (pico 0.0000; sem mudo 0.479)
+  ok: volume de efeitos vale para os novos: em 0 silêncio (0.0000), em 40% mais baixo (0.102 contra 0.479)
+  ok: Reduced motion NÃO tira som: golpe, carta, pisão, hit-stop e ambiente continuam (golpe na força 0.81; só o estouro grande 6 dB abaixo: 0.5)
 
 == R35 — no jogo: cada evento da tela nova dispara o som certo, no quadro do impacto
   ok: antes do primeiro toque nada liga; o ambiente do trecho (manhã nos campos) só fica pedido
@@ -321,20 +321,20 @@ noite         -24.7      -41.1      -71.1        -107.9     -70.2    -104.6
   ok: IMPACTO e SOM no mesmo quadro: 7 quadros com estrela de impacto, 7 com o som do golpe no MESMO quadro, 0 fora de ±1
   ok: os golpes soam pelo gesto de quem bate (golpeFrigideira×4, golpeMordida×3)
   ok: vitória: a comemoração dos dois pulos tem som (festaTropa)
-  ok: ouro contando: 7 tiques curtos e 1 moeda cheia no fim (antes: uma moeda inteira por passo)
+  ok: ouro contando: 9 tiques curtos e 1 moeda cheia no fim (antes: uma moeda inteira por passo)
   ok: o PISÃO do chefe soa no quadro em que ele pousa (1 de 1 no mesmo quadro), não no nascer
   ok: a queda do chefe em etapas tem som em cada uma: golpe final (chefeCai), ajoelha (chefeJoelho) e tomba (chefeTomba) — etapas 1>2>3>4
   ok: ajoelhar e tombar soam no quadro da etapa (2 de 2 em ±1 quadro)
   ok: chefe: a música abaixou (para 0.35) e a parada de impacto cortou o agudo 4 vez(es)
   ok: vitória sobre o chefe: comemoração com som; o som antigo de entrada não toca mais fora de sincronia
-  ok: luta do chefe: 12 quadros com impacto, 12 com som no mesmo quadro, 0 fora de ±1
+  ok: luta do chefe: 11 quadros com impacto, 11 com som no mesmo quadro, 0 fora de ±1
   ok: luta cheia de verdade (45 soldados × 59 invasores): no pior quadro 7 vozes (teto 12) e 6 de tropa (teto 6)
   ok: luta cheia: 53 quadros com impacto, 53 com o som no mesmo quadro, 0 fora de ±1
-  ok: luta cheia sem metralhadora: 9.1 sons novos por segundo (teto 27), 145 golpes juntados, 233 golpes na tela
-  ok: pico ao vivo no jogo com a luta cheia: -8.2 dBFS (teto −3)
+  ok: luta cheia sem metralhadora: 9.0 sons novos por segundo (teto 27), 145 golpes juntados, 233 golpes na tela
+  ok: pico ao vivo no jogo com a luta cheia: -9.1 dBFS (teto −3)
   ok: botão de velocidade: som próprio que sobe com a velocidade
-  ok: luta cheia: 4 gestos diferentes soaram (golpeFrigideira, golpeMordida, golpeEstocada, golpeBicada); explosão 0, fumaça 25, arremesso 3, pelotão caído 2
-  ok: Reduced motion no jogo NÃO tira som: 12 golpes, pisão, queda do chefe, festa, grito e ambiente (manha) continuam
+  ok: luta cheia: 4 gestos diferentes soaram (golpeFrigideira, golpeMordida, golpeEstocada, golpeBicada); explosão 0, fumaça 24, arremesso 3, pelotão caído 2
+  ok: Reduced motion no jogo NÃO tira som: 11 golpes, pisão, queda do chefe, festa, grito e ambiente (manha) continuam
   ok: sem áudio no aparelho: a luta do chefe, as cartas e o menu rodam sem som e sem erro (0 erros)
 
 == R35 — eventos do modo servidor: a chamada do som está no lugar

@@ -108,7 +108,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       if (C.est[av] === 1) { if (!C.emGolpe(av)) { C.tocarAnim(av, AN.hit); if (!(forte && C.podeBranco())) C.animT[av] -= C.peca[av].anim.hit.ms[0] } C.apanhar(av, empurra, forte ? 1.7 : 1) }
       C.dano(pa.x + C.cam.x, pa.y - C.peca[av].ay * C.k[av] * 0.6, valor, forte ? 1 : 0, chefao, C.chaveDe(av), empurra || (C.lado[av] ? -1 : 1))
       if (!chocou) C.empurrar(3) // a carga: a câmera leva um tranco curto no primeiro choque
-      if (o < 0) Som.golpe('impacto', { pan: pan(av), forca: 1, grupo: 'magia' }) // dano de magia ou estouro: a estrela também tem som
+      if (o < 0) Som.golpe('impacto', { pan: pan(av), forca: 1, grupo: -1 }) // dano de magia ou estouro: a estrela também tem som
       if (!chocou) { chocou = true; Som.tocar('choque') }
     } else if (cod === 'h') {
       const i = B.mapa[e[2]]; if (i < 0) return

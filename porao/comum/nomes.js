@@ -2,6 +2,7 @@
 // Tudo inventado e provisório (sátira leve).
 // Nomes reais ficam em porao/nomes.local.json (fora do git); ver servidor/nomes-local.mjs.
 // Marcadores: {projeto} = nome do golpe atual · {valor} = preço já formatado · {nome} = nome antes do rebrand.
+// Só em assinatura.mensagem: {site} = endereço do site · {hora} = hora do pedido · {numero} = número de uso único.
 
 // [nome, lançamento, fim] por raridade — do golpe mixuruca (Comum) ao cósmico absurdo (Mítico)
 const IDEIAS = {
@@ -241,6 +242,69 @@ const UI = {
   'ui.confianca': 'Confiança dos trouxas',
 };
 
+// ABERTURA (decisão do dono 20/11 18:17): título, aviso da assinatura, apelido e Hall.
+// O aviso e a mensagem da assinatura são SEGURANÇA: claros primeiro; graça só no fim do aviso, nenhuma na mensagem.
+const ABERTURA = {
+  'titulo.botoes.conectar': 'Conectar carteira',
+  'titulo.botoes.convidado': 'Jogar sem carteira',
+  'titulo.botoes.continuar': 'Continuar o golpe',
+  'titulo.botoes.hall': 'Hall da Vergonha',
+  'titulo.slogan': 'Não é conselho financeiro. É o porão da vó.',
+  'aviso.assinatura.titulo': 'Antes de conectar, leia',
+  'aviso.assinatura.texto': 'Vamos pedir só uma ASSINATURA. Não gasta nada. Se aparecer valor, transação ou aprovação, RECUSE: não somos nós. Golpe aqui, só o de mentira.',
+  // texto que a carteira mostra para assinar; sem piada
+  'assinatura.mensagem': 'Entrar no Porão.\nIsto não é uma transação e não gasta nada.\n\nSite: {site}\nHora: {hora}\nNúmero de uso único: {numero}',
+  'apelido.pedido': 'A polícia vai precisar de um nome. Escolhe um que fique bonito no boletim.',
+  'apelido.erro.curto': 'Curto demais: mínimo de 3. Até "rug" tem 3 letras.',
+  'apelido.erro.usado': 'Já tem golpista com esse nome. Copiar ideia pode; apelido, não.',
+  'apelido.erro.feio': 'Esse não passa. Só letras, números e _, sem palavrão: a vó lê tudo.',
+  'hall.vazio': 'Ninguém passou vergonha ainda. A vaga de primeiro é sua.',
+};
+
+// exatamente 6 frases do carregando (o Rugrigo puxando o tapete)
+const CARREGANDO = [
+  'Puxando o tapete...',
+  'Pintando o gráfico de verde...',
+  'Imprimindo promessas...',
+  'Alugando credibilidade...',
+  'Ensaiando o "era só estudo"...',
+  'Pedindo a senha do Wi-Fi pra vó...',
+];
+
+// a VÓ tutora, na ordem do tutorial (cada fala cabe num balão no celular):
+// 1 impressora · 2 lançar · 3 Confiança subindo · 4 puxar o tapete · 5 Calor · 6 polícia · 7 luxos · 8 despedida
+const VO = [
+  'Meu neto, a impressora já tá imprimindo. Toca na folha pra ver. É trabalho da escola?',
+  'Que ideia linda! Agora aperta Lançar, pro mundo conhecer o seu trabalhinho.',
+  'Olha a Confiança dos trouxas subindo! Tanta gente confiando em você. Que orgulho!',
+  'Agora aperta PUXAR O TAPETE, meu neto. A vó aproveita e varre embaixo.',
+  'Tá vendo o Calor? Cada tapete puxado esquenta mais. A vó liga o ventilador, quer?',
+  'Se o Calor encher, a polícia bate e pode levar um projeto. A vó segura eles no café.',
+  'Sobrou dinheirinho? Compra um luxo pro porão. Só não mexe nas minhas conservas.',
+  'Pronto, meu neto. A vó não entendeu nada, mas tá orgulhosa. Tem bolo lá em cima.',
+];
+
+// exatamente 10 apelidos inventados de dev golpista: 3 a 20 caracteres, só letras sem acento, números e _
+const APELIDOS = [
+  'CEOdoNada',
+  'ReiDoTapete',
+  'SaqueEmBreve',
+  'EraSoEstudo',
+  'ConfiaNoPai',
+  'HonestoJuro',
+  'SumiComOCaixa',
+  'RoadmapVazio',
+  'NetoDaVo',
+  'FundadorSumido',
+];
+
+// legenda de cada quadro da historinha (3 quadros, pulável)
+const HISTORIA = [
+  'Rugrigo era do suporte de um jogo de farm. Via gente apostando o dia inteiro. Sacando, ninguém.',
+  'Um dia o chefe sumiu com o caixa e apareceu de carro novo. Rugrigo pensou: "eu faço isso melhor".',
+  'Três monitores, o porão e o Wi-Fi da vó. Nascia um dev. A vó acha que é curso.',
+];
+
 function montar() {
   const t = {};
   for (const [rar, lista] of Object.entries(IDEIAS)) {
@@ -264,6 +328,12 @@ function montar() {
   PRESTIGIO.forEach((s, i) => { t[`prestigio.${i + 1}`] = s; });
   REBRAND.forEach((s, i) => { t[`rebrand.${i + 1}`] = s; });
   BATIDA.forEach((s, i) => { t[`batida.${i + 1}`] = s; });
+  // abertura: sempre no fim, para não mexer na ordem das chaves antigas
+  Object.assign(t, ABERTURA);
+  CARREGANDO.forEach((s, i) => { t[`carregando.${i + 1}`] = s; });
+  VO.forEach((s, i) => { t[`vo.${i + 1}`] = s; });
+  APELIDOS.forEach((s, i) => { t[`apelido.sugestao.${i + 1}`] = s; });
+  HISTORIA.forEach((s, i) => { t[`historia.${i + 1}`] = s; });
   return t;
 }
 

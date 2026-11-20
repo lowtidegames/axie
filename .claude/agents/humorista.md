@@ -1,7 +1,7 @@
 ---
 name: humorista
 description: Use para o HUMOR e a SÁTIRA do jogo Porão: nomes das ideias de golpe, frases de lançamento e de tapete, posts e bios dos influenciadores inventados, mensagens do celular, chat falso, avaliações falsas, pseudônimos, piadas visuais para a arte. Dono de porao/comum/nomes.js. Tudo inventado: nada de pessoa, marca ou projeto real no repositório.
-tools: Read, Edit, Write, Grep, Glob
+tools: Read, Edit, Write, Grep, Glob, Bash
 model: fable
 effort: high
 color: orange

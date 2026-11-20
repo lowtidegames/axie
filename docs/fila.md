@@ -116,7 +116,7 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | A3 | Kit de interface: botões, abas, janelas, barras, papéis de parede, ícones, barra de status | artista-pixel | arte/porao/interface/, porao/tela/arte/ui/ | A1 | PRONTO (0f0458f; 20 gerações; papéis de parede a clarear no A4) |
 | A4 | Aplicar o kit em todas as telas e aumentar a grade do porão | dev-tela (Opus) | porao/tela/*.js, estilo.css, tela.e2e.mjs | A2, A3 | PRONTO (cffbb1a juntado; e2e 94 conferências; trindade ≥ 85 em todas as fotos) |
 | P12 | Desenho da abertura + login por assinatura + progresso por conta | arquiteto (Opus) | — (só desenho) | — | PRONTO (docs/porao/desenho-abertura.md) |
-| P13 | Textos da abertura: vó tutora, aviso da assinatura, sugestões de apelido, historinha | humorista (Fable) | porao/comum/nomes.js, porao/tests/nomes.test.js | — | RODANDO |
+| P13 | Textos da abertura: vó tutora, aviso da assinatura, sugestões de apelido, historinha | humorista (Fable) | porao/comum/nomes.js, porao/tests/nomes.test.js | — | PRONTO (juntado pelo diretor: o humorista não tinha shell; 85 testes) |
 | A5 | Arte da abertura: casa da vó à noite, logo do jogo, logo do estúdio, retrato da vó | artista-pixel | arte/porao/abertura/, porao/tela/arte/ (só nomes novos) | — | RODANDO (teto 15) |
 | P14 | Contas e migração v2 (T1) | nucleo-do-jogo | porao/servidor/banco.mjs, porao/tests/contas.test.js | P12 | RODANDO |
 | P15 | base58 e conferência da assinatura (T3) | engenheiro-de-carteira (Opus) | porao/comum/base58.js, porao/servidor/assinatura.mjs, porao/tests/assinatura.test.js | P12 | RODANDO |

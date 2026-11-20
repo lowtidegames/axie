@@ -135,13 +135,80 @@ test('batida: 5 frases curtas; medidor de confianca tem rotulo', () => {
   assert.ok(N.TEXTOS['ui.confianca'] && N.TEXTOS['ui.confianca'].length <= 24);
 });
 
-test('marcadores: so {projeto}, {valor} e {nome}', () => {
+// Regra mudou (decisao do dono 20/11 18:17, login por assinatura): a chave assinatura.mensagem
+// ganhou {site}, {hora} e {numero}. Para TODAS as outras chaves a regra antiga continua igual.
+test('marcadores: so {projeto}, {valor} e {nome}; so a assinatura usa {site}, {hora} e {numero}', () => {
   for (const [k, v] of Object.entries(N.TEXTOS)) {
-    for (const m of v.match(/\{[^}]*\}/g) ?? []) assert.ok(['{projeto}', '{valor}', '{nome}'].includes(m), `${k}: ${m}`);
+    const permitidos = k === 'assinatura.mensagem' ? ['{site}', '{hora}', '{numero}'] : ['{projeto}', '{valor}', '{nome}'];
+    for (const m of v.match(/\{[^}]*\}/g) ?? []) assert.ok(permitidos.includes(m), `${k}: ${m}`);
   }
 });
 
 test('sorteio do servidor: 7 frases de tapete e 8 de chat', () => {
   assert.equal(N.CHAVES.filter((k) => k.startsWith('tapete.')).length, 7);
   assert.equal(N.CHAVES.filter((k) => k.startsWith('chat.')).length, 8);
+});
+
+// ---- ABERTURA (decisao do dono 20/11 18:17) ----
+const familia = (pre) => N.CHAVES.filter((k) => new RegExp(`^${pre.replaceAll('.', '\\.')}\\.\\d+$`).test(k));
+
+test('abertura: botoes do titulo, slogan, aviso, apelido e Hall existem e cabem no celular', () => {
+  for (const k of ['conectar', 'convidado', 'continuar', 'hall']) {
+    const t = N.TEXTOS[`titulo.botoes.${k}`];
+    assert.ok(t && t.length <= 20, `titulo.botoes.${k}`);
+  }
+  assert.ok(N.TEXTOS['titulo.slogan'] && N.TEXTOS['titulo.slogan'].length <= 48, 'titulo.slogan');
+  assert.ok(N.TEXTOS['aviso.assinatura.titulo'] && N.TEXTOS['aviso.assinatura.titulo'].length <= 30, 'aviso.assinatura.titulo');
+  for (const k of ['apelido.pedido', 'apelido.erro.curto', 'apelido.erro.usado', 'apelido.erro.feio', 'hall.vazio']) {
+    assert.ok(N.TEXTOS[k] && N.TEXTOS[k].length <= 80, k);
+  }
+});
+
+test('aviso da assinatura: diz que e so assinatura, que nao gasta nada e manda recusar valor, transacao ou aprovacao', () => {
+  const t = N.TEXTOS['aviso.assinatura.texto'];
+  assert.ok(t && t.length <= 180, 'cabe no celular');
+  for (const pedaco of ['ASSINATURA', 'Não gasta nada', 'valor', 'transação', 'aprovação', 'RECUSE', 'não somos nós']) {
+    assert.ok(t.includes(pedaco), `aviso sem "${pedaco}"`);
+  }
+});
+
+test('assinatura.mensagem: tem {site}, {hora} e {numero} (uma vez cada) e diz que nao e transacao', () => {
+  const t = N.TEXTOS['assinatura.mensagem'];
+  for (const m of ['{site}', '{hora}', '{numero}']) {
+    assert.ok(t.includes(m), `falta ${m}`);
+    assert.equal(t.split(m).length - 1, 1, `${m} repetido`);
+  }
+  assert.deepEqual([...(t.match(/\{[^}]*\}/g) ?? [])].sort(), ['{hora}', '{numero}', '{site}']);
+  assert.ok(t.startsWith('Entrar no Porão.'), 'comeca dizendo o que e');
+  assert.ok(t.includes('não é uma transação'));
+  assert.ok(t.includes('não gasta nada'));
+});
+
+test('apelidos sugeridos: exatamente 10, de 3 a 20 caracteres so de letras, numeros e _, sem repetir', () => {
+  const lista = familia('apelido.sugestao');
+  assert.equal(lista.length, 10);
+  for (let i = 1; i <= 10; i++) {
+    const t = N.TEXTOS[`apelido.sugestao.${i}`];
+    assert.ok(typeof t === 'string' && /^[A-Za-z0-9_]{3,20}$/.test(t), `apelido.sugestao.${i}: ${t}`);
+  }
+  assert.equal(new Set(lista.map((k) => N.TEXTOS[k].toLowerCase())).size, 10);
+});
+
+test('carregando: 6 frases curtas; vo: 8 falas de balao; historia: 3 legendas', () => {
+  assert.equal(familia('carregando').length, 6);
+  for (let i = 1; i <= 6; i++) {
+    const t = N.TEXTOS[`carregando.${i}`];
+    assert.ok(t && t.length <= 40, `carregando.${i}`);
+  }
+  assert.equal(familia('vo').length, 8);
+  for (let i = 1; i <= 8; i++) {
+    const t = N.TEXTOS[`vo.${i}`];
+    assert.ok(t && t.length <= 90, `vo.${i}`);
+  }
+  assert.equal(new Set(familia('vo').map((k) => N.TEXTOS[k])).size, 8);
+  assert.equal(familia('historia').length, 3);
+  for (let i = 1; i <= 3; i++) {
+    const t = N.TEXTOS[`historia.${i}`];
+    assert.ok(t && t.length <= 110, `historia.${i}`);
+  }
 });

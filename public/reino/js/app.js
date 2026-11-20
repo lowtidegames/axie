@@ -23,7 +23,7 @@ const C = criarCena(canvas, CONFIG)
 const J = { familias: [], e: null, v: null, op: null, comandos: [], semente: null, liberadas: [], ouroAlvo: 0, pos: null, ultimaLuta: null, lutas: [], espolioI: -1, semSorteio: true, anunciado: '', avisado: '', erros: [], chefesVistos: new Set(), emLuta: false, link: '', postou: '', infoAte: 0 }
 let UI, M, Bat, Telas
 // MODO SERVIDOR (js/servidor.js): a partida mora no servidor. `J.v`/`J.op` são a `visao`/`opcoes` que ELE mandou; `J.e` vira só { fase }.
-const S = { on: false, id: null, modo: null, seq: 0, ocupado: false, abrindo: false, ultimo: null, energia: null, perfil: null, resultado: null, fora: null, novid: null }
+const S = { on: false, id: null, modo: null, seq: 0, ocupado: false, abrindo: false, ultimo: null, energia: null, perfil: null, resultado: null, fora: null, novid: null, fimVisto: null }
 const timers = new Set()
 const depois = (ms, fn) => { const id = setTimeout(() => { timers.delete(id); fn() }, ms); timers.add(id); return id }
 const semTimers = () => { for (const id of timers) clearTimeout(id); timers.clear() }
@@ -43,7 +43,11 @@ function registrarFim() {
   guardarFim()
   return J.fimReg
 }
-function guardarFim(visto = false) { if (S.on) return; Guarda.salvarFim({ semente: J.semente, liberadas: J.liberadas, comandos: J.comandos, reg: J.fimReg, desafio: J.desafio, melhor: J.melhor, visto }) }
+function guardarFim(visto = false) {
+  // modo servidor: no aparelho fica só QUAL partida terminada está à vista (e o que a placa dizia); a partida vem do servidor
+  if (S.on) { if (S.id && !J.replay) Srv.guardarFim({ id: S.id, visto, reg: J.fimReg, melhor: J.melhor || null }); return }
+  Guarda.salvarFim({ semente: J.semente, liberadas: J.liberadas, comandos: J.comandos, reg: J.fimReg, desafio: J.desafio, melhor: J.melhor, visto })
+}
 /** O que está guardado no aparelho é a partida desta aba? (outra aba pode ter jogado a MESMA partida) */
 function discoIgual() {
   if (S.on || J.e.fase === 'fim') return true
@@ -168,7 +172,9 @@ function montarReino(comHorda = true) {
   if (comHorda && v.horda) {
     M.hordaN = expandirHorda(v.horda).length; M.hordaChefe = v.horda.chefe
     const tipos = [...new Set(v.horda.ordem)], cabem = C.tipo === 'celular' ? 4 : 8, fila = [...tipos]
-    for (const t of v.horda.ordem) { if (fila.length >= Math.min(cabem, v.horda.ordem.length)) break; if (t !== v.horda.chefe) fila.push(t) }
+    // no prelúdio, de cada tipo aparecem no máximo os REPRESENTANTES da cena (`C.repMax`); o número real fica na plaqueta "xN"
+    const porTipo = {}; for (const t of fila) porTipo[t] = 1
+    for (const t of v.horda.ordem) { if (fila.length >= Math.min(cabem, v.horda.ordem.length)) break; if (t !== v.horda.chefe && porTipo[t] < (C.repMax || cabem)) { porTipo[t]++; fila.push(t) } }
     fila.slice(0, cabem).forEach((t, i, a) => { const chefe = t === v.horda.chefe; C.nascer(1, t, chefe ? -30 : -6 - (i * (C.VW < 500 && C.tipo === 'pc' ? 22 : 46)) / Math.max(1, a.length) - (i % 2) * 4, 1, chefe ? 0.3 : ((i * 5) % 7) / 3.5 - 0.9, 0) })
   }
 }
@@ -217,7 +223,7 @@ function abrirRodada() {
   M.fase = 'carta'; M.sel = -1; M.armado = null; M.trocar = 0; M.info = null; M.infoSel = null; M.vitoria = null; M.derrota = null; M.maoT0 = agoraMs() + 150; M.pulsaLutar = v.cartaPosta
   M.primeira = v.rodada === 1 && v.terrenos.every((t) => !t); C.destaque = null; J.ouroAlvo = v.ouro
   canvas.style.filter = ''
-  C.mudarHora(Arte.horaDaRodada(v.rodada)); Musica.rodada(v.rodada)
+  C.mudarHora(Arte.horaDaRodada(v.rodada), false, v.rodada); Musica.rodada(v.rodada) // a rodada vai direto para a cena (trecho da estrada)
   montarReino(); Som.tocar('cartaAparece')
   const chave = v.rodada + ':' + v.vidas
   if (v.horda.chefe && J.anunciado !== chave) {
@@ -289,7 +295,7 @@ function retomarFim(f) {
 function mostrarEspolio() {
   preencher()
   M.fase = 'vitoria'; M.sel = -1; M.vitoria = { t0: agoraMs() - 1000, ouro: 0, ouroMostra: 0, pronto: true, prontoT0: agoraMs() - 1000, chefe: null, selo: null, mvp: null }
-  C.mudarHora(Arte.horaDaRodada(J.v.rodada), true); J.ouroAlvo = J.v.ouro
+  C.mudarHora(Arte.horaDaRodada(J.v.rodada), true, J.v.rodada); J.ouroAlvo = J.v.ouro
   montarReino(false); Musica.momento('vitoria'); UI.mudou()
 }
 
@@ -482,7 +488,7 @@ function fimDaPartida(direto = false) {
     melhor: m ? T.melhorLinha(m.nome, m.dano, m.rodada) : null, faltaLinha: reg.novoRecorde ? null : n === 0 ? T.semRodadas : T.rodadasPara(falta),
     amigo: S.on ? linhaDoModo(null) : am != null ? { texto: T.desafioFim(am, n), ganhou: n > am } : null,
   }
-  if (S.on) depoisDoFim()
+  if (S.on) { guardarFim(parado); depoisDoFim() }
   M.vidas = r.vidas; M.info = null; C.destaque = null; canvas.style.filter = ''
   // o reino final iluminado: tarde dourada, sem dessaturar
   C.mudarHora('afternoon', C.menos)
@@ -631,10 +637,11 @@ function adotar(p) {
   if (J.e.fase === 'fim') registrarFim()
 }
 /** Entra numa partida do servidor (nova, retomada depois de recarregar, ou recarregada por divergência). */
-function entrar(p, aviso = null, nova = false) {
+function entrar(p, aviso = null, nova = false, direto = false) {
   zerarPartida(); J.replay = null; M.replay = null
   adotar(p); M.ouro = J.v.ouro; J.ouroAlvo = J.v.ouro; J.familias = J.v.familias.slice()
-  if (J.e.fase === 'fim') { fimDaPartida(); return }
+  if (J.e.fase === 'fim') { if (S.fimVisto?.id === S.id) J.melhor = S.fimVisto.melhor || null; fimDaPartida(direto); return }
+  S.fimVisto = null; Srv.guardarFim(null) // partida em curso: a tela de fim guardada já não vale (Play again, treino novo)
   if (J.v.fase === 'espolio') mostrarEspolio(); else abrirRodada()
   if (nova) {
     const e = S.energia, sub = p.modo === 'ranking' ? (e ? T.srv.energiaCurta(e.atual, e.maximo) : '') : T.srv.modoSub[p.modo]
@@ -712,6 +719,7 @@ function festejarNovidades() {
 }
 /** O que o fim mostra de recorde: comparação de dois números do servidor (o recorde do perfil lido ANTES e os pontos gravados agora). */
 function fimDoServidor() {
+  if (S.fimVisto?.id === S.id && S.fimVisto.reg) return S.fimVisto.reg // recarregou na tela de fim: a placa diz o mesmo de antes
   const r = S.resultado || J.v, rec = S.perfil?.recordes, antes = rec ? rec.pontos : r.pontos
   return { novoRecorde: r.pontos > antes, recorde: Math.max(antes, r.pontos), antes, rodadasAntes: rec ? rec.rodadasVencidas : r.vencidas }
 }
@@ -719,7 +727,9 @@ function fimDoServidor() {
 function situacaoDoServidor() {
   const v = S.perfil?.temporada?.voce, L = CONFIG.BETA.ligas, nomeDe = (id) => (id === CONFIG.BETA.lenda.id ? CONFIG.BETA.lenda.nome : L.find((l) => l.id === id)?.nome || String(id))
   if (!v) return { media: 0, posicao: null, liga: { nome: T.srv.semLiga, i: -1, pct: 0, proxima: null, falta: 0, marca: T.srv.temporadaMarca, linha: T.srv.semRanking } }
-  const i = L.findIndex((l) => l.id === v.liga), f = v.faltaParaProxima, de = i >= 0 ? L[i].min : 0, ate = f ? v.pontos + f.pontos : de
+  // "X more for <liga>" só quando essa liga é MAIOR que a atual (com poucas contas o topo já é Legend e o servidor ainda manda a faixa de baixo)
+  const ordem = [...L.map((l) => l.id), CONFIG.BETA.lenda.id], sobe = v.faltaParaProxima && ordem.indexOf(v.faltaParaProxima.liga) > ordem.indexOf(v.liga)
+  const i = L.findIndex((l) => l.id === v.liga), f = sobe ? v.faltaParaProxima : null, de = i >= 0 ? L[i].min : 0, ate = f ? v.pontos + f.pontos : de
   return { media: v.pontos, posicao: v.posicao, liga: { nome: nomeDe(v.liga), i, pct: f && ate > de ? Math.max(0, Math.min(100, Math.floor(((v.pontos - de) * 100) / (ate - de)))) : 100, proxima: f ? nomeDe(f.liga) : null, falta: f ? f.pontos : 0, marca: T.srv.posicaoMarca(v.posicao) } }
 }
 function albumDoServidor() {
@@ -752,17 +762,17 @@ async function depoisDoFim() {
 // ---------------------------------------------------------------- REPLAY (modo servidor): a tela de batalha passa os `passos`, sem motor
 const legendaDoPasso = (c) => (c.tipo === 'por' ? T.srv.replay.por(CONFIG.CARTAS[c.carta]?.nome || c.carta, c.terreno) : c.tipo === 'sortear' ? T.sortearNome : c.tipo === 'consertar' ? T.consertarNome : c.tipo === 'espolio' ? T.srv.replay.espolio : c.tipo === 'desistir' ? T.srv.replay.desistir : '')
 /** Busca o replay (em páginas) e começa a passar. Devolve null ou o código do erro (ESTRADA_DE_HOJE, 429…). */
-async function assistir(id) {
+async function assistir(id, volta = null) {
   if (J.replay || S.ocupado) return 'PADRAO'
   let rep
   try { rep = await Srv.replay(id) } catch (e) { return e.codigo || 'PADRAO' }
   if (!rep || !rep.inicio || !Array.isArray(rep.passos)) return 'PADRAO'
-  Telas.fechar(); iniciarReplay(rep)
+  Telas.fechar(); iniciarReplay(rep, volta)
   return null
 }
-function iniciarReplay(rep) {
+function iniciarReplay(rep, volta = null) {
   semTimers(); Bat.parar(); limparFestas(); canvas.style.filter = ''; C.noite = 0; C.fimDeJogo = false
-  J.replay = { rep, i: 0, guarda: { v: J.v, op: J.op, e: J.e, rot: M.modoRot } }; J.pos = null; J.emLuta = false
+  J.replay = { rep, i: 0, volta, guarda: { v: J.v, op: J.op, e: J.e, rot: M.modoRot } }; J.pos = null; J.emLuta = false
   M.fim = null; M.vitoria = null; M.derrota = null; M.chefe = null; M.info = null; M.selo = null; M.resumo = null
   M.replay = { nome: rep.apelido || '', i: 0, n: rep.passos.length, linha: '', fim: null }; M.modoRot = T.srv.replayRot
   J.v = rep.inicio; J.op = OP_VAZIA(J.v); J.e = { fase: 'replay' }
@@ -771,7 +781,7 @@ function iniciarReplay(rep) {
 }
 function replayParado(p) {
   preencher(); M.fase = 'replay'; M.sel = -1; M.vidas = J.v.vidas; J.ouroAlvo = J.v.ouro; C.destaque = null; canvas.style.filter = ''; C.noite = 0
-  C.mudarHora(Arte.horaDaRodada(J.v.rodada)); montarReino(J.v.fase === 'carta'); C.vidas = estadoCastelo()
+  C.mudarHora(Arte.horaDaRodada(J.v.rodada), false, J.v.rodada); montarReino(J.v.fase === 'carta'); C.vidas = estadoCastelo()
   if (p) { eventosDeTerreno(p.eventos.filter((x) => x.tipo === 'posta' || x.tipo === 'nivel')); M.replay.linha = legendaDoPasso(p.comando) }
   Musica.momento('construir'); UI.mudou()
 }
@@ -792,13 +802,24 @@ function passoDoReplay() {
   }
   J.v = p.visao; replayParado(p); depois(Math.round(900 / (Bat.vel || 1)), passoDoReplay)
 }
-/** Sair do replay: volta para a partida do jogador como o servidor a deixou. */
+/** Sair do replay: volta para a partida do jogador como o servidor a deixou e, por cima, para a tela de onde o replay foi aberto. */
 function sairDoReplay() {
   const R = J.replay; if (!R) return
   semTimers(); Bat.parar(); limparFestas(); J.replay = null; M.replay = null; M.resumo = null
   J.v = R.guarda.v; J.op = R.guarda.op; J.e = R.guarda.e; M.modoRot = R.guarda.rot
   M.ouro = J.v.ouro; J.ouroAlvo = J.v.ouro; J.familias = J.v.familias.slice(); J.anunciado = J.v.rodada + ':' + J.v.vidas
   if (J.e.fase === 'fim') fimDaPartida(true); else if (J.v.fase === 'espolio') mostrarEspolio(); else abrirRodada()
+  R.volta?.()
+}
+/** FIM QUE SOBREVIVE A RECARREGAR: se a tela de fim estava à vista, o servidor devolve aquela partida terminada e a tela volta a ela
+ *  (parada, se a entrada já tinha passado), até o Play again. Outra partida terminou depois, ou o pedido falhou: segue o começo comum. */
+async function voltarAoFim() {
+  const g = Srv.fimGuardado(); if (!g) return false
+  let u
+  try { u = await Srv.ultima() } catch { return false }
+  if (!u.partida || u.partida.id !== g.id || u.partida.status !== 'terminada') { Srv.guardarFim(null); return false }
+  S.fimVisto = g; entrar(u.partida, null, false, !!g.visto)
+  return true
 }
 /** Começo no modo servidor: conta (criada na 1ª visita, sem perguntar nada), perfil e a partida aberta — ou um treino novo. Falhou
  *  (rede, manutenção): uma tela curta com "Try again"; nunca fica travado. */
@@ -808,6 +829,7 @@ async function comecarNoServidor() {
     try {
       const [ab, perfil] = await Promise.all([Srv.aberta(), Srv.perfil()])
       S.perfil = perfil; S.energia = ab.energia
+      if (await voltarAoFim()) return
       if (ab.partida) entrar(ab.partida); else entrar(await Srv.abrir('treino'), null, true)
       return
     } catch (e) { await new Promise((ok) => Telas.falha(e.codigo, ok)) }
@@ -860,7 +882,7 @@ async function comecar() {
     if (tipo === 'chefe') { const c = CONFIG.CHEFES.find((x) => x.id === dado); festa({ tam: 2, tipo: 'aviso', ms: 1600, texto: c.nome, ouro: true, k: kAviso(), fase: 'luta' }) }
     if (tipo === 'chefeCaiu') { const c = CONFIG.CHEFES.find((x) => x.id === dado); if (c) festa({ tam: 3, tipo: 'aviso', ms: 1100, texto: T.caiu(c.nome.split(' the ')[0]), ouro: true, k: 2, fase: 'luta' }) } // festa grande: título ×2 também no celular (quebra em duas linhas)
   }
-  Telas = criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos: (v) => { if (v !== undefined) { menos(v); Guarda.set('menos', !!v) } return C.menos }, novaPartida: () => (S.on ? desistirNoServidor() : novaPartida()), servidor: S.on ? { agora: Srv.agora, apelido: () => Srv.apelido, aberta: () => Srv.aberta(), ranking: (c) => Srv.ranking(c), perfil: async () => (S.perfil = await Srv.perfil()), cache: () => S.perfil, energia: () => S.energia, situacao: situacaoDoServidor, jogar: abrirModo, assistir } : null, emPartida: () => M.fase !== 'fim', aoFechar: () => { if (!J.v || J.replay) return; UI.focar(); if (M.fase !== 'fim') Musica.momento(M.fase === 'luta' ? 'batalha' : J.v.vidas === 1 ? 'porUmFio' : 'construir'); else Musica.momento('fim') } })
+  Telas = criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos: (v) => { if (v !== undefined) { menos(v); Guarda.set('menos', !!v) } return C.menos }, novaPartida: () => (S.on ? desistirNoServidor() : novaPartida()), servidor: S.on ? { agora: Srv.agora, apelido: () => Srv.apelido, aberta: () => Srv.aberta(), ranking: (c) => Srv.ranking(c), perfil: async () => (S.perfil = await Srv.perfil()), trocarApelido: async (a) => (S.perfil = await Srv.trocarApelido(a)), cache: () => S.perfil, energia: () => S.energia, situacao: situacaoDoServidor, jogar: abrirModo, assistir } : null, emPartida: () => M.fase !== 'fim', aoFechar: () => { if (!J.v || J.replay) return; UI.focar(); if (M.fase !== 'fim') Musica.momento(M.fase === 'luta' ? 'batalha' : J.v.vidas === 1 ? 'porUmFio' : 'construir'); else Musica.momento('fim') } })
   menos(guardado ?? matchMedia('(prefers-reduced-motion: reduce)').matches)
   addEventListener('resize', ajustar)
   // retoma a partida guardada (a não ser que o endereço peça outra estrada ou `nova=1`)

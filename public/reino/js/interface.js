@@ -655,7 +655,8 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const s = M.status; if (!s) return
     if (agora > s.ate) { M.status = null; return }
     const lin = quebrar(s.texto, C.VW - 16, 'reino-contorno'), w = Math.max(...lin.map((q) => Arte.largura(q, 'reino-contorno'))) + 12, h = lin.length * 11 + 7
-    const x = (C.VW - w) >> 1, y = Math.ceil(UI.L.menu.y + 26 * UI.L.bs + Math.max(0, (44 / C.css - 26 * UI.L.bs) / 2)) + 3
+    // nunca por cima do HUD: abaixo da fileira dos pinos do chefe e das famílias (2ª linha) e, no celular, também do sorteio e das chances
+    const L = UI.L, x = (C.VW - w) >> 1, y = Math.max(Math.ceil(L.menu.y + 26 * L.bs + Math.max(0, (44 / C.css - 26 * L.bs) / 2)), Math.ceil(L.pinos.y + L.pinos.h), L.cel ? L.odds.y + L.odds.h : 0) + 3
     g.fillStyle = COR.ameixa; g.fillRect(x, y, w, h); g.fillStyle = COR.ouro; g.fillRect(x, y, w, 1); g.fillRect(x, y + h - 1, w, 1)
     lin.forEach((q, i) => Arte.texto(g, q, C.VW >> 1, y + 4 + i * 11, { fonte: 'reino-contorno', alinhar: 'centro' }))
     if (s.rede && !C.menos) { const n = (agora / 300 | 0) % 3; g.fillStyle = COR.ouro; for (let i = 0; i <= n; i++) g.fillRect((C.VW >> 1) - 5 + i * 4, y + h - 4, 2, 2) } // três pontinhos andando (parados com Reduced motion)
@@ -666,10 +667,11 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   function faixaReplay() {
     const r = M.replay, L = UI.L, R = L.cel ? L.mesa : { x: (C.VW - 250) >> 1, y: C.VH - 64, w: 250, h: 60 }, cx = R.x + (R.w >> 1)
     if (!L.cel) Arte.painel(g, R.x, R.y, R.w, R.h)
-    const lin = [[quebrar(T.srv.replay.de(r.nome), R.w - 12, 'reino-ouro')[0], 'reino-ouro'], [T.srv.replay.passo(r.i, r.n), 'reino-contorno']]
+    const lin = [[quebrar(T.srv.replay.de(r.nome), R.w - 12, 'reino-ouro')[0], 'reino-ouro'], ...quebrar(T.srv.replay.passo(M.rodada, r.i, r.n), R.w - 12, 'reino-contorno').map((q) => [q, 'reino-contorno'])]
     if (r.fim) { for (const q of quebrar(r.fim, R.w - 12, 'reino')) lin.push([q, 'reino']); lin.push([T.srv.replay.saia, 'mini']) } else if (r.linha) lin.push([quebrar(r.linha, R.w - 12, 'reino')[0], 'reino'])
     let y = R.y + (L.cel ? 12 : 8)
     for (const [t, fo] of lin) { Arte.texto(g, t, cx, y, { fonte: fo, cor: COR.creme, alinhar: 'centro' }); y += fo === 'mini' ? 9 : 12 }
+    r.faixa = lin.map((q) => q[0])
     viu('replay')
   }
 

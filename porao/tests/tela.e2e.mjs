@@ -193,6 +193,34 @@ try {
     await aba(page, 'projeto', 'porao')
     await foto(page, 'pc-13-luxos')
     await q(page, '[data-k="luxo-aquario"]').click()
+    // luxos novos: comprar entra no estado da cena e o sprite aparece (o desenho muda sem ele)
+    const antesLuxo = await page.evaluate(() => { const e = window.poraoApp.api.depurar(() => {}).estado; return { caixa: e.caixa, luxos: [...e.luxos] } })
+    await page.evaluate(() => window.poraoApp.api.depurar((e) => { e.caixa = 999999 }))
+    for (const id of ['cadeira_gamer', 'ar_condicionado', 'letreiro_neon', 'maquina_bebida', 'tela_curva', 'garagem']) {
+      await page.evaluate(() => window.poraoApp.api.depurar((e) => { e.caixa = 999999 }))
+      const btn = q(page, `[data-k="luxo-${id}"]`)
+      if (await btn.count()) await btn.click()
+      const ok = await page.waitForFunction((i) => window.poraoApp.cena.obterEstado().luxos.includes(i), id, { timeout: 5000 }).then(() => true).catch(() => false)
+      confere(ok, `comprar ${id}: entra no porão`)
+    }
+    await page.evaluate(() => window.poraoApp.cena.voltar())
+    await page.waitForTimeout(300)
+    const cenaMuda = await page.evaluate(async () => {
+      const quadro = () => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)))
+      const cv = document.querySelector('.cena__canvas'), c = window.poraoApp.cena
+      const todos = c.obterEstado().luxos, cheio = cv.toDataURL(), r = {}
+      for (const id of ['ar_condicionado', 'letreiro_neon', 'tela_curva']) {
+        c.definirEstado({ luxos: todos.filter((x) => x !== id) }); await quadro(); r[id] = cv.toDataURL() !== cheio
+      }
+      c.definirEstado({ luxos: todos })
+      return r
+    })
+    for (const [id, ok] of Object.entries(cenaMuda)) confere(ok, `luxo ${id}: o sprite aparece na cena`)
+    await foto(page, 'pc-14b-porao-todos-luxos')
+    // volta ao que era (Calor menor dos luxos novos tiraria a batida dos passos seguintes)
+    await page.evaluate((v) => window.poraoApp.api.depurar((e) => { e.caixa = v.caixa; e.luxos = v.luxos }), antesLuxo)
+    await page.evaluate(() => window.poraoApp.cena.abrirMonitores(2))
+    await page.waitForTimeout(300)
     await aba(page, 'projeto', 'projetos')
     await aba(page, 'grafico', 'grafico')
     await foto(page, 'pc-14-todos-monitores')

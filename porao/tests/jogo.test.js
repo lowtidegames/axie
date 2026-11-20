@@ -383,6 +383,22 @@ describe('textos novos do humorista ligados no servidor', () => {
     assert.equal(estadoParaTela(r.estado).projetos[0].nome, previa)
   })
 
+  test('contrato na tela traz trazidasV1 igual ao estado cru (Vídeo 1 trouxe N trouxas)', () => {
+    // pela regra de verdade: o número da tela é o que o contrato gravou
+    const base = comProjeto()
+    base.caixa = CONTRATO.tamanhos.nano.p1 * 10
+    const r = R.contratar(base, base.projetos[0].id, 'infl_1')
+    assert.ok(r.ok, r.erro)
+    const cru = r.estado.projetos[0].contrato
+    assert.equal(typeof cru.trazidasV1, 'number')
+    assert.equal(cru.trazidasV1, r.trazidas)
+    assert.equal(estadoParaTela(r.estado).projetos[0].contrato.trazidasV1, cru.trazidasV1)
+    // valor forçado: passa sem conta nem arredondamento
+    const e = comProjeto()
+    e.projetos[0].contrato = { influenciador: 'infl_1', tamanho: 'nano', fase: 'V1_NO_AR', videos: 1, p1: CONTRATO.tamanhos.nano.p1, proposta: null, esperaRestante: 10, chorou: false, motivo: null, trazidasV1: 7 }
+    assert.equal(estadoParaTela(e).projetos[0].contrato.trazidasV1, 7)
+  })
+
   test('celular: oferta do vídeo 1 com {valor} = P1 real; vídeo 2 pelo mesmo preço tem texto', () => {
     const e = comProjeto()
     const p = e.projetos[0]

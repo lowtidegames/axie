@@ -337,6 +337,7 @@ export function estadoParaTela(estado, { textos = TEXTOS, conta = null } = {}) {
         fase: c.fase,
         videos: c.videos,
         p1: c.p1,
+        trazidasV1: c.trazidasV1 ?? 0, // "Vídeo 1 trouxe N trouxas" (save antigo sem o campo = 0)
         proposta: c.proposta,
         esperaRestanteSeg: Math.ceil(c.esperaRestante),
         podeResponder: (c.fase === 'V1_NO_AR' && c.proposta !== null) || c.fase === 'PEDE_MAIS',

@@ -43,7 +43,7 @@ const GUARDAR = new Set(['mao-revelacao-1-celular', 'mao-revelacao-2-celular', '
   'horda-legivel-celular', 'horda-legivel-pc', 'album-pixel-celular', 'menu-pixel-celular', 'link-amigo-celular', 'link-amigo-pergunta-celular', 'primeira-partida-celular', '320x568-espolio',
   'replace-celular', 'reliquias-hud-celular', 'guia-ouro-celular', 'conquistas-pixel-celular',
   'mao-rara-brilho-celular', // R30
-  'mao-chances-inicial-celular', 'mao-chances-album-cheio-celular', 'album-chances-celular']) // R31
+  'mao-chances-inicial-celular', 'mao-chances-album-cheio-celular', 'album-chances-celular', 'fim-sem-recorde-celular']) // R31
 const SEM = 'e2e-keepmile-1' // semente fixa: as mesmas cartas, hordas e espólios sempre
 
 const falhas = []
@@ -1079,6 +1079,7 @@ async function r17(fmt) {
     { const d = await viu(p)
       confere(m.fim.novoRecorde === false && !d.includes('fimRecorde') && d.includes('fimFecho') && / DMG IN ROUND \d+$/.test(m.fim.melhor || '') && (m.fim.faltaLinha === null || /LONGEST RUN/.test(m.fim.faltaLinha)) && !/BEST/.test(m.fim.faltaLinha || '') && (await sons(p)).includes('nivelPequeno'), `D8: SEM recorde também há fecho — "BEST MOMENT: ${m.fim.melhor}" e "${m.fim.faltaLinha}" (R31: sem "N ROUNDS TO YOUR BEST", que repetia o recorde da placa)`) }
     { const L = m.fim.linhas || [], d = m.fim.pontos - m.fim.recordeAntes
+      await foto(p, nome('fim-sem-recorde'))
       confere(L.length === 2 && L.every((l) => (l.match(/BEST/g) || []).length <= 1) && (d === 0 || L[0].includes(String(m.fim.recorde))) && L[1] === T.mediaLinha(m.fim.media) && new Set(L).size === 2, `R31 item 4: um "best" só por linha — "${L.join('" / "')}" (recorde numa, média noutra)`) }
     await conferirLayout(p, 'fim sem recorde')
     await anotar(p, 'fim sem recorde')

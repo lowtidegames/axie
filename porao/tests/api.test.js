@@ -9,15 +9,16 @@ import { iniciarServidor, arquivoDoCaminho } from '../servidor/index.mjs'
 
 const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'porao-api-'))
 let srv, porta, n = 0
+let sessao = '' // cookie da sessão de convidado (tarefa 4: rotas do jogo exigem sessão)
 let relogio = 1_700_000_000_000 // relógio do servidor nos testes (avança só quando o teste manda)
 const passar = ms => { relogio += ms }
 const chave = () => `chave-teste-${++n}-${Math.random().toString(36).slice(2, 10)}`
 
 /** Pedido cru (permite Host/Origin/caminho estranhos, que o fetch não deixa). */
-function pedir(metodo, caminho, { corpo, headers = {}, json = true, porta: p = porta, semMarca = false } = {}) {
+function pedir(metodo, caminho, { corpo, headers = {}, json = true, porta: p = porta, semMarca = false, cookie = p === porta ? sessao : '' } = {}) {
   return new Promise((resolve, reject) => {
     const bruto = corpo === undefined ? undefined : (typeof corpo === 'string' ? corpo : JSON.stringify(corpo))
-    const h = { ...(bruto !== undefined && json ? { 'Content-Type': 'application/json' } : {}), ...(!semMarca && caminho.startsWith('/api/') ? { 'X-Porao': '1' } : {}), ...headers }
+    const h = { ...(bruto !== undefined && json ? { 'Content-Type': 'application/json' } : {}), ...(!semMarca && caminho.startsWith('/api/') ? { 'X-Porao': '1' } : {}), ...(cookie ? { Cookie: cookie } : {}), ...headers }
     if (bruto !== undefined) h['Content-Length'] = Buffer.byteLength(bruto)
     const req = http.request({ host: '127.0.0.1', port: p, method: metodo, path: caminho, headers: h }, res => {
       const partes = []
@@ -36,8 +37,19 @@ function pedir(metodo, caminho, { corpo, headers = {}, json = true, porta: p = p
 }
 const post = (caminho, corpo, headers = {}) => pedir('POST', caminho, { corpo, headers })
 
-// Servidor e banco NOVOS a cada teste (um teste não gasta o caixa do outro).
-beforeEach(async () => { relogio = Date.now(); srv = await iniciarServidor({ porta: 0, caminhoBanco: path.join(pasta, `p${++n}.db`), agora: () => relogio }); porta = srv.porta })
+/** Entra como convidado (conta local) e devolve "nome=valor" do cookie. */
+async function entrarConvidado(p = porta) {
+  const r = await pedir('POST', '/api/sessao/convidado', { corpo: {}, porta: p, cookie: '' })
+  assert.equal(r.status, 200, r.texto)
+  return String(r.headers['set-cookie'][0]).split(';')[0]
+}
+
+// Servidor e banco NOVOS a cada teste (um teste não gasta o caixa do outro). Já com sessão de convidado.
+beforeEach(async () => {
+  relogio = Date.now(); sessao = ''
+  srv = await iniciarServidor({ porta: 0, caminhoBanco: path.join(pasta, `p${++n}.db`), agora: () => relogio }); porta = srv.porta
+  sessao = await entrarConvidado()
+})
 afterEach(async () => { await srv.fechar() })
 after(() => { fs.rmSync(pasta, { recursive: true, force: true }) })
 
@@ -162,8 +174,9 @@ describe('tarefa 5 — servidor HTTP do porão', () => {
   test('limite de pedidos: passou do máximo, 429', async () => {
     const s2 = await iniciarServidor({ porta: 0, caminhoBanco: path.join(pasta, 'l.db'), limitePedidos: { max: 5, janelaMs: 60_000 } })
     try {
-      const st = []
-      for (let i = 0; i < 8; i++) st.push((await pedir('GET', '/api/estado', { porta: s2.porta })).status)
+      const cookie = await entrarConvidado(s2.porta) // 1º pedido da janela (tarefa 4: o jogo exige sessão)
+      const st = [200]
+      for (let i = 1; i < 8; i++) st.push((await pedir('GET', '/api/estado', { porta: s2.porta, cookie })).status)
       assert.deepEqual(st.slice(0, 5), [200, 200, 200, 200, 200])
       assert.equal(st[7], 429)
     } finally { await s2.fechar() }
@@ -240,4 +253,16 @@ test('a tela recebe só o sorteio compartilhado (shared/rng.js e sha256.js), nad
 test('índice de arte (indice.json) é servido como JSON', () => {
   const r = arquivoDoCaminho('/arte/indice.json')
   assert.ok(r && r.tipo.startsWith('application/json') && fs.existsSync(r.arq))
+})
+
+describe('tarefa 4 — rotas do jogo exigem sessão', () => {
+  test('sem cookie: 401 sem_sessao no estado e nas ações; com a sessão do convidado, 200', async () => {
+    const e = await pedir('GET', '/api/estado', { cookie: '' })
+    assert.equal(e.status, 401)
+    assert.equal(e.json.codigo, 'sem_sessao')
+    const i = await post('/api/imprimir', {}, { 'Idempotency-Key': chave(), Cookie: '' })
+    assert.equal(i.status, 401)
+    assert.equal((await pedir('GET', '/api/estado')).status, 200)
+    assert.equal((await pedir('GET', '/')).status, 200) // estáticos não precisam
+  })
 })

@@ -218,7 +218,7 @@ export function criarCena(canvas, CONFIG) {
     if (bPerto[k]) {
       let prof = bOff[k] + col * passo; if (prof > C.fundoMax) prof = C.fundoMax - ((r + k) & 1) * passo * 0.5 // o fundo da fila se aperta (do mesmo lado pode)
       const vaga = sHi[bSec[k]] - prof - zig
-      X = gFr[k] > -1e8 ? vaga : Math.min(X, vaga)
+      X = gFr[k] > -1e8 || X < C.xeBorda ? vaga : Math.min(X, vaga) // (quem ainda está do lado de fora do portão entra e forma na fila: o reino não espera diante de ninguém)
     }
     LUG.dxe = Math.max(-160, Math.min(140, X - x))
   }
@@ -325,7 +325,7 @@ export function criarCena(canvas, CONFIG) {
       // R29 — VAGA: quem entra no lugar de quem caiu chega ANDANDO de trás (2–3 passos). No quadro em que é posto lá atrás ainda não aparece
       if (era === 1 && luta && !C.chega[i]) { C.dxe[i] = C.dxeT[i] - 2.2 * passo; C.lane[i] = C.laneT[i]; C.chega[i] = 1; C.oculto[i] = 1; C.med.vagas++; continue }
       if (era === 2 && luta && !C.chega[i]) { C.chega[i] = 1; C.med.vagas++ } // a silhueta que esperava atrás anda até a vaga
-      if (portao && C.sec[i] === 0 && C.xeDes(i) < C.xeBorda) { C.oculto[i] = 1; C.med.foraDoPortao++; continue }
+      if (portao && C.sec[i] === 0 && C.xeDes(i) < C.xeBorda) { C.oculto[i] = 1; C.chega[i] = 1; C.med.foraDoPortao++; continue } // entra andando pela borda
       repG[k * MAXREP + gVis[k]] = i
       gVis[k]++; gX[k] += C.sx[i]; gTier[k] = C.tier[i]; const topo = C.sy[i] - (p.ay - Arte.topoDe(p)) * C.k[i]; if (topo < gTopo[k]) gTopo[k] = topo
       const s = C.sec[i], b = secB[s]; if (b < 0 || (bPerto[k] && (!bPerto[b] || bOff[k] < bOff[b]))) secB[s] = k // o pelotão à vista mais à frente do trecho
@@ -790,7 +790,7 @@ export function criarCena(canvas, CONFIG) {
       // entrada da horda: vem marchando de fora da tela até a posição (só desenho; a luta ainda não começou)
       let desl = false
       { const f = Math.min(1, C.dtAnim / 140), dl = C.laneT[i] - C.lane[i], dd = C.dxeT[i] - C.dxe[i]; if (e === 1) {
-        if (C.chega[i]) { const lim = 80 * C.dtAnim / 1000; C.lane[i] += dl * f; C.dxe[i] += Math.abs(dd) <= lim ? dd : Math.sign(dd) * lim; desl = true; if (Math.abs(dd) < 2) C.chega[i] = 0 } // vaga: anda 2–3 passos, não escorrega
+        if (C.chega[i]) { const lim = 110 * C.dtAnim / 1000; C.lane[i] += dl * f; C.dxe[i] += Math.abs(dd) <= lim ? dd : Math.sign(dd) * lim; desl = true; if (Math.abs(dd) < 2) C.chega[i] = 0 } // vaga: anda 2–3 passos, não escorrega
         else { C.lane[i] += dl * f; C.dxe[i] += dd * f; desl = Math.abs(dd) > 3 }
         // LINHA DE FRENTE DURA (R28): quem está vivo nunca é desenhado do lado errado da linha dele (nem andando, nem chegando)
         const x = C.xDe(i); let a, b

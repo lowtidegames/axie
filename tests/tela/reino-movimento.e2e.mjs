@@ -201,7 +201,7 @@ async function rodar(fmt) {
     confere(await espera(page, () => window.__kmCena.med.bote >= 1 && (window.__kmCena.tipo !== 'pc' || window.__kmCena.cam.zoom > 1.2), 20000), 'a luta chega ao choque (no PC, com a câmera de duelo já mais perto)')
     const c1 = await K(page, (k, C) => ({ camY: C.camY, zoom: C.cam.zoom })); await page.waitForTimeout(900); const c2 = await K(page, (k, C) => ({ camY: C.camY, zoom: C.cam.zoom, zoomMax: C.med.zoomMax, e: C.e, duelo: C.med.duelo }))
     confere(c1.camY === (pc ? 0 : 34) && c2.camY === c1.camY, `o enquadre não muda DURANTE a luta: ${c1.camY} px no choque e ${c2.camY} px 0,9 s depois`)
-    confere(pc ? c2.zoomMax > 1.2 && c2.zoomMax <= (c2.e + 1) / c2.e + 0.001 && c2.duelo > 20 : c2.zoomMax === 1 && c2.duelo === 0, `câmera de duelo: até ×${c2.zoomMax.toFixed(2)} (PC: um degrau inteiro de pixel de tela; celular: sem zoom), ${c2.duelo} quadros seguindo o meio do choque`)
+    confere(c2.zoomMax <= (c2.e + 1) / c2.e + 0.001 && (pc ? c2.zoomMax > 1.2 && c2.duelo > 20 : c2.duelo === 0), `câmera de duelo: até ×${c2.zoomMax.toFixed(2)} (PC: um degrau inteiro de pixel de tela; celular: sem câmera de duelo — só o zoom curto do último de pé), ${c2.duelo} quadros seguindo o meio do choque`)
     await K(page, (k, C) => C.batalha.parar())
     confere(await espera(page, () => window.__kmCena.camY === 0 && window.__kmCena.cam.zoom === 1, 6000), 'acabou a luta: a cena volta ao enquadre normal e o zoom a ×1, macio') }
   // números lado a lado: alturas alternadas e, se ainda colidir, o menor espera 120 ms (direto na cena, sem depender da sorte da luta)

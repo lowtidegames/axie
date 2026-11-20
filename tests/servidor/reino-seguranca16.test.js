@@ -383,7 +383,8 @@ describe('R16 K6 — repetir comando em partida terminada fora do comando', () =
 describe('R16 — migração v5 → v6 (resposta guardada na linha da partida)', () => {
   test('banco usado da v5 com partida aberta: cópia antes, v6 depois, a partida segue e a repetição usa a resposta guardada', async () => {
     // regra mudou (R22): entrou a v7; a v5 migra por v6 até ela (a parte da v6 é a mesma)
-    assert.equal(VERSAO_DO_BANCO, 7)
+    // regra mudou (R39): entrou a v8 (só dados: conquistas de degrau)
+    assert.equal(VERSAO_DO_BANCO, 8)
     const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'keepmile-v5-'))
     const arq = path.join(pasta, 'v5.db')
     const db5 = abrirBanco(arq, { migracoes: MIGRACOES.slice(0, 5), agora: () => T0 })
@@ -397,7 +398,7 @@ describe('R16 — migração v5 → v6 (resposta guardada na linha da partida)',
     db5.close()
     const { s, api } = await subir({ dbPath: arq, t: T0 + 60_000 })
     try {
-      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, 7)
+      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, 8)
       const copias = fs.readdirSync(path.join(pasta, 'copias')).filter((n) => n.startsWith('v5.db.v5.'))
       assert.equal(copias.length, 1)
       const c = new DatabaseSync(path.join(pasta, 'copias', copias[0]), { readOnly: true })

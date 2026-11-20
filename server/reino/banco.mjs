@@ -1,6 +1,7 @@
 // Keepmile — tabelas do servidor do jogo de reino (migração v5 do banco; ligada em server/db.mjs).
 // Migração antiga nunca muda: ajuste novo = migração nova no fim da lista de server/db.mjs.
 import { randomBytes } from 'node:crypto'
+import { CONQUISTAS } from '../../shared/reino/config.js'
 
 /**
  * v5 — tarefa R14: partidas do Keepmile (semente, cartas liberadas, comandos e tempos; o estado só enquanto aberta),
@@ -91,4 +92,22 @@ export function migracaoV7(db) {
   ALTER TABLE reino_contas ADD COLUMN apelido_trocado_em INTEGER;
   ALTER TABLE reino_contas ADD COLUMN conquistas_quando TEXT NOT NULL DEFAULT '{}';
   `)
+}
+
+/**
+ * v8 — tarefa R39: só dados (nenhuma tabela muda). As conquistas novas que o banco já prova ficam feitas, SEM data
+ * (quando: null na tela): os degraus de rodadas vencidas somadas (tally*, por reino_contas.rodadas_vencidas) e Encore!
+ * (pela maior quantidade de vencidas numa partida terminada e CONFERIDA). As de luta valem só daqui para frente.
+ * Idempotente: só acrescenta id que falta, no fim da lista; nunca tira id nem mexe em conquistas_quando.
+ */
+export function migracaoV8(db) {
+  const melhor = db.prepare("SELECT MAX(vencidas) n FROM reino_partidas WHERE conta_id = ? AND status = 'terminada' AND conferida = 1")
+  const gravar = db.prepare('UPDATE reino_contas SET conquistas = ? WHERE conta_id = ?')
+  for (const c of db.prepare('SELECT conta_id, rodadas_vencidas, conquistas FROM reino_contas ORDER BY conta_id').all()) {
+    const tem = JSON.parse(c.conquistas)
+    const novas = Object.entries(CONQUISTAS.rodadasSomadas).filter(([, meta]) => c.rodadas_vencidas >= meta).map(([id]) => id)
+    if ((melhor.get(c.conta_id)?.n ?? 0) >= CONQUISTAS.rodadaDoBis) novas.push('encore')
+    const faltam = novas.filter((id) => !tem.includes(id))
+    if (faltam.length) gravar.run(JSON.stringify([...tem, ...faltam]), c.conta_id)
+  }
 }

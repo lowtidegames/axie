@@ -100,7 +100,7 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | Nº | Tarefa | Agente (modelo) | Arquivos que mexe | Depende de | Estado |
 |---|---|---|---|---|---|
 | P1 | Regras puras e config (ciclo do golpe, Calor, impressora, fusão, luxos, prestígio, contrato) | dev-servidor (Opus) | porao/comum/regras.js, config.js, porao/tests/regras.test.js | — | RODANDO |
-| P2 | Nomes provisórios inventados + troca por nomes locais fora do git | dev-servidor (Sonnet) | porao/comum/nomes.js, porao/servidor/nomes-local.mjs, porao/tests/nomes.test.js | — | RODANDO |
+| P2 | Nomes provisórios inventados + troca por nomes locais fora do git | dev-servidor (Sonnet) | porao/comum/nomes.js, porao/servidor/nomes-local.mjs, porao/tests/nomes.test.js | — | PRONTO (16650da juntado; 10 testes) |
 | P3 | Cena isométrica do porão + zoom nos 3 monitores (arte provisória trocável) | dev-tela | porao/tela/index.html, estilo.css, sprites.js, cena.js | — | RODANDO |
 | P4 | Banco e ações do jogo | dev-servidor (Opus) | porao/servidor/banco.mjs, jogo.mjs, porao/tests/jogo.test.js | P1, P2 | FILA |
 | P5 | Servidor HTTP local (127.0.0.1:4900) | dev-servidor | porao/servidor/index.mjs, porao/tests/api.test.js | P4 | FILA |

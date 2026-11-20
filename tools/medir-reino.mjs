@@ -717,6 +717,7 @@ export async function medirE({ n = 200, nBom = 40, teto = { 'novato-atento': 400
   const por = {}
   ts.forEach((t, i) => (por[t.robo] ||= []).push(...r[i]))
   const out = resumoE(por, teto)
+  out.cru = por
   if (pontos) {
     out.linhas.push('')
     out.linhas.push('Ranking semanal (média das 3 melhores de 21 partidas; 20.000 semanas reamostradas das partidas medidas):')
@@ -780,14 +781,14 @@ if (!isMainThread && parentPort) {
   const quer = (m) => a.medida === 'todas' || a.medida.split(',').includes(m)
   console.log(`Keepmile — medidas R36 (semente "${a.semente}", variante ${a.variante}) — números PROVISÓRIOS; nada no config muda`)
   let A = null, D = null
-  if (quer('A') || quer('E') || quer('F')) { A = await medirA({ ...base, n: a.n ?? 2000 }); if (quer('A')) mostrar('A — novato no 1º chefe (álbum inicial; o álbum cresce entre as partidas)', A) }
+  if (quer('A') || quer('F')) { A = await medirA({ ...base, n: a.n ?? 2000 }); if (quer('A')) mostrar('A — novato no 1º chefe (álbum inicial; o álbum cresce entre as partidas)', A) }
   if (quer('B')) mostrar(`B — qualidade da decisão (valor esperado com ${a.K} continuações do planejador)`, await medirB({ ...base, n: a.n ?? 400, K: a.K }))
   if (quer('C')) mostrar(`C — posição importa? (${a.K} continuações)`, await medirC({ ...base, n: a.n ?? 300, K: a.K }))
-  if (quer('D') || quer('E') || quer('F')) { D = await medirD({ ...base, n: a.n ?? 2000, planos: quer('D') ? a.planos : 0 }); if (quer('D')) mostrar('D — cartas, planos e ouro (planejador, álbum completo)', D) }
+  if (quer('D') || quer('F')) { D = await medirD({ ...base, n: a.n ?? 2000, planos: quer('D') ? a.planos : 0 }); if (quer('D')) mostrar('D — cartas, planos e ouro (planejador, álbum completo)', D) }
   if (quer('E')) {
-    // ranking: os 4 robôs com o álbum completo (quem disputa ranking já jogou bastante); o planejador vem do D
-    const pontos = { planejador: D.cru.map((r) => r.pontos) }
-    for (const robo of ['aleatorio', 'ganancioso-puro', 'novato-atento']) pontos[robo] = await medirPontos({ ...base, robo, n: a.n ?? 2000 })
+    // ranking: os 4 robôs com o álbum completo (quem disputa ranking já jogou bastante)
+    const pontos = {}
+    for (const robo of ['aleatorio', 'ganancioso-puro', 'novato-atento', 'planejador']) pontos[robo] = await medirPontos({ ...base, robo, n: a.n ?? 2000 })
     mostrar('E — longo prazo e ranking', await medirE({ ...base, n: a.n ? Math.max(10, Math.round(a.n / 10)) : 200, nBom: a.n ? Math.max(2, Math.round(a.n / 50)) : 40, pontos }))
   }
   if (quer('F')) {

@@ -42,7 +42,7 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
   }
   /** Topo (título + X) e pé (Close / voltar) ficam sempre à vista; só o MEIO rola. `volta` = { texto, rotulo, ir }: o pé volta a essa tela em vez do menu. */
   function abrir(nome, titulo, corpo, cabeca = null, volta = null) {
-    vestir(); aberta = nome
+    vestir(); if (!aberta) Som.tocar('menuAbre'); aberta = nome // R35: o painel chegando tem som (trocar de tela dentro do menu não repete)
     const raiz = nome === 'menu' || nome === 'sair' || nome === 'amigo' || nome === 'falha'
     const tit = h('h2', { id: 'telaTitulo' }, [letra(titulo, { fonte: 'reino-ouro', k: 3, larg: LARG() - 50 })])
     const x = h('button', { type: 'button', class: 'km-x', 'aria-label': T.menu.fechar, clique: fechar }, [letra('x', { k: 3 })])
@@ -53,7 +53,7 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
     fundo.hidden = false; fundo.dataset.tela = nome; meio.scrollTop = 0
     x.focus()
   }
-  function fechar() { if (!aberta) return; aberta = null; pedido++; fundo.hidden = true; const f = aoSair; aoSair = null; aoFechar(); if (f) f() }
+  function fechar() { if (!aberta) return; aberta = null; pedido++; Som.tocar('menuFecha'); fundo.hidden = true; const f = aoSair; aoSair = null; aoFechar(); if (f) f() }
   // Toque fora fecha. O MESMO toque que fechou não reabre o menu (o dedo sobe em cima do ícone e o clique dele pode chegar atrasado);
   // um toque NOVO — qualquer outro apertar de dedo depois — abre na hora.
   fundo.addEventListener('pointerdown', (ev) => { if (ev.target === fundo) { fechar(); engoleAte = performance.now() + 700 } })
@@ -64,14 +64,14 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
   /** Chave de liga/desliga do menu (som, Reduced motion). */
   const liga = (rot, valor, trocar, id) => {
     const estado = (v) => letra(v ? T.menu.ligado : T.menu.desligado, { fonte: 'reino', cor: v ? COR.ouro : CINZA, classe: 'km-valor' })
-    const b = h('button', { type: 'button', class: 'km-bt km-bt--fraco km-liga', id, 'aria-pressed': String(valor), clique: () => { const v = trocar(); b.setAttribute('aria-pressed', String(v)); b.lastChild.replaceWith(estado(v)); Som.tocar('toque') } }, [letra(rot), estado(valor)])
+    const b = h('button', { type: 'button', class: 'km-bt km-bt--fraco km-liga', id, 'aria-pressed': String(valor), clique: () => { const v = trocar(); b.setAttribute('aria-pressed', String(v)); b.lastChild.replaceWith(estado(v)); Som.tocar('toque', { tom: v ? 5 : -4 }) } }, [letra(rot), estado(valor)])
     return b
   }
   /** Volume em 5 degraus (música e efeitos), além do mudo. */
   const volume = (rot, qual, id) => {
     const pinos = h('span', { class: 'km-pinos', role: 'img', id: id + 'Nivel' })
     const pintar = () => { const n = Math.round(Som.volume(qual) * 5); pinos.replaceChildren(...[0, 1, 2, 3, 4].map((i) => h('i', { class: i < n ? 'km-on' : '' }))); pinos.setAttribute('aria-label', `${rot} ${n}/5`); pinos.dataset.nivel = String(n) }
-    const passo = (d) => () => { Som.volume(qual, Math.round(Som.volume(qual) * 5 + d) / 5); pintar(); Som.tocar('toque') }
+    const passo = (d) => () => { Som.volume(qual, Math.round(Som.volume(qual) * 5 + d) / 5); pintar(); Som.tocar('toque', { tom: Math.round(Som.volume(qual) * 5) * 2 - 4 }) }
     pintar()
     return h('div', { class: 'km-vol', id }, [letra(rot), h('span', { class: 'km-vol-botoes' }, [
       h('button', { type: 'button', class: 'km-bt km-bt--fraco km-mini', id: id + 'Menos', 'aria-label': T.menu.menosVol(rot), clique: passo(-1) }, [letra('-', { k: 3 })]), pinos,
@@ -365,9 +365,10 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
         ocupado = false; salvar.disabled = false
         if (aberta !== 'apelido' || !erro.isConnected) return
         const t = e.codigo === 'APELIDO_TROCADO_HOJE' && e.extra?.podeEm ? A.espera(falta(e.extra.podeEm)) : A.erro[e.codigo] || erroTexto(e.codigo)
-        erro.dataset.codigo = e.codigo || 'PADRAO'; erro.replaceChildren(linha(t, { fonte: 'reino', cor: COR.ouro, larg: LARG() }))
+        Som.tocar('negado'); erro.dataset.codigo = e.codigo || 'PADRAO'; erro.replaceChildren(linha(t, { fonte: 'reino', cor: COR.ouro, larg: LARG() }))
         return
       }
+      Som.tocar('apelidoOk')
       if (aberta === 'apelido' && erro.isConnected) perfil(A.feito) // o nome novo já vale: perfil, menu e ranking mostram o que o servidor gravou
     }
     const salvar = Object.assign(bt(A.salvar, enviar), { id: 'apelidoSalvar' })

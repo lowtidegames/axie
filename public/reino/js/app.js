@@ -20,6 +20,7 @@ const Q = new URLSearchParams(location.search)
 const TESTE = Q.get('teste') === '1'
 const canvas = document.getElementById('cena'), camada = document.getElementById('toques')
 const C = criarCena(canvas, CONFIG)
+C.aoSom = (nome, x = C.VW / 2, opc = {}) => { if (nome) Som.tocar(nome, { pan: Math.max(-0.8, Math.min(0.8, (x / C.VW) * 2 - 1)), ...opc }) } // R35: som da cena no quadro certo, com posição estéreo leve
 const J = { familias: [], e: null, v: null, op: null, comandos: [], semente: null, liberadas: [], ouroAlvo: 0, pos: null, ultimaLuta: null, lutas: [], espolioI: -1, semSorteio: true, anunciado: '', avisado: '', erros: [], chefesVistos: new Set(), emLuta: false, link: '', postou: '', infoAte: 0 }
 let UI, M, Bat, Telas
 // MODO SERVIDOR (js/servidor.js): a partida mora no servidor. `J.v`/`J.op` são a `visao`/`opcoes` que ELE mandou; `J.e` vira só { fase }.
@@ -183,7 +184,7 @@ function maoNova(atraso = 0) {
   M.maoT0 = agoraMs() + atraso; M.maoRevelada = !!C.menos; M.maoLog = []
   if (C.menos) return
   const t0 = M.maoT0, R = UI.REVELA
-  for (let i = 0; i < 3; i++) depois(atraso + R.espera + i * R.passo + (R.vira >> 1), () => { if (M.fase === 'carta' && M.maoT0 === t0 && !M.cartaPosta) Som.tocar('toque', { tom: i * 2 }) })
+  for (let i = 0; i < 3; i++) depois(atraso + R.espera + i * R.passo + (R.vira >> 1), () => { if (M.fase === 'carta' && M.maoT0 === t0 && !M.cartaPosta) { Som.tocar('toque', { tom: i * 2 }); Som.tocar('cartaVira', { tom: i, pan: (i - 1) * 0.5 }); const c = M.mao[i] && CONFIG.CARTAS[M.mao[i].carta]; if (c && CONFIG.RARIDADES.findIndex((x) => x.id === c.raridade) >= 2) Som.tocar('cartaRara', { pan: (i - 1) * 0.5 }) } })
 }
 function nivelNaMao(carta) { let n = 0; for (const t of J.v.terrenos) if (t && t.carta === carta && t.nivel < CONFIG.PARTIDA.nivelMax) n = Math.max(n, t.nivel); return n }
 const precisaDe = (fam) => (J.v.reliquias.includes('banner') ? CONFIG.RELIQUIAS.banner.terrenos : CONFIG.FAMILIAS[fam].terrenos)
@@ -423,7 +424,7 @@ function aoFimDaLuta(res) {
     // ouro contando, depois os 3 espólios viram cartas grandes
     // (R30) o ouro do HUD conta JUNTO com o letreiro, do que estava à vista até o número que o motor/servidor mandou (`J.v.ouro`)
     const passos = Math.min(ouro, 12), ouroDe = M.ouro, ouroPara = J.v.ouro
-    for (let i = 1; i <= passos; i++) depois(350 + i * 70, () => { M.vitoria.ouroMostra = Math.round((ouro * i) / passos); J.ouroAlvo = ouroDe + Math.round(((ouroPara - ouroDe) * i) / passos); Som.tocar('ouro', { tom: i }) })
+    for (let i = 1; i <= passos; i++) depois(350 + i * 70, () => { M.vitoria.ouroMostra = Math.round((ouro * i) / passos); J.ouroAlvo = ouroDe + Math.round(((ouroPara - ouroDe) * i) / passos); if (i < passos) Som.tocar('ouroTique', { tom: i, pan: -0.5 }); else Som.tocar('ouro', { tom: 4 }) })
     depois(450 + passos * 70 + 250, () => { M.vitoria.pronto = true; M.vitoria.prontoT0 = agoraMs(); J.ouroAlvo = J.v.ouro; Som.tocar('espolio'); UI.mudou() })
     conquista('supper'); if (limpo) conquista('plate'); if (um) conquista('last')
     if (bat.horda.chefe && CHEFE_CONQUISTA[bat.horda.chefe]) conquista(CHEFE_CONQUISTA[bat.horda.chefe])
@@ -542,7 +543,7 @@ function aoTocar(id, d, ev) {
     if (id.includes(':')) return
     Som.tocar('toque')
     if (id === 'sair-replay' || id === 'voltar-replay') sairDoReplay()
-    else if (id === 'vel') { Bat.vel = Bat.vel === 1 ? 2 : 1; M.vel = Bat.vel; UI.mudou() }
+    else if (id === 'vel') { Bat.vel = Bat.vel === 1 ? 2 : 1; M.vel = Bat.vel; Som.tocar('velocidade', { tom: Bat.vel === 2 ? 5 : 0 }); UI.mudou() }
     else if (id === 'pular-luta') pularParaLuta()
     else if (id === 'rever') reverReplay()
     return
@@ -564,7 +565,7 @@ function aoTocar(id, d, ev) {
   if (id === 'lutar' || id === 'lutar2') lutar()
   else if (id === 'sortear') armar('sortear', sortear)
   else if (id === 'consertar') armar('consertar', consertar)
-  else if (id === 'vel') { Bat.vel = Bat.vel === 1 ? 2 : Bat.vel === 2 ? 4 : 1; M.vel = Bat.vel; Guarda.set('vel', Bat.vel); Som.tocar('toque'); UI.mudou() }
+  else if (id === 'vel') { Bat.vel = Bat.vel === 1 ? 2 : Bat.vel === 2 ? 4 : 1; M.vel = Bat.vel; Guarda.set('vel', Bat.vel); Som.tocar('toque'); Som.tocar('velocidade', { tom: Bat.vel === 4 ? 9 : Bat.vel === 2 ? 5 : 0 }); UI.mudou() }
   else if (id === 'som') { M.mudo = Som.alternarMudo(); Som.tocar('toque') }
   else if (id === 'menu') { Som.tocar('toque'); Telas.menu() }
   else if (id === 'voltar') { M.fase = 'vitoria'; M.trocar = 0; M.info = null; C.destaque = null; Som.tocar('toque'); UI.mudou() }
@@ -616,7 +617,7 @@ function ligarVoltar() {
 function menos(v) { C.menos = !!v; Som.menosAnimacao(!!v); C.limite = (C.tipo === 'celular' ? 40 : 60) >> (v ? 1 : 0); document.documentElement.classList.toggle('km-menos', !!v); if (v) canvas.style.filter = '' }
 
 // ---------------------------------------------------------------- laço de desenho
-const QUADROS = new Float32Array(600), CUSTO = new Float32Array(600); let nq = 0, ultimo = 0, ouroEm = 0
+const QUADROS = new Float32Array(600), CUSTO = new Float32Array(600); let nq = 0, ultimo = 0, ouroEm = 0, trechoSom = -1
 function quadro(agora) {
   requestAnimationFrame(quadro)
   const dt = ultimo ? Math.min(50, agora - ultimo) : 16; if (ultimo) QUADROS[nq % 600] = agora - ultimo
@@ -627,7 +628,8 @@ function quadro(agora) {
     if (M.fase === 'luta') { M.forca = { aliados: Bat.aliados, inimigos: Bat.inimigos }; M.resumo = resumoDaLuta() }
     if (M.info && agora > J.infoAte) { M.info = null; M.relSel = -1 }
     festasTique(agora)
-    if (M.ouro !== J.ouroAlvo && agora - ouroEm > 55) { ouroEm = agora; const d = J.ouroAlvo - M.ouro; M.ouro += Math.sign(d) * Math.max(1, Math.floor(Math.abs(d) / 6)); if (d > 0 && M.fase !== 'vitoria') Som.tocar('ouro', { tom: M.ouro % 8 }) }
+    if (M.ouro !== J.ouroAlvo && agora - ouroEm > 55) { ouroEm = agora; const d = J.ouroAlvo - M.ouro; M.ouro += Math.sign(d) * Math.max(1, Math.floor(Math.abs(d) / 6)); if (d > 0 && M.fase !== 'vitoria') { if (M.ouro === J.ouroAlvo) Som.tocar('ouro', { tom: 2 }); else Som.tocar('ouroTique', { tom: M.ouro % 8, pan: -0.5 }) } }
+    { const tr = C.trecho(); if (tr !== trechoSom) { trechoSom = tr; Som.ambiente(tr) } } // R35: o ambiente do trecho (pássaros, vila, pôr do sol, grilos) cruza em 1,5 s
     UI.novoQuadro(); C.desenhar(agora, dt, dtAnim)
     UI.desenhar(agora)
   } catch (err) { if (!J.erros.includes(String(err))) { J.erros.push(String(err)); console.error(err) } }
@@ -787,7 +789,7 @@ async function depoisDoFim() {
     // (R30) fim de RANKING: os pontos desta partida e a conta da temporada, com os números do servidor (resultado, perfil e a regra do ranking)
     M.fim.ranking = S.modo === 'ranking' && S.resultado && S.resultado.conta !== false && p.temporada?.voce ? { pontos: S.resultado.pontos, temporada: p.temporada.voce.pontos, melhores: rk.temporada.melhoresQueContam } : null
     M.fim.media = sit.media; M.fim.liga = sit.liga; M.fim.album = albumDoServidor(); M.fim.amigo = linhaDoModo(S.modo === 'estrada' ? rk.estradaDoDia.voce : null)
-    M.fim.gancho = ganchoDaEstrada(rk.estradaDoDia)
+    { const tinha = M.fim.gancho; M.fim.gancho = ganchoDaEstrada(rk.estradaDoDia); if (M.fim.gancho && !tinha) Som.tocar('gancho') } // R35: o gancho do fim chega com som (uma vez)
     // RANKING COM FESTA: só no fim de uma partida de ranking que contou, e só se o servidor diz posição melhor ou liga maior que antes
     const s = S.modo === 'ranking' && nova && S.resultado?.conta !== false ? subidaNoRanking(antes, p.temporada?.voce || null) : null
     if (s && !M.fim.subiu) {
@@ -810,7 +812,7 @@ function festejarSubida(s, espera = 0) {
   if (C.menos || s.de == null || s.para == null) { depois(espera, () => Som.tocar('nivelPequeno')); return }
   const n = Math.min(8, s.de - s.para)
   for (let i = 1; i <= n; i++) depois(espera + Math.round((s.ms * i) / n), () => Som.tocar('rankingSobe', { tom: i }))
-  depois(espera + s.ms + 120, () => { Som.tocar('nivelPequeno'); C.efeito('confetti', C.VW / 2 + C.cam.x, C.VH * 0.4) })
+  depois(espera + s.ms + 120, () => { Som.tocar('rankUp'); C.efeito('confetti', C.VW / 2 + C.cam.x, C.VH * 0.4) })
 }
 /** O GANCHO honesto do fim (modo servidor): a estrada do dia. O tempo é o do relógio do servidor e nunca passa de 1 dia — se a conta
  *  der mais que isso (relógio do aparelho fora do lugar), a tela não escreve número: só "tomorrow". */
@@ -884,7 +886,7 @@ function pularParaLuta() {
   const ps = R.rep.passos; let j = R.i
   while (j < ps.length && ps[j].comando.tipo !== 'batalhar') j++
   if (j >= ps.length) return
-  semTimers(); limparFestas()
+  semTimers(); limparFestas(); Som.tocar('replayPula')
   if (j > R.i) { J.v = ps[j - 1].visao; R.i = j; replayParado(null) }
   passoDoReplay()
 }
@@ -913,7 +915,7 @@ async function voltarAoFim() {
  *  (rede, manutenção): uma tela curta com "Try again"; nunca fica travado. */
 async function comecarNoServidor() {
   Srv.aoTrocarConta = () => { S.sessaoNova = true }
-  Srv.aoRede = (caiu) => { if (caiu) M.status = { texto: T.srv.rede, ate: Infinity, rede: true }; else if (M.status?.rede) M.status = { texto: T.srv.voltou, ate: agoraMs() + 1500 } }
+  Srv.aoRede = (caiu) => { if (caiu) { if (!M.status?.rede) Som.tocar('semSinal'); M.status = { texto: T.srv.rede, ate: Infinity, rede: true } } else if (M.status?.rede) { M.status = { texto: T.srv.voltou, ate: agoraMs() + 1500 }; Som.tocar('voltou') } }
   for (;;) {
     try {
       const [ab, perfil] = await Promise.all([Srv.aberta(), Srv.perfil()])

@@ -2,14 +2,18 @@
 // partida nova), ÁLBUM, CONQUISTAS (com medalha, o que dá e a data), BEST RUNS (liga provisória do beta + as melhores partidas), a
 // pergunta de sair e a do link de amigo. Tudo na LETRA DO JOGO (as fontes em pixel do atlas, desenhadas em canvas) e no mesmo
 // acabamento das cartas (painel e botões do atlas). Fecham por 4 jeitos: X, Esc, botão de baixo e toque fora.
-import { chancesReais } from '../../../shared/reino/partida.js'
+import { chancesDaMao, resistiu } from '../../../shared/reino/partida.js'
 import { LIGAS, ligaDe, mediaDasMelhores } from './ligas.js'
-import { CONQUISTAS, T } from './textos.js'
+import { CONQUISTAS, GRUPOS_CONQUISTA, T } from './textos.js'
 
 const ALTURA = { reino: [7, 9], 'reino-contorno': [9, 11], 'reino-ouro': [9, 11], mini: [5, 7], 'mini-contorno': [7, 8], 'mini-ouro': [7, 8] } // [altura da letra, passo da linha]
 const CINZA = '#CECAD8'
 /** "Common 50% · Uncommon 50%": só as raridades com chance (as de 0% não podem sair e não aparecem). */
 const textoDasChances = (l) => l.filter((r) => r.chance > 0).map((r) => `${r.nome} ${r.chance}%`).join(' · ')
+
+// R44: cada uma das 30 conquistas tem a sua medalha (19×21) — as 12 antigas no atlas, as 18 novas desenhadas por código no mesmo
+// troféu (`Arte.medalha`); os degraus de rodadas são um marco de estrada com o número da meta. A mesma medalha vai na lista e no aviso.
+export function desenharMedalha(Arte, g, c, ganha, x = 0, y = 0) { return Arte.medalha(g, c, x, y, ganha) }
 
 export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaPartida, emPartida, aoFechar, servidor = null }) {
   const fundo = document.getElementById('tela'), caixa = document.getElementById('telaCaixa'), COR = Arte.COR
@@ -42,7 +46,7 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
   }
   /** Topo (título + X) e pé (Close / voltar) ficam sempre à vista; só o MEIO rola. `volta` = { texto, rotulo, ir }: o pé volta a essa tela em vez do menu. */
   function abrir(nome, titulo, corpo, cabeca = null, volta = null) {
-    vestir(); aberta = nome
+    vestir(); if (!aberta) Som.tocar('menuAbre'); aberta = nome // R35: o painel chegando tem som (trocar de tela dentro do menu não repete)
     const raiz = nome === 'menu' || nome === 'sair' || nome === 'amigo' || nome === 'falha'
     const tit = h('h2', { id: 'telaTitulo' }, [letra(titulo, { fonte: 'reino-ouro', k: 3, larg: LARG() - 50 })])
     const x = h('button', { type: 'button', class: 'km-x', 'aria-label': T.menu.fechar, clique: fechar }, [letra('x', { k: 3 })])
@@ -53,25 +57,30 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
     fundo.hidden = false; fundo.dataset.tela = nome; meio.scrollTop = 0
     x.focus()
   }
-  function fechar() { if (!aberta) return; aberta = null; pedido++; fundo.hidden = true; const f = aoSair; aoSair = null; aoFechar(); if (f) f() }
+  function fechar() { if (!aberta) return; aberta = null; pedido++; Som.tocar('menuFecha'); fundo.hidden = true; const f = aoSair; aoSair = null; aoFechar(); if (f) f() }
   // Toque fora fecha. O MESMO toque que fechou não reabre o menu (o dedo sobe em cima do ícone e o clique dele pode chegar atrasado);
   // um toque NOVO — qualquer outro apertar de dedo depois — abre na hora.
   fundo.addEventListener('pointerdown', (ev) => { if (ev.target === fundo) { fechar(); engoleAte = performance.now() + 700 } })
   addEventListener('pointerdown', (ev) => { if (ev.target !== fundo) engoleAte = 0 }, true)
   const emblema = (nome, k = 2) => Arte.miniatura(27, 30, (g) => { if (!Arte.liga(g, nome, 0, 0)) Arte.icone(g, 'shield', 8, 9) }, k)
+  /** R39 — o reino resistiu nesta partida? O servidor diz em `venceu`; sem o campo (servidor antigo, modo local), a regra do motor pelas rodadas vencidas. */
+  const venceuDe = (m) => (typeof m.venceu === 'boolean' ? m.venceu : Number.isFinite(m.vencidas) && resistiu(m.vencidas))
+  /** Selo pequeno "HELD" (ouro) para quem venceu a rodada da vitória: melhores partidas e listas da estrada. */
+  const selo = () => h('span', { class: 'km-selo', style: 'display:inline-flex;flex:none;padding:3px 5px 2px;border:2px solid var(--ouro);background:var(--ameixa)' }, [letra(T.menu.selo, { fonte: Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno' })])
+  const comSelo = (e, m) => (venceuDe(m) ? h('span', { style: 'display:flex;flex-wrap:wrap;gap:6px;align-items:center' }, [e, selo()]) : e)
   const situacao = () => { const melhores = Guarda.get('melhores'), media = mediaDasMelhores(melhores); return { melhores, media, ...ligaDe(media) } }
 
   /** Chave de liga/desliga do menu (som, Reduced motion). */
   const liga = (rot, valor, trocar, id) => {
     const estado = (v) => letra(v ? T.menu.ligado : T.menu.desligado, { fonte: 'reino', cor: v ? COR.ouro : CINZA, classe: 'km-valor' })
-    const b = h('button', { type: 'button', class: 'km-bt km-bt--fraco km-liga', id, 'aria-pressed': String(valor), clique: () => { const v = trocar(); b.setAttribute('aria-pressed', String(v)); b.lastChild.replaceWith(estado(v)); Som.tocar('toque') } }, [letra(rot), estado(valor)])
+    const b = h('button', { type: 'button', class: 'km-bt km-bt--fraco km-liga', id, 'aria-pressed': String(valor), clique: () => { const v = trocar(); b.setAttribute('aria-pressed', String(v)); b.lastChild.replaceWith(estado(v)); Som.tocar('toque', { tom: v ? 5 : -4 }) } }, [letra(rot), estado(valor)])
     return b
   }
   /** Volume em 5 degraus (música e efeitos), além do mudo. */
   const volume = (rot, qual, id) => {
     const pinos = h('span', { class: 'km-pinos', role: 'img', id: id + 'Nivel' })
     const pintar = () => { const n = Math.round(Som.volume(qual) * 5); pinos.replaceChildren(...[0, 1, 2, 3, 4].map((i) => h('i', { class: i < n ? 'km-on' : '' }))); pinos.setAttribute('aria-label', `${rot} ${n}/5`); pinos.dataset.nivel = String(n) }
-    const passo = (d) => () => { Som.volume(qual, Math.round(Som.volume(qual) * 5 + d) / 5); pintar(); Som.tocar('toque') }
+    const passo = (d) => () => { Som.volume(qual, Math.round(Som.volume(qual) * 5 + d) / 5); pintar(); Som.tocar('toque', { tom: Math.round(Som.volume(qual) * 5) * 2 - 4 }) }
     pintar()
     return h('div', { class: 'km-vol', id }, [letra(rot), h('span', { class: 'km-vol-botoes' }, [
       h('button', { type: 'button', class: 'km-bt km-bt--fraco km-mini', id: id + 'Menos', 'aria-label': T.menu.menosVol(rot), clique: passo(-1) }, [letra('-', { k: 3 })]), pinos,
@@ -128,26 +137,49 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
     return [
       linha(`${livres.size} / ${ordem.length} · ${T.album.somadas(rodadas)}`, { pid: 'albumConta', fonte: 'reino' }),
       linha(prox ? T.album.proxima(prox - rodadas) : T.album.todas, { pid: 'albumProxima' }), barra, grade, detalhe,
-      // R31: a chance de AGORA é a do motor para as cartas liberadas (só as raridades que podem sair); a tabela com tudo liberado vem à parte, rotulada
-      linha(T.album.chances + ': ' + textoDasChances(chancesReais([...livres])), { pid: 'albumChances', classe: 'km-chances' }),
-      livres.size < ordem.length ? linha(T.album.chancesTodas + ': ' + textoDasChances(chancesReais(ordem)), { pid: 'albumChancesTodas', cor: CINZA, classe: 'km-chances' }) : null,
+      // R31/R34: a chance de AGORA é a do motor para uma mão destas cartas liberadas (sem repetir; só as raridades que podem sair); a tabela com tudo liberado vem à parte, rotulada
+      linha(T.album.chances + ': ' + textoDasChances(chancesDaMao({ cartas: [...livres] })), { pid: 'albumChances', classe: 'km-chances' }),
+      livres.size < ordem.length ? linha(T.album.chancesTodas + ': ' + textoDasChances(chancesDaMao({ cartas: ordem })), { pid: 'albumChancesTodas', cor: CINZA, classe: 'km-chances' }) : null,
     ]
   }
   function conquistas() {
     Musica.momento('menu')
-    if (sv) { comDados('conquistas', T.menu.conquistas, sv.perfil, (p) => conquistasCom(new Set(p.conquistas.filter((c) => c.feita).map((c) => c.id)), Object.fromEntries(p.conquistas.filter((c) => c.feita && c.quando).map((c) => [c.id, String(c.quando).slice(0, 10)])))); return } // a data é a do servidor (`quando`; null = sem data)
-    abrir('conquistas', T.menu.conquistas, conquistasCom(new Set(Guarda.get('conquistas')), Guarda.get('conquistasEm') || {}))
+    if (sv) { comDados('conquistas', T.menu.conquistas, sv.perfil, (p) => conquistasCom(new Set(p.conquistas.filter((c) => c.feita).map((c) => c.id)), Object.fromEntries(p.conquistas.filter((c) => c.feita && c.quando).map((c) => [c.id, String(c.quando).slice(0, 10)])), p.album?.rodadasVencidas ?? 0, novasDesde(p.conquistas.filter((c) => c.feita).map((c) => c.id)))); return } // a data é a do servidor (`quando`; null = sem data)
+    abrir('conquistas', T.menu.conquistas, conquistasCom(new Set(Guarda.get('conquistas')), Guarda.get('conquistasEm') || {}, Guarda.get('rodadas'), novasDesde(Guarda.get('conquistas'))))
   }
-  function conquistasCom(tem, em) {
-    const w = LARG() - 66
+  /** R41 — as conquistas ganhas desde a última vez que a lista foi aberta (guardado no aparelho): levam o selo "NEW" desta vez só. */
+  function novasDesde(feitas) {
+    const vistas = Guarda.get('conquistasVistas'), novas = new Set(Array.isArray(vistas) ? feitas.filter((id) => !vistas.includes(id)) : [])
+    Guarda.set('conquistasVistas', [...new Set([...(Array.isArray(vistas) ? vistas : []), ...feitas])])
+    return novas
+  }
+  function medalha(c, ganha) {
+    const m = Arte.miniatura(19, 21, (g) => desenharMedalha(Arte, g, c, ganha), 2)
+    m.dataset.icone = '1'
+    return m
+  }
+  /** As 30 em 4 grupos (ordem e grupos do módulo da regra). Feita: borda e nome em ouro, o que dá e a data. Por fazer: apagada, com a
+   *  condição; os degraus mostram a barra "123 / 200" (rodadas vencidas somadas da conta, do perfil ou do aparelho). */
+  function conquistasCom(tem, em, rodadas = 0, novas = new Set()) {
+    const w = LARG() - 66, ouroMini = Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno', feitas = CONQUISTAS.filter((c) => tem.has(c.id)).length
+    const nova = (c, e) => (novas.has(c.id) ? h('span', { style: 'display:flex;flex-wrap:wrap;gap:6px;align-items:center' }, [e, h('span', { class: 'km-nova', style: 'display:inline-flex;flex:none;padding:3px 5px 2px;background:var(--carmim);border:2px solid var(--ouro)' }, [letra(T.menu.nova, { fonte: 'mini', cor: COR.creme })])]) : e)
+    const item = (c) => {
+      const ganha = tem.has(c.id), degrau = !ganha && c.meta && c.medida === 'rodadasVencidas', valor = degrau ? Math.max(0, Math.min(c.meta, rodadas)) : 0
+      // o que a conquista dá (só título e medalha: docs/reino/biblia.md, seção 9) e a data em que veio
+      const da = ganha ? letra(`${T.menu.enfeite}${em[c.id] ? ' · ' + T.menu.data(em[c.id]) : ''}`, { fonte: ouroMini, larg: w, classe: 'km-da' }) : null
+      const barra = degrau ? h('span', { class: 'km-degrau', 'data-valor': String(valor), 'data-meta': String(c.meta), style: 'display:flex;align-self:stretch;align-items:center;gap:8px' }, [
+        h('span', { class: 'km-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(c.meta), 'aria-valuenow': String(valor), style: 'display:block;flex:1 1 auto;height:10px;border-width:2px' }, [h('i', { style: `width:${Math.floor((valor * 100) / c.meta)}%` })]),
+        letra(T.menu.degrau(valor, c.meta), { fonte: 'mini', cor: COR.creme, classe: 'km-degrau-texto' })]) : null
+      return h('li', { class: ganha ? 'km-feita' : '', 'data-id': c.id, 'data-nova': novas.has(c.id) ? '1' : '0', 'data-em': em[c.id] || '', style: ganha ? 'background:#3A2452' : '' }, [medalha(c, ganha), h('span', { class: 'km-medalha-texto', style: 'flex:1 1 auto;min-width:0' }, [nova(c, letra(c.nome, ganha ? { fonte: 'reino-ouro', larg: w - (novas.has(c.id) ? 40 : 0) } : { fonte: 'reino', cor: CINZA, larg: w })), letra(c.como, { fonte: 'mini', cor: ganha ? COR.creme : CINZA, larg: w }), da, barra])])
+    }
     return [
-      linha(`${CONQUISTAS.filter((c) => tem.has(c.id)).length} / ${CONQUISTAS.length}`, { pid: 'conquistasConta', fonte: 'reino' }),
-      h('ul', { class: 'km-lista km-medalhas', id: 'listaConquistas' }, CONQUISTAS.map((c) => {
-        const ganha = tem.has(c.id), med = Arte.miniatura(19, 21, (g) => { if (!Arte.conquista(g, c.nome, 0, 0, ganha)) Arte.icone(g, ganha ? 'pudding' : 'pin-off', 4, 5) }, 2)
-        med.dataset.icone = '1'
-        // o que a conquista dá (só título e medalha: docs/reino/biblia.md, seção 9) e a data em que veio
-        const da = ganha ? letra(`${T.menu.enfeite}${em[c.id] ? ' · ' + T.menu.data(em[c.id]) : ''}`, { fonte: Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno', larg: w, classe: 'km-da' }) : null
-        return h('li', { class: ganha ? 'km-feita' : '', 'data-id': c.id, 'data-em': em[c.id] || '' }, [med, h('span', { class: 'km-medalha-texto' }, [letra(c.nome, { fonte: 'reino', cor: ganha ? COR.creme : CINZA, larg: w }), letra(c.como, { fonte: 'mini', cor: CINZA, larg: w }), da])])
+      linha(`${feitas} / ${CONQUISTAS.length}`, { pid: 'conquistasConta', fonte: 'reino' }),
+      h('div', { class: 'km-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(CONQUISTAS.length), 'aria-valuenow': String(feitas) }, [h('i', { style: `width:${Math.round((feitas * 100) / CONQUISTAS.length)}%` })]),
+      h('div', { id: 'listaConquistas', style: 'display:flex;flex-direction:column;gap:6px' }, GRUPOS_CONQUISTA.map((gr) => {
+        const lista = CONQUISTAS.filter((c) => c.grupo === gr.id), n = lista.filter((c) => tem.has(c.id)).length
+        return h('section', { 'data-grupo': gr.id, 'data-feitas': String(n), 'data-total': String(lista.length), style: 'display:flex;flex-direction:column;gap:6px' }, [
+          h('h3', { style: 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:0 4px' }, [letra(gr.nome, { fonte: 'reino-ouro' }), letra(`${n} / ${lista.length}`, { fonte: 'reino', cor: n === lista.length ? COR.ouro : CINZA })]),
+          h('ul', { class: 'km-lista km-medalhas' }, lista.map(item))])
       })),
     ]
   }
@@ -162,7 +194,7 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
       h('ol', { class: 'km-lista km-escada', id: 'listaLigas' }, LIGAS.map((l, i) => h('li', { class: i === s.i ? 'km-feita' : '', 'data-liga': l.nome }, [emblema(l.nome, 1), letra(l.nome, { fonte: 'reino', cor: i === s.i ? COR.ouro : COR.creme }), letra(T.menu.faixa(l.de, LIGAS[i + 1] ? LIGAS[i + 1].de - 1 : 0), { fonte: 'mini', cor: CINZA })]))),
       linha(T.menu.beta, { cor: CINZA, classe: 'km-chances' }),
       h('h3', {}, [letra(T.menu.melhores, { fonte: 'reino-ouro' })]),
-      h('ol', { class: 'km-lista km-melhores', id: 'listaMelhores' }, s.melhores.length ? s.melhores.map((m) => h('li', {}, [letra(`${m.pontos}`, { fonte: 'reino-ouro' }), letra(`${T.menu.rodadas(m.vencidas)} · ${m.dia}`, { fonte: 'mini', cor: CINZA })])) : [h('li', {}, [letra(T.menu.nenhuma, { fonte: 'mini', cor: CINZA })])]),
+      h('ol', { class: 'km-lista km-melhores', id: 'listaMelhores' }, s.melhores.length ? s.melhores.map((m) => h('li', { 'data-venceu': venceuDe(m) ? '1' : '0' }, [letra(`${m.pontos}`, { fonte: 'reino-ouro' }), letra(`${T.menu.rodadas(m.vencidas)} · ${m.dia}`, { fonte: 'mini', cor: CINZA }), venceuDe(m) ? selo() : null])) : [h('li', {}, [letra(T.menu.nenhuma, { fonte: 'mini', cor: CINZA })])]),
     ])
   }
   /** "Voltar" do navegador durante a partida: pergunta antes de sair (a partida fica guardada). */
@@ -254,7 +286,8 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
   /** Uma linha do topo (temporada) ou do placar (estrada). Com `partida` (o servidor só manda a de quem pode ser assistido) ganha "Watch". */
   const itemDoTopo = (l, meu, ver = null) => {
     const w = LARG() - 70 - (l.partida && ver ? 88 : 0)
-    return h('li', { class: meu ? 'km-feita' : '', 'data-posicao': String(l.posicao) }, [letra(T.srv.posicao(l.posicao), { fonte: 'reino-ouro' }), h('span', { class: 'km-medalha-texto' }, [letra(l.apelido, { fonte: 'reino', cor: meu ? COR.ouro : COR.creme, larg: w }), letra(l.liga ? `${l.pontos} · ${nomeDaLiga(l.liga)} · ${T.srv.ranking.partidas(l.partidas)}` : T.srv.placar.linha(l.pontos, l.vencidas), { fonte: 'mini', cor: CINZA, larg: w })]), l.partida && ver ? btVer(l.partida, ver.aviso, ver.volta) : null])
+    const held = !l.liga && venceuDe(l) // R39: selo só nas listas da estrada (o ranking da temporada não tem)
+    return h('li', { class: meu ? 'km-feita' : '', 'data-posicao': String(l.posicao), 'data-venceu': held ? '1' : '0' }, [letra(T.srv.posicao(l.posicao), { fonte: 'reino-ouro' }), h('span', { class: 'km-medalha-texto' }, [comSelo(letra(l.apelido, { fonte: 'reino', cor: meu ? COR.ouro : COR.creme, larg: w - (held ? 44 : 0) }), held ? l : {}), letra(l.liga ? `${l.pontos} · ${nomeDaLiga(l.liga)} · ${T.srv.ranking.partidas(l.partidas)}` : T.srv.placar.linha(l.pontos, l.vencidas), { fonte: 'mini', cor: CINZA, larg: w })]), l.partida && ver ? btVer(l.partida, ver.aviso, ver.volta) : null])
   }
   /** RANKING DA TEMPORADA: quanto falta (relógio do servidor), a regra em 1 linha, a posição e a liga da conta, o topo em páginas e os títulos. */
   function rankingServidor() {
@@ -333,10 +366,11 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
         Object.assign(bt(T.srv.apelido.menu, () => apelido(), 'km-bt--fraco'), { id: 'perfilNome' }),
         linha(textoDoAparelho(p), { pid: 'perfilAparelho', cor: CINZA }), // (R30) a conta mora só neste aparelho: dito em 1 linha, sem promessa de recuperar
         linha(P.recordes(r.pontos, r.rodadasVencidas, r.partidas), { pid: 'perfilRecordes' }),
+        Number.isSafeInteger(r.vitorias) && r.vitorias > 0 ? linha(P.vitorias(r.vitorias), { pid: 'perfilVitorias', cor: COR.ouro }) : null, // R39: partidas em que o reino resistiu (número do servidor)
         linhaDaEnergia(p.energia),
         linha(P.temporada(p.temporada.numero, falta(p.temporada.termina)), { pid: 'perfilTemporada', cor: CINZA }),
         h('h3', {}, [letra(P.melhores, { fonte: 'reino-ouro' })]), aviso,
-        h('ol', { class: 'km-lista km-melhores km-corridas', id: 'listaMelhores' }, p.melhores.length ? p.melhores.map((m) => h('li', { 'data-partida': m.id }, [h('span', { class: 'km-medalha-texto' }, [letra(String(m.pontos), { fonte: 'reino-ouro' }), letra(P.corrida(m.vencidas, T.srv.modoNome[m.modo] || m.modo, String(m.quando).slice(0, 10)), { fonte: 'mini', cor: CINZA, larg: LARG() - 110 })]), ver(m)])) : [h('li', {}, [letra(P.nenhuma, { fonte: 'mini', cor: CINZA })])]),
+        h('ol', { class: 'km-lista km-melhores km-corridas', id: 'listaMelhores' }, p.melhores.length ? p.melhores.map((m) => h('li', { 'data-partida': m.id, 'data-venceu': venceuDe(m) ? '1' : '0' }, [h('span', { class: 'km-medalha-texto' }, [comSelo(letra(String(m.pontos), { fonte: 'reino-ouro' }), m), letra(P.corrida(m.vencidas, T.srv.modoNome[m.modo] || m.modo, String(m.quando).slice(0, 10)), { fonte: 'mini', cor: CINZA, larg: LARG() - 110 })]), ver(m)])) : [h('li', {}, [letra(P.nenhuma, { fonte: 'mini', cor: CINZA })])]),
         p.titulos.length ? h('h3', {}, [letra(P.titulos, { fonte: 'reino-ouro' })]) : null,
         p.titulos.length ? h('ul', { class: 'km-lista', id: 'listaTitulos' }, p.titulos.map((t) => h('li', {}, [letra(P.titulo1(t.temporada, t.posicao, nomeDaLiga(t.liga), t.pontos), { fonte: 'mini', larg: LARG() - 20 })]))) : null,
         Object.assign(bt(T.menu.album, album, 'km-bt--fraco'), { id: 'perfilAlbum' }), Object.assign(bt(T.menu.conquistas, conquistas, 'km-bt--fraco'), { id: 'perfilConquistas' }),
@@ -365,9 +399,10 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
         ocupado = false; salvar.disabled = false
         if (aberta !== 'apelido' || !erro.isConnected) return
         const t = e.codigo === 'APELIDO_TROCADO_HOJE' && e.extra?.podeEm ? A.espera(falta(e.extra.podeEm)) : A.erro[e.codigo] || erroTexto(e.codigo)
-        erro.dataset.codigo = e.codigo || 'PADRAO'; erro.replaceChildren(linha(t, { fonte: 'reino', cor: COR.ouro, larg: LARG() }))
+        Som.tocar('negado'); erro.dataset.codigo = e.codigo || 'PADRAO'; erro.replaceChildren(linha(t, { fonte: 'reino', cor: COR.ouro, larg: LARG() }))
         return
       }
+      Som.tocar('apelidoOk')
       if (aberta === 'apelido' && erro.isConnected) perfil(A.feito) // o nome novo já vale: perfil, menu e ranking mostram o que o servidor gravou
     }
     const salvar = Object.assign(bt(A.salvar, enviar), { id: 'apelidoSalvar' })

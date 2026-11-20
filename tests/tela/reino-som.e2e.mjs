@@ -6,7 +6,11 @@
 //   ao vivo (folha public/reino/sons.html): nada antes do primeiro toque · cada botão toca · teto de vozes · mudo e volumes guardados
 //     · "Menos animação" · troca de momento só na linha do compasso · a rodada simulada inteira · amostra gravada no lugar do código
 //     · zero erro de console · zero 404 · funciona em subpasta
-// Rodar (um teste de tela por vez):  node tools/trava-robos.mjs rodar "timeout 600 node tests/tela/reino-som.e2e.mjs"
+//   R35 (tela nova): ambiente por trecho (medido e ao vivo, cruza em 1,5 s) · golpe agrupado por pelotão · variação de altura e força · estéreo leve
+//     · hit-stop com corte de agudo · ducking no chefe e no recorde · luta cheia (150 unidades) no teto de vozes e abaixo de −3 dBFS
+//     · no JOGO de verdade: estrela de impacto e som no mesmo quadro (±1), pisão e queda do chefe em etapas, cartas, ouro, menu · Reduced motion mantém som · sem áudio nada quebra
+//   R46 (revanche): troca e dica — duração, volume, sem agudo, duas notas subindo, mudo, teto de vozes, "Menos animação", dica depois da fanfarra
+// Rodar (um teste de tela por vez):  node tools/trava-robos.mjs rodar "timeout 900 node tests/tela/reino-som.e2e.mjs"
 // Recalibrar depois de mexer numa receita:  ... reino-som.e2e.mjs --calibrar   (mostra)   ou   --calibrar --gravar   (grava no som-reino.js)
 import { createRequire } from 'node:module'
 import { createServer } from 'node:http'
@@ -349,7 +353,7 @@ cabecalho('Amostra gravada (manifesto de teste) no lugar do código')
 cabecalho('Amostras reais do manifesto: carrega, pico, duração, começo sem atraso, tamanho')
 {
   const dirSons = path.join(PASTA, 'sons'), man = JSON.parse(fs.readFileSync(path.join(dirSons, 'manifesto.json'), 'utf8'))
-  const alvos = { choque: -11, marcha: -13, casteloRacha: -7, muralha: -11, chefeEntra: -7, flecha: -14, espolio: -11, recorde: -8 }
+  const alvos = { choque: -11, marcha: -13, casteloRacha: -7, muralha: -11, chefeEntra: -7, flecha: -14, espolio: -11, recorde: -8, golpeBicada: -13, golpeFrigideira: -12, golpeMordida: -13, golpePortada: -12, chefeTomba: -8, pisao: -7 } // R35: as 6 amostras novas entram na mesma régua
   const arqs = []; for (const [nome, lista] of Object.entries(man.efeitos || {})) for (const it of lista) arqs.push({ nome, arquivo: it.arquivo })
   if (arqs.length === 0) console.log('  (manifesto vazio: nada a conferir)')
   else {
@@ -397,6 +401,391 @@ cabecalho('Em subpasta (caminhos relativos)')
   const e = await p.evaluate(() => ({ s: window.__reino.Som.estado(), m: window.__reino.Musica.estado() }))
   confere(e.s.porNome.vitoria === 1 && e.m.tocando && e.m.momento === 'batalha', 'a folha abre, toca efeito e música servida de /jogos/um/dois/')
   await p.close(); sub.close()
+}
+
+// ================================================================== R35 — o som da tela nova
+// (12) ambiente por trecho, medido fora do tempo real
+cabecalho('R35 — ambiente por trecho da estrada (fabricado por código, medido fora do tempo real)')
+{
+  const p = await ctxPc.newPage(); vigiar(p); await p.goto(FOLHA); await instalarMedidor(p)
+  const amb = await p.evaluate(async () => {
+    const { Som, fora, medir, forca, diferenca, SR, PRE } = window.__m, o = {}, ondas = {}
+    for (const { nome } of Som.ambientes()) {
+      const { L, R } = await fora(12, (ctx, no, t) => { Som.ambientar(ctx, no.amb, nome, t, 12, 3) })
+      const i0 = Math.floor(PRE * SR), f = (hz) => forca(L, i0, L.length, hz); let soma = 0; for (let i = i0; i < L.length; i++) soma += L[i] * L[i]
+      o[nome] = { ...medir(L, R), rmsTudo: 20 * Math.log10(Math.sqrt(soma / (L.length - i0)) + 1e-9), grilo: f(4400), b3000: f(3000), bigorna: f(1650), sino: f(392), pios: Math.max(f(3300), f(3600), f(3900), f(4200)) }
+      ondas[nome] = L
+    }
+    const nomes = Object.keys(ondas); let dif = 9
+    for (let a = 0; a < nomes.length; a++) for (let b = a + 1; b < nomes.length; b++) dif = Math.min(dif, diferenca(ondas[nomes[a]], ondas[nomes[b]]))
+    // dois pedaços seguidos (como ao vivo): na emenda o leito de vento não pode abrir buraco (o menor volume em janelas de 100 ms é o leito sozinho)
+    const { L } = await fora(15, (ctx, no, t) => { Som.ambientar(ctx, no.amb, 'manha', t, 8, 1); Som.ambientar(ctx, no.amb, 'manha', t + 7.6, 8, 2) })
+    const menor = (a, b) => { let m = 9; for (let i = Math.floor((PRE + a) * SR); i + 4800 <= Math.floor((PRE + b) * SR); i += 2400) { let s = 0; for (let k = 0; k < 4800; k++) s += L[i + k] * L[i + k]; m = Math.min(m, Math.sqrt(s / 4800)) } return 20 * Math.log10(m + 1e-9) }
+    return { o, dif, emenda: { antes: menor(1, 7), na: menor(7.4, 8.2), depois: menor(8.6, 14) } }
+  })
+  anota('ambiente   pico dBFS  médio dBFS  grilo 4,4k  bigorna 1,65k  sino 392  pios 3–4k')
+  for (const [n, m] of Object.entries(amb.o)) anota(`${n.padEnd(10)} ${n1(m.picoDb).padStart(8)}  ${n1(m.rmsTudo).padStart(9)}  ${n1(m.grilo).padStart(9)}  ${n1(m.bigorna).padStart(12)}  ${n1(m.sino).padStart(8)}  ${n1(m.pios).padStart(8)}`)
+  const A = amb.o, todos = Object.values(A)
+  confere(todos.length === 4 && todos.every((m) => m.estouros === 0 && m.picoDb <= -20 && m.picoDb >= -42 && m.rmsTudo <= -36 && m.rmsTudo >= -56), `4 ambientes, todos bem baixos: pico de ${n1(Math.min(...todos.map((m) => m.picoDb)))} a ${n1(Math.max(...todos.map((m) => m.picoDb)))} dBFS (teto −20), médio de ${n1(Math.min(...todos.map((m) => m.rmsTudo)))} a ${n1(Math.max(...todos.map((m) => m.rmsTudo)))} dBFS (abaixo da música, que fica de −31 a −26)`)
+  confere(A.noite.grilo >= A.manha.grilo + 10 && A.noite.grilo >= A.noite.b3000 + 10, `noite: o grilo (4,4 kHz) está lá (${n1(A.noite.grilo)} dB; na manhã ${n1(A.manha.grilo)} dB)`)
+  confere(A.manha.pios >= A.noite.pios + 8 && A.manha.pios >= A.porDoSol.pios + 8, `manhã: os pássaros (3–4 kHz) estão lá (${n1(A.manha.pios)} dB; à noite ${n1(A.noite.pios)} dB)`)
+  confere(A.tarde.bigorna >= A.manha.bigorna + 8 && A.tarde.bigorna >= A.noite.bigorna + 8, `tarde na vila: a bigorna de longe (1,65 kHz) está lá (${n1(A.tarde.bigorna)} dB; na manhã ${n1(A.manha.bigorna)} dB)`)
+  confere(A.porDoSol.sino >= A.manha.sino + 8 && A.porDoSol.sino >= A.noite.sino + 8, `pôr do sol: o sino da torre (sol, 392 Hz) está lá (${n1(A.porDoSol.sino)} dB; na manhã ${n1(A.manha.sino)} dB)`)
+  confere(amb.dif >= 0.5, `os 4 ambientes são diferentes entre si (menor diferença ${amb.dif.toFixed(2)})`)
+  confere(amb.emenda.na >= amb.emenda.antes - 4.5 && Math.abs(amb.emenda.depois - amb.emenda.antes) <= 3, `a emenda entre dois pedaços (ao vivo, a cada 7,6 s) não abre buraco no leito: ${n1(amb.emenda.antes)} dBFS antes, ${n1(amb.emenda.na)} na emenda, ${n1(amb.emenda.depois)} depois`)
+  // posição estéreo leve, medida
+  const st = await p.evaluate(async () => {
+    const { Som, fora, db } = window.__m, r = (x) => { let s = 0; for (const v of x) s += v * v; return db(Math.sqrt(s / x.length)) }
+    const a = await fora(0.4, (ctx, no, t) => Som.fabricar(ctx, no.fx, 'golpeCorte', t, 0, { pan: Som.PAN_MAX })), b = await fora(0.4, (ctx, no, t) => Som.fabricar(ctx, no.fx, 'golpeCorte', t, 0, { pan: -Som.PAN_MAX })), c = await fora(0.4, (ctx, no, t) => Som.fabricar(ctx, no.fx, 'golpeCorte', t, 0, {}))
+    return { dir: r(a.R) - r(a.L), esq: r(b.L) - r(b.R), meio: r(c.R) - r(c.L), max: Som.PAN_MAX }
+  })
+  confere(st.dir >= 3 && st.dir <= 14 && st.esq >= 3 && st.esq <= 14 && Math.abs(st.meio) < 0.5, `posição estéreo leve: na ponta direita o lado direito fica ${n1(st.dir)} dB acima do esquerdo (na esquerda ${n1(st.esq)} dB; no meio ${n1(st.meio)}) — nunca só num lado`)
+  await p.close()
+}
+
+// (13) ao vivo na folha
+cabecalho('R35 — ao vivo: ambiente cruza em 1,5 s · golpe agrupado · variação · hit-stop · ducking · mudo/volume · Reduced motion')
+{
+  const p = await ctxPc.newPage(); vigiar(p); await p.goto(FOLHA); await p.click('h1')
+  await p.evaluate(() => { const { Som, Musica } = window.__reino; Som.mudo(false); Som.volume('efeitos', 0.8); Som.volume('musica', 0.6); Som.menosAnimacao(false); Musica.parar() })
+  const lista = await p.evaluate(() => ({ som: [...document.querySelectorAll('button[data-som]')].map((b) => ({ nome: b.dataset.som, quando: b.querySelector('small.q')?.textContent || '' })), tabela: window.__reino.Som.nomes(), amb: document.querySelectorAll('button[data-ambiente]').length }))
+  confere(lista.som.length === lista.tabela.length && lista.tabela.every((n) => lista.som.some((b) => b.nome === n && b.quando.length >= 8)) && lista.amb === 5, `a folha lista os ${lista.tabela.length} sons do motor, cada um com o evento que o dispara, e os 4 ambientes + desligar`)
+  confere(lista.tabela.length >= 70, `${lista.tabela.length} efeitos no motor (37 antigos + os da tela nova)`)
+  await dorme(1500) // as amostras carregam
+  const amostras = await p.evaluate(() => ({ e: window.__reino.Som.estado().amostras, marcados: [...document.querySelectorAll('button[data-amostra]')].map((b) => b.dataset.som) }))
+  confere(['golpeBicada', 'golpeFrigideira', 'golpeMordida', 'golpePortada', 'pisao', 'chefeTomba'].every((n) => amostras.e.includes(n) && amostras.marcados.includes(n)), `as amostras novas carregam e a folha marca quais sons são gravados (${amostras.marcados.length})`)
+  // ---- ambiente
+  await p.click('button[data-ambiente="manha"]'); await dorme(1800)
+  const a1 = await p.evaluate(async () => { const { Som } = window.__reino; let pico = 0; for (let i = 0; i < 50; i++) { pico = Math.max(pico, Som.picoAoVivo()); await new Promise((ok) => setTimeout(ok, 50)) } return { e: Som.estado(), pico } })
+  confere(a1.e.ambiente === 'manha' && a1.e.ambienteGanho > 0.95 && a1.pico > 0.0003 && a1.pico < 0.1 && a1.e.vozes === 0, `ambiente "manha" toca sozinho, baixo (pico ao vivo ${n1(20 * Math.log10(a1.pico))} dBFS), sem gastar voz de efeito`)
+  await p.click('button[data-ambiente="noite"]'); await dorme(750)
+  const a2 = await p.evaluate(() => window.__reino.Som.estado())
+  confere(a2.ambiente === 'noite' && a2.ambienteSaindo?.nome === 'manha' && a2.ambienteGanho > 0.25 && a2.ambienteGanho < 0.75 && a2.ambienteSaindo.ganho > 0.25 && a2.ambienteSaindo.ganho < 0.75, `trocar de trecho cruza um ambiente no outro: a 0,75 s a noite está em ${a2.ambienteGanho.toFixed(2)} e a manhã em ${(a2.ambienteSaindo?.ganho ?? 0).toFixed(2)}`)
+  await dorme(1300)
+  const a3 = await p.evaluate(() => window.__reino.Som.estado())
+  confere(a3.ambiente === 'noite' && a3.ambienteGanho > 0.95 && a3.ambienteSaindo === null, 'em 1,5 s o cruzamento acabou: só a noite toca')
+  await p.click('button[data-ambiente=""]'); await dorme(2000)
+  const a4 = await p.evaluate(() => ({ e: window.__reino.Som.estado(), pico: window.__reino.Som.picoAoVivo() }))
+  confere(a4.e.ambiente === null && a4.pico < 0.0008, `ambiente desligado: silêncio em 2 s (pico ${a4.pico.toFixed(4)})`)
+  // ---- golpe agrupado, variação, estéreo, espera
+  const g = await p.evaluate(async () => {
+    const { Som } = window.__reino, espera = (ms) => new Promise((ok) => setTimeout(ok, ms)), o = {}
+    let e0 = Som.estado()
+    for (let i = 0; i < 5; i++) { Som.golpe(0, { grupo: 7 }); await espera(8) } // 5 golpes do MESMO pelotão em ~40 ms
+    let e1 = Som.estado(); o.grupo = { tocados: e1.tocados - e0.tocados, agrupados: e1.agrupados - e0.agrupados, golpes: e1.golpes - e0.golpes, n: e1.ultimoGolpe.n, nome: e1.ultimoGolpe.nome, vozes: e1.vozes }
+    await espera(700); e0 = Som.estado()
+    for (let i = 0; i < 5; i++) { Som.golpe([0, 1, 4, 7, 8][i], { grupo: 100 + i }); await espera(50) } // pelotões e gestos diferentes, 50 ms entre eles
+    e1 = Som.estado(); o.solto = { tocados: e1.tocados - e0.tocados, nomes: ['golpeCorte', 'golpeEstocada', 'golpeEsmaga', 'golpePortada', 'golpeInvestida'].map((n) => (e1.porNome[n] || 0) - (e0.porNome[n] || 0)) }
+    await espera(700)
+    o.toms = []; o.forcas = []
+    for (let i = 0; i < 16; i++) { Som.golpe(0, { grupo: 200 + i, forca: 1 }); const e = Som.estado(); o.toms.push(e.ultimoTom); o.forcas.push(e.ultimaForca); await espera(120) }
+    await espera(300); Som.tocar('golpeEsmaga', { pan: 1 }); o.panDir = Som.estado().ultimoPan; await espera(80); Som.tocar('golpeInvestida', { pan: -0.5 }); o.panEsq = Som.estado().ultimoPan
+    o.gestos = Som.GOLPES.slice(); o.janela = Som.JANELA_GRUPO
+    // som com espera (o grito cai 620 ms depois, no pulo): silêncio antes, som depois
+    await espera(900); let antes = 0, depois = 0; Som.tocar('gritoTropa', { em: 0.62 })
+    for (let i = 0; i < 25; i++) { antes = Math.max(antes, Som.picoAoVivo()); await espera(20) }
+    for (let i = 0; i < 30; i++) { await espera(20); depois = Math.max(depois, Som.picoAoVivo()) }
+    o.espera = { antes, depois }
+    return o
+  })
+  confere(g.grupo.golpes === 5 && g.grupo.tocados === 1 && g.grupo.agrupados === 4 && g.grupo.n === 5 && g.grupo.nome === 'golpeCorte' && g.grupo.vozes === 1, `5 golpes do mesmo pelotão em ${g.janela} ms viram UM som só, mais forte (${g.grupo.tocados} voz, ${g.grupo.agrupados} juntados)`)
+  confere(g.solto.tocados === 5 && g.solto.nomes.every((n) => n === 1), '5 pelotões com gestos diferentes, 50 ms entre eles: cada um soa com o som do seu gesto (corte, estocada, esmaga, portada, investida)')
+  confere(g.gestos.length === 10 && new Set(g.gestos).size === 10, `os 10 gestos têm som próprio: ${g.gestos.join(', ')}`)
+  { const d = new Set(g.toms.map((t) => t.toFixed(2))).size, min = Math.min(...g.toms), max = Math.max(...g.toms), fmin = Math.min(...g.forcas), fmax = Math.max(...g.forcas)
+    confere(d >= 12 && min >= -2 && max <= 2 && max - min >= 1 && fmin >= 0.74 && fmax <= 1.13 && fmax - fmin >= 0.1, `o mesmo golpe 16 vezes nunca sai igual: altura de ${min.toFixed(1)} a ${max.toFixed(1)} semitons (±2), força de ${n1(20 * Math.log10(fmin))} a ${n1(20 * Math.log10(fmax))} dB`) }
+  confere(Math.abs(g.panDir - 0.6) < 1e-6 && Math.abs(g.panEsq - -0.3) < 1e-6, `posição pelo X da tela entra leve: ponta direita = ${g.panDir}, meio-esquerda = ${g.panEsq} (teto ±0,6)`)
+  confere(g.espera.antes < 0.004 && g.espera.depois > 0.02, `som com espera (o grito no pulo, 620 ms depois): silêncio antes (${g.espera.antes.toFixed(4)}), som na hora marcada (${g.espera.depois.toFixed(3)})`)
+  // ---- hit-stop: corte curto de agudo
+  const h = await p.evaluate(async () => { const { Som } = window.__reino, espera = (ms) => new Promise((ok) => setTimeout(ok, ms)); const antes = Som.estado().corteHz; const ok = Som.hitStop(60); await espera(35); const durante = Som.estado().corteHz; await espera(450); const e = Som.estado(); return { ok, antes, durante, depois: e.corteHz, cortes: e.cortes, ms: e.ultimoCorte.ms } })
+  confere(h.ok && h.antes > 15000 && h.durante < 2500 && h.depois > 15000 && h.cortes === 1 && h.ms === 60, `hit-stop: o agudo some (corte em ${Math.round(h.durante)} Hz aos 35 ms) e volta (${Math.round(h.depois)} Hz) — 60 ms`)
+  // ---- ducking: chefe caindo e faixa de recorde mais fundo que os 6 dB de um som grande
+  await p.click('button[data-momento="batalha"]'); await dorme(700)
+  const d = await p.evaluate(async () => {
+    const { Som } = window.__reino, espera = (ms) => new Promise((ok) => setTimeout(ok, ms)), o = {}
+    o.livre = Som.estado().duckAgora
+    Som.tocar('vitoria'); await espera(250); o.grande = Som.estado().duckAgora; await espera(3200)
+    Som.tocar('chefeCai'); await espera(250); o.chefe = Som.estado().duckAgora; await espera(1900); o.chefeSegura = Som.estado().duckAgora; await espera(1800); o.chefeVolta = Som.estado().duckAgora
+    Som.tocar('recorde'); await espera(250); o.recorde = Som.estado().duckAgora; await espera(2800); o.recordeVolta = Som.estado().duckAgora
+    o.tabela = Som.tabela().filter((t) => t.duck).map((t) => t.nome)
+    return o
+  })
+  confere(d.livre > 0.97 && Math.abs(d.grande - 0.5) < 0.06, `som grande comum: a música abaixa 6 dB (${d.grande.toFixed(2)})`)
+  confere(d.chefe < 0.36 && d.chefeSegura < 0.4 && d.chefeVolta > 0.9, `chefe caindo: a música abaixa ${n1(-20 * Math.log10(d.chefe))} dB, segura a queda inteira (${d.chefeSegura.toFixed(2)} aos 2,1 s) e volta (${d.chefeVolta.toFixed(2)})`)
+  confere(d.recorde < 0.41 && d.recordeVolta > 0.9 && ['chefeCai', 'recorde'].every((n) => d.tabela.includes(n)), `faixa de recorde: a música abaixa ${n1(-20 * Math.log10(d.recorde))} dB e volta (${d.recordeVolta.toFixed(2)})`)
+  // ---- luta cheia: 150 unidades batendo (250 golpes por segundo pedidos) + música + ambiente + sons grandes
+  await p.click('button[data-ambiente="tarde"]')
+  const cheia = await p.evaluate(async () => {
+    const { Som } = window.__reino, espera = (ms) => new Promise((ok) => setTimeout(ok, ms)), o = { maxVozes: 0, maxTropa: 0, pedidos: 0 }
+    await espera(1200); window.__picoMax = 0
+    const e0 = Som.estado(), t0 = performance.now(); let k = 0
+    while (performance.now() - t0 < 4000) {
+      for (let i = 0; i < 5; i++) { const u = (k++ * 7919) % 150; Som.golpe(u % 10, { grupo: u % 12, pan: (u % 21) / 10 - 1, forca: 0.8 + (u % 5) / 10 }); o.pedidos++ }
+      if (k % 300 === 0) { Som.tocar('critico'); Som.hitStop(45) } if (k % 700 === 0) Som.tocar('explosao'); if (k === 1000) Som.tocar('pisao')
+      const e = Som.estado(); o.maxVozes = Math.max(o.maxVozes, e.vozes); o.maxTropa = Math.max(o.maxTropa, e.tropa)
+      await espera(20)
+    }
+    const e1 = Som.estado(); o.seg = (performance.now() - t0) / 1000; o.novos = e1.tocados - e0.tocados; o.agrupados = e1.agrupados - e0.agrupados; o.recusados = e1.recusados - e0.recusados
+    await espera(1500); o.pico = window.__picoMax; o.fim = Som.estado().vozes
+    return o
+  })
+  confere(cheia.pedidos >= 600 && cheia.maxVozes <= 12 && cheia.maxTropa <= 6, `luta cheia (150 unidades, ${cheia.pedidos} golpes pedidos em ${n1(cheia.seg)} s): no pior momento ${cheia.maxVozes} vozes (teto 12), ${cheia.maxTropa} de tropa (teto 6)`)
+  confere(cheia.novos / cheia.seg <= 27 && cheia.novos / cheia.seg >= 6, `sem metralhadora: ${n1(cheia.novos / cheia.seg)} sons novos por segundo (teto 27); ${cheia.agrupados} golpes juntados no som que já tocava, ${cheia.recusados} barrados pelo teto`)
+  confere(cheia.pico > 0.05 && cheia.pico <= 0.71, `pico ao vivo da luta cheia com música, ambiente, crítico, explosão e pisão: ${n1(20 * Math.log10(cheia.pico))} dBFS (teto −3)`)
+  // ---- a luta simulada da folha (a ordem em que a tela dispara)
+  await p.evaluate(() => { window.__reino.Som.ambiente(null); window.__picoMax = 0 }); await dorme(1200)
+  const hist0 = await p.evaluate(() => window.__reino.Som.estado().tocados)
+  await p.click('#demo-luta')
+  await p.waitForFunction(() => window.__luta.fim === true, null, { timeout: 30000 })
+  const luta = await p.evaluate(() => ({ e: window.__reino.Som.estado(), fases: window.__luta.fases, pico: window.__picoMax }))
+  { const pn = luta.e.porNome, quer = ['marcha', 'poeira', 'gritoTropa', 'choque', ...['golpeCorte', 'golpeEstocada', 'golpeFrigideira', 'golpeBicada', 'golpeEsmaga', 'golpeMordida', 'golpePortada', 'golpeInvestida', 'golpeBarrigada'], 'arcoSolta', 'flechaFinca', 'arremesso', 'splat', 'soldadoCai', 'fumaca', 'grupoCai', 'explosao', 'pisao', 'critico', 'chefeCai', 'chefeJoelho', 'chefeTomba', 'festaTropa']
+    const faltou = quer.filter((n) => !pn[n])
+    confere(faltou.length === 0 && luta.fases.length >= 9 && luta.e.tocados - hist0 >= 28, `"Simulate a fight" toca a luta inteira da cena nova (${luta.e.tocados - hist0} sons, ${luta.fases.length} fases)` + (faltou.length ? ' — faltou: ' + faltou.join(', ') : ''))
+    confere(luta.pico > 0.05 && luta.pico <= 0.71, `pico da luta simulada ao vivo: ${n1(20 * Math.log10(luta.pico))} dBFS (teto −3)`) }
+  await p.evaluate(() => window.__reino.Musica.parar()); await dorme(1500)
+  // ---- mudo e volumes valem para os novos
+  const mv = await p.evaluate(async () => {
+    const { Som } = window.__reino, espera = (ms) => new Promise((ok) => setTimeout(ok, ms)), o = {}
+    const ouvir = async (ms) => { let p = 0; for (let i = 0; i < ms / 20; i++) { p = Math.max(p, Som.picoAoVivo()); await espera(20) } return p }
+    Som.golpe(4, { grupo: 900 }); Som.tocar('pisao'); o.normal = await ouvir(400); await espera(1500)
+    Som.mudo(true); await espera(120); o.tocouMudo = Som.golpe(4, { grupo: 901 }); Som.tocar('pisao'); Som.tocar('cartaVira'); Som.ambiente('manha'); o.mudo = await ouvir(600); Som.mudo(false); Som.ambiente(null); await espera(2200)
+    Som.volume('efeitos', 0); await espera(150); Som.golpe(2, { grupo: 902 }); Som.tocar('chefeTomba'); Som.tocar('rankUp'); o.zero = await ouvir(500); await espera(1200)
+    Som.volume('efeitos', 0.4); await espera(150); Som.tocar('pisao'); o.meio = await ouvir(400); Som.volume('efeitos', 0.8); await espera(1500)
+    // Reduced motion NÃO tira som: tudo continua tocando; só o estouro grande fica 6 dB abaixo
+    Som.menosAnimacao(true); const e0 = Som.estado()
+    o.menosGolpe = Som.golpe(2, { grupo: 903, forca: 1 }); o.forcaGolpe = Som.estado().ultimaForca; await espera(60)
+    o.menosVira = Som.tocar('cartaVira'); await espera(60); o.menosPisao = Som.tocar('pisao'); o.forcaPisao = Som.estado().ultimaForca
+    o.menosCorte = Som.hitStop(45); o.menosAmb = Som.ambiente('noite'); await espera(400); const e1 = Som.estado()
+    o.menosTocados = e1.tocados - e0.tocados; o.menosAmbiente = e1.ambiente; o.menosPico = await ouvir(300)
+    Som.menosAnimacao(false); Som.ambiente(null)
+    return o
+  })
+  confere(mv.normal > 0.05 && mv.tocouMudo === true && mv.mudo < 0.001, `mudo vale para os sons novos e para o ambiente (pico ${mv.mudo.toFixed(4)}; sem mudo ${mv.normal.toFixed(3)})`)
+  confere(mv.zero < 0.001 && mv.meio > 0.005 && mv.meio < mv.normal * 0.6, `volume de efeitos vale para os novos: em 0 silêncio (${mv.zero.toFixed(4)}), em 40% mais baixo (${mv.meio.toFixed(3)} contra ${mv.normal.toFixed(3)})`)
+  confere(mv.menosGolpe && mv.menosVira && mv.menosPisao && mv.menosCorte && mv.menosAmb && mv.menosTocados === 3 && mv.menosAmbiente === 'noite' && mv.forcaGolpe >= 0.74 && mv.forcaPisao === 0.5 && mv.menosPico > 0.01, `Reduced motion NÃO tira som: golpe, carta, pisão, hit-stop e ambiente continuam (golpe na força ${mv.forcaGolpe.toFixed(2)}; só o estouro grande 6 dB abaixo: ${mv.forcaPisao})`)
+  await p.close()
+}
+
+// (14) no jogo de verdade
+const JOGO = base + '/public/reino/'
+const KJ = (pg, fn, arg) => pg.evaluate(`(${fn})(window.__keepmile, ${JSON.stringify(arg ?? null)})`)
+cabecalho('R35 — no jogo: cada evento da tela nova dispara o som certo, no quadro do impacto')
+{
+  const ctxJ = await browser.newContext({ viewport: { width: 1280, height: 720 }, reducedMotion: 'no-preference' })
+  const j = await ctxJ.newPage(); vigiar(j)
+  await j.goto(JOGO + '?teste=1&nova=1&semente=som-r35'); await j.waitForSelector('#bt-carta2', { timeout: 20000 })
+  const antes = await KJ(j, (k) => k.som())
+  confere(antes.ligado === false && antes.ambientePedido === 'manha', 'antes do primeiro toque nada liga; o ambiente do trecho (manhã nos campos) só fica pedido')
+  await j.keyboard.press('Shift'); await dorme(400)
+  const pn = () => KJ(j, (k) => k.som().porNome)
+  // cartas que viram em cascata (espera a revelação da abertura acabar: um tique dela caindo entre as duas leituras entrava na conta — falhou 1 vez em 3 no R43)
+  await j.waitForFunction(() => window.__keepmile.modelo().maoRevelada === true, null, { timeout: 5000 }); await dorme(200)
+  let a = await pn(); await KJ(j, (k) => k.maoNova()); await dorme(1300); let b = await pn()
+  confere((b.cartaVira || 0) - (a.cartaVira || 0) === 3 && (b.toque || 0) - (a.toque || 0) === 3, `as 3 cartas que viram: papel virando (cartaVira) + a nota que sobe, uma vez por carta (cartaVira ${(b.cartaVira || 0) - (a.cartaVira || 0)}, toque ${(b.toque || 0) - (a.toque || 0)})`)
+  confere((await KJ(j, (k) => k.som().ambiente)) === 'manha', 'depois do toque o ambiente do trecho toca (rodada 1: manhã nos campos)')
+  // menu
+  a = await pn(); await j.click('#bt-menu'); await dorme(300); const abriu = await pn(); await j.keyboard.press('Escape'); await dorme(300); b = await pn()
+  confere((abriu.menuAbre || 0) - (a.menuAbre || 0) === 1 && (b.menuFecha || 0) - (a.menuFecha || 0) === 1, 'menu / Settings: som ao abrir e ao fechar')
+  // ---- uma luta de verdade, do começo ao fim, amostrada quadro a quadro: estrela de impacto × som do golpe
+  await j.evaluate(() => {
+    const k = window.__keepmile, log = []; window.__sinc = log; let q = 0
+    ;(function f() { q++; const s = k.som(), m = k.med(); log.push([q, m.estrelas, s.golpes, s.vozes, s.tropa, m.pisoes, s.porNome.pisao || 0, m.chefeEtapas.length, (s.porNome.chefeJoelho || 0) + (s.porNome.chefeTomba || 0), s.tocados]); if (log.length < 9000) requestAnimationFrame(f) })()
+  })
+  /** Para cada quadro em que a contagem da coluna `ci` (imagem) subiu, o som da coluna `cs` subiu no mesmo quadro (±1)? */
+  const sincronia = (log, ci, cs) => { let n = 0, fora = 0, mesmo = 0; for (let i = 1; i < log.length; i++) if (log[i][ci] > log[i - 1][ci]) { n++; const d = (x) => (log[x]?.[cs] ?? 0) - (log[x - 1]?.[cs] ?? 0); if (d(i) > 0) mesmo++; else if (!(d(i - 1) > 0 || d(i + 1) > 0)) fora++ } return { n, fora, mesmo } }
+  a = await pn()
+  await KJ(j, (k) => { k.zerarMedidasDaCena(); k.roboAteLutar() }); await j.click('#bt-lutar')
+  await j.waitForFunction(() => ['vitoria', 'derrota', 'espolio', 'fim'].includes(window.__keepmile.fase()), null, { timeout: 60000 })
+  await dorme(2200)
+  let log = await j.evaluate(() => { const l = window.__sinc.slice(); window.__sinc.length = 0; return l }); b = await pn()
+  const dif = (n) => (b[n] || 0) - (a[n] || 0), golpesTocados = () => Object.keys(b).filter((n) => /^golpe|^impacto$|^flechaFinca$|^splat$/.test(n)).reduce((s, n) => s + dif(n), 0)
+  let s1 = sincronia(log, 1, 2)
+  confere(['invasorChega', 'marcha', 'poeira', 'gritoTropa', 'choque'].every((n) => dif(n) >= 1), 'a luta abre com chegada, marcha, poeira no portão, grito da tropa e o primeiro choque')
+  confere(s1.n >= 3 && s1.fora === 0 && s1.mesmo === s1.n, `IMPACTO e SOM no mesmo quadro: ${s1.n} quadros com estrela de impacto, ${s1.mesmo} com o som do golpe no MESMO quadro, ${s1.fora} fora de ±1`)
+  confere(golpesTocados() >= 3, `os golpes soam pelo gesto de quem bate (${Object.keys(b).filter((n) => /^golpe|^impacto$|^flechaFinca$|^splat$/.test(n) && dif(n) > 0).map((n) => n + '×' + dif(n)).join(', ')})`)
+  const fimLuta = await KJ(j, (k) => k.fase())
+  confere(fimLuta === 'derrota' ? dif('recuoTropa') === 1 : dif('festaTropa') === 1, fimLuta === 'derrota' ? 'derrota: o reino recua com som (recuoTropa)' : 'vitória: a comemoração dos dois pulos tem som (festaTropa)')
+  if (fimLuta !== 'derrota') confere(dif('ouroTique') >= 1 && dif('ouro') >= 1 && dif('ouro') <= 2, `ouro contando: ${dif('ouroTique')} tiques curtos e ${dif('ouro')} moeda cheia no fim (antes: uma moeda inteira por passo)`)
+  // ---- o chefe: pisão no quadro em que pousa, queda em etapas, festa
+  await KJ(j, (k) => { k.limparFestas(); k.zerarMedidasDaCena() }); a = await pn(); const cortes0 = await KJ(j, (k) => k.som().cortes)
+  await j.evaluate(() => { window.__sinc.length = 0 })
+  await KJ(j, (k) => k.chefeCai())
+  await j.waitForFunction(() => !window.__keepmile.batalha().ativa, null, { timeout: 90000 }); await dorme(600)
+  log = await j.evaluate(() => { const l = window.__sinc.slice(); window.__sinc.length = 0; return l }); b = await pn()
+  const sP = sincronia(log, 5, 6), sQ = sincronia(log, 7, 8), eC = await KJ(j, (k) => ({ s: k.som(), med: k.med() }))
+  confere(dif('pisao') === 1 && sP.n === 1 && sP.mesmo === 1, `o PISÃO do chefe soa no quadro em que ele pousa (${sP.mesmo} de ${sP.n} no mesmo quadro), não no nascer`)
+  confere(dif('chefeCai') === 1 && dif('chefeJoelho') === 1 && dif('chefeTomba') === 1 && eC.med.chefeEtapas.includes(2) && eC.med.chefeEtapas.includes(4), `a queda do chefe em etapas tem som em cada uma: golpe final (chefeCai), ajoelha (chefeJoelho) e tomba (chefeTomba) — etapas ${eC.med.chefeEtapas.join('>')}`)
+  { let ok = 0; for (let i = 1; i < log.length; i++) if (log[i][8] > log[i - 1][8] && (log[i][7] > log[i - 1][7] || log[i - 1][7] > (log[i - 2]?.[7] ?? 0) || (log[i + 1]?.[7] ?? 0) > log[i][7])) ok++
+    confere(ok === 2, `ajoelhar e tombar soam no quadro da etapa (${ok} de 2 em ±1 quadro)`) }
+  confere(eC.s.duck && eC.s.cortes > cortes0, `chefe: a música abaixou (para ${eC.s.duck?.ganho}) e a parada de impacto cortou o agudo ${eC.s.cortes - cortes0} vez(es)`)
+  confere(dif('festaTropa') === 1 && dif('chefeEntra') === 0, 'vitória sobre o chefe: comemoração com som; o som antigo de entrada não toca mais fora de sincronia')
+  s1 = sincronia(log, 1, 2)
+  confere(s1.n >= 5 && s1.fora === 0, `luta do chefe: ${s1.n} quadros com impacto, ${s1.mesmo} com som no mesmo quadro, ${s1.fora} fora de ±1`)
+  // ---- luta cheia de verdade: teto de vozes e pico
+  await KJ(j, (k) => { k.limparFestas(); k.zerarMedidasDaCena() }); a = await pn()
+  await j.evaluate(async () => { window.__sinc.length = 0; const { Som } = await import('/public/reino/som-reino.js'); window.__picoJogo = 0; window.__medePico = setInterval(() => { window.__picoJogo = Math.max(window.__picoJogo, Som.picoAoVivo()) }, 15) })
+  const cheia = await KJ(j, (k) => k.batalhaCheia()); const tc0 = Date.now(), e0 = await KJ(j, (k) => k.som())
+  await dorme(9000)
+  log = await j.evaluate(() => { const l = window.__sinc.slice(); window.__sinc.length = 0; return l }); b = await pn(); const e1 = await KJ(j, (k) => k.som()), seg = (Date.now() - tc0) / 1000
+  await j.click('#bt-vel'); await dorme(150); const vel = await pn()
+  await KJ(j, (k) => k.avancarBatalha()); await dorme(1500)
+  const picoJogo = await j.evaluate(() => { clearInterval(window.__medePico); return window.__picoJogo })
+  { const maxV = Math.max(...log.map((l) => l[3])), maxT = Math.max(...log.map((l) => l[4])), s2 = sincronia(log, 1, 2), novos = e1.tocados - e0.tocados
+    confere(cheia.soldados + cheia.invasores >= 80 && maxV <= 12 && maxT <= 6, `luta cheia de verdade (${cheia.soldados} soldados × ${cheia.invasores} invasores): no pior quadro ${maxV} vozes (teto 12) e ${maxT} de tropa (teto 6)`)
+    confere(s2.n >= 20 && s2.fora === 0, `luta cheia: ${s2.n} quadros com impacto, ${s2.mesmo} com o som no mesmo quadro, ${s2.fora} fora de ±1`)
+    confere(novos / seg <= 27 && e1.agrupados > e0.agrupados, `luta cheia sem metralhadora: ${n1(novos / seg)} sons novos por segundo (teto 27), ${e1.agrupados - e0.agrupados} golpes juntados, ${e1.golpes - e0.golpes} golpes na tela`)
+    confere(picoJogo > 0.03 && picoJogo <= 0.71, `pico ao vivo no jogo com a luta cheia: ${n1(20 * Math.log10(picoJogo))} dBFS (teto −3)`)
+    confere((vel.velocidade || 0) - (b.velocidade || 0) === 1, 'botão de velocidade: som próprio que sobe com a velocidade')
+    const gestos = Object.keys(b).filter((n) => /^golpe/.test(n) && dif(n) > 0)
+    confere(gestos.length >= 3 && dif('explosao') + dif('fumaca') + dif('arremesso') + dif('grupoCai') >= 1, `luta cheia: ${gestos.length} gestos diferentes soaram (${gestos.join(', ')}); explosão ${dif('explosao')}, fumaça ${dif('fumaca')}, arremesso ${dif('arremesso')}, pelotão caído ${dif('grupoCai')}`) }
+  await ctxJ.close()
+  // ---- Reduced motion mantém o som
+  const ctxR = await browser.newContext({ viewport: { width: 1280, height: 720 }, reducedMotion: 'reduce' })
+  const r = await ctxR.newPage(); vigiar(r)
+  await r.goto(JOGO + '?teste=1&nova=1&semente=som-r35'); await r.waitForSelector('#bt-carta2', { timeout: 20000 }); await r.keyboard.press('Shift'); await dorme(300)
+  await KJ(r, (k) => k.chefeCai())
+  await r.waitForFunction(() => !window.__keepmile.batalha().ativa, null, { timeout: 90000 }); await dorme(600)
+  const er = await KJ(r, (k) => ({ s: k.som(), cena: k.cena() }))
+  { const q = er.s.porNome, golpes = Object.keys(q).filter((n) => /^golpe|^impacto$|^flechaFinca$/.test(n)).reduce((s, n) => s + q[n], 0)
+    confere(er.s.menos === true && golpes >= 5 && q.pisao === 1 && q.chefeCai === 1 && q.chefeTomba === 1 && q.festaTropa === 1 && q.gritoTropa === 1 && er.s.ambiente !== null, `Reduced motion no jogo NÃO tira som: ${golpes} golpes, pisão, queda do chefe, festa, grito e ambiente (${er.s.ambiente}) continuam`) }
+  await ctxR.close()
+  // ---- sem som (aparelho sem áudio): nada quebra
+  const ctxS = await browser.newContext({ viewport: { width: 1280, height: 720 } })
+  await ctxS.addInitScript(() => { delete window.AudioContext; delete window.webkitAudioContext; window.AudioContext = undefined; window.webkitAudioContext = undefined })
+  const s = await ctxS.newPage(); const errosS = []; s.on('console', (m) => { if (m.type() === 'error') errosS.push(m.text()) }); s.on('pageerror', (e) => errosS.push(e.message))
+  await s.goto(JOGO + '?teste=1&nova=1&semente=som-r35'); await s.waitForSelector('#bt-carta2', { timeout: 20000 }); await s.keyboard.press('Shift'); await dorme(300)
+  await KJ(s, (k) => { k.maoNova(); k.chefeCai() }); await dorme(5000); await s.click('#bt-menu'); await dorme(200); await s.keyboard.press('Escape'); await KJ(s, (k) => k.avancarBatalha()); await dorme(800)
+  const es = await KJ(s, (k) => ({ s: k.som(), erros: k.erros(), fase: k.fase() }))
+  confere(es.s.ligado === false && es.s.tocados === 0 && es.erros.length === 0 && errosS.length === 0, `sem áudio no aparelho: a luta do chefe, as cartas e o menu rodam sem som e sem erro (${errosS.length + es.erros.length} erros)` + (errosS.length ? ': ' + errosS.slice(0, 2).join(' | ') : ''))
+  await ctxS.close()
+}
+
+// (15) os eventos do modo servidor (replay, rede, apelido, ranking): o som certo está ligado no ponto certo do código da tela
+cabecalho('R35 — eventos do modo servidor: a chamada do som está no lugar')
+{
+  const ler = (f) => fs.readFileSync(path.join(PASTA, 'js', f), 'utf8'), app = ler('app.js'), telas = ler('telas.js'), bat = ler('batalha-tela.js'), cena = ler('cena.js')
+  const func = (src, nome) => { const i = src.indexOf('function ' + nome + '('); return i < 0 ? '' : src.slice(i, src.indexOf('\nfunction ', i + 10) > 0 ? src.indexOf('\nfunction ', i + 10) : i + 3000) }
+  const itens = [
+    ['replay — SKIP TO FIGHT', /Som\.tocar\('replayPula'\)/.test(func(app, 'pularParaLuta'))],
+    ['RECONNECTING / BACK ONLINE', /Srv\.aoRede = [^\n]*Som\.tocar\('semSinal'\)[^\n]*Som\.tocar\('voltou'\)/.test(app)],
+    ['festa RANK 6 > 4', /Som\.tocar\('rankingSobe'[^\n]*\n[^\n]*Som\.tocar\('rankUp'\)/.test(func(app, 'festejarSubida'))],
+    ['gancho do fim', /M\.fim\.gancho = ganchoDaEstrada\([^\n]*Som\.tocar\('gancho'\)/.test(app)],
+    ['troca de apelido', /sv\.trocarApelido\([\s\S]{0,700}Som\.tocar\('apelidoOk'\)/.test(telas) && /Som\.tocar\('negado'\); erro\.dataset\.codigo/.test(telas)],
+    ['replay x1/x2', /id === 'vel'\) \{ Bat\.vel = Bat\.vel === 1 \? 2 : 1;[^\n]*Som\.tocar\('velocidade'/.test(app)],
+    ['carta rara com brilho', /Som\.tocar\('cartaVira'[^\n]*raridade[^\n]*Som\.tocar\('cartaRara'/.test(func(app, 'maoNova'))],
+    ['ambiente pelo trecho da cena', /C\.trecho\(\)[^\n]*Som\.ambiente\(tr\)/.test(app)],
+    ['golpe no evento do dano (impacto), não na antecipação', /Som\.golpe\(/.test(bat.slice(bat.indexOf("cod === 'd'"), bat.indexOf("cod === 'h'"))) && !/Som\./.test(bat.slice(bat.indexOf('function antever('), bat.indexOf('B.tipoDe = ')))],
+    ['tiro: som na saída do projétil', /C\.projetil\([^\n]*C\.aoSom\?\.\(tp === 'flecha'/.test(cena)],
+  ]
+  for (const [nome, ok] of itens) confere(ok, `${nome}: chamada de som no ponto certo`)
+  const pf = await ctxPc.newPage(); vigiar(pf); await pf.goto(FOLHA)
+  const nomes = await pf.evaluate(() => window.__reino.Som.nomes()), usados = new Set()
+  for (const src of [app, telas, bat, cena]) for (const m of src.matchAll(/(?:Som\.tocar|Som\.golpe|C\.aoSom\?\.)\(([^)]*)/g)) for (const q of m[1].matchAll(/(=== |grupo: )?'([A-Za-z]+)'/g)) if (!q[1]) usados.add(q[2]) // (fora o que é comparação ou nome de pelotão)
+  for (const m of bat.matchAll(/'((?:magia|golpe|flecha|splat|impacto|invasor)[A-Za-z]*)'/g)) usados.add(m[1])
+  const gestos = await pf.evaluate(() => window.__reino.Som.GOLPES); for (const g of gestos) usados.add(g)
+  await pf.close()
+  const desconhecidos = [...usados].filter((n) => !nomes.includes(n)), semUso = nomes.filter((n) => !usados.has(n))
+  confere(desconhecidos.length === 0, 'todo nome de som que a tela pede existe no motor' + (desconhecidos.length ? ' — não existe: ' + desconhecidos.join(', ') : ''))
+  confere(semUso.every((n) => ['espada', 'flecha'].includes(n)), `todo som do motor é disparado por algum evento da tela (só da folha/fundo: ${semUso.join(', ') || 'nenhum'})`)
+}
+
+// ================================================================== R43 — a contagem que o jogador vê sempre tem o seu tique
+cabecalho('R43 — tique de contagem: soa em todo passo (mesmo com o teto cheio) e sobe de nota; som grande não empilha')
+{
+  const p = await ctxPc.newPage(); vigiar(p); await p.goto(FOLHA); await p.click('h1'); await instalarMedidor(p)
+  const r = await p.evaluate(async () => {
+    const { Som, Musica } = window.__reino, espera = (ms) => new Promise((ok) => setTimeout(ok, ms)), o = {}
+    Som.mudo(false); Som.volume('efeitos', 0.8); Som.menosAnimacao(false); Musica.parar()
+    // 7 fanfarras iguais coladas (o robô que joga a partida inteira num instante): antes ficavam as 7 vivas e enchiam o teto
+    for (let i = 0; i < 7; i++) { Som.tocar('vitoria'); await espera(45) }
+    o.copias = Som.estado().vivos.split(' ').filter((x) => x.startsWith('vitoria:')).length; o.cortados = Som.estado().cortados
+    // teto cheio só de sons de prioridade 1 (os mais importantes): antes o tique (prioridade 2) era recusado em todo passo
+    const pri1 = Som.tabela().filter((t) => t.pri === 1 && t.ms >= 700).map((t) => t.nome)
+    for (let k = 0; k < 2; k++) for (const n of pri1) { Som.tocar(n); await espera(k ? 40 : 0) }
+    const cheio = Som.estado(); o.cheio = cheio.vozes; o.soPri1 = cheio.vivos.split(' ').every((x) => x.endsWith(':1')); o.max = 0; o.tiques = []; o.vozesNoTique = []
+    for (let i = 1; i <= 13; i++) { o.vozesNoTique.push(Som.estado().vozes); o.tiques.push(Som.tocar('rankingSobe', { tom: i })); o.max = Math.max(o.max, Som.estado().vozes); await espera(70) }
+    const fim = Som.estado(); o.tocou = (fim.porNome.rankingSobe || 0) - (cheio.porNome.rankingSobe || 0); o.recusados = fim.recusados - cheio.recusados
+    o.juntos = [Som.tocar('rankingSobe', { tom: 1 }), Som.tocar('rankingSobe', { tom: 2 }), Som.tocar('ouroTique', { tom: 1 }), Som.tocar('ouroTique', { tom: 2 })] // dois passos no mesmo quadro (relógio atrasado): os dois soam
+    o.comum = [Som.tocar('toque'), Som.tocar('toque')] // som comum continua virando um só no mesmo instante
+    o.certos = Som.tabela().filter((t) => t.certo).map((t) => t.nome)
+    await espera(3200); o.sobrou = Som.estado().vozes
+    // a nota sobe com o degrau: sol (392 Hz) sem tom, ré (587 Hz) no degrau 7
+    const { fora, forca, SR, PRE } = window.__m, nota = async (tom) => { const { L } = await fora(0.5, (ctx, no, t) => Som.fabricar(ctx, no.fx, 'rankingSobe', t, 0, { tom })); const i0 = Math.floor(PRE * SR); return { sol: forca(L, i0, i0 + SR * 0.2, 392), re: forca(L, i0, i0 + SR * 0.2, 587.33) } }
+    o.nota0 = await nota(0); o.nota7 = await nota(7)
+    return o
+  })
+  confere(r.copias <= 2 && r.cortados >= 5, `7 fanfarras iguais coladas não empilham: ficam ${r.copias} vivas (teto 2), ${r.cortados} antigas cortadas`)
+  confere(r.cheio === 12 && r.soPri1 && r.vozesNoTique.slice(0, 5).every((v) => v === 12), `teto cheio com 12 vozes de prioridade 1 quando a contagem começa (${r.vozesNoTique.join(' ')})`)
+  confere(r.tiques.length === 13 && r.tiques.every(Boolean) && r.tocou === 13 && r.recusados === 0 && r.max <= 12, `os 13 tiques da contagem soam, um por passo de 70 ms, sem passar do teto (${r.tocou} de 13, ${r.recusados} recusados, no máximo ${r.max} vozes)`)
+  confere(r.juntos.every(Boolean) && r.comum[0] === true && r.comum[1] === false && JSON.stringify(r.certos.sort()) === '["ouroTique","rankingSobe"]', 'dois passos de contagem no mesmo instante soam os dois (rankingSobe e ouroTique); som comum repetido no mesmo instante continua virando um só')
+  confere(r.nota0.sol > r.nota0.re + 10 && r.nota7.re > r.nota7.sol + 10 && r.sobrou === 0, `a contagem sobe de nota: sem degrau toca sol (${n1(r.nota0.sol)} dB contra ${n1(r.nota0.re)} do ré), no degrau 7 toca ré (${n1(r.nota7.re)} dB contra ${n1(r.nota7.sol)} do sol)`)
+  await p.close()
+}
+
+// ================================================================== R46 — os dois sons da revanche: troca e dica (fabricados por código)
+cabecalho('R46 — revanche: "troca" (duas peças trocam de terreno) e "dica" (há uma troca que vence)')
+{
+  const p = await ctxPc.newPage(); vigiar(p); await p.goto(FOLHA); await p.click('h1'); await instalarMedidor(p)
+  const m = await p.evaluate(async () => {
+    const { Som, fora, medir, forca, db, SR, PRE } = window.__m, o = { troca: [], nomes: Som.nomes(), linhas: Som.tabela().filter((t) => ['troca', 'dica'].includes(t.nome)) }
+    const reguaInterface = Som.tabela().filter((t) => t.camada === 'interface' && !['troca', 'dica'].includes(t.nome)).map((t) => t.alvo); o.regua = [Math.min(...reguaInterface), Math.max(...reguaInterface)]
+    /** Quanto do som está acima de 5 kHz (o agudo que irrita), em dB contra o som inteiro. */
+    const agudo = (x) => { const a = 1 / (1 + 2 * Math.PI * 5000 / SR); let y1 = 0, x1 = 0, y2 = 0, w1 = 0, alto = 0, tudo = 0; for (let i = Math.floor(PRE * SR); i < x.length; i++) { y1 = a * (y1 + x[i] - x1); x1 = x[i]; y2 = a * (y2 + y1 - w1); w1 = y1; alto += y2 * y2; tudo += x[i] * x[i] } return db(Math.sqrt(alto / Math.max(tudo, 1e-18))) }
+    const um = async (nome, i) => { const { L, R } = await fora(1.2, (ctx, no, t) => Som.fabricar(ctx, no.fx, nome, t, i)); return { ...medir(L, R), agudo: agudo(L), L } }
+    for (let i = 0; i < 3; i++) { const r = await um('troca', i); delete r.L; o.troca.push(r) }
+    const d = await um('dica', 0), jan = (a, b, hz) => forca(d.L, Math.floor((PRE + a) * SR), Math.floor((PRE + b) * SR), hz), RE = 587.33, SOL = 783.99
+    o.notas = { re1: jan(0.02, 0.15, RE), sol1: jan(0.02, 0.15, SOL), re2: jan(0.2, 0.36, RE), sol2: jan(0.2, 0.36, SOL) }; delete d.L; o.dica = d
+    return o
+  })
+  const lt = m.linhas.find((t) => t.nome === 'troca'), ld = m.linhas.find((t) => t.nome === 'dica')
+  anota('som      var  pico dBFS  alvo  duração ms  agudo (>5 kHz) dB'); m.troca.forEach((r, i) => anota(`troca    ${i + 1}    ${n1(r.picoDb).padStart(7)}  ${String(lt?.alvo).padStart(4)}  ${String(Math.round(r.ms)).padStart(9)}  ${n1(r.agudo).padStart(8)}`)); anota(`dica     1    ${n1(m.dica.picoDb).padStart(7)}  ${String(ld?.alvo).padStart(4)}  ${String(Math.round(m.dica.ms)).padStart(9)}  ${n1(m.dica.agudo).padStart(8)}`)
+  confere(m.nomes.includes('troca') && m.nomes.includes('dica') && lt?.camada === 'interface' && ld?.camada === 'interface' && !lt.grande && !ld.grande && !lt.tropa && !ld.tropa, 'os dois sons da revanche existem no motor (troca e dica), na camada de interface, nenhum é som grande nem de tropa')
+  confere(m.troca.every((r) => r.ms >= 250 && r.ms <= 350 && r.estouros === 0 && r.atrasoMs <= 15), `troca dura de 250 a 350 ms nas 3 variações (${m.troca.map((r) => Math.round(r.ms)).join(', ')} ms) e começa na hora`)
+  confere(m.dica.ms >= 300 && m.dica.ms <= 450 && m.dica.estouros === 0 && m.dica.atrasoMs <= 15, `dica dura de 300 a 450 ms (${Math.round(m.dica.ms)} ms) e começa na hora`)
+  confere([lt, ld].every((t) => t.alvo >= m.regua[0] && t.alvo <= m.regua[1]) && m.troca.every((r) => Math.abs(r.picoDb - lt.alvo) <= 2.5 && r.picoDb <= -3) && Math.abs(m.dica.picoDb - ld.alvo) <= 2.5, `volume dentro da régua dos sons de interface (${m.regua[0]} a ${m.regua[1]} dBFS): troca no alvo ${lt.alvo} (${m.troca.map((r) => n1(r.picoDb)).join(', ')}), dica no alvo ${ld.alvo} (${n1(m.dica.picoDb)})`)
+  confere(ld.alvo < lt.alvo && m.dica.picoDb < Math.min(...m.troca.map((r) => r.picoDb)) && ld.pri > lt.pri && ld.pri >= 3, `a dica é o mais baixo dos dois (${n1(m.dica.picoDb)} dBFS) e tem prioridade baixa (${ld.pri}; a troca tem ${lt.pri})`)
+  confere(m.troca.every((r) => r.agudo <= -18) && m.dica.agudo <= -18, `sem agudo que irrite: acima de 5 kHz a troca fica ${n1(Math.max(...m.troca.map((r) => r.agudo)))} dB abaixo do som inteiro (no pior take) e a dica ${n1(m.dica.agudo)} dB (pedido: 18 dB ou mais)`)
+  confere(m.notas.re1 > m.notas.sol1 + 10 && m.notas.sol2 > m.notas.re2 + 10, `a dica são duas notas SUBINDO: primeiro o ré (${n1(m.notas.re1)} dB contra ${n1(m.notas.sol1)} do sol), depois o sol (${n1(m.notas.sol2)} dB contra ${n1(m.notas.re2)} do ré)`)
+  const v = await p.evaluate(async () => {
+    const { Som, Musica } = window.__reino, espera = (ms) => new Promise((ok) => setTimeout(ok, ms)), o = {}
+    const ouvir = async (ms) => { let pk = 0; for (let i = 0; i < ms / 20; i++) { pk = Math.max(pk, Som.picoAoVivo()); await espera(20) } return pk }
+    const copias = (nome) => Som.estado().vivos.split(' ').filter((x) => x.startsWith(nome + ':')).length
+    Som.mudo(false); Som.volume('efeitos', 0.8); Som.menosAnimacao(false); Musica.parar(); await espera(300)
+    o.botoes = ['troca', 'dica'].map((n) => document.querySelector(`button[data-som="${n}"] small.q`)?.textContent.length || 0)
+    // tocam de verdade
+    let e0 = Som.estado(); o.tocouTroca = Som.tocar('troca'); o.forcaTroca = Som.estado().ultimaForca; o.picoTroca = await ouvir(450)
+    o.tocouDica = Som.tocar('dica'); o.forcaDica = Som.estado().ultimaForca; o.esperaLivre = Som.estado().ultimaEspera; o.picoDica = await ouvir(550)
+    let e1 = Som.estado(); o.normal = [e1.tocados - e0.tocados, (e1.porNome.troca || 0) - (e0.porNome.troca || 0), (e1.porNome.dica || 0) - (e0.porNome.dica || 0)]; await espera(500)
+    // mudo
+    Som.mudo(true); await espera(120); Som.tocar('troca'); Som.tocar('dica'); o.mudo = await ouvir(600); Som.mudo(false); await espera(600)
+    // repetir muito não empilha
+    o.maxTroca = 0; o.maxDica = 0
+    for (let i = 0; i < 8; i++) { Som.tocar('troca'); Som.tocar('dica'); o.maxTroca = Math.max(o.maxTroca, copias('troca')); o.maxDica = Math.max(o.maxDica, copias('dica')); await espera(45) }
+    await espera(1200)
+    // "Menos animação": tocam igual, nada a mais
+    Som.menosAnimacao(true); e0 = Som.estado(); o.menosTroca = Som.tocar('troca'); o.menosForcaTroca = Som.estado().ultimaForca; o.menosPicoTroca = await ouvir(450)
+    o.menosDica = Som.tocar('dica'); o.menosForcaDica = Som.estado().ultimaForca; o.menosPicoDica = await ouvir(550)
+    e1 = Som.estado(); o.menos = [e1.tocados - e0.tocados, (e1.porNome.troca || 0) - (e0.porNome.troca || 0), (e1.porNome.dica || 0) - (e0.porNome.dica || 0)]; Som.menosAnimacao(false); await espera(500)
+    // a dica nunca entra por cima de fanfarra: espera a derrota acabar
+    Som.tocar('derrota'); await espera(100); o.dicaNaFanfarra = Som.tocar('dica'); o.esperaFanfarra = Som.estado().ultimaEspera; Som.tocar('troca'); o.esperaTroca = Som.estado().ultimaEspera
+    await espera(3000)
+    // teto de vozes cheio de sons de prioridade 1: os dois ficam de fora, o teto não passa
+    const pri1 = Som.tabela().filter((t) => t.pri === 1 && t.ms >= 700).map((t) => t.nome)
+    for (let k = 0; k < 2; k++) for (const n of pri1) { Som.tocar(n); await espera(k ? 40 : 0) }
+    const cheio = Som.estado(); o.cheio = cheio.vozes; o.dicaCheio = Som.tocar('dica'); o.trocaCheio = Som.tocar('troca'); o.vozesDepois = Som.estado().vozes
+    // nome desconhecido não quebra
+    o.desconhecido = [Som.tocar('trocaQueNaoExiste'), Som.tocar(''), Som.tocar(undefined)]
+    await espera(3400); o.sobrou = Som.estado().vozes
+    return o
+  })
+  confere(v.botoes.every((n) => n >= 8), 'a folha de ouvir mostra os dois, cada um com o evento que o dispara')
+  confere(v.tocouTroca && v.tocouDica && v.picoTroca > 0.02 && v.picoTroca <= 0.71 && v.picoDica > 0.02 && v.picoDica <= 0.71 && v.normal.join() === '2,1,1' && v.esperaLivre === 0, `Som.tocar('troca') e Som.tocar('dica') tocam ao vivo (picos ${n1(20 * Math.log10(v.picoTroca))} e ${n1(20 * Math.log10(v.picoDica))} dBFS); sem fanfarra a dica sai na hora`)
+  confere(v.mudo < 0.001, `mudo vale para os dois (pico ${v.mudo.toFixed(4)})`)
+  confere(v.maxTroca >= 1 && v.maxTroca <= 2 && v.maxDica === 1, `repetidos 8 vezes em 360 ms não empilham: no máximo ${v.maxTroca} trocas (teto 2) e ${v.maxDica} dica (teto 1) vivas`)
+  confere(v.menosTroca && v.menosDica && v.menosForcaTroca === 1 && v.menosForcaDica === 1 && v.forcaTroca === 1 && v.forcaDica === 1 && v.menos.join() === '2,1,1' && v.menosPicoTroca > 0.02 && v.menosPicoDica > 0.02, `"Menos animação": os dois continuam tocando na mesma força (1), sem som extra (${v.menos[0]} sons para 2 pedidos)`)
+  confere(v.dicaNaFanfarra === true && v.esperaFanfarra >= 1 && v.esperaFanfarra <= 1.5 && v.esperaTroca === 0, `a dica nunca entra por cima de fanfarra: pedida durante a derrota, espera ${n1(v.esperaFanfarra * 1000)} ms (teto 1500); a troca não espera`)
+  confere(v.cheio === 12 && v.dicaCheio === false && v.trocaCheio === false && v.vozesDepois === 12 && v.sobrou === 0, 'teto de vozes: com 12 sons de prioridade 1 vivos, dica e troca ficam de fora e o teto continua em 12')
+  confere(v.desconhecido.every((x) => x === false), 'nome de som desconhecido (ou vazio) devolve false e não quebra nada')
+  await p.close()
 }
 
 // ================================================================== fim

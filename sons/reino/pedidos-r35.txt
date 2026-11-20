@@ -1,0 +1,30 @@
+Pedidos ao ElevenLabs (POST /v1/sound-generation, prompt_influence 0,6, mp3 44,1 kHz) — R35, 20/11/2026
+Custo real pelo cabeçalho character-cost de cada resposta: 192 créditos (18 tomadas, 17,1 s). Registro linha a linha em registro.csv.
+Nenhum pedido cita jogo, filme ou música. Tratamento: tratar.py (corte de silêncio, rampa de 2 ms / 60 ms, pico no alvo, mono 96 kbps).
+
+golpeFrigideira (0,9 s × 3 = 30 créditos; ficaram 2: a tomada 2 saiu só um estalo de 75 ms)
+  Cast iron frying pan bonk on a metal helmet, one short comedic metallic clang with a quick ring, pixel art medieval comedy game sound effect, dry, close, no voice, no music
+
+golpeBicada (0,8 s × 3 = 27 créditos; ficaram 2: a tomada 3 saiu um grasnido longo de 660 ms)
+  One single short funny goose honk, a quick angry quack of a farm goose pecking, pixel art medieval comedy game sound effect, dry, close, no music
+
+golpeMordida (0,7 s × 3 = 24 créditos; ficaram 3)
+  One quick cartoon bite, crunchy chomp of a small greedy monster snapping its jaws shut, pixel art medieval comedy game sound effect, dry, close, no voice, no music
+
+golpePortada (0,8 s × 3 = 27 créditos; ficaram 3)
+  Heavy wooden door slammed hard into someone, one solid wood thud bash with a short hinge rattle, pixel art medieval comedy game sound effect, dry, close, no voice, no music
+
+chefeTomba (1,5 s × 3 = 51 créditos; ficaram 3)
+  A giant heavy creature collapses onto dirt ground, one massive body thud with a puff of dust and a few small falling pebbles after, pixel art medieval game sound effect, dry, no voice, no music
+
+pisao (1,0 s × 3 = 33 créditos; ficaram 3)
+  One single giant foot stomp landing on dirt ground, very deep heavy impact with a short ground shake and a little dust and gravel, pixel art medieval game sound effect, dry, no voice, no music
+
+Medido (ffprobe + ffmpeg loudnorm; clipes com menos de 0,4 s não dão LUFS integrado):
+  golpeBicada-1 0,39 s pico −13,9 dBFS · golpeBicada-2 0,26 s −13,9
+  golpeFrigideira-1 0,39 s −12,5 · golpeFrigideira-2 0,34 s −12,4
+  golpeMordida-1 0,44 s −13,6 · -2 0,50 s −14,0 (−26,6 LUFS) · -3 0,50 s −14,2 (−28,2 LUFS)
+  golpePortada-1 0,34 s −13,0 · -2 0,47 s −12,9 (−33,9 LUFS) · -3 0,47 s −12,9 (−30,2 LUFS)
+  pisao-1 0,76 s −7,9 (−34,9 LUFS) · -2 0,68 s −8,0 (−30,5) · -3 0,65 s −7,9 (−33,0)
+  chefeTomba-1 1,10 s −8,8 (−23,1 LUFS) · -2 0,81 s −8,5 (−24,0) · -3 1,02 s −8,6 (−21,6)
+O motor reajusta cada amostra ao pico da tabela do evento ao carregar (mesma régua dos sons por código).

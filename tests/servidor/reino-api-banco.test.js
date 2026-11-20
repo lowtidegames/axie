@@ -48,8 +48,9 @@ describe('R14 — migração v4 → v5', () => {
     try {
       // regra mudou (R16, K1): entrou a v6 (resposta guardada na partida); a v4 migra até ela, com a cópia da v4 antes
       // regra mudou (R22): entrou a v7 (troca de apelido e data das conquistas); a v4 migra até ela, com a cópia da v4 antes
-      assert.equal(VERSAO_DO_BANCO, 7)
-      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, 7)
+      // regra mudou (R39): entrou a v8 (só dados: conquistas de degrau)
+      assert.equal(VERSAO_DO_BANCO, 9) // regra mudou (R46): entrou a v9 (regra de cada partida)
+      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, 9) // regra mudou (R46): entrou a v9 (regra de cada partida)
       // cópia ANTES da migração, com a versão de antes no nome e os dados de antes dentro
       const copias = fs.readdirSync(path.join(pasta, 'copias')).filter((n) => n.startsWith('v4.db.v4.'))
       assert.equal(copias.length, 1, copias.join(','))

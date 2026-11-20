@@ -1,0 +1,1119 @@
+// Keepmile — R36: MEDIR A PROFUNDIDADE do jogo (sem mudar número nem regra). Só lê o motor; variantes entram por injeção, aqui.
+// Uso: node tools/medir-reino.mjs <medida> [--n 2000] [--semente keepmile36] [--variante base] [--trabalhos 4] [--json]
+//   medidas: A (novato no 1º chefe) · B (qualidade da decisão) · C (posição) · D (cartas e planos) · E (longo prazo) · F (tempo) · todas
+//   --n      partidas (A, D, F; padrão 2000) ou ofertas (B 400, C 300); E usa n/10 contas atentas e aleatórias e n/50 do planejador
+//            (padrão 200 e 40), cada conta com --partidas partidas seguidas (padrão 60; R40: as 30 conquistas e a vitória da rodada 20)
+//   --sem-ranking  E sem o ranking semanal (mais rápido) · --sem-aleatorio  E sem as contas do aleatório
+//   --intermediario  E também com o robô intermediário (atento com juízo); E traz a medida V (rodada da vitória 12/15/16/18/20)
+//   --planos partidas por robô de plano no D (padrão 300; 0 = sem planos)
+//   --k      continuações por opção (B, C; padrão 8)
+//   --saida arquivo.json  guarda os números crus (para comparar variantes com as mesmas sementes)
+//   --variante base|<nome> (VARIANTES abaixo): muda números/regras SÓ dentro deste processo, nunca no config
+// Mesma semente → mesmos números, com 1 ou com 4 trabalhos.
+import { pathToFileURL } from 'node:url'
+import { Worker, isMainThread, parentPort } from 'node:worker_threads'
+import { availableParallelism } from 'node:os'
+import { writeFileSync } from 'node:fs'
+import { criarRng, estadoDaSemente } from '../shared/rng.js'
+import { ALBUM, CARTAS, CHEFES, CONQUISTAS, FAMILIAS, PARTIDA as P, RELIQUIAS } from '../shared/reino/config.js'
+import { montarExercito, simularBatalha } from '../shared/reino/batalha.js'
+import { aplicar, criarPartida, opcoes, resistiu, visao } from '../shared/reino/partida.js'
+import { PLANOS, escolher, forcaEstatica, hordaDeReferencia, notaDaLuta } from '../shared/reino/robos.js'
+import { IDS as IDS_CONQ, conquistasDoPasso, vitoriasDoPasso } from '../shared/reino/conquistas.js'
+
+// ================================================================ variantes (injeção; desfeita no fim de cada tarefa)
+const desfazer = []
+function por(obj, chave, valor) { desfazer.push([obj, chave, obj[chave]]); obj[chave] = valor }
+function restaurar() { while (desfazer.length) { const [o, k, v] = desfazer.pop(); o[k] = v } }
+
+/** Cada variante: `cfg()` muda números (com `por`, desfeito depois) e/ou `regras` (regra simulada no laço da partida). */
+export const VARIANTES = {
+  base: {},
+  // 1º chefe mais leve para o novato — JÁ APLICADA no config em 20/11 (R37): hoje igual à base
+  chefe320: { cfg: () => por(CHEFES[0], 'vida', 320) },
+  chefe280: { cfg: () => por(CHEFES[0], 'vida', 280) },
+  // guardar a mão (lutar sem pôr carta) rende ouro
+  guardar3: { regras: { ouroGuardar: 3 } },
+  guardar5: { regras: { ouroGuardar: 5 } },
+  // reino cheio: a mão traz 2 cartas que sobem (a 1ª e a 2ª posição), e não só 1
+  // (simulado trocando a 2ª carta da mão por outra carta do reino abaixo do nível 5, quando houver e o reino estiver cheio)
+  sobem2: { regras: { sobem2: true } },
+  // conserto mais barato (ouro com uso real): 20, 30, 40…
+  conserto10: { cfg: () => por(P.ouro, 'consertoPasso', 10) },
+  // as 4 cartas mortas e o Bunkhouse (números) — JÁ APLICADA no config em 20/11 (R37), menos Market Stall (fora da decisão):
+  // hoje só muda Market Stall 3..8 → 5..12
+  cartas: {
+    cfg: () => {
+      por(CARTAS.B03, 'valores', [30, 36, 42, 48, 55]) // Stone Wall 25..45 → 30..55
+      por(CARTAS.B07, 'valores', [5, 6, 8, 10, 12]) // Market Stall 3..8 → 5..12
+      por(CARTAS.M05, 'valores', [120, 130, 140, 150, 160]) // Second Helping 80..100 → 120..160
+      por(CARTAS.M06, 'valores', [4, 5, 6, 8, 10]); por(CARTAS.M06, 'tiques', 35) // Bramble Snare 3..8 por 2,5 s → 4..10 por 3,5 s
+      por(CARTAS.B02, 'valores2', [5, 10, 15, 20, 25]) // Bunkhouse vida 10..40 → 5..25
+    },
+  },
+  // pacote: as três que mexem no novato e na decisão — o chefe 320 JÁ ESTÁ no config (R37); hoje só soma ouroGuardar 3
+  pacote: { cfg: () => { por(CHEFES[0], 'vida', 320) }, regras: { ouroGuardar: 3 } },
+  // R40 — degraus e condições das conquistas (medida E). Só números de CONQUISTAS; a regra é a de shared/reino/conquistas.js.
+  tally300: { cfg: () => por(CONQUISTAS.rodadasSomadas, 'tally400', 300) }, // último degrau longe do álbum cheio (398)
+  bis22: { cfg: () => por(CONQUISTAS, 'rodadaDoBis', 22) }, // Encore! mais perto da vitória (20)
+  bis21: { cfg: () => por(CONQUISTAS, 'rodadaDoBis', 21) },
+  bolsos4: { cfg: () => por(CONQUISTAS, 'reliquias', 4) }, // Pocketful: os 3 chefes dão 3 relíquias (cai junto com Mole Patrol)
+  // R40 — rodada da vitória (hoje 20). A medida V já tira todas da mesma partida; estas servem para o teste provar a equivalência.
+  vit12: { cfg: () => por(P, 'rodadaDaVitoria', 12) },
+  vit15: { cfg: () => por(P, 'rodadaDaVitoria', 15) },
+  vit16: { cfg: () => por(P, 'rodadaDaVitoria', 16) },
+  vit18: { cfg: () => por(P, 'rodadaDaVitoria', 18) },
+  // R45 — 3 regras propostas pelo designer, só aqui (embrulham o passo(); o motor não muda). Ver REGRAS45 abaixo.
+  // REMATCH: perdeu a rodada? a MESMA horda volta (hoje volta horda nova); com troca: + 1 troca grátis de 2 terrenos depois da derrota
+  rematchSemTroca: { regras: { rematch: 'mesma' } },
+  rematch: { regras: { rematch: 'troca' } },
+  // KIN SWAP: trocar a carta de um terreno por outra da MESMA família mantém o nível, menos `kin`
+  kin1: { regras: { kin: 1 } },
+  kin0: { regras: { kin: 0 } },
+  // TRAIN: gastar ouro para +1 nível num terreno, 1 vez por rodada; custo = treino × o nível novo
+  treino8: { regras: { treino: 8 } },
+  treino12: { regras: { treino: 12 } },
+  'rematch+kin1': { regras: { rematch: 'troca', kin: 1 } },
+}
+
+function aplicarVariante(nome) {
+  restaurar()
+  const v = VARIANTES[nome]
+  if (!v) throw new Error(`variante desconhecida: ${nome}`)
+  if (v.cfg) v.cfg()
+  return v.regras || {}
+}
+
+// ================================================================ álbum (a mesma regra do servidor e da tela)
+function limiar(i) { return i <= ALBUM.quantasNoMeio ? ALBUM.primeira + ALBUM.depoisCada * i : ALBUM.primeira + ALBUM.depoisCada * ALBUM.quantasNoMeio + ALBUM.fimCada * (i - ALBUM.quantasNoMeio) }
+export function liberadasPorRodadas(rodadas) { let n = 0; while (n < ALBUM.ordem.length && limiar(n) <= rodadas) n++; return [...ALBUM.inicial, ...ALBUM.ordem.slice(0, n)] }
+export const RODADAS_ALBUM_CHEIO = limiar(ALBUM.ordem.length - 1)
+const TODAS = Object.keys(CARTAS)
+
+// ================================================================ robôs
+// planejador: CÓPIA FIEL do de shared/reino/robos.js, com memória das lutas (a luta não tem dado: mesma entrada → mesmo resultado).
+// O teste tests/servidor/reino-medidas36.test.js confere que joga comando por comando igual ao original.
+const memoria = new Map()
+const chaveLuta = (t, rel, h) => t.map((x) => (x ? x.carta + x.nivel : '-')).join('') + '|' + rel.join(',') + '|' + h.rodada + ':' + h.ordem.join(',')
+function luta(terrenos, reliquias, horda) {
+  const k = chaveLuta(terrenos, reliquias, horda)
+  let n = memoria.get(k)
+  if (n === undefined) {
+    if (memoria.size > 300000) memoria.clear()
+    n = notaDaLuta(simularBatalha({ terrenos, reliquias, horda, eventos: false }))
+    memoria.set(k, n)
+  }
+  return n
+}
+// R45: a regra da variante que está valendo AGORA neste processo (os robôs e comTerreno precisam enxergá-la). Vazia = jogo de hoje.
+let REGRAS = {}
+export const regrasAtivas = () => REGRAS
+/** Nível da carta nova num terreno ocupado por OUTRA carta: 1 hoje; com KIN SWAP (mesma família) o nível antigo menos `kin`. */
+function nivelAoTrocar(antiga, carta) {
+  if (REGRAS.kin === undefined || !antiga || CARTAS[antiga.carta].familia !== CARTAS[carta].familia) return 1
+  return Math.max(1, antiga.nivel - REGRAS.kin)
+}
+function comTerreno(terrenos, carta, k) {
+  const out = terrenos.map((t) => (t ? { ...t } : null))
+  const a = out[k - 1]
+  out[k - 1] = a && a.carta === carta ? { carta, nivel: a.nivel + 1 } : { carta, nivel: nivelAoTrocar(a, carta) }
+  return out
+}
+function trocado(terrenos, a, b) { const out = terrenos.map((t) => (t ? { ...t } : null)); const x = out[a - 1]; out[a - 1] = out[b - 1]; out[b - 1] = x; return out }
+/** As 15 trocas de 2 terrenos (a < b) que mudam alguma coisa (dois vazios não contam). */
+export function trocasPossiveis(terrenos) {
+  const out = []
+  for (let a = 1; a <= P.terrenos; a++) for (let b = a + 1; b <= P.terrenos; b++) if (terrenos[a - 1] || terrenos[b - 1]) out.push([a, b])
+  return out
+}
+/** A "dica" do REMATCH: a 1ª troca (na ordem a<b) que vence a MESMA horda com o reino como está; null se nenhuma vence. */
+export function dicaDaTroca(terrenos, reliquias, horda) {
+  for (const [a, b] of trocasPossiveis(terrenos)) if (luta(trocado(terrenos, a, b), reliquias, horda) >= 1000) return { a, b }
+  return null
+}
+const custoTreino = (nivelNovo) => REGRAS.treino * nivelNovo
+function promovido(terrenos, k) { const out = terrenos.map((t) => (t ? { ...t } : null)); out[k - 1] = { carta: out[k - 1].carta, nivel: out[k - 1].nivel + 1 }; return out }
+function melhor(lista, nota) { let m = null, mn = -Infinity; for (const x of lista) { const n = nota(x); if (n > mn) { m = x; mn = n } } return m }
+function hordaAlvo(v) { const pc = v.proximoChefe; return pc.avisado && pc.rodada > v.rodada ? hordaDeReferencia(pc.rodada) : hordaDeReferencia(v.rodada + 3) }
+function valorFuturo(terrenos, reliquias, alvo) {
+  const ex = montarExercito(terrenos, reliquias)
+  const fam = ex.familias.length
+  let niveis = 0
+  for (const t of terrenos) if (t) niveis += t.nivel
+  // R45 TRAIN: com o ouro comprando nível, o planejador passa a dar valor ao ouro por vitória (Market Stall): 4 pontos por ouro
+  const ouro = REGRAS.treino ? ex.ouroMercado * 4 : 0
+  return luta(terrenos, reliquias, alvo) * 10 + forcaEstatica(terrenos, reliquias) + fam * 40 + niveis * 5 + ouro
+}
+/** R45 REMATCH (planejador): testa as trocas contra a mesma horda e fica com a melhor (luta de agora com a melhor carta, depois o futuro). */
+function trocaDoPlanejador(e, v, o, alvo) {
+  const porC = o.comandos.filter((c) => c.tipo === 'por')
+  const nota = (t) => (porC.length ? Math.max(...porC.map((c) => luta(comTerreno(t, c.carta, c.terreno), v.reliquias, v.horda))) : luta(t, v.reliquias, v.horda)) * 10 + valorFuturo(t, v.reliquias, alvo)
+  let m = null, mn = nota(v.terrenos)
+  for (const [a, b] of trocasPossiveis(v.terrenos)) { const n = nota(trocado(v.terrenos, a, b)); if (n > mn) { m = { tipo: 'trocar', a, b }; mn = n } }
+  return m
+}
+/** R45 TRAIN (planejador): treina se vira a luta de agora; senão, se sobra ouro (reserva do conserto + 15), o terreno que mais sobe o futuro. */
+function treinoDoPlanejador(e, v, alvo) {
+  const cand = v.terrenos.map((t, i) => (t && t.nivel < P.nivelMax && custoTreino(t.nivel + 1) <= v.ouro ? { k: i + 1, custo: custoTreino(t.nivel + 1), t: promovido(v.terrenos, i + 1) } : null)).filter(Boolean)
+  if (!cand.length) return null
+  if (luta(v.terrenos, v.reliquias, v.horda) < 1000) {
+    const viram = cand.filter((x) => luta(x.t, v.reliquias, v.horda) >= 1000)
+    if (viram.length) return { tipo: 'treinar', terreno: melhor(viram, (x) => -x.custo).k }
+  }
+  const reserva = (v.vidas < v.vidasMax ? v.custos.consertar : 0) + 15
+  const base = valorFuturo(v.terrenos, v.reliquias, alvo)
+  const ok = cand.filter((x) => v.ouro - x.custo >= reserva)
+  const m = melhor(ok, (x) => valorFuturo(x.t, v.reliquias, alvo))
+  return m && valorFuturo(m.t, v.reliquias, alvo) > base ? { tipo: 'treinar', terreno: m.k } : null
+}
+function planejador(e) {
+  const v = visao(e), o = opcoes(e), alvo = hordaAlvo(v)
+  if (o.fase === 'carta') {
+    if (e._troca) { const t = trocaDoPlanejador(e, v, o, alvo); if (t) return t }
+    if (o.consertar.pode && (v.vidas === 1 || v.ouro >= o.consertar.custo + 15)) return { tipo: 'consertar' }
+    if (v.cartaPosta) {
+      if (REGRAS.treino && !e._treinou) { const t = treinoDoPlanejador(e, v, alvo); if (t) return t }
+      return { tipo: 'batalhar' }
+    }
+    const porC = o.comandos.filter((c) => c.tipo === 'por')
+    if (!porC.length) return { tipo: 'batalhar' }
+    const cand = porC.map((c) => { const t = comTerreno(v.terrenos, c.carta, c.terreno); return { c, t, agora: luta(t, v.reliquias, v.horda), h: forcaEstatica(t, v.reliquias) } })
+    const vencem = cand.filter((x) => x.agora >= 1000)
+    if (!vencem.length && o.sortear.pode && v.ouro - o.sortear.custo >= (v.vidas < v.vidasMax ? 0 : 10) && e.sorteios < 2) return { tipo: 'sortear' }
+    const pool = (vencem.length ? vencem : cand.sort((a, b) => b.agora - a.agora).slice(0, 6)).sort((a, b) => b.h - a.h).slice(0, 6)
+    return melhor(pool, (x) => x.agora * (vencem.length ? 0 : 10) + valorFuturo(x.t, v.reliquias, alvo)).c
+  }
+  const esp = o.comandos.filter((c) => c.tipo === 'espolio')
+  const base = valorFuturo(v.terrenos, v.reliquias, alvo)
+  return melhor(esp, (c) => {
+    const x = v.espolios[c.indice]
+    if (x.tipo === 'carta') return valorFuturo(comTerreno(v.terrenos, x.carta, c.terreno), v.reliquias, alvo)
+    if (x.tipo === 'promocao') return valorFuturo(promovido(v.terrenos, c.terreno), v.reliquias, alvo)
+    if (x.reliquia) {
+      if (x.reliquia === 'crown') return base + 400
+      if (x.reliquia === 'horseshoe' || x.reliquia === 'ledger') return base + 150
+      return valorFuturo(v.terrenos, [...v.reliquias, x.reliquia], alvo) + 50
+    }
+    return base + x.ouro * 12
+  })
+}
+
+/** "Ganancioso puro" (R36): a carta e o terreno de maior força IMEDIATA; nunca conserta, nunca sorteia. Espólio como o ganancioso. */
+function gananciosoPuro(e) {
+  const v = visao(e), o = opcoes(e)
+  if (o.fase === 'carta') {
+    const porC = o.comandos.filter((c) => c.tipo === 'por')
+    if (!porC.length) return { tipo: 'batalhar' }
+    return melhor(porC, (c) => { const t = comTerreno(v.terrenos, c.carta, c.terreno); return luta(t, v.reliquias, v.horda) * 1000 + forcaEstatica(t, v.reliquias) })
+  }
+  const esp = o.comandos.filter((c) => c.tipo === 'espolio')
+  const base = forcaEstatica(v.terrenos, v.reliquias)
+  return melhor(esp, (c) => {
+    const x = v.espolios[c.indice]
+    if (x.tipo === 'carta') return forcaEstatica(comTerreno(v.terrenos, x.carta, c.terreno), v.reliquias)
+    if (x.tipo === 'promocao') return forcaEstatica(promovido(v.terrenos, c.terreno), v.reliquias)
+    if (x.reliquia) return forcaEstatica(v.terrenos, [...v.reliquias, x.reliquia]) + base * 0.05
+    return base
+  })
+}
+
+/**
+ * "Novato atento" (R36): faz o que a tela sugere, sem simular luta. Conserta sempre que há vida perdida e ouro; pega o LEVEL UP quando a
+ * mão traz; senão a carta que LIGA o bônus de família; senão uma carta qualquer da mão (sorteio do robô). Tropa e magia vão no 1º terreno
+ * vazio a partir do portão; construção no 1º vazio ao lado de uma tropa ("buildings help the plots next to them"). Reino cheio sem LEVEL UP:
+ * troca a carta de nível mais baixo. Nunca sorteia. Espólio: Promotion na tropa de nível mais alto; senão Card; senão Purse.
+ */
+function novatoAtento(e, inteiro, juizo = false) {
+  const v = visao(e), o = opcoes(e)
+  if (o.fase === 'carta') {
+    // R45 REMATCH: a tela mostra a dica ("uma troca vencia") e o atento faz a troca da dica
+    if (e._troca && e._dica) return { tipo: 'trocar', a: e._dica.a, b: e._dica.b }
+    if (o.consertar.pode && (!juizo || v.vidas === 1 || v.ouro >= o.consertar.custo + 15)) return { tipo: 'consertar' }
+    if (v.cartaPosta) {
+      // R45 TRAIN: treina a tropa de nível mais alto que ainda sobe, se o ouro dá (com juízo: guardando o conserto)
+      if (REGRAS.treino && !e._treinou) {
+        const reserva = juizo && v.vidas < v.vidasMax ? v.custos.consertar : 0
+        const k = melhor(v.terrenos.map((t, i) => (t && t.nivel < P.nivelMax && v.ouro - custoTreino(t.nivel + 1) >= reserva ? i : -1)).filter((i) => i >= 0),
+          (i) => (CARTAS[v.terrenos[i].carta].tipo === 'tropa' ? 100 : 0) + v.terrenos[i].nivel * 10 - i * 0.1)
+        if (k !== null) return { tipo: 'treinar', terreno: k + 1 }
+      }
+      return { tipo: 'batalhar' }
+    }
+    const porC = o.comandos.filter((c) => c.tipo === 'por')
+    if (!porC.length) return { tipo: 'batalhar' }
+    const T = v.terrenos
+    if (juizo && o.sortear.pode && e.sorteios === 0 && v.ouro - o.sortear.custo >= 10 && maoRuim(v)) return { tipo: 'sortear' }
+    if (v.oferta[0] && v.oferta[0].levelUp) {
+      const c = v.oferta[0].carta
+      const k = T.findIndex((t) => t && t.carta === c && t.nivel < P.nivelMax)
+      if (k >= 0) return { tipo: 'por', carta: c, terreno: k + 1 }
+    }
+    const lugar = (carta) => {
+      const vazios = T.map((t, i) => (t ? -1 : i)).filter((i) => i >= 0)
+      // R45 KIN SWAP: com a regra, troca onde se perde MENOS nível (a da mesma família guarda o nível); sem ela, a de nível mais baixo
+      if (!vazios.length && REGRAS.kin !== undefined) return melhor(T.map((t, i) => i).filter((i) => T[i].carta !== carta), (i) => -(T[i].nivel - nivelAoTrocar(T[i], carta)) * 10 - T[i].nivel - i * 0.01) + 1
+      if (!vazios.length) { let m = 0; T.forEach((t, i) => { if (t.nivel < T[m].nivel) m = i }); return m + 1 }
+      if (CARTAS[carta].tipo === 'construcao') {
+        const tropa = (i) => T[i] && CARTAS[T[i].carta].tipo === 'tropa'
+        const junto = vazios.find((i) => tropa(i - 1) || tropa(i + 1))
+        if (junto !== undefined) return junto + 1
+      }
+      return vazios[0] + 1
+    }
+    const cont = {}
+    for (const t of T) if (t) cont[CARTAS[t.carta].familia] = (cont[CARTAS[t.carta].familia] || 0) + 1
+    const cheio = T.every(Boolean)
+    const liga = v.oferta.map((x) => x.carta).find((c) => !cheio && (cont[CARTAS[c].familia] || 0) + 1 === FAMILIAS[CARTAS[c].familia].terrenos)
+    // com juízo: sem LEVEL UP nem carta que liga, a carta da família que o reino já tem mais (monta o bônus); senão ao acaso
+    const junta = juizo && !liga && !cheio ? v.oferta.map((x) => x.carta).filter((c) => cont[CARTAS[c].familia]).sort((a, b) => cont[CARTAS[b].familia] - cont[CARTAS[a].familia])[0] : null
+    const carta = liga || junta || v.oferta[inteiro(v.oferta.length)].carta
+    const cmd = { tipo: 'por', carta, terreno: lugar(carta) }
+    return porC.some((c) => c.carta === cmd.carta && c.terreno === cmd.terreno) ? cmd : porC[0]
+  }
+  const esp = o.comandos.filter((c) => c.tipo === 'espolio')
+  const prom = esp.filter((c) => v.espolios[c.indice].tipo === 'promocao')
+  if (prom.length) return melhor(prom, (c) => { const t = v.terrenos[c.terreno - 1]; return (CARTAS[t.carta].tipo === 'tropa' ? 100 : 0) + t.nivel * 10 - c.terreno * 0.1 })
+  const carta = esp.find((c) => v.espolios[c.indice].tipo === 'carta' && !v.terrenos[c.terreno - 1])
+  if (carta) return carta
+  return esp.find((c) => v.espolios[c.indice].tipo !== 'carta' && v.espolios[c.indice].tipo !== 'promocao') || esp[0]
+}
+
+/**
+ * Mão ruim (R40, para o "intermediário"), só olhando a mão e o reino, sem simular luta: nenhuma carta sobe (LEVEL UP), nenhuma liga
+ * família, nenhuma é de família que o reino já tem e o reino já tem 3 cartas ou mais (no começo qualquer carta serve).
+ */
+export function maoRuim(v) {
+  const T = v.terrenos
+  if (T.filter(Boolean).length < 3) return false
+  if (v.oferta[0] && v.oferta[0].levelUp && T.some((t) => t && t.carta === v.oferta[0].carta && t.nivel < P.nivelMax)) return false
+  const cont = {}
+  for (const t of T) if (t) cont[CARTAS[t.carta].familia] = (cont[CARTAS[t.carta].familia] || 0) + 1
+  const cheio = T.every(Boolean)
+  return !v.oferta.some((x) => { const f = CARTAS[x.carta].familia; return !cheio && cont[f] })
+}
+
+/**
+ * "Intermediário" (R40): o novato atento com juízo — o jogador real médio. Conserta só com 1 vida ou com ouro sobrando (a regra do
+ * planejador); sorteia de novo 1 vez por rodada quando a mão é ruim (maoRuim) e sobram 10 de ouro; sem LEVEL UP nem carta que liga,
+ * prefere a carta da família que o reino já tem mais. Não simula luta (é o que o separa do planejador).
+ */
+export const ROBOS36 = ['aleatorio', 'ganancioso-puro', 'novato-atento', 'intermediario', 'planejador']
+export function escolher36(robo, e, inteiro) {
+  if (robo === 'planejador') return planejador(e)
+  if (robo === 'ganancioso-puro') return gananciosoPuro(e)
+  if (robo === 'novato-atento') return novatoAtento(e, inteiro)
+  if (robo === 'intermediario') return novatoAtento(e, inteiro, true)
+  return escolher(robo, e, inteiro) // aleatorio, ganancioso, plano:<id> (robos.js, sem cópia)
+}
+
+// ================================================================ laço da partida (com as regras das variantes)
+/** Antes de cada comando: regras que mexem na mão (variante sobem2). */
+function ajustarMao(e, regras) {
+  if (!regras.sobem2 || e.fase !== 'carta' || e.cartaPosta || !e.terrenos.every(Boolean) || e._mao === e.comandos) return e
+  const sobe = [...new Set(e.terrenos.filter((t) => t.nivel < P.nivelMax).map((t) => t.carta))].filter((c) => c !== e.oferta[0])
+  e._mao = e.comandos
+  if (sobe.length && e.oferta.length > 1 && !e.terrenos.some((t) => t.carta === e.oferta[1] && t.nivel < P.nivelMax)) {
+    e.oferta[1] = sobe[(e.rodada * 7 + e.sorteios * 3 + e.comandos) % sobe.length] // escolha fixa pelo estado (determinística, sem gastar o sorteio)
+  }
+  return e
+}
+
+/** R45: os comandos que só existem nas variantes (o motor não os conhece). Mesmas recusas que o motor daria. */
+function passoNovo(e, c, regras) {
+  const nao = (erro) => ({ ok: false, erro })
+  if (e.fase !== 'carta') return nao('fase')
+  const x = structuredClone(e)
+  x.comandos++
+  if (c.tipo === 'trocar') {
+    if (regras.rematch !== 'troca' || !e._troca) return nao('sem_troca')
+    if (!Number.isInteger(c.a) || !Number.isInteger(c.b) || c.a === c.b || c.a < 1 || c.b < 1 || c.a > P.terrenos || c.b > P.terrenos) return nao('terreno')
+    x.terrenos = trocado(e.terrenos, c.a, c.b)
+    x._troca = false
+    return { ok: true, estado: x, eventos: [{ tipo: 'troca', a: c.a, b: c.b }] }
+  }
+  if (!regras.treino || e._treinou) return nao('sem_treino')
+  const t = e.terrenos[c.terreno - 1]
+  if (!t || t.nivel >= P.nivelMax) return nao('terreno')
+  const custo = regras.treino * (t.nivel + 1)
+  if (e.ouro < custo) return nao('ouro')
+  x.terrenos[c.terreno - 1] = { carta: t.carta, nivel: t.nivel + 1 }
+  x.ouro -= custo; x.ouroGasto += custo
+  x._treinou = true
+  return { ok: true, estado: x, eventos: [{ tipo: 'treino', terreno: c.terreno, custo }] }
+}
+
+/** Aplica o comando e as regras da variante. Devolve o resultado de aplicar (estado novo). */
+/** Para os testes: roda `fn` com as regras da variante valendo (como dentro de uma partida) e devolve o resultado. */
+export function comRegras(regras, fn) { const antes = REGRAS; REGRAS = regras; try { return fn({ comTerreno, passo }) } finally { REGRAS = antes } }
+export function passo(e, c, regras, eventos = false) {
+  if (c.tipo === 'trocar' || c.tipo === 'treinar') return passoNovo(e, c, regras)
+  const r = aplicar(e, c, { eventos })
+  if (!r.ok) return r
+  // R45 KIN SWAP: carta de OUTRA carta da mesma família no terreno guarda o nível (menos `kin`) — na mão e no espólio de carta
+  if (regras.kin !== undefined && (c.tipo === 'por' || (c.tipo === 'espolio' && e.espolios[c.indice].tipo === 'carta'))) {
+    const carta = c.tipo === 'por' ? c.carta : e.espolios[c.indice].carta
+    const antiga = e.terrenos[c.terreno - 1]
+    if (antiga && antiga.carta !== carta && CARTAS[antiga.carta].familia === CARTAS[carta].familia) {
+      // (no espólio a mão da rodada nova já saiu: a carta que sobe é sorteada pela carta, não pelo nível — só muda se o nível
+      // guardado for o máximo, caso raro do kin0; a mão segue igual e o motor recusa subir acima do máximo)
+      r.estado.terrenos[c.terreno - 1] = { carta, nivel: Math.max(1, antiga.nivel - regras.kin) }
+    }
+  }
+  if (c.tipo === 'batalhar') {
+    r.estado._treinou = false
+    r.estado._troca = false
+    r.estado._dica = null
+    // R45 REMATCH: perdeu e a partida segue → a MESMA horda volta (o sorteio da horda nova já andou: a mão e o espólio são os de hoje)
+    if (regras.rematch && !r.estado.ultima.vitoria && r.estado.fase === 'carta') {
+      r.estado.horda = structuredClone(e.horda)
+      if (regras.rematch === 'troca') {
+        r.estado._troca = true
+        r.estado._dica = dicaDaTroca(r.estado.terrenos, r.estado.reliquias, r.estado.horda)
+        r.derrota = { dica: !!r.estado._dica }
+      } else r.derrota = { dica: false }
+    }
+  }
+  if (regras.ouroGuardar && c.tipo === 'batalhar' && !e.cartaPosta && e.oferta.length) {
+    r.estado.ouro += regras.ouroGuardar; r.estado.ouroGanho += regras.ouroGuardar; r.guardou = true
+  }
+  if (regras.sobem2) ajustarMao(r.estado, regras)
+  return r
+}
+
+/** Joga até o fim (ou até `ate` rodadas a mais). `aoPasso(e, c, r)` vê cada comando. */
+function jogarDe(e, { robo, inteiro, regras = {}, aoPasso, eventos = false }) {
+  const antes = REGRAS
+  REGRAS = regras
+  try {
+    if (regras.sobem2) e = ajustarMao(structuredClone(e), regras)
+    for (let g = 0; g < P.tetoComandos && e.fase !== 'fim'; g++) {
+      const c = escolher36(robo, e, inteiro)
+      const r = passo(e, c, regras, eventos)
+      if (!r.ok) throw new Error(`robô ${robo} mandou comando recusado: ${r.erro} ${JSON.stringify(c)}`)
+      if (aoPasso) aoPasso(e, c, r)
+      e = r.estado
+    }
+    return e
+  } finally { REGRAS = antes }
+}
+
+export function jogar({ robo, semente, liberadas = TODAS, regras = {}, aoPasso, eventos = false, rngSemente }) {
+  const rng = criarRng(rngSemente || `robo36:${robo}:${semente}`)
+  return jogarDe(criarPartida({ semente, cartasLiberadas: liberadas }), { robo, inteiro: (n) => rng.inteiro(n), regras, aoPasso, eventos })
+}
+
+// ================================================================ estatística
+const pct = (a, b) => (b ? (100 * a) / b : 0)
+export function quantil(lista, q) { const a = lista.slice().sort((x, y) => x - y); return a.length ? a[Math.min(a.length - 1, Math.floor(q * a.length))] : 0 }
+const media = (l) => (l.length ? l.reduce((a, b) => a + b, 0) / l.length : 0)
+/** Meia largura do intervalo de 95% de uma proporção (em pontos percentuais). */
+const erroP = (p, n) => (n ? 196 * Math.sqrt((p / 100) * (1 - p / 100) / n) / 100 * 100 : 0)
+const f1 = (x) => x.toFixed(1)
+
+// ================================================================ tempo de tela (F)
+// Do código da tela (public/reino/js/batalha-tela.js): entrada da horda 1,7 s (0,8 s no 2×); rodadas 1–4 tocam a luta curta mais devagar
+// no 1× (ritmo = max(0,4; min(1; s/7))); fim: 1 s depois do último evento (2,6 s quando o chefe cai); vitória: ouro contando ≈ 1,5 s.
+// Escolha: SEG_ESCOLHA s por rodada (o mesmo número do simulador antigo; é estimativa, não medida de gente).
+const SEG_ESCOLHA = 20
+export function segundosDeTela(b, vel) {
+  const entrada = vel === 1 ? 1.7 : 0.8
+  const ritmo = vel === 1 && b.rodada <= 4 && b.segundos > 0 ? Math.max(0.4, Math.min(1, b.segundos / 7)) : 1
+  const fim = b.vitoria && b.chefe ? 2.6 : 1
+  return entrada + b.segundos / (vel * ritmo) + fim + (b.vitoria ? 1.5 : 0)
+}
+
+// ================================================================ A — novato no 1º chefe
+function tarefaA({ robo, de, ate, semente, regras }) {
+  const out = []
+  for (let j = de; j < ate; j++) {
+    let rodadas = 0
+    const jog = []
+    for (let p = 1; p <= 3; p++) {
+      const lib = liberadasPorRodadas(rodadas)
+      let tent = 0, venceu = 0
+      const lutas = [], dicas = [0, 0, 0] // R45 REMATCH: derrotas com troca, com dica, trocas feitas
+      const e = jogar({ robo, semente: `${semente}:A:${j}:${p}`, liberadas: lib, regras, aoPasso: (e0, c, r) => {
+        if (c.tipo === 'trocar') dicas[2]++
+        if (c.tipo !== 'batalhar') return
+        if (r.derrota) { dicas[0]++; if (r.derrota.dica) dicas[1]++ }
+        const b = r.estado.ultima
+        lutas.push({ rodada: e0.rodada, vitoria: b.vitoria, segundos: b.segundos, chefe: b.chefe })
+        if (e0.rodada === 5) { tent++; if (b.vitoria) venceu = tent }
+      } })
+      rodadas += e.vencidas
+      jog.push({ rodada: e.rodada, vencidas: e.vencidas, pontos: e.fim.pontos, tentativas: tent, venceuNa: venceu, cartas: lib.length, lutas, dicas })
+    }
+    out.push(jog)
+  }
+  return out
+}
+function resumoA(porRobo) {
+  const L = []
+  const res = {}
+  L.push('| robô | partida | n | vence o chefe 5: na 1ª tentativa | até a 2ª | até a 3ª | chega ao chefe | rodada final mediana / p90 | cartas no álbum |')
+  L.push('|---|---|---|---|---|---|---|---|---|')
+  for (const [robo, jogs] of Object.entries(porRobo)) {
+    const n = jogs.length
+    for (let p = 0; p < 3; p++) {
+      const g = jogs.map((x) => x[p])
+      const ate = (k) => pct(g.filter((x) => x.venceuNa && x.venceuNa <= k).length, n)
+      const chega = pct(g.filter((x) => x.tentativas > 0).length, n)
+      L.push(`| ${robo} | ${p + 1} | ${n} | ${f1(ate(1))}% | ${f1(ate(2))}% | ${f1(ate(3))}% (±${f1(erroP(ate(3), n))}) | ${f1(chega)}% | ${quantil(g.map((x) => x.rodada), 0.5)} / ${quantil(g.map((x) => x.rodada), 0.9)} | ${f1(media(g.map((x) => x.cartas)))} |`)
+      res[`${robo}:${p + 1}`] = { ate1: ate(1), ate3: ate(3), chega, mediana: quantil(g.map((x) => x.rodada), 0.5) }
+    }
+    const algum = pct(jogs.filter((x) => x.some((y) => y.venceuNa)).length, n)
+    res[`${robo}:ate3partidas`] = algum
+    L.push(`| ${robo} | **passou do 1º chefe em alguma das 3 partidas** | ${n} | | | **${f1(algum)}%** (±${f1(erroP(algum, n))}) | | | |`)
+    const d = jogs.flat().reduce((s, x) => (x.dicas ? s.map((v, i) => v + x.dicas[i]) : s), [0, 0, 0])
+    if (d[0]) { res[`${robo}:dica`] = pct(d[1], d[0]); res[`${robo}:trocas`] = d[2] }
+  }
+  const comDica = Object.keys(res).filter((k) => k.endsWith(':dica'))
+  if (comDica.length) L.push('', 'REMATCH — derrotas (que não acabam a partida) em que alguma troca de 2 terrenos vencia a mesma horda: ' + comDica.map((k) => `${k.slice(0, -5)} ${f1(res[k])}% (trocas feitas ${res[k.slice(0, -5) + ':trocas']})`).join(' · '))
+  return { linhas: L, res }
+}
+
+// ================================================================ B e C — qualidade da decisão e posição (valor esperado por continuação)
+function tipoDaOpcao(e, c) {
+  if (c.tipo !== 'por') return c.tipo === 'batalhar' ? 'guardar' : c.tipo
+  const t = e.terrenos[c.terreno - 1]
+  return t && t.carta === c.carta ? 'subir' : CARTAS[c.carta].tipo
+}
+/** Valor esperado (rodada final média) de cada comando a partir de `e`, com K continuações do planejador (mesmos K futuros para todas). */
+function valorDe(e, cmd, { K, semente, regras }) {
+  const vals = []
+  for (let j = 0; j < K; j++) {
+    const x = structuredClone(e)
+    x.sorteio = estadoDaSemente(`${semente}:cont:${j}`)
+    let y = x
+    if (cmd) { const r = passo(x, cmd, regras); if (!r.ok) throw new Error(`opção recusada ${JSON.stringify(cmd)}: ${r.erro}`); y = r.estado }
+    const rng = criarRng(`${semente}:cont:${j}:robo`)
+    vals.push(jogarDe(y, { robo: 'planejador', inteiro: (n) => rng.inteiro(n), regras }).rodada)
+  }
+  return vals
+}
+/** As opções da oferta: cada carta nos 2 melhores terrenos (pela nota do próprio planejador), sortear, consertar e guardar a mão. */
+function opcoesDaOferta(e) {
+  const v = visao(e), o = opcoes(e), alvo = hordaAlvo(v)
+  const ops = []
+  const porCarta = {}
+  for (const c of o.comandos.filter((x) => x.tipo === 'por')) (porCarta[c.carta] ||= []).push(c)
+  for (const lista of Object.values(porCarta)) {
+    const nota = (c) => { const t = comTerreno(v.terrenos, c.carta, c.terreno); return luta(t, v.reliquias, v.horda) * 10 + valorFuturo(t, v.reliquias, alvo) }
+    ops.push(...lista.map((c) => ({ c, n: nota(c) })).sort((a, b) => b.n - a.n).slice(0, 2).map((x) => x.c))
+  }
+  if (o.sortear.pode) ops.push({ tipo: 'sortear' })
+  if (o.consertar.pode) ops.push({ tipo: 'consertar' })
+  // R45 TRAIN: treinar também é opção da oferta (os 2 terrenos que o futuro do planejador mais quer); depois o planejador segue
+  if (REGRAS.treino && !e._treinou) {
+    const tr = v.terrenos.map((t, i) => (t && t.nivel < P.nivelMax && custoTreino(t.nivel + 1) <= v.ouro ? i + 1 : 0)).filter(Boolean)
+    ops.push(...tr.map((k) => ({ c: { tipo: 'treinar', terreno: k }, n: valorFuturo(promovido(v.terrenos, k), v.reliquias, alvo) })).sort((a, b) => b.n - a.n).slice(0, 2).map((x) => x.c))
+  }
+  ops.push({ tipo: 'batalhar' })
+  return ops
+}
+/** Estados de oferta para medir: o 1º momento de escolha de rodadas sorteadas de partidas do planejador (álbum completo). */
+function amostrarOfertas({ i, semente, regras }) {
+  const rng = criarRng(`${semente}:amostra:${i}`)
+  const estados = []
+  jogar({ robo: 'planejador', semente: `${semente}:B:${i}`, regras, aoPasso: (e0) => { if (e0.fase === 'carta' && !e0.cartaPosta && e0.sorteios === 0 && e0.consertos >= 0 && !estados.some((x) => x.rodada === e0.rodada && x.vidas === e0.vidas)) estados.push(e0) } })
+  return estados.length ? estados[rng.inteiro(estados.length)] : null
+}
+function tarefaB({ de, ate, semente, regras, K }) {
+  const out = []
+  for (let i = de; i < ate; i++) {
+    memoria.clear()
+    const e = amostrarOfertas({ i, semente, regras })
+    if (!e) continue
+    const ops = opcoesDaOferta(e)
+    const av = ops.map((c) => { const vals = valorDe(e, c, { K, semente: `${semente}:B:${i}`, regras }); return { tipo: tipoDaOpcao(e, c), carta: c.carta || null, terreno: c.terreno || 0, media: media(vals), vals } })
+    out.push({ rodada: e.rodada, cheio: e.terrenos.every(Boolean), av })
+  }
+  return out
+}
+export function classificar(o) {
+  const av = o.av.slice().sort((a, b) => b.media - a.media)
+  const [a, b] = av
+  const resto = Math.max(0.5, a.media - o.rodada) // rodadas que ainda faltam (para a leitura mais dura)
+  const ganho = b ? (a.media - b.media) / a.media : 1
+  const ganhoResto = b ? (a.media - b.media) / resto : 1
+  const espalho = (av[0].media - av[av.length - 1].media) / av[0].media
+  // "outra opção que não é a mesma coisa": a melhor de tipo diferente do da 1ª
+  const outro = av.find((x) => x.tipo !== a.tipo)
+  const ganhoOutro = outro ? (a.media - outro.media) / a.media : 1
+  return {
+    interessante: !!outro && ganhoOutro <= 0.10 && b.tipo !== a.tipo,
+    interessanteCarta: !!b && ganho <= 0.10 && (b.carta || b.tipo) !== (a.carta || a.tipo),
+    interessanteDuro: !!outro && b.tipo !== a.tipo && (a.media - outro.media) / resto <= 0.10,
+    obvia: ganho > 0.25,
+    obviaResto: ganhoResto > 0.25,
+    nula: espalho < 0.03,
+    acimaDoRuido: acimaDoRuido(a, b),
+    melhor: a.tipo, ganho, espalho,
+  }
+}
+/**
+ * R45: a 1ª opção é melhor que a 2ª ACIMA DO RUÍDO? Diferença das médias maior que 1,96 × o erro da diferença, com o erro de cada
+ * média = desvio das K continuações / √K (sem as continuações, não dá para dizer: false).
+ */
+export function acimaDoRuido(a, b) {
+  if (!b || !a.vals || !b.vals || a.vals.length < 2 || b.vals.length < 2) return false
+  const ep = (x) => { const m = media(x.vals); return Math.sqrt(x.vals.reduce((s, v) => s + (v - m) ** 2, 0) / (x.vals.length - 1)) / Math.sqrt(x.vals.length) }
+  return a.media - b.media > 1.96 * Math.sqrt(ep(a) ** 2 + ep(b) ** 2)
+}
+const faixaDe = (r) => (r <= 5 ? '1–5' : r <= 10 ? '6–10' : r <= 15 ? '11–15' : '16+')
+function resumoB(lista) {
+  const L = ['| rodadas | ofertas | interessantes (2 melhores a ≤ 10%, tipos diferentes) | 2 melhores a ≤ 10% e cartas/ações diferentes | leitura dura (tipos diferentes, 10% do que FALTA) | óbvias (1ª > 25%) | nulas (todas a < 3%) | 1ª acima do ruído | melhor opção mais comum |', '|---|---|---|---|---|---|---|---|---|']
+  const res = {}
+  for (const fx of ['1–5', '6–10', '11–15', '16+', 'todas']) {
+    const g = lista.filter((o) => fx === 'todas' || faixaDe(o.rodada) === fx)
+    const cl = g.map(classificar)
+    const n = g.length
+    const c = (k) => pct(cl.filter((x) => x[k]).length, n)
+    const m = {}
+    for (const x of cl) m[x.melhor] = (m[x.melhor] || 0) + 1
+    const top = Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k} ${f1(pct(v, n))}%`).join(', ')
+    L.push(`| ${fx} | ${n} | ${f1(c('interessante'))}% (±${f1(erroP(c('interessante'), n))}) | ${f1(c('interessanteCarta'))}% | ${f1(c('interessanteDuro'))}% | ${f1(c('obvia'))}% | ${f1(c('nula'))}% | ${f1(c('acimaDoRuido'))}% | ${top} |`)
+    res[fx] = { n, interessante: c('interessante'), carta: c('interessanteCarta'), duro: c('interessanteDuro'), obvia: c('obvia'), nula: c('nula'), acimaDoRuido: c('acimaDoRuido') }
+  }
+  // posição dentro da mesma carta (entre os 3 melhores terrenos dela)
+  const difPos = []
+  for (const o of lista) {
+    const porCarta = {}
+    for (const a of o.av) if (a.carta) (porCarta[a.carta] ||= []).push(a.media)
+    for (const v of Object.values(porCarta)) if (v.length > 1) difPos.push((Math.max(...v) - Math.min(...v)) / Math.max(...v) * 100)
+  }
+  res.difPosMediana = quantil(difPos, 0.5); res.difPosP90 = quantil(difPos, 0.9)
+  // ruído: desvio da média de K continuações (a mesma opção)
+  const dp = []
+  for (const o of lista) for (const a of o.av) { const m = a.media; const s = Math.sqrt(a.vals.reduce((x, v) => x + (v - m) ** 2, 0) / Math.max(1, a.vals.length - 1)); dp.push(s / Math.sqrt(a.vals.length)) }
+  res.erroMedia = quantil(dp, 0.5)
+  const opsVal = {}
+  for (const o of lista) for (const a of o.av) { const k = a.tipo; (opsVal[k] ||= []).push(a.media - Math.max(...o.av.map((x) => x.media))) }
+  res.custoPorTipo = Object.fromEntries(Object.entries(opsVal).map(([k, v]) => [k, media(v)]))
+  L.push('')
+  L.push(`Posição (a mesma carta nos seus 2 melhores terrenos): diferença mediana ${f1(res.difPosMediana)}% · p90 ${f1(res.difPosP90)}% da rodada final. Erro da média de cada opção (mediana): ±${res.erroMedia.toFixed(2)} rodada.`)
+  L.push('Quanto cada tipo de opção perde para a melhor da oferta (rodadas, média): ' + Object.entries(res.custoPorTipo).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(' · '))
+  return { linhas: L, res }
+}
+
+// C: o mesmo reino com os terrenos embaralhados
+function permutar(t, rng) {
+  for (let tent = 0; tent < 20; tent++) {
+    const a = t.slice()
+    for (let i = a.length - 1; i > 0; i--) { const j = rng.inteiro(i + 1); const x = a[i]; a[i] = a[j]; a[j] = x }
+    if (a.some((x, i) => JSON.stringify(x) !== JSON.stringify(t[i]))) return a.map((x) => (x ? { ...x } : null))
+  }
+  return null
+}
+function tarefaC({ de, ate, semente, regras, K }) {
+  const out = []
+  for (let i = de; i < ate; i++) {
+    memoria.clear()
+    const e = amostrarOfertas({ i, semente: `${semente}:C`, regras })
+    if (!e || e.terrenos.filter(Boolean).length < 3) continue
+    const rng = criarRng(`${semente}:C:perm:${i}`)
+    const t2 = permutar(e.terrenos, rng)
+    if (!t2) continue
+    const e2 = structuredClone(e); e2.terrenos = t2
+    const a = media(valorDe(e, null, { K, semente: `${semente}:C:${i}`, regras }))
+    const b = media(valorDe(e2, null, { K, semente: `${semente}:C:${i}`, regras }))
+    // a luta de agora: quantas de 60 ordens diferentes mudam o resultado (com o reino como está)
+    const base = simularBatalha({ terrenos: e.terrenos, reliquias: e.reliquias, horda: e.horda, eventos: false }).vitoria
+    let vira = 0
+    for (let p = 0; p < 60; p++) { const tp = permutar(e.terrenos, rng); if (tp && simularBatalha({ terrenos: tp, reliquias: e.reliquias, horda: e.horda, eventos: false }).vitoria !== base) vira++ }
+    out.push({ rodada: e.rodada, orig: a, perm: b, vira: vira / 60, base })
+  }
+  return out
+}
+function resumoC(lista) {
+  const d = lista.map((x) => Math.abs(x.orig - x.perm) / x.orig * 100)
+  const dr = lista.map((x) => x.orig - x.perm)
+  const vira = lista.map((x) => x.vira * 100)
+  const res = { n: lista.length, medianaPct: quantil(d, 0.5), p90Pct: quantil(d, 0.9), mediaRod: media(dr), viraMediana: quantil(vira, 0.5), viraP90: quantil(vira, 0.9), algumaVira: pct(lista.filter((x) => x.vira > 0).length, lista.length) }
+  const L = [
+    `| reinos | |Δ rodada final| mediana | p90 | ordem do planejador − ordem embaralhada (média) | luta de agora: % das ordens que mudam o resultado (mediana / p90) | reinos em que alguma ordem muda a luta de agora |`,
+    '|---|---|---|---|---|---|',
+    `| ${res.n} | ${f1(res.medianaPct)}% | ${f1(res.p90Pct)}% | ${dr.length ? res.mediaRod.toFixed(2) : 0} rodada | ${f1(res.viraMediana)}% / ${f1(res.viraP90)}% | ${f1(res.algumaVira)}% |`,
+  ]
+  return { linhas: L, res }
+}
+
+// ================================================================ D — cartas, planos, ouro (+ F: lutas "só olhando")
+function tarefaD({ robo = 'planejador', de, ate, semente, regras, liberadas = TODAS, leve = false }) {
+  const out = []
+  for (let i = de; i < ate; i++) {
+    const r = { oferecida: {}, escolhida: {}, lutas: [], ouro: { inicio: P.ouro.inicio, vitoria: 0, limpos: 0, mercado: 0, chefe: 0, ledger: 0, derrota: 0, bolsa: 0, guardar: 0 }, gasto: { sortear: 0, consertar: 0 }, certas: 0, perdidas: 0, decide: 0 }
+    let maoVista = ''
+    const e = jogar({ robo, semente: `${semente}:D:${i}`, liberadas, regras, aoPasso: (e0, c, res) => {
+      const e1 = res.estado
+      const mao = e0.fase === 'carta' && !e0.cartaPosta ? `${e0.rodada}|${e0.horda.ordem.join()}|${e0.sorteios}|${e0.oferta.join()}` : ''
+      if (mao && maoVista !== mao) {
+        // cada mão vista (inclui as sorteadas de novo) conta como oferecida
+        maoVista = mao
+        for (const id of new Set(e0.oferta)) r.oferecida[id] = (r.oferecida[id] || 0) + 1
+      }
+      if (c.tipo === 'por') r.escolhida[c.carta] = (r.escolhida[c.carta] || 0) + 1
+      if (c.tipo === 'sortear') r.gasto.sortear += e0.ouro - e1.ouro
+      if (c.tipo === 'consertar') r.gasto.consertar += e0.ouro - e1.ouro
+      if (c.tipo === 'treinar') r.gasto.treinar = (r.gasto.treinar || 0) + e0.ouro - e1.ouro
+      if (c.tipo === 'trocar') r.trocas = (r.trocas || 0) + 1
+      if (res.derrota) { r.derrotas = (r.derrotas || 0) + 1; if (res.derrota.dica) r.comDica = (r.comDica || 0) + 1 }
+      if (c.tipo === 'espolio') { const x = e0.espolios[c.indice]; if (x.tipo === 'bolsa' && !x.reliquia) r.ouro.bolsa += x.ouro }
+      if (c.tipo === 'batalhar') {
+        const b = e1.ultima
+        r.lutas.push({ rodada: e0.rodada, vitoria: b.vitoria, segundos: b.segundos, chefe: b.chefe, cartas: e0.terrenos.filter(Boolean).map((t) => t.carta) })
+        if (res.guardou) r.ouro.guardar += regras.ouroGuardar
+        if (b.vitoria) {
+          const ganho = e1.ouro - e0.ouro - (res.guardou ? regras.ouroGuardar : 0)
+          const merc = montarExercito(e0.terrenos, e0.reliquias).ouroMercado
+          const led = e0.reliquias.includes('ledger') ? RELIQUIAS.ledger.ouro : 0
+          const ch = b.chefe ? P.ouro.chefe : 0
+          r.ouro.vitoria += P.ouro.vitoria; r.ouro.mercado += merc; r.ouro.ledger += led; r.ouro.chefe += ch
+          r.ouro.limpos += ganho - P.ouro.vitoria - merc - led - ch
+        } else r.ouro.derrota += P.ouro.derrota
+      }
+    } })
+    // "só olhando": na 1ª mão de cada rodada, a luta de agora dá o mesmo resultado com qualquer carta em qualquer terreno (e sem carta)?
+    // Refaz a partida (mesma semente) só para isso, para não mexer na memória do robô no meio da partida.
+    // R45: a chave conta as lutas já feitas (com REMATCH a mesma horda volta e a rodada repetida conta de novo); com a troca grátis,
+    // as 15 trocas entram junto (cada troca, sem carta e com cada carta em cada terreno)
+    let olhou = '', lutasFeitas = 0
+    if (!leve) jogar({ robo, semente: `${semente}:D:${i}`, liberadas, regras, aoPasso: (e0, c) => {
+      if (c.tipo === 'batalhar') lutasFeitas++
+      if (e0.fase !== 'carta' || e0.cartaPosta || e0.sorteios) return
+      const chave = `${e0.rodada}|${e0.horda.ordem.join()}|${lutasFeitas - (c.tipo === 'batalhar' ? 1 : 0)}`
+      if (olhou === chave) return
+      olhou = chave
+      const o = opcoes(e0)
+      const reinos = [e0.terrenos, ...(e0._troca ? trocasPossiveis(e0.terrenos).map(([a, b]) => trocado(e0.terrenos, a, b)) : [])]
+      const notas = reinos.flatMap((T) => [luta(T, e0.reliquias, e0.horda), ...o.comandos.filter((x) => x.tipo === 'por').map((x) => luta(comTerreno(T, x.carta, x.terreno), e0.reliquias, e0.horda))])
+      const ganha = notas.filter((n) => n >= 1000).length
+      if (ganha === notas.length) r.certas++
+      else if (ganha === 0) r.perdidas++
+      else r.decide++
+    } })
+    r.rodada = e.rodada; r.pontos = e.fim.pontos; r.final = e.terrenos; r.ouroGanho = e.ouroGanho; r.ouroGasto = e.ouroGasto
+    out.push(r)
+  }
+  return out
+}
+function contarRodadasDecididas(r) { return r.certas + r.perdidas + r.decide }
+function resumoD(lista, planos) {
+  const L = []
+  const res = {}
+  const ofer = {}, esc = {}, presTop = {}, comCarta = {}, lutasCom = {}
+  for (const r of lista) {
+    for (const [k, v] of Object.entries(r.oferecida)) ofer[k] = (ofer[k] || 0) + v
+    for (const [k, v] of Object.entries(r.escolhida)) esc[k] = (esc[k] || 0) + v
+    for (const id of new Set(r.final.filter(Boolean).map((t) => t.carta))) (comCarta[id] ||= []).push(r.rodada)
+    for (const l of r.lutas) for (const id of new Set(l.cartas)) { const x = (lutasCom[id] ||= [0, 0]); x[0]++; if (l.vitoria) x[1]++ }
+  }
+  const ordem = lista.map((r, i) => i).sort((a, b) => lista[b].pontos - lista[a].pontos)
+  const top = ordem.slice(0, Math.max(1, Math.floor(lista.length / 10)))
+  for (const i of top) for (const id of new Set(lista[i].final.filter(Boolean).map((t) => t.carta))) presTop[id] = (presTop[id] || 0) + 1
+  const todasFinais = lista.map((r) => r.rodada)
+  const medTodas = media(todasFinais)
+  L.push(`Planejador, álbum completo, ${lista.length} partidas: rodada final mediana ${quantil(todasFinais, 0.5)} (p10 ${quantil(todasFinais, 0.1)}, p90 ${quantil(todasFinais, 0.9)}), média ${medTodas.toFixed(2)}.`)
+  L.push('')
+  L.push('| carta | tipo | raridade | oferecida (mãos) | escolhida quando oferecida | vitória das lutas com ela no reino | rodada final média com ela no fim (vs todas) | nos 10% melhores reinos |')
+  L.push('|---|---|---|---|---|---|---|---|')
+  const linhas = Object.keys(CARTAS).map((id) => {
+    const taxa = pct(esc[id] || 0, ofer[id] || 0)
+    const lv = lutasCom[id] ? pct(lutasCom[id][1], lutasCom[id][0]) : 0
+    const rf = comCarta[id] ? media(comCarta[id]) : 0
+    const pt = pct(presTop[id] || 0, top.length)
+    return { id, taxa, lv, rf, pt }
+  }).sort((a, b) => b.taxa - a.taxa)
+  for (const x of linhas) {
+    const c = CARTAS[x.id]
+    L.push(`| ${c.nome} | ${c.tipo} | ${c.raridade} | ${ofer[x.id] || 0} | ${f1(x.taxa)}%${x.taxa < 5 ? ' **morta**' : ''} | ${f1(x.lv)}% | ${x.rf ? x.rf.toFixed(1) : '—'} (${x.rf ? (x.rf - medTodas >= 0 ? '+' : '') + (x.rf - medTodas).toFixed(1) : ''}) | ${f1(x.pt)}%${x.pt > 45 ? ' **dominante**' : ''} |`)
+  }
+  res.mortas = linhas.filter((x) => x.taxa < 5).map((x) => CARTAS[x.id].nome)
+  res.dominantes = linhas.filter((x) => x.pt > 45).map((x) => `${CARTAS[x.id].nome} ${f1(x.pt)}%`)
+  res.cartas = Object.fromEntries(linhas.map((x) => [x.id, { taxa: x.taxa, top: x.pt, rf: x.rf }]))
+  L.push('')
+  L.push(`Mortas (escolhidas < 5% das vezes em que aparecem): ${res.mortas.join(', ') || 'nenhuma'} · dominantes (> 45% dos 10% melhores reinos): ${res.dominantes.join(', ') || 'nenhuma'}.`)
+  // ouro
+  const n = lista.length
+  const som = (f) => lista.reduce((a, r) => a + f(r), 0) / n
+  const fontes = Object.keys(lista[0].ouro)
+  const ganho = som((r) => r.ouroGanho), gasto = som((r) => r.ouroGasto)
+  res.ouro = { ganho, gasto, sortear: som((r) => r.gasto.sortear), consertar: som((r) => r.gasto.consertar), sobra: ganho - gasto }
+  L.push('')
+  res.ouro.treinar = som((r) => r.gasto.treinar || 0)
+  res.ouro.consertoPct = pct(res.ouro.consertar, gasto)
+  L.push(`Ouro por partida (planejador): ganho ${f1(ganho)} = ` + fontes.map((k) => `${k} ${f1(som((r) => r.ouro[k]))}`).join(' + ') + ` · gasto ${f1(gasto)} = sortear ${f1(res.ouro.sortear)} + consertar ${f1(res.ouro.consertar)}${res.ouro.treinar ? ` + treinar ${f1(res.ouro.treinar)}` : ''} · conserto = ${f1(res.ouro.consertoPct)}% do gasto · sobra no fim ${f1(ganho - gasto)}.`)
+  const der = lista.reduce((s, r) => s + (r.derrotas || 0), 0)
+  if (der) {
+    res.dica = pct(lista.reduce((s, r) => s + (r.comDica || 0), 0), der)
+    res.trocas = som((r) => r.trocas || 0)
+    L.push(`REMATCH (planejador): derrotas em que alguma troca vencia a mesma horda ${f1(res.dica)}% · trocas feitas por partida ${res.trocas.toFixed(2)}.`)
+  }
+  res.mediana = quantil(todasFinais, 0.5); res.p90 = quantil(todasFinais, 0.9)
+  // só olhando
+  const rd = som(contarRodadasDecididas)
+  res.soOlhando = { certas: pct(som((r) => r.certas), rd), perdidas: pct(som((r) => r.perdidas), rd), decide: pct(som((r) => r.decide), rd) }
+  L.push(`Luta de agora pela 1ª mão da rodada: ganha com QUALQUER carta/terreno (só olhando) ${f1(res.soOlhando.certas)}% · perde com qualquer uma ${f1(res.soOlhando.perdidas)}% · a escolha decide ${f1(res.soOlhando.decide)}%.`)
+  if (planos) {
+    L.push('')
+    L.push('| plano (robô preso ao plano) | partidas | rodada final mediana | p90 | média | a até 20% do melhor? |')
+    L.push('|---|---|---|---|---|---|')
+    const meds = Object.entries(planos).map(([k, l]) => [k, quantil(l.map((x) => x.rodada), 0.5), quantil(l.map((x) => x.rodada), 0.9), media(l.map((x) => x.rodada)), l.length])
+    const topo = Math.max(...meds.map((x) => x[3]))
+    for (const [k, m, p9, md, nn] of meds) L.push(`| ${PLANOS[k].nome} | ${nn} | ${m} | ${p9} | ${md.toFixed(2)} | ${md >= 0.8 * topo ? 'sim' : '**não**'} |`)
+    res.planosViaveis = meds.filter((x) => x[3] >= 0.8 * topo).length
+    res.planos = Object.fromEntries(meds.map((x) => [x[0], x[3]]))
+    L.push(`Planos viáveis (média a até 20% do melhor): ${res.planosViaveis} de 7.`)
+  }
+  return { linhas: L, res }
+}
+
+// ================================================================ E — longo prazo: as 30 conquistas, a vitória (rodada 20) e o ranking
+// R40: as conquistas saem de shared/reino/conquistas.js (conquistasDoPasso, a MESMA regra do servidor e da tela), comando a comando,
+// com o álbum que cresce entre as partidas (liberadas = rodadas vencidas somadas no começo da partida, como o servidor faz).
+// Velocidade: a partida roda sem os eventos da luta; enquanto a conta não tem Clean Plate ou Last One Standing (as únicas que leem os
+// eventos), a luta vencida é refeita COM eventos (a luta não tem dado: mesma entrada → mesmo resultado). O teste confere contra a
+// partida jogada com eventos o tempo todo.
+const PRECISA_EVENTOS = ['plate', 'last']
+/** Uma partida inteira com as conquistas de cada passo. `tem` (Set) e `conta` ({ rodadas }) são da conta e mudam aqui. */
+export function jogarComConquistas({ robo, semente, liberadas, regras = {}, tem, conta, eventos = false, aoGanhar }) {
+  const comandos = []
+  return jogar({ robo, semente, liberadas, regras, eventos, aoPasso: (e0, c, r) => {
+    comandos.push(c)
+    let evs = r.eventos
+    if (!eventos && c.tipo === 'batalhar' && r.estado.ultima.vitoria && PRECISA_EVENTOS.some((id) => !tem.has(id))) {
+      const b = simularBatalha({ terrenos: e0.terrenos, reliquias: e0.reliquias, horda: e0.horda, eventos: true })
+      evs = evs.map((ev) => (ev.tipo === 'batalha' ? { ...ev, eventos: b.eventos } : ev))
+    }
+    const novas = conquistasDoPasso({ antes: e0, depois: r.estado, eventos: evs, comandos, rodadasAntes: conta.rodadas, tem })
+    for (const id of novas) { tem.add(id); if (aoGanhar) aoGanhar(id) }
+    conta.rodadas += vitoriasDoPasso(evs)
+  } })
+}
+function tarefaE({ robo, de, ate, semente, regras, partidas }) {
+  const out = []
+  for (let j = de; j < ate; j++) {
+    const tem = new Set(), conta = { rodadas: 0 }
+    const conq = {}, venceu = [], vencidas = []
+    for (let p = 1; p <= partidas; p++) {
+      const e = jogarComConquistas({ robo, semente: `${semente}:E:${j}:${p}`, liberadas: liberadasPorRodadas(conta.rodadas), regras, tem, conta, aoGanhar: (id) => { conq[id] = p } })
+      if (resistiu(e.vencidas)) venceu.push(p)
+      vencidas.push(e.vencidas)
+    }
+    out.push({ conq, venceu, vencidas, somadas: conta.rodadas })
+  }
+  return out
+}
+const NUNCA = Infinity
+const fmtP = (v, teto) => (v === NUNCA ? `> ${teto}` : String(v))
+/** Maior trecho de partidas seguidas sem conquista nova, de 1 até a última conquista (ou até `partidas`, se ainda falta alguma). */
+export function maiorVazio(conq, partidas, total = IDS_CONQ.length) {
+  const comNova = new Set(Object.values(conq))
+  const ate = Object.keys(conq).length >= total ? Math.max(...Object.values(conq)) : partidas
+  let tam = 0, de = 0, seguidas = 0
+  for (let p = 1; p <= ate; p++) {
+    if (comNova.has(p)) { seguidas = 0; continue }
+    seguidas++
+    if (seguidas > tam) { tam = seguidas; de = p - seguidas + 1 }
+  }
+  return { tam, de }
+}
+/**
+ * Pares que caem na mesma partida DEPOIS da 1ª (as da 1ª já saem no aviso "automática"): das contas que alcançam alguma das duas
+ * e não as duas na 1ª, % em que as duas caem juntas (≥ `limite`; só pares que ao menos 10% das contas alcançam).
+ */
+export function paresJuntos(jogs, limite = 90) {
+  const out = []
+  for (let a = 0; a < IDS_CONQ.length; a++) for (let b = a + 1; b < IDS_CONQ.length; b++) {
+    const x = IDS_CONQ[a], y = IDS_CONQ[b]
+    const conta = jogs.filter((j) => (j.conq[x] || j.conq[y]) && !(j.conq[x] === 1 && j.conq[y] === 1))
+    if (!conta.length || conta.length < jogs.length * 0.1) continue
+    const juntas = pct(conta.filter((j) => j.conq[x] && j.conq[x] === j.conq[y]).length, conta.length)
+    if (juntas >= limite) out.push({ par: `${x}+${y}`, juntas, contas: conta.length })
+  }
+  return out
+}
+function resumoE(porRobo, partidas) {
+  const L = []
+  const res = { partidas }
+  const robos = Object.keys(porRobo)
+  L.push(`| robô | jogadores | partidas com VITÓRIA (rodada ${P.rodadaDaVitoria}): todas / 1–5 / 6–20 / 21–${partidas} | 1ª vitória: partida mediana / p90 (% que vence alguma) | conquistas em ${partidas} partidas: mediana / p10 | sem alcançar: mediana / p90 | maior vazio sem conquista nova: mediana / p90 (começa na partida, mediana) |`)
+  L.push('|---|---|---|---|---|---|---|')
+  for (const robo of robos) {
+    const jogs = porRobo[robo]
+    const n = jogs.length
+    const faixa = (a, b) => pct(jogs.reduce((s, x) => s + x.venceu.filter((p) => p >= a && p <= b).length, 0), n * (Math.min(b, partidas) - a + 1))
+    const prim = jogs.map((x) => (x.venceu.length ? x.venceu[0] : NUNCA))
+    const qtd = jogs.map((x) => Object.keys(x.conq).length)
+    const vz = jogs.map((x) => maiorVazio(x.conq, partidas))
+    const r = {
+      jogadores: n, vitoria: faixa(1, partidas), vitoria1a5: faixa(1, 5), vitoria6a20: faixa(6, 20), vitoria21: faixa(21, partidas),
+      primeiraVitoria: quantil(prim, 0.5), primeiraVitoriaP90: quantil(prim, 0.9), algumaVitoria: pct(prim.filter((v) => v !== NUNCA).length, n),
+      conquistas: quantil(qtd, 0.5), conquistasP10: quantil(qtd, 0.1), faltam: quantil(qtd.map((q) => IDS_CONQ.length - q), 0.5), faltamP90: quantil(qtd.map((q) => IDS_CONQ.length - q), 0.9),
+      vazio: quantil(vz.map((x) => x.tam), 0.5), vazioP90: quantil(vz.map((x) => x.tam), 0.9), vazioDe: quantil(vz.map((x) => x.de), 0.5),
+      porConquista: {},
+    }
+    res[robo] = r
+    L.push(`| ${robo} | ${n} | ${f1(r.vitoria)}% / ${f1(r.vitoria1a5)}% / ${f1(r.vitoria6a20)}% / ${f1(r.vitoria21)}% | ${fmtP(r.primeiraVitoria, partidas)} / ${fmtP(r.primeiraVitoriaP90, partidas)} (${f1(r.algumaVitoria)}%) | ${r.conquistas} / ${r.conquistasP10} de ${IDS_CONQ.length} | ${r.faltam} / ${r.faltamP90} | ${r.vazio} / ${r.vazioP90} (${r.vazioDe}) |`)
+  }
+  L.push('')
+  L.push('| conquista | ' + robos.map((r) => `${r}: partida mediana / p90 · % alcança · % na 1ª`).join(' | ') + ' |')
+  L.push('|---|' + robos.map(() => '---|').join(''))
+  for (const id of IDS_CONQ) {
+    const cel = robos.map((robo) => {
+      const jogs = porRobo[robo]
+      const ps = jogs.map((x) => x.conq[id] ?? NUNCA)
+      const c = { mediana: quantil(ps, 0.5), p90: quantil(ps, 0.9), pct: pct(ps.filter((v) => v !== NUNCA).length, jogs.length), na1: pct(ps.filter((v) => v === 1).length, jogs.length) }
+      res[robo].porConquista[id] = c
+      return `${fmtP(c.mediana, partidas)} / ${fmtP(c.p90, partidas)} · ${f1(c.pct)}% · ${f1(c.na1)}%`
+    })
+    L.push(`| ${id} | ${cel.join(' | ')} |`)
+  }
+  // avisos
+  const avisos = []
+  for (const robo of robos) {
+    const pc = res[robo].porConquista
+    for (const id of IDS_CONQ) {
+      if (pc[id].pct < 2) avisos.push(`${robo}: ${id} praticamente impossível (${f1(pc[id].pct)}% em ${partidas} partidas)`)
+      if (pc[id].na1 >= 95) avisos.push(`${robo}: ${id} automática na 1ª partida (${f1(pc[id].na1)}%)`)
+      if (robo === 'novato-atento' && pc[id].pct >= 2 && (pc[id].mediana > 56 || pc[id].p90 > 56)) avisos.push(`${robo}: ${id} passa da partida 56 (mediana ${fmtP(pc[id].mediana, partidas)}, p90 ${fmtP(pc[id].p90, partidas)}, alcança ${f1(pc[id].pct)}%)`)
+    }
+    const pares = paresJuntos(porRobo[robo])
+    res[robo].mesmaPartida = pares
+    if (pares.length) avisos.push(`${robo}: caem na mesma partida depois da 1ª (≥ 90% das contas que alcançam alguma das duas): ${pares.map((x) => `${x.par} ${f1(x.juntas)}% (${x.contas} contas)`).join(', ')}`)
+  }
+  res.avisos = avisos
+  L.push('')
+  L.push(`Avisos: ${avisos.length ? '' : 'nenhum'}`)
+  for (const a of avisos) L.push(`- ${a}`)
+  return { linhas: L, res }
+}
+// ---------------------------------------------------------------- V (R40): onde pôr a rodada da vitória
+// A rodada da vitória não muda o jogo (a partida segue depois dela; resistiu() só lê as vencidas), então TODAS as rodadas candidatas
+// saem da MESMA partida: vitória com a rodada R ⇔ vencidas ≥ R. Encore! com a rodada B ⇔ vencidas ≥ B (quem perde repete a rodada:
+// vencer a rodada B é chegar a B vencidas). O teste confere as duas equivalências contra a injeção (variantes vitNN e bisNN).
+export const LIMIARES_V = [12, 15, 16, 18, 20]
+const RODADAS_DE_CHEFE = new Set(CHEFES.map((c) => c.rodada))
+const FAIXAS_V = [[1, 5], [6, 15], [16, 30], [31, 60]]
+/** Contas (cada uma com `vencidas` por partida) → números da vitória na rodada R. */
+export function vitoriaNoLimiar(jogs, R, ate = Infinity) {
+  const n = jogs.length
+  const prim = jogs.map((x) => { const i = x.vencidas.findIndex((v) => v >= R); return i < 0 ? NUNCA : i + 1 })
+  const tot = jogs.reduce((s, x) => s + x.vencidas.length, 0)
+  const ateK = (k) => pct(prim.filter((p) => p <= k).length, n)
+  return {
+    partidas: pct(jogs.reduce((s, x) => s + x.vencidas.filter((v) => v >= R).length, 0), tot),
+    primeira: quantil(prim, 0.5), primeiraP90: quantil(prim, 0.9),
+    ate10: ateK(10), ate20: ateK(20), ate30: ateK(30), ate60: ateK(Math.min(60, ate)),
+  }
+}
+function resumoV(porRobo, partidas) {
+  const robos = Object.keys(porRobo)
+  const L = ['### V — vencidas por partida (o álbum cresce; mediana / p75 / p90 / máximo)', '', '| robô | ' + FAIXAS_V.map(([a, b]) => `partidas ${a}–${Math.min(b, partidas)}`).join(' | ') + ' |', '|---|' + FAIXAS_V.map(() => '---|').join('')]
+  const res = { faixas: {}, limiares: {}, bis: {} }
+  for (const robo of robos) {
+    const cel = FAIXAS_V.filter(([a]) => a <= partidas).map(([a, b]) => {
+      const vs = porRobo[robo].flatMap((x) => x.vencidas.slice(a - 1, b))
+      const r = { mediana: quantil(vs, 0.5), p75: quantil(vs, 0.75), p90: quantil(vs, 0.9), max: vs.length ? Math.max(...vs) : 0 }
+      ;(res.faixas[robo] ||= {})[`${a}-${b}`] = r
+      return `${r.mediana} / ${r.p75} / ${r.p90} / ${r.max}`
+    })
+    L.push(`| ${robo} | ${cel.join(' | ')} |`)
+  }
+  L.push('', `### V — vitória na rodada R (luta de chefe nas rodadas ${[...RODADAS_DE_CHEFE].join(', ')})`, '')
+  L.push('| R | chefe? | robô | partidas com vitória | 1ª vitória: partida mediana / p90 | contas que já venceram em 10 / 20 / 30 / 60 partidas |', '|---|---|---|---|---|---|')
+  for (const R of LIMIARES_V) for (const robo of robos) {
+    const x = vitoriaNoLimiar(porRobo[robo], R, partidas)
+    ;(res.limiares[R] ||= {})[robo] = x
+    L.push(`| ${R} | ${RODADAS_DE_CHEFE.has(R) ? 'sim' : 'não'} | ${robo} | ${f1(x.partidas)}% | ${fmtP(x.primeira, partidas)} / ${fmtP(x.primeiraP90, partidas)} | ${f1(x.ate10)}% / ${f1(x.ate20)}% / ${f1(x.ate30)}% / ${f1(x.ate60)}% |`)
+  }
+  L.push('', '### V — Encore! acompanhando a vitória (vencer a rodada B): % das contas que alcançam em 60 partidas · partida mediana', '')
+  const bisList = [...new Set(LIMIARES_V.flatMap((R) => [R + 2, R + 5]).concat([CONQUISTAS.rodadaDoBis]))].sort((a, b) => a - b)
+  L.push('| B | ' + robos.join(' | ') + ' |', '|---|' + robos.map(() => '---|').join(''))
+  for (const B of bisList) {
+    const cel = robos.map((robo) => { const x = vitoriaNoLimiar(porRobo[robo], B, partidas); (res.bis[B] ||= {})[robo] = x; return `${f1(x.ate60)}% · ${fmtP(x.primeira, partidas)}` })
+    L.push(`| ${B}${B === CONQUISTAS.rodadaDoBis ? ' (hoje)' : ''} | ${cel.join(' | ')} |`)
+  }
+  return { linhas: L, res }
+}
+
+/** Ranking semanal: média das 3 melhores de 21 partidas; reamostra das partidas já jogadas (partidas são independentes). */
+export function rankingSemanal(pontosPior, pontosMelhor, { semanas = 20000, partidas = 21, melhores = 3, semente = 'ranking' } = {}) {
+  const rng = criarRng(semente)
+  const nota = (lista) => { const s = Array.from({ length: partidas }, () => lista[rng.inteiro(lista.length)]).sort((a, b) => b - a); return s.slice(0, melhores).reduce((a, b) => a + b, 0) / melhores }
+  let passa = 0, empata = 0
+  for (let s = 0; s < semanas; s++) { const a = nota(pontosPior), b = nota(pontosMelhor); if (a > b) passa++; else if (a === b) empata++ }
+  return { passa: pct(passa, semanas), empata: pct(empata, semanas) }
+}
+
+// ================================================================ trabalhos em paralelo
+function rodarTarefa(t) {
+  const regras = aplicarVariante(t.variante || 'base')
+  memoria.clear()
+  REGRAS = regras // B e C olham as opções fora do laço da partida
+  try {
+    if (t.tipo === 'A') return tarefaA({ ...t, regras })
+    if (t.tipo === 'B') return tarefaB({ ...t, regras })
+    if (t.tipo === 'C') return tarefaC({ ...t, regras })
+    if (t.tipo === 'D') return tarefaD({ ...t, regras })
+    if (t.tipo === 'E') return tarefaE({ ...t, regras })
+    throw new Error(`tarefa desconhecida ${t.tipo}`)
+  } finally { restaurar(); memoria.clear(); REGRAS = {} }
+}
+export async function emParalelo(tarefas, trabalhos = availableParallelism()) {
+  if (trabalhos <= 1) return tarefas.map(rodarTarefa)
+  const fila = tarefas.map((t, i) => ({ ...t, i }))
+  const res = new Array(fila.length)
+  let prox = 0
+  const um = () => new Promise((ok, falha) => {
+    const w = new Worker(new URL(import.meta.url))
+    const mandar = () => { if (prox >= fila.length) { w.terminate(); ok(); return } w.postMessage(fila[prox++]) }
+    w.on('message', (m) => { if (m.erro) { w.terminate(); falha(new Error(m.erro)); return } res[m.i] = m.r; mandar() })
+    w.on('error', falha)
+    mandar()
+  })
+  await Promise.all(Array.from({ length: Math.min(trabalhos, fila.length) }, um))
+  return res
+}
+const fatias = (n, passo) => { const out = []; for (let de = 0; de < n; de += passo) out.push([de, Math.min(n, de + passo)]); return out }
+
+// ================================================================ medidas (cada uma devolve { linhas, res })
+export async function medirA({ n = 2000, semente = 'keepmile36', variante = 'base', trabalhos, robos = ['aleatorio', 'ganancioso-puro', 'novato-atento'] } = {}) {
+  const ts = robos.flatMap((robo) => fatias(n, 50).map(([de, ate]) => ({ tipo: 'A', robo, de, ate, semente, variante })))
+  const r = await emParalelo(ts, trabalhos)
+  const por = {}
+  ts.forEach((t, i) => (por[t.robo] ||= []).push(...r[i]))
+  const out = resumoA(por)
+  out.cru = por
+  return out
+}
+export async function medirB({ n = 400, K = 8, semente = 'keepmile36', variante = 'base', trabalhos } = {}) {
+  const ts = fatias(n, 5).map(([de, ate]) => ({ tipo: 'B', de, ate, semente, variante, K }))
+  const lista = (await emParalelo(ts, trabalhos)).flat()
+  const out = resumoB(lista)
+  out.cru = lista
+  return out
+}
+export async function medirC({ n = 300, K = 8, semente = 'keepmile36', variante = 'base', trabalhos } = {}) {
+  const ts = fatias(n, 5).map(([de, ate]) => ({ tipo: 'C', de, ate, semente, variante, K }))
+  const lista = (await emParalelo(ts, trabalhos)).flat()
+  return resumoC(lista)
+}
+export async function medirD({ n = 2000, planos = 300, semente = 'keepmile36', variante = 'base', trabalhos, liberadas } = {}) {
+  const ts = fatias(n, 25).map(([de, ate]) => ({ tipo: 'D', robo: 'planejador', de, ate, semente, variante, liberadas }))
+  const tp = planos ? Object.keys(PLANOS).flatMap((k) => fatias(planos, 25).map(([de, ate]) => ({ tipo: 'D', robo: `plano:${k}`, de, ate, semente: `${semente}:${k}`, variante }))) : []
+  const r = await emParalelo([...ts, ...tp], trabalhos)
+  const lista = r.slice(0, ts.length).flat()
+  const pl = {}
+  tp.forEach((t, i) => (pl[t.robo.slice(6)] ||= []).push(...r[ts.length + i]))
+  const out = resumoD(lista, planos ? pl : null)
+  out.cru = lista
+  return out
+}
+export async function medirPontos({ robo, n = 2000, semente = 'keepmile36', variante = 'base', trabalhos } = {}) {
+  const ts = fatias(n, 50).map(([de, ate]) => ({ tipo: 'D', robo, de, ate, semente: `${semente}:pontos`, variante, leve: true }))
+  return (await emParalelo(ts, trabalhos)).flat().map((r) => r.pontos)
+}
+/** E: `n` contas do novato atento (e do aleatório, se `aleatorio`), `nBom` do planejador; cada conta joga `partidas` partidas seguidas. */
+export async function medirE({ n = 200, nBom = 40, partidas = 60, aleatorio = true, intermediario = false, semente = 'keepmile36', variante = 'base', trabalhos, pontos } = {}) {
+  const ts = [...fatias(n, 5).map(([de, ate]) => ({ tipo: 'E', robo: 'novato-atento', de, ate, semente, variante, partidas })),
+    ...(intermediario ? fatias(n, 5).map(([de, ate]) => ({ tipo: 'E', robo: 'intermediario', de, ate, semente, variante, partidas })) : []),
+    ...fatias(nBom, 1).map(([de, ate]) => ({ tipo: 'E', robo: 'planejador', de, ate, semente, variante, partidas })),
+    ...(aleatorio ? fatias(n, 5).map(([de, ate]) => ({ tipo: 'E', robo: 'aleatorio', de, ate, semente, variante, partidas })) : [])]
+  const r = await emParalelo(ts, trabalhos)
+  const por = {}
+  ts.forEach((t, i) => (por[t.robo] ||= []).push(...r[i]))
+  const out = resumoE(por, partidas)
+  const V = resumoV(por, partidas)
+  out.linhas.push('', ...V.linhas)
+  out.res.v = V.res
+  out.cru = por
+  if (pontos) {
+    out.linhas.push('')
+    out.linhas.push('Ranking semanal (média das 3 melhores de 21 partidas; 20.000 semanas reamostradas das partidas medidas):')
+    out.res.ranking = {}
+    for (const [a, b] of [['aleatorio', 'ganancioso-puro'], ['ganancioso-puro', 'planejador'], ['novato-atento', 'planejador'], ['novato-atento', 'ganancioso-puro']]) {
+      if (!pontos[a] || !pontos[b]) continue
+      const x = rankingSemanal(pontos[a], pontos[b], { semente: `${semente}:rank:${a}:${b}` })
+      const y = rankingSemanal(pontos[a], pontos[b], { semente: `${semente}:rank1:${a}:${b}`, partidas: 3 })
+      out.res.ranking[`${a}>${b}`] = x.passa
+      out.linhas.push(`- ${a} passa ${b}: ${f1(x.passa)}% das semanas (com 3 partidas na semana: ${f1(y.passa)}%)`)
+    }
+  }
+  return out
+}
+/** F: tempo de tela por partida. `porRobo`: { robo: [{ lutas: [{rodada, vitoria, segundos, chefe}] }] } */
+export function resumoF(porRobo) {
+  const L = ['| robô | partidas | lutas por partida | só luta no 1× (min, mediana / p90) | só luta no 2× | partida inteira no 1× com 20 s de escolha por rodada (mediana / p90) | idem no 2× |', '|---|---|---|---|---|---|---|']
+  const res = {}
+  for (const [robo, jogos] of Object.entries(porRobo)) {
+    const t1 = jogos.map((j) => j.lutas.reduce((a, b) => a + segundosDeTela(b, 1), 0) / 60)
+    const t2 = jogos.map((j) => j.lutas.reduce((a, b) => a + segundosDeTela(b, 2), 0) / 60)
+    const c1 = jogos.map((j, i) => t1[i] + j.lutas.length * SEG_ESCOLHA / 60)
+    const c2 = jogos.map((j, i) => t2[i] + j.lutas.length * SEG_ESCOLHA / 60)
+    const nl = media(jogos.map((j) => j.lutas.length))
+    L.push(`| ${robo} | ${jogos.length} | ${f1(nl)} | ${f1(quantil(t1, 0.5))} / ${f1(quantil(t1, 0.9))} | ${f1(quantil(t2, 0.5))} / ${f1(quantil(t2, 0.9))} | ${f1(quantil(c1, 0.5))} / ${f1(quantil(c1, 0.9))} | ${f1(quantil(c2, 0.5))} / ${f1(quantil(c2, 0.9))} |`)
+    res[robo] = { lutas: nl, luta1: quantil(t1, 0.5), luta2: quantil(t2, 0.5), inteira1: quantil(c1, 0.5), inteira2: quantil(c2, 0.5), inteira1p90: quantil(c1, 0.9) }
+  }
+  return { linhas: L, res }
+}
+
+// ================================================================ linha de comando
+function argumentos(argv) {
+  const a = { medida: argv[0] || 'todas', n: null, K: 8, semente: 'keepmile36', variante: 'base', trabalhos: availableParallelism(), json: false, saida: null, planos: 300 }
+  for (let i = 1; i < argv.length; i++) {
+    if (argv[i] === '--n') a.n = Number(argv[++i])
+    else if (argv[i] === '--k') a.K = Number(argv[++i])
+    else if (argv[i] === '--semente') a.semente = argv[++i]
+    else if (argv[i] === '--variante') a.variante = argv[++i]
+    else if (argv[i] === '--trabalhos') a.trabalhos = Number(argv[++i])
+    else if (argv[i] === '--json') a.json = true
+    else if (argv[i] === '--saida') a.saida = argv[++i]
+    else if (argv[i] === '--planos') a.planos = Number(argv[++i])
+    else if (argv[i] === '--partidas') a.partidas = Number(argv[++i])
+    else if (argv[i] === '--sem-ranking') a.semRanking = true
+    else if (argv[i] === '--sem-aleatorio') a.semAleatorio = true
+    else if (argv[i] === '--intermediario') a.intermediario = true
+  }
+  if (!VARIANTES[a.variante]) throw new Error(`variante desconhecida: ${a.variante} (há: ${Object.keys(VARIANTES).join(', ')})`)
+  return a
+}
+
+if (!isMainThread && parentPort) {
+  parentPort.on('message', (t) => { try { parentPort.postMessage({ i: t.i, r: rodarTarefa(t) }) } catch (x) { parentPort.postMessage({ i: t.i, erro: String(x && x.stack || x) }) } })
+} else if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const a = argumentos(process.argv.slice(2))
+  const t0 = performance.now()
+  const base = { semente: a.semente, variante: a.variante, trabalhos: a.trabalhos }
+  const guardado = {}
+  const mostrar = (titulo, r) => {
+    console.log(`\n## ${titulo}\n`); for (const l of r.linhas) console.log(l)
+    if (a.json) console.log('\n```json\n' + JSON.stringify(r.res) + '\n```')
+    guardado[titulo.split(' ')[0]] = { res: r.res, cru: r.cru }
+    if (a.saida) writeFileSync(a.saida, JSON.stringify(guardado))
+  }
+  const quer = (m) => a.medida === 'todas' || a.medida.split(',').includes(m)
+  console.log(`Keepmile — medidas R36 (semente "${a.semente}", variante ${a.variante}) — números PROVISÓRIOS; nada no config muda`)
+  let A = null, D = null
+  if (quer('A') || quer('F')) { A = await medirA({ ...base, n: a.n ?? 2000 }); if (quer('A')) mostrar('A — novato no 1º chefe (álbum inicial; o álbum cresce entre as partidas)', A) }
+  if (quer('B')) mostrar(`B — qualidade da decisão (valor esperado com ${a.K} continuações do planejador)`, await medirB({ ...base, n: a.n ?? 400, K: a.K }))
+  if (quer('C')) mostrar(`C — posição importa? (${a.K} continuações)`, await medirC({ ...base, n: a.n ?? 300, K: a.K }))
+  if (quer('D') || quer('F')) { D = await medirD({ ...base, n: a.n ?? 2000, planos: quer('D') ? a.planos : 0 }); if (quer('D')) mostrar('D — cartas, planos e ouro (planejador, álbum completo)', D) }
+  if (quer('E')) {
+    // ranking: os 4 robôs com o álbum completo (quem disputa ranking já jogou bastante)
+    const pontos = a.semRanking ? null : {}
+    if (pontos) for (const robo of ['aleatorio', 'ganancioso-puro', 'novato-atento', 'planejador']) pontos[robo] = await medirPontos({ ...base, robo, n: a.n ?? 2000 })
+    const partidas = a.partidas ?? 60
+    mostrar(`E — longo prazo: as 30 conquistas e a vitória em ${partidas} partidas por conta${pontos ? ', e o ranking' : ''}`, await medirE({ ...base, n: a.n ? Math.max(10, Math.round(a.n / 10)) : 200, nBom: a.n ? Math.max(2, Math.round(a.n / 50)) : 40, partidas, aleatorio: !a.semAleatorio, intermediario: !!a.intermediario, pontos }))
+  }
+  if (quer('F')) {
+    const por = {}
+    for (const [robo, jogs] of Object.entries(A.cru)) por[`${robo} (álbum inicial, 1ª partida)`] = jogs.map((j) => j[0])
+    por['planejador (álbum completo)'] = D.cru
+    const F = resumoF(por)
+    F.linhas.push('')
+    F.linhas.push(`"Só olhando" (planejador): ${f1(D.res.soOlhando.certas)}% das lutas já estavam ganhas com qualquer escolha; ${f1(D.res.soOlhando.perdidas)}% perdidas com qualquer escolha; a escolha decidiu ${f1(D.res.soOlhando.decide)}%.`)
+    mostrar('F — tempo de tela', F)
+  }
+  console.log(`\ntempo total: ${((performance.now() - t0) / 1000).toFixed(1)} s`)
+}

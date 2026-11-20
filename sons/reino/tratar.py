@@ -1,5 +1,5 @@
 """Tratamento das amostras do Reino (medido, nao ouvido).
-Uso: python3 -I sons/reino/tratar.py medir | gerar
+Uso: python3 -I sons/reino/tratar.py medir | gerar [evento ...]   (com eventos: so esses sao regravados; o resto do manifesto fica como esta)
 Le sons/reino/bruto/<evento>-<n>.mp3; escreve public/reino/sons/<evento>-<k>.mp3 (mono, 44,1 kHz, 96 kbps)
 e public/reino/sons/manifesto.json. Alvo de pico = tabela da parte 5 de docs/reino/som.md (o motor reajusta ao alvo de qualquer forma)."""
 import json, subprocess, os, sys, math
@@ -11,6 +11,9 @@ BRUTO = os.path.join(RAIZ, 'sons/reino/bruto'); DEST = os.path.join(RAIZ, 'publi
 EV = {
   'choque': ((200, 1500), -11), 'marcha': ((500, 1200), -13), 'casteloRacha': ((500, 1500), -7), 'muralha': ((150, 800), -11),
   'chefeEntra': ((600, 1500), -7), 'flecha': ((120, 800), -14), 'espolio': ((250, 1000), -11), 'recorde': ((500, 1500), -8),
+  # R35 (20/11/2026): o que a sintese faz pior — bicho, panela, mordida, porta, corpo grande caindo e o pisao do chefe
+  'golpeBicada': ((120, 420), -13), 'golpeFrigideira': ((150, 700), -12), 'golpeMordida': ((120, 500), -13), 'golpePortada': ((150, 700), -12),
+  'chefeTomba': ((500, 1500), -8), 'pisao': ((400, 1200), -7),
 }
 def ler(arq):
     b = subprocess.run(['ffmpeg', '-v', 'error', '-i', arq, '-f', 'f32le', '-ac', '1', '-ar', str(SR), '-'], capture_output=True).stdout
@@ -62,7 +65,8 @@ def candidatos():
     return out
 if __name__ == '__main__':
     modo = sys.argv[1] if len(sys.argv) > 1 else 'medir'
-    cand = candidatos(); man = {}
+    so = sys.argv[2:]; cand = candidatos(); man = {}
+    if so: cand = {ev: c for ev, c in cand.items() if ev in so}
     for ev, c in cand.items():
         for m in c:
             print(f"{ev}-{m['k']}: pico {m['pico_db']:.1f} dBFS, util {m['util']:.0f} ms, inicio {m['ini'] / SR * 1000:.0f} ms, buraco {m['buraco']} ms, planicidade {m['plan']:.3f}, {'OK' if not m['falhas'] else 'DESCARTA: ' + '; '.join(m['falhas'])}")
@@ -72,6 +76,7 @@ if __name__ == '__main__':
                 y = tratar(m['x'], m, EV[ev][1] - 0.5); nome = f'{ev}-{i}.mp3'
                 gravar(y, os.path.join(DEST, nome)); man[ev].append({'arquivo': nome, 'bruto': f"{ev}-{m['k']}.mp3"})
     if modo == 'gerar':
-        saida = {'versao': 1, 'nota': 'Amostras do Reino (ElevenLabs, 19/11/2026), medidas e nao ouvidas. Sem amostra = som por codigo. Formato: "evento": [{ "arquivo": "nome-1.mp3" }]',
-                 'efeitos': {ev: [{'arquivo': i['arquivo']} for i in v] for ev, v in man.items() if v}}
+        antes = json.load(open(os.path.join(DEST, 'manifesto.json')))['efeitos'] if so and os.path.exists(os.path.join(DEST, 'manifesto.json')) else {}
+        saida = {'versao': 1, 'nota': 'Amostras do Reino (ElevenLabs, 19/11 e 20/11/2026), medidas e nao ouvidas. Sem amostra = som por codigo. Formato: "evento": [{ "arquivo": "nome-1.mp3" }]',
+                 'efeitos': {**antes, **{ev: [{'arquivo': i['arquivo']} for i in v] for ev, v in man.items() if v}}}
         json.dump(saida, open(os.path.join(DEST, 'manifesto.json'), 'w'), indent=2, ensure_ascii=False); open(os.path.join(DEST, 'manifesto.json'), 'a').write('\n')

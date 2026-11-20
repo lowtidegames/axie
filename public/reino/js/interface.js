@@ -2,7 +2,19 @@
 // com um botão de verdade (transparente, com foco de teclado) por cima de cada coisa tocável. Só mostra o modelo `M` que o app monta
 // a partir de `visao`/`opcoes`/eventos do motor; quem manda comando é o app. Nenhum número de regra nasce aqui.
 import * as Arte from './arte.js'
+import * as Part from './particulas.js'
+import { desenharMedalha } from './telas.js'
 import { T } from './textos.js'
+
+// R44 — os fogos da festa do reino: [começo em ms depois da batida, x (fração da largura), acima da faixa?, qual estouro]. Três
+// estouros compridos (840 ms), no máximo 2 abertos ao mesmo tempo; só o 1º fica acima da faixa (acaba antes de ela encolher e
+// subir), os outros abrem no campo, embaixo dela. As folhas são feitas uma vez por tamanho de tela.
+const FOGOS_ROTEIRO = [[0, 0.26, true, 0], [420, 0.73, false, 1], [840, 0.3, false, 2]], FOGOS_X_PC = [0.26, 0.8, 0.3] // (PC: o 2º abre à direita da placa do resumo da luta)
+const FOGOS_PRONTOS = {}
+function fogosDaFesta(cel) {
+  const k = cel ? 'cel' : 'pc', [G, P] = cel ? [28, 24] : [38, 28]
+  return (FOGOS_PRONTOS[k] ||= [Part.fogo(['#FFF096', '#FFD248', '#EC6054'], G), Part.fogo(['#FFFFFF', '#68A0F8', '#FFD248'], G), Part.fogo(['#FFF6E0', '#EC6054', '#FFD248'], P)])
+}
 
 export function criarInterface(C, CONFIG, camada, aoTocar) {
   const g = C.g, COR = Arte.COR
@@ -11,6 +23,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     sortear: { custo: 0, pode: false }, consertar: { custo: 0, pode: false, visivel: false, destaque: false }, armado: null, trocar: 0,
     espolios: [], espolioPode: [], espolioDesc: [], info: null, infoSel: null, forca: null, vel: 1, mudo: false, aviso: null, vitoria: null, derrota: null, chefe: null, fim: null, arrasto: null,
     apertado: null, selo: null, brinde: null, hordaN: 0, hordaChefe: null, pulsaLutar: false, chances: [], reliquias: [], resumo: null, familias: [],
+    revanche: null, // R46: { ativa, marcado, dica, t0, feita } — a troca grátis depois da derrota (o app monta com `visao.revanche`)
     status: null, replay: null, modoRot: null, // modo servidor: aviso curto (rede, erro do contrato), replay em curso e o rótulo do modo
   }
   const UI = { M, L: {}, botoes: [], desenhou: new Set(), letra: {} }
@@ -37,9 +50,15 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     L.letraGrande = 5 * C.css < 7.9
     { const fonte = L.letraGrande ? 'reino-contorno' : 'mini-contorno', alt = L.letraGrande ? 10 : 8, max = cel ? VW - 4 : Math.max(60, x0 - 10), ox = cel ? 3 : 6
       const itens = [{ s: T.chances, w: Arte.largura(T.chances, fonte) + 4 }, ...M.chances.map((c) => { const t = `${c.nome} ${c.chance}%`; return { s: t, c, w: 9 + Arte.largura(t, fonte) + 5 } })]
-      const linhas = [[]]; let x = 0
-      for (const it of itens) { if (x + it.w > max && linhas.at(-1).length) { linhas.push([]); x = 0 } linhas.at(-1).push({ ...it, x }); x += it.w }
-      L.odds = cel ? { x: ox, y: L.sortear.y + 28 * bs + 1 } : { x: ox, y: L.sortear.y - 1 - linhas.length * alt }
+      // R38 — no CELULAR as chances nunca descem para cima dos terrenos 5 e 6 (a seta do terreno vazio): só a ÚLTIMA linha fica debaixo
+      // do botão de sortear (largura inteira, colada nele); as outras sobem para o LADO do botão (à direita dele e do conserto, se houver)
+      // Tela baixa (o botão já encosta nos terrenos de cima): nem a última linha cabe debaixo dele — todas ficam ao lado.
+      const lado = cel ? (M.consertar?.visivel ? L.consertar.x + L.consertar.w : L.sortear.x + L.sortear.w) + 3 * bs - ox : 0
+      const teto = cel ? Math.min(C.topoDoVazio(5), C.topoDoVazio(6)) : 1e9, fundoBt = L.sortear.y + 26 * bs, embaixo = fundoBt + alt <= teto
+      const quebra = (n) => { const linhas = [[]]; let x = 0; for (const it of itens) { if (x + it.w - (it.c ? 5 : 4) > (linhas.length < n ? max - lado : max) && linhas.at(-1).length) { linhas.push([]); x = 0 } linhas.at(-1).push({ ...it, x }); x += it.w } return linhas }
+      let linhas = quebra(cel && !embaixo ? 99 : 1); for (let n = 2; cel && embaixo && linhas.length > n - 1 && n <= 8; n++) linhas = quebra(n)
+      L.odds = cel ? { x: ox, y: (embaixo ? fundoBt + alt : Math.min(teto, fundoBt)) - linhas.length * alt } : { x: ox, y: L.sortear.y - 1 - linhas.length * alt }
+      L.odds.dx = linhas.map((_, i) => (cel && (!embaixo || i < linhas.length - 1) ? lado : 0))
       L.odds.linhas = linhas; L.odds.fonte = fonte; L.odds.alt = alt; L.odds.h = linhas.length * alt }
     L.faixa = cel ? { x: 0, y: VH - 88, w: VW, h: 0 } : { x: 6, y: L.odds.y - 50, w: x0 - 14, h: 48 }
     L.lutar2 = cel ? { x: 4, y: VH - 30, w: VW - 8, h: 26 } : { x: Math.floor(VW / 2) - 48, y: VH - 44, w: 96, h: 26 }
@@ -101,6 +120,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     }
     if (f === 'fim') { if (!M.fim?.contou) { add('seguir', { x: 0, y: 0, w: C.VW, h: C.VH }, T.aria.pular); return b } add('denovo', L.fimBotoes[0], T.deNovo); add('postar', L.fimBotoes[1], T.postar); add('menu', L.menu, T.aria.menu); return b }
     if (f === 'chefe' || f === 'derrota') { add('seguir', { x: 0, y: 0, w: C.VW, h: C.VH }, T.aria.seguir); return b }
+    if (f === 'vitoria' && M.vitoria?.reino && !M.vitoria.pronto) { add('seguir', { x: 0, y: 0, w: C.VW, h: C.VH }, T.aria.pular); return b } // R39: a festa do reino pula com um toque
     add('menu', L.menu, T.aria.menu); add('som', L.som, T.aria.som)
     { const rr = reliquiasRet(); if (rr) add('reliquias', rr.toque, T.aria.reliquias) }
     if (f === 'luta') { add('vel', L.lutar, T.aria.vel(M.vel)); return b }
@@ -122,7 +142,9 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     // um toque no item explica em 1 linha: vidas, pinos do chefe, a horda no portão e a linha "WIN:"
     add('dica-vidas', L.vidas, T.aria.vidas); add('dica-pinos', L.pinos, T.aria.pinos)
     if (M.hordaN) { const r = hordaRet(); if (r.h >= 44 / C.css - 0.01) add('horda', r, T.aria.horda) }
-    if (M.espolios.length) add('dica-ganhe', M.cartaPosta ? L.premios : L.ganhe, T.aria.ganhe)
+    const rv = geoDaRevanche()
+    if (M.espolios.length && !(rv && L.cel)) add('dica-ganhe', M.cartaPosta ? L.premios : L.ganhe, T.aria.ganhe) // (celular: a faixa da revanche fica no lugar da linha "WIN:" enquanto está à vista)
+    if (rv && rv.ativa) add('manter', rv.toque, T.revanche.manter)
     return b
   }
   /** Refaz a lista de botões (chamar quando o modelo muda; não a cada quadro). */
@@ -260,6 +282,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       g.fillStyle = '#68A0F8'; g.fillRect(bx, by, meio, 1); g.fillStyle = COR.creme; g.fillRect(bx + meio - 1, by - 2, 2, 9)
       Arte.texto(g, String(M.forca.aliados), bx, by + 8, { fonte: 'mini-contorno' }); Arte.texto(g, String(M.forca.inimigos), bx + w, by + 8, { fonte: 'mini-contorno', alinhar: 'direita' })
     }
+    metaDoReino(HW)
     g.restore()
     if (M.fase === 'chefe' || M.fase === 'derrota') return
     if (M.replay) hudBt('red', L.menu, 'sair-replay', (x0, y0, w) => Arte.texto(g, 'X', x0 + (w >> 1), y0 + 7, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }))
@@ -271,6 +294,51 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       hudBt('green', { ...L.lutar, y: L.lutar.y - pulsa }, 'lutar', (x0, y0, w) => Arte.texto(g, T.lutar, x0 + (w >> 1), y0 + 7, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }))
       if (M.pulsaLutar && C.menos) { moldura(L.lutar.x - 1, L.lutar.y - 1, L.lutar.w + 2, 26 * bs + 2); viu('lutarFixo') } // Reduced motion: destaque parado
     }
+  }
+  /** R39 — A META DA PARTIDA à vista na fase de carta: "HOLD TO ROUND N" (N do config; letra miúda, no céu, fora do caminho do HUD); depois de
+   *  vencer, no MESMO lugar, o selo de ouro "HELD". Celular: à direita dos botões de sortear/consertar, abaixo das relíquias. PC:
+   *  centrado sob a rodada (sob o logo, na abertura). Desenhado dentro do espaço ×bs do HUD. */
+  function metaDoReino(HW) {
+    UI.metaRet = null
+    if (!M.meta || M.fase !== 'carta' || M.replay) return
+    const L = UI.L, bs = L.bs, s = M.venceu ? T.resistiu : T.meta(M.meta), fo = M.venceu && Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno', w = Arte.largura(s, fo)
+    let x = Math.floor(HW / 2) - (w >> 1), y = M.primeira ? 30 : 15, vao = null
+    const caixa = M.venceu ? [5, 3, 10, 12] : [0, 0, 0, 7] // o que a meta ocupa em volta do canto do texto: o selo (moldura) ou só as letras
+    if (L.cel) ({ x, y, vao } = lugarDaMeta(HW, w, caixa))
+    if (M.venceu) { g.fillStyle = COR.ameixa; g.fillRect(x - 4, y - 3, w + 8, 12); g.fillStyle = COR.ouro; g.fillRect(x - 4, y - 3, w + 8, 1); g.fillRect(x - 4, y + 8, w + 8, 1); g.fillRect(x - 5, y - 2, 1, 10); g.fillRect(x + w + 4, y - 2, 1, 10) }
+    Arte.texto(g, s, x, y, { fonte: fo })
+    UI.metaRet = { x: (x - caixa[0]) * bs, y: (y - caixa[1]) * bs, w: (w + caixa[2]) * bs, h: caixa[3] * bs, texto: s, vao: vao == null ? null : vao * bs }
+    viu(M.venceu ? 'resistiu' : 'meta')
+  }
+  /** R44 — CELULAR: a meta com RESPIRO. Procura, no céu ao lado do botão de sortear, o lugar mais folgado: longe das linhas das
+   *  chances (as de baixo e as que sobem para o lado do botão), dos botões, do bloco do HUD (vidas, rodada, pinos, famílias), do logo
+   *  da abertura, das relíquias e das setas dos terrenos de cima. Empate: o mais perto do lugar de sempre (ao lado do botão, à
+   *  altura do meio dele). Tudo no espaço ×bs do HUD; devolve o canto do texto e a folga (`vao`) até o vizinho mais próximo. Só
+   *  refaz a conta quando alguma coisa em volta muda de lugar. */
+  let metaLugar = null
+  function lugarDaMeta(HW, w, caixa) {
+    const L = UI.L, bs = L.bs, O = [], p = (r, h = r.h) => O.push({ x: r.x / bs, y: r.y / bs, w: r.w / bs, h: h / bs })
+    p(L.sortear, 26 * bs); if (M.consertar?.visivel) p(L.consertar, 26 * bs)
+    for (const b of [L.menu, L.som, L.lutar]) p(b, 26 * bs)
+    let fx = 50; for (const fa of M.familias || []) fx += 9 + Arte.largura(`${fa.n}/${fa.precisa}`, 'mini-contorno') + 4 + (fa.ligada ? 5 : 0)
+    O.push({ x: 0, y: 0, w: 48, h: 40 }); if (M.familias?.length) O.push({ x: 48, y: 29, w: fx - 48, h: 9 })
+    if (M.primeira) { const q = Arte.logoTam('small'); O.push({ x: HW - 37 - (q.w >> 1), y: 32, w: q.w, h: q.h }) }
+    const rr = reliquiasRet(); if (rr) p({ x: rr.x - 2 * bs, y: rr.y - bs, w: rr.w + 2 * bs, h: 15 * bs })
+    const o = L.odds; let fundo = (L.sortear.y + 26 * bs) / bs
+    if (M.chances.length && o.linhas) o.linhas.forEach((lin, i) => { const u = lin.at(-1); if (u) { p({ x: o.x + (o.dx[i] || 0), y: o.y + i * o.alt, w: u.x + u.w, h: o.alt }); fundo = Math.max(fundo, (o.y + (i + 1) * o.alt) / bs) } })
+    const teto = Math.min(C.topoDoVazio(5), C.topoDoVazio(6)) / bs; O.push({ x: 0, y: teto, w: HW, h: 999 })
+    const chave = `${HW}|${w}|${caixa}|` + O.map((b) => `${b.x},${b.y},${b.w},${b.h}`).join(';')
+    if (metaLugar && metaLugar.chave === chave) return metaLugar
+    const xA = Math.ceil((M.consertar?.visivel ? L.consertar.x + L.consertar.w : L.sortear.x + L.sortear.w) / bs) + 6 + caixa[0], xD = Math.floor(HW) - w - 3 - (caixa[2] - caixa[0]), yA = Math.ceil(L.sortear.y / bs) + 9, TETO = 8
+    let melhor = null
+    for (let x = 3 + caixa[0]; x <= xD; x++) for (let y = 30; y <= Math.min(fundo, teto) + 14; y++) {
+      const a = { x: x - caixa[0], y: y - caixa[1], w: w + caixa[2], h: caixa[3] }
+      let v = TETO; for (const b of O) { v = Math.min(v, Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w), b.y - (a.y + a.h), a.y - (b.y + b.h))); if (melhor && v < melhor.vao) break }
+      if (melhor && v < melhor.vao) continue // a folga manda; a distância ao lugar de sempre só desempata
+      const nota = v * 1000 - Math.abs(y - yA) * 2 - Math.abs(x - xA)
+      if (!melhor || nota > melhor.nota) melhor = { x, y, vao: v, nota }
+    }
+    return (metaLugar = { ...(melhor || { x: Math.min(xA, xD), y: yA, vao: 0 }), chave })
   }
   function ouroBt(r, id, icone, st, agora, nome) {
     const bs = UI.L.bs, armado = M.armado === id
@@ -295,15 +363,16 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   /** As chances de raridade do sorteio junto do botão de sortear: quadradinho da cor + NOME + % (números do motor/servidor; só as que podem sair). */
   function chances() {
     const o = UI.L.odds; if (!M.chances.length || !o.linhas) return
-    if (UI.L.cel) { g.fillStyle = COR.ameixa; g.globalAlpha = 0.5; g.fillRect(0, o.y - 1, C.VW, o.h + 1); g.globalAlpha = 1 }
+    if (UI.L.cel) { g.fillStyle = COR.ameixa; g.globalAlpha = 0.5; o.linhas.forEach((lin, i) => { const x0 = o.dx[i] ? o.x + o.dx[i] - 2 : 0; g.fillRect(x0, o.y + i * o.alt, C.VW - x0, o.alt) }); g.globalAlpha = 1 } // (a tira escura acompanha cada linha: nada por cima do botão nem dos terrenos)
     o.linhas.forEach((lin, i) => {
-      const y = o.y + i * o.alt
+      const y = o.y + i * o.alt + (UI.L.cel ? 1 : 0)
       for (const it of lin) {
-        let x = o.x + it.x
+        let x = o.x + (o.dx[i] || 0) + it.x
         if (it.c) { g.fillStyle = COR.ameixa; g.fillRect(x, y, 7, 7); g.fillStyle = it.c.cor; g.fillRect(x + 1, y + 1, 5, 5); g.fillStyle = it.c.claro; g.fillRect(x + 1, y + 1, 5, 1); x += 9 }
         Arte.texto(g, it.s, x, y, { fonte: o.fonte })
       }
     })
+    C.zonaChances = { x: UI.L.cel ? 0 : o.x, y: o.y, w: UI.L.cel ? C.VW : Math.max(...o.linhas.map((lin) => { const u = lin.at(-1); return u ? u.x + u.w : 0 })), h: o.h, linhas: o.linhas.map((lin, i) => { const u = lin.at(-1), x0 = o.x + (o.dx[i] || 0); return { x: x0, y: o.y + i * o.alt, w: u ? u.x + u.w : 0, h: o.alt } }) } // R38: a cena desvia a seta do terreno desta zona (e o teste confere linha a linha)
     UI.letra.chances = (UI.L.letraGrande ? 7 : 5) * C.css
     viu('chances'); viu('chancesNomes')
   }
@@ -314,10 +383,10 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   const baseCurta = () => { const R = M.resumo, f = M.fase; return !!R && UI.L.cel && !M.replay && (f === 'luta' || f === 'derrota' || (f === 'vitoria' && !M.vitoria?.pronto)) && R.cartas.filter(Boolean).length <= 2 }
   function mesa() { const L = UI.L; if (!L.cel) return; if ((M.baseCurta = baseCurta())) return; g.fillStyle = COR.ameixa; g.fillRect(0, L.mesa.y - 1, C.VW, 1); g.fillStyle = COR.painel; g.fillRect(0, L.mesa.y, C.VW, L.mesa.h); g.fillStyle = COR.filete; g.fillRect(0, L.mesa.y, C.VW, 1) }
   /** Linhas de informação: no celular numa caixa logo acima da mesa; no PC à esquerda da mão. Linha que começa com "#" sai em ouro. */
-  function faixa(linhas) {
+  function faixa(linhas, sobe = 0) { // `sobe`: quanto a caixa sobe no celular (a faixa da revanche fica entre ela e a mesa)
     const L = UI.L, f = L.faixa
     if (L.cel) {
-      const h = linhas.length * 7 + 3, y = f.y - h
+      const h = linhas.length * 7 + 3, y = f.y - h - sobe
       g.fillStyle = COR.ameixa; g.fillRect(0, y - 1, C.VW, 1); g.fillStyle = COR.painel; g.fillRect(0, y, C.VW, h)
       linhas.forEach((s, i) => Arte.texto(g, s.replace(/^#/, ''), C.VW >> 1, y + 2 + i * 7, { fonte: 'mini', cor: s[0] === '#' ? COR.ouro : COR.creme, alinhar: 'centro' }))
     } else linhas.forEach((s, i) => Arte.texto(g, s.replace(/^#/, ''), f.x, f.y + f.h - (linhas.length - i) * 8, { fonte: s[0] === '#' && Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno' }))
@@ -509,6 +578,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   }
   function vitoria(agora) {
     const v = M.vitoria, L = UI.L, dt = agora - v.t0, cx = C.VW >> 1, ey = L.espolio[0].y
+    if (v.reino && !v.pronto && agora >= v.reino.t0) { faixaDoReino(agora, v.reino); return } // (R42: antes de `t0` é a queda do chefe, com o título dele) // R39: a festa do reino segura a tela; os espólios vêm depois
     escurecer(Math.min(0.5, dt / 600))
     const k = L.cel ? 2 : 3, pop = C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 180) * 10), ty = ey - (L.cel ? 62 : 56) - pop
     if (v.chefe) {
@@ -583,17 +653,27 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const fixo = f.parado || f.contou || C.menos, dt = fixo ? 1e9 : agora - f.t0, ouro = f.novoRecorde && f.contado
     bordaEscura(Math.min(1, dt / 450))
     // o número grande no centro
-    const yT = cel ? Math.ceil((L.menu.y + 26 * L.bs)) + 4 : 6, k = P.y - yT >= 150 ? 4 : 3, grande = Arte.temFonte('dano-g')
-    const hN = (grande ? 16 : 9) * k, pulo = !fixo && f.pulo && agora - f.pulo < 70 ? 2 : 0, yH = yT + 24 + hN + 4, rot = T.aguentou(f.vencidas)
+    // R39: fim com vitória = "THE KINGDOM HELD" em ouro (quebra em duas linhas quando não cabe); sem vitória, "RUN OVER" como sempre
+    const tit = f.venceu ? T.fimVenceu : T.fim, linT = quebrar(tit, (C.VW - 8) / 2, 'reino-contorno'), mais = (linT.length - 1) * 20, wT = Math.max(...linT.map((s) => Arte.largura(s, 'reino-contorno'))) * 2
+    const yT = cel ? Math.ceil((L.menu.y + 26 * L.bs)) + 4 : 6, k = P.y - yT - mais >= 150 ? 4 : 3, grande = Arte.temFonte('dano-g')
+    const hN = (grande ? 16 : 9) * k, pulo = !fixo && f.pulo && agora - f.pulo < 70 ? 2 : 0, yH = yT + 24 + mais + hN + 4, rot = T.aguentou(f.vencidas)
     if (cel) {
       // celular: uma PLACA escura atrás do bloco (título, número e legenda) — o número não se mistura com os soldados do reino
-      const wv = Math.min(C.VW - 8, Math.max(Arte.largura(T.fim, 'reino-contorno') * 2, Arte.largura(String(f.vencidas), grande ? 'dano-g' : 'reino-contorno') * k, Arte.largura(rot, 'reino-contorno')) + 16), v = { x: cx - (wv >> 1), y: yT - 4, w: wv, h: yH + 12 - (yT - 4) }
+      const wv = Math.min(C.VW - 8, Math.max(wT + (f.venceu ? 8 : 0), Arte.largura(String(f.vencidas), grande ? 'dano-g' : 'reino-contorno') * k, Arte.largura(rot, 'reino-contorno')) + 16), v = { x: cx - (wv >> 1), y: yT - 4, w: wv, h: yH + 12 - (yT - 4) }
       g.fillStyle = '#1C1230'; g.globalAlpha = 0.74; g.fillRect(v.x, v.y, v.w, v.h); g.globalAlpha = 0.4; g.fillRect(v.x - 2, v.y + 2, 2, v.h - 4); g.fillRect(v.x + v.w, v.y + 2, 2, v.h - 4); g.globalAlpha = 1
-      g.fillStyle = ouro ? COR.ouro : COR.filete; g.fillRect(v.x, v.y, v.w, 1); g.fillRect(v.x, v.y + v.h - 1, v.w, 1)
+      g.fillStyle = ouro || f.venceu ? COR.ouro : COR.filete; g.fillRect(v.x, v.y, v.w, 1); g.fillRect(v.x, v.y + v.h - 1, v.w, 1)
       f.veuRet = v; viu('fimVeu')
     }
-    Arte.titulo(g, T.fim, cx, yT, 2)
-    Arte.titulo(g, String(f.mostra), cx, yT + 24 - pulo, k, grande ? (ouro ? 'dano-g-ouro' : 'dano-g') : ouro)
+    if (f.venceu) {
+      // a fita da vitória atrás do título: escura com filete de ouro e as pontas em degrau (a derrota não tem nada disto)
+      const fw = Math.min(C.VW - 4, wT + 20), fx = cx - (fw >> 1), fh = linT.length * 20 + 3
+      g.fillStyle = COR.carmim; g.fillRect(fx + 3, yT - 3, fw - 6, fh); g.fillStyle = '#7C2030'; g.fillRect(fx, yT, 3, fh - 6); g.fillRect(fx + fw - 3, yT, 3, fh - 6)
+      g.fillStyle = COR.ouro; g.fillRect(fx + 3, yT - 3, fw - 6, 1); g.fillRect(fx + 3, yT + fh - 4, fw - 6, 1); g.fillStyle = '#FFF096'; g.fillRect(fx + 3, yT - 2, fw - 6, 1)
+      f.fitaRet = { x: fx, y: yT - 3, w: fw, h: fh }; viu('fimVenceu')
+    }
+    linT.forEach((s, i) => Arte.titulo(g, s, cx, yT + i * 20, 2, !!f.venceu))
+    f.titulo = tit; f.tituloLinhas = linT; f.tituloW = wT
+    Arte.titulo(g, String(f.mostra), cx, yT + 24 + mais - pulo, k, grande ? (ouro || f.venceu ? 'dano-g-ouro' : 'dano-g') : ouro || !!f.venceu)
     Arte.texto(g, rot, cx, yH, { fonte: 'reino-contorno', alinhar: 'centro' })
     f.numeroRet = { x: cx - 30, y: yT, w: 60, h: yH + 9 - yT, k }
     viu('fimNumero')
@@ -668,12 +748,12 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       if (pc) {
         // PC: a placa é baixa — a silhueta fica no canto direito (ao lado da liga) e o gancho da estrada embaixo dos pontos
         Arte.icone(g, 'loot', x, y0 - 2); Arte.texto(g, texto, x + 14, y0 - 1, { fonte: 'mini', cor: COR.creme }); barra(x + 14, y0 + 6, w - 16, 3, f.album ? f.album.pct : 100, '#7CC950')
-        if (f.gancho) { Arte.texto(g, quebrar(f.gancho, 190)[0], pc.gx, pc.gy, { fonte: 'mini', cor: COR.ouro }); viu('fimGancho') }
+        if (f.gancho) { const q = quebrar(f.gancho, 190); f.ganchoCabe = q.length === 1; Arte.texto(g, q[0], pc.gx, pc.gy, { fonte: 'mini', cor: COR.ouro }); viu('fimGancho') }
       } else {
         const tx = x + 31
         Arte.texto(g, texto, tx, y0 + 1, { fonte: 'mini', cor: COR.creme })
         barra(tx + 1, y0 + 9, w - 34, 3, f.album ? f.album.pct : 100, '#7CC950')
-        if (f.gancho) { Arte.texto(g, quebrar(f.gancho, w - 32)[0], tx, y0 + 17, { fonte: 'mini', cor: COR.ouro }); viu('fimGancho') }
+        if (f.gancho) { const q = quebrar(f.gancho, w - 32); f.ganchoCabe = q.length === 1; Arte.texto(g, q[0], tx, y0 + 17, { fonte: 'mini', cor: COR.ouro }); viu('fimGancho') }
       }
       viu('fimAlbum')
     }
@@ -711,12 +791,60 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   function aviso(agora) {
     const a = M.aviso; if (!a || agora > a.t0 + a.ms || agora < a.t0) return
     const dt = agora - a.t0, cx = C.VW >> 1, base = Math.floor(C.VH * (UI.L.cel ? 0.24 : 0.2)), livre = UI.L.cel && M.fase === 'carta' && !M.cartaPosta ? UI.L.odds.y + UI.L.odds.h + 5 : 0 // celular: abaixo das linhas de chances
-    const y = Math.max(base, livre) - (C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 150) * 8))
+    const rv = UI.L.cel ? null : geoDaRevanche(agora) // PC: a faixa da revanche fica no alto — o letreiro desce para baixo dela
+    const y = Math.max(base, livre, rv ? rv.y + rv.h + 5 : 0) - (C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 150) * 8))
     if (dt > a.ms - 200 && ((agora >> 6) & 1) && !C.menos) return
     const k = a.k || 2, lin = quebrar(a.texto, (C.VW - 8) / k, 'reino-contorno')
     lin.forEach((s, i) => Arte.titulo(g, s, cx, y + i * 10 * k, k, a.ouro))
     { const w = Math.max(...lin.map((s) => Arte.largura(s, 'reino-contorno'))) * k; C.zonaTitulo = { x: cx - (w >> 1) - 4, y: y - 4, w: w + 8, h: lin.length * 10 * k + 8 } } // os números de dano não passam por cima do título
     if (a.sub) quebrar(a.sub, C.VW - 12).forEach((s, i) => Arte.texto(g, s, cx, y + lin.length * 10 * k + 3 + i * 7, { fonte: 'mini-contorno', alinhar: 'centro' }))
+  }
+  /** R39 — A FAIXA DO REINO: "ROUND N HELD!" (N do config) grande, em ouro, numa faixa que atravessa a tela, e "KEEP GOING FOR SCORE" embaixo. Os fogos e
+   *  o confete são da cena (o app solta). "Reduced motion": a faixa já no lugar, parada, sem brilho piscando. */
+  function faixaDoReino(agora, R) {
+    const dt = agora - R.t0, cx = C.VW >> 1, cel = UI.L.cel, bate = R.bate || 0, sai = R.sai ?? 1e9
+    // R41: o número da rodada conta rolando até a rodada da vitória e POUSA com a batida (Reduced motion: já chega no número)
+    const n = C.menos || dt >= bate ? R.rodada : Math.max(1, Math.round(R.rodada * Math.max(0, dt - 200) / Math.max(1, bate - 200)))
+    const cheio = T.festaReino(R.rodada), texto = T.festaReino(n)
+    let k = 2, lin = quebrar(cheio, (C.VW - 12) / 2, 'reino-ouro')
+    for (const q of [4, 3]) { const l = quebrar(cheio, (C.VW - 12) / q, 'reino-ouro'); if (l.length <= (cel ? 2 : 1)) { k = q; lin = l; break } }
+    // R41: depois de `sai` a faixa ENCOLHE e sobe para debaixo do HUD (uma linha, letra pequena): o campo, a luta e a plaqueta voltam a ser vistos
+    const s = C.menos ? (dt >= sai ? 1 : 0) : Math.max(0, Math.min(1, (dt - sai) / 260)), pequena = s >= 1
+    if (pequena) { k = 1; lin = [cheio] }
+    const mostra = lin.length === 1 ? [texto] : quebrar(texto, (C.VW - 12) / k, 'reino-ouro')
+    const hT = lin.length * 10 * k, hG = hT + 27, hP = 16, y0 = Math.floor(C.VH * (cel ? 0.3 : 0.27)), yP = Math.ceil(UI.L.pinos.y + UI.L.pinos.h) + 4
+    const h = pequena ? hP : Math.round(hG + (hP - hG) * s), y = pequena ? yP : Math.round(y0 + (yP - y0) * s)
+    const abre = C.menos ? 1 : Math.min(1, dt / 220), w = Math.round(C.VW * abre), x = cx - (w >> 1)
+    escurecer((C.menos ? 0.4 : Math.min(0.4, dt / 500)) * (1 - s))
+    g.fillStyle = COR.carmim; g.fillRect(x, y - 3, w, 2); g.fillRect(x, y + h + 1, w, 2)
+    g.fillStyle = '#1C1230'; g.globalAlpha = 0.9; g.fillRect(x, y, w, h); g.globalAlpha = 1
+    g.fillStyle = COR.ouro; g.fillRect(x, y, w, 2); g.fillRect(x, y + h - 2, w, 2); g.fillStyle = '#FFF096'; g.fillRect(x, y, w, 1); g.fillRect(x, y + h - 2, w, 1)
+    if (pequena) Arte.texto(g, cheio, cx, y + 4, { fonte: 'reino-ouro', alinhar: 'centro' })
+    else if (abre >= 1 && s === 0) {
+      const pop = C.menos ? 0 : Math.round(Math.max(0, 1 - (dt - bate) / 160) * (dt >= bate ? 6 : 0))
+      mostra.forEach((q, i) => Arte.titulo(g, q, cx, y + 9 + i * 10 * k - pop, k, true))
+      Arte.texto(g, T.festaReinoSub, cx, y + 9 + hT + 4, { fonte: 'reino-contorno', alinhar: 'centro' })
+      // brilhos de ouro andando pelas bordas da faixa (parados fora com Reduced motion)
+      if (!C.menos) for (let i = 0; i < 6; i++) { const t = ((agora / 9 + i * 71) % (C.VW + 20)) - 10; g.fillStyle = '#FFF096'; g.fillRect(Math.round(i & 1 ? t : C.VW - t), i & 1 ? y - 1 : y + h - 1, 3, 1) }
+    }
+    // R41/R44: FOGOS POR CIMA do escurecido (desenhados aqui, depois dele). R44: estouros GRANDES em pixel (`Part.fogo`: risco que sobe,
+    // anel que abre e cai), em 3 cores do jogo, acima e abaixo da faixa (nunca em cima do letreiro). No máximo 2 de uma vez (36
+    // faíscas) e 3 estouros na festa toda (menos de 3 por segundo). Nunca com Reduced motion.
+    R.fogos = 0
+    let faiscas = 0, fogoRaio = 0
+    if (!C.menos && dt >= bate) {
+      const F = fogosDaFesta(cel)
+      for (let i = 0; i < FOGOS_ROTEIRO.length; i++) {
+        const [ms, fxr, emCima, qual] = FOGOS_ROTEIRO[i], p = F[qual], t = dt - bate - ms, q = Math.floor(t / p.anim.play.ms[0]); if (t < 0 || q >= p.quadros.length) continue
+        const fx = Math.round(C.VW * (cel ? fxr : FOGOS_X_PC[i])), fy = emCima ? Math.max(p.raio + 8, y0 - p.raio - 4) : y0 + hG + p.raio + (cel ? 8 : 3)
+        g.drawImage(p.img, q * p.w, 0, p.w, p.h, fx - p.ax, fy - p.ay, p.w, p.h)
+        R.fogos++; faiscas += p.faiscas; fogoRaio = Math.max(fogoRaio, p.raio)
+      }
+      if (R.fogos) { R.fogosVistos = (R.fogosVistos || 0) + 1; R.faiscasMax = Math.max(R.faiscasMax || 0, faiscas); R.fogoRaio = Math.max(R.fogoRaio || 0, fogoRaio); viu('fogosDoReino') }
+    }
+    C.zonaTitulo = { x: 0, y: y - 4, w: C.VW, h: h + 8 }
+    R.ret = { x, y: y - 3, w, h: h + 6, linhas: lin, k, sub: T.festaReinoSub, maior: Math.max(...lin.map((q) => Arte.largura(q, 'reino-ouro'))) * k, VW: C.VW, VH: C.VH, n, mostra: mostra.join(' '), pequena, s, faiscas, faiscasMax: R.faiscasMax || 0, fogoRaio: R.fogoRaio || 0, fogosComecos: FOGOS_ROTEIRO.map((f) => f[0]) }
+    viu('festaReino')
   }
   /** Aviso pequeno em placa (conquista, carta nova, relíquia): sempre abaixo do HUD, nunca por cima dele. */
   function brinde(agora) {
@@ -725,12 +853,13 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const canto = !cel && (M.fase === 'vitoria' || M.fase === 'luta') // PC na escolha do espólio e na luta: a placa vai para o canto de baixo (nunca por cima dos 3 espólios nem da horda no portão)
     const w = canto ? L.premios.w : Math.min(C.VW - 8, 150)
     const x = canto ? L.premios.x : cel || M.fase === 'fim' ? (C.VW - w) >> 1 : 4
-    const y = canto ? L.premios.y + 15 : M.fase === 'fim' ? L.fimPainel.y - 34 : cel ? (M.fase === 'carta' || M.fase === 'terreno' ? L.odds.y + L.odds.h + 3 : M.fase === 'luta' ? Math.max(48, hudFim) : L.mesa.y - 34) : Math.max(32, hudFim)
+    let y = canto ? L.premios.y + 15 : M.fase === 'fim' ? L.fimPainel.y - 34 : cel ? (M.fase === 'carta' || M.fase === 'terreno' ? L.odds.y + L.odds.h + 3 : M.fase === 'luta' ? Math.max(48, hudFim) : L.mesa.y - 34) : Math.max(32, hudFim)
+    { const rv = cel || canto ? null : geoDaRevanche(agora); if (rv && x < rv.x + rv.w && x + w > rv.x && y < rv.y + rv.h + 2) y = rv.y + rv.h + 3 } // PC: nunca por cima da faixa da revanche
     M.brindeRet = { x, y, w, h: 30 }
     const desce = C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 200) * 20)
     Arte.painel(g, x, y - desce, w, 30)
     const ic = b.icone
-    if (ic?.tipo === 'conquista' && Arte.conquista(g, ic.nome, x + 4, y + 4 - desce)) { /* medalha */ } else if (ic?.tipo === 'reliquia') Arte.reliquia(g, ic.id, x + 6, y + 8 - desce); else Arte.icone(g, ic?.tipo === 'carta' ? 'loot' : 'pudding', x + 8, y + 9 - desce)
+    if (ic?.tipo === 'conquista' && ic.conquista) { desenharMedalha(Arte, g, ic.conquista, true, x + 4, y + 4 - desce); viu('avisoConquista') } else if (ic?.tipo === 'conquista' && Arte.conquista(g, ic.nome, x + 4, y + 4 - desce)) { /* medalha */ } else if (ic?.tipo === 'reliquia') Arte.reliquia(g, ic.id, x + 6, y + 8 - desce); else Arte.icone(g, ic?.tipo === 'carta' ? 'loot' : 'pudding', x + 8, y + 9 - desce)
     Arte.texto(g, b.titulo, x + 27, y + 6 - desce, { fonte: 'mini', cor: COR.ouro })
     Arte.texto(g, b.texto, x + 27, y + 15 - desce, { fonte: Arte.largura(b.texto, 'reino') > w - 32 ? 'mini' : 'reino', cor: COR.creme })
     viu('brinde')
@@ -758,7 +887,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const x0 = R.x + (p ? 64 : 4), larg = R.x + R.w - 4 - x0, cx = x0 + (larg >> 1), lin = [], logica = []
     const por = (t, fo, max = 2) => { logica.push(t); for (const q of quebrar(t, larg, fo).slice(0, max)) lin.push([q, fo]) }
     por(T.srv.replay.de(r.nome), 'reino-ouro'); por(T.srv.replay.passo(M.rodada, r.i, r.n), 'reino-contorno')
-    if (r.fim) por(r.fim, 'reino', 3); else { if (r.linha) por(r.linha, 'reino'); if (r.mvp) { por(r.mvp, Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno'); viu('replayMvp') } }
+    if (r.fim) por(r.fim, r.venceu ? 'reino-ouro' : 'reino', 3); else { if (r.linha) por(r.linha, 'reino'); if (r.mvp) { por(r.mvp, Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno'); viu('replayMvp') } }
     let y = R.y + (L.cel ? 7 : 8)
     for (const [t, fo] of lin) { Arte.texto(g, t, cx, y, { fonte: fo, cor: COR.creme, alinhar: 'centro' }); y += fo.startsWith('mini') ? 9 : 11 }
     r.faixa = logica; r.faixaFim = y
@@ -766,6 +895,65 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     if (r.fim) { botao('green', Q.rever, 'rever', T.srv.replay.rever); botao('plum', Q.voltar, 'voltar-replay', T.srv.replay.voltar); viu('replayFim') } else if (M.fase === 'replay' && r.pular) { botao('green', Q.pular, 'pular-luta', T.srv.replay.pular); viu('replayPular') }
     viu('replay')
   }
+
+  // ---------------------------------------------------------------- R46: a faixa da revanche
+  const REV_FEITA_MS = 1200, COR_DICA = '#8EE05A'
+  /** Onde fica a faixa da revanche neste instante (px de arte), ou null se não está à vista. À vista: fase de carta, sem carta da mão
+   *  escolhida (com carta escolhida o toque no terreno PÕE a carta, como sempre), com a troca valendo — ou logo depois dela ("SWAPPED").
+   *  Celular: faixa de lado a lado colada em cima da mesa (no lugar da linha "WIN:"). PC: faixa centrada no céu, abaixo da meta. Nunca
+   *  por cima das chances nem da meta do HUD. O toque do botão "KEEP AS IS" tem 44 px e não encosta nos terrenos nem nas cartas. */
+  function geoDaRevanche(agora = performance.now()) {
+    const R = M.revanche
+    if (!R || M.fase !== 'carta' || M.replay || M.sel >= 0) return null
+    const feita = !R.ativa && R.feita && agora - R.feita < REV_FEITA_MS
+    if (!R.ativa && !feita) return null
+    const L = UI.L, cel = L.cel, hmin = 44 / C.css, Tr = T.revanche
+    const wT = (fo) => Arte.largura(Tr.titulo[0], fo) + 10 + Arte.largura(Tr.titulo[1], fo), dica = R.ativa && !!R.dica
+    const bw = Arte.largura(Tr.manter, 'mini') + 10, wL = Math.max(Arte.largura(Tr.linha, 'mini'), Arte.largura(Tr.segundo, 'mini'))
+    const max = cel ? C.VW : Math.min(C.VW - 8, 260), fonteT = wT('reino-ouro') + 12 <= max ? 'reino-ouro' : 'mini'
+    if (feita) { const w = cel ? C.VW : Arte.largura(Tr.feita, 'reino-ouro') + 40, h = 17; return { feita: true, ativa: false, x: cel ? 0 : (C.VW - w) >> 1, y: cel ? L.mesa.y - h : revTopoPc(), w, h } }
+    const w = cel ? C.VW : Math.min(max, Math.max(wT(fonteT), dica ? Arte.largura(Tr.dica, 'mini') : 0, wL + bw + 10) + 16)
+    const hT = fonteT === 'mini' ? 8 : 10, h = 3 + hT + (dica ? 8 : 0) + 15, x = cel ? 0 : (C.VW - w) >> 1, y = cel ? L.mesa.y - h : revTopoPc()
+    const bt = { x: x + w - bw - 4, y: y + h - 14, w: bw, h: 12 }
+    // celular: o toque do botão desce por cima da beira da mesa (até o alto das cartas) — os terrenos acabam antes dele
+    const toque = cel ? { x: bt.x - 2, y: C.VH - 78 - hmin, w: bw + 4, h: hmin } : { x: bt.x - 2, y: bt.y - 1, w: bw + 4, h: 14 }
+    return { feita: false, ativa: true, x, y, w, h, hT, fonteT, dica, bt, toque }
+  }
+  /** PC: a faixa fica logo abaixo do HUD de cima (relíquias, meta ou selo "HELD"). */
+  const revTopoPc = () => Math.ceil(Math.max(32 * UI.L.bs, UI.metaRet ? UI.metaRet.y + UI.metaRet.h + 3 : 0))
+  /** A FAIXA DA REVANCHE: "REMATCH · SAME HORDE AGAIN" em ouro, a dica em verde ("THIS SWAP WINS AS IT STANDS": vale para o reino como
+   *  está) e, na última linha, o que fazer ("SWAP TWO PLOTS (FREE)"; com um terreno marcado, "NOW TAP THE OTHER PLOT") ao lado do
+   *  botão pequeno "KEEP AS IS". Depois da troca: "SWAPPED" por um instante. Abre do meio para os lados em 180 ms; Reduced motion: já
+   *  no lugar, parada. */
+  function faixaDaRevanche(agora, V) {
+    const R = M.revanche, Tr = T.revanche, cx = V.x + (V.w >> 1), dt = agora - (V.feita ? R.feita : R.t0)
+    const abre = C.menos || V.feita ? 1 : Math.max(0, Math.min(1, dt / 180)), w = Math.round(V.w * (1 - (1 - abre) * (1 - abre))), x = cx - (w >> 1)
+    g.fillStyle = '#1C1230'; g.globalAlpha = 0.92; g.fillRect(x, V.y, w, V.h); g.globalAlpha = 1
+    g.fillStyle = COR.carmim; g.fillRect(x, V.y - 2, w, 1)
+    g.fillStyle = COR.ouro; g.fillRect(x, V.y - 1, w, 2); g.fillStyle = '#FFF096'; g.fillRect(x, V.y - 1, w, 1)
+    if (!UI.L.cel) { g.fillStyle = COR.ouro; g.fillRect(x, V.y + V.h - 1, w, 1); g.fillStyle = COR.carmim; g.fillRect(x, V.y + V.h, w, 1) }
+    R.ret = { x: V.x, y: V.y - 2, w: V.w, h: V.h + (UI.L.cel ? 2 : 3) }; R.linhas = []; R.btRet = null; R.aberta = abre >= 1
+    if (abre < 1) { viu('revanche'); return }
+    if (V.feita) {
+      const pop = C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 140) * 4)
+      Arte.texto(g, Tr.feita, cx, V.y + 5 - pop, { fonte: 'reino-ouro', alinhar: 'centro' })
+      R.linhas.push(Tr.feita); viu('revanche'); viu('revancheFeita'); return
+    }
+    // título em duas metades com o ponto do meio desenhado (a letra do jogo não tem "·")
+    { const fo = V.fonteT, cor = fo === 'mini' ? COR.ouro : null, w0 = Arte.largura(Tr.titulo[0], fo), w1 = Arte.largura(Tr.titulo[1], fo), x0 = cx - ((w0 + 10 + w1) >> 1), y = V.y + 3
+      Arte.texto(g, Tr.titulo[0], x0, y, { fonte: fo, cor }); g.fillStyle = COR.ouro; g.fillRect(x0 + w0 + 4, y + (fo === 'mini' ? 2 : 3), 2, 2); Arte.texto(g, Tr.titulo[1], x0 + w0 + 10, y, { fonte: fo, cor })
+      R.linhas.push(Tr.titulo.join(' · ')) }
+    let y = V.y + 3 + V.hT
+    if (V.dica) { Arte.texto(g, Tr.dica, cx, y + 1, { fonte: 'mini', cor: COR_DICA, alinhar: 'centro' }); R.linhas.push(Tr.dica); y += 8; viu('revancheDica') }
+    { const b = V.bt, ap = M.apertado === 'manter' ? 1 : 0, s = R.marcado ? Tr.segundo : Tr.linha, larg = b.x - V.x - 8
+      Arte.texto(g, s, V.x + 4 + Math.max(0, (larg - Arte.largura(s, 'mini')) >> 1), b.y + 4, { fonte: 'mini', cor: R.marcado ? COR.ouro : COR.creme }); R.linhas.push(s)
+      // o botão pequeno: plaqueta ameixa com filete, 1 px para baixo quando apertado
+      g.fillStyle = COR.ameixa; g.fillRect(b.x - 1, b.y - 1 + ap, b.w + 2, b.h + 2 - ap); g.fillStyle = '#4E3A66'; g.fillRect(b.x, b.y + ap, b.w, b.h - 1 - ap); g.fillStyle = COR.filete; g.fillRect(b.x, b.y + ap, b.w, 1)
+      Arte.texto(g, Tr.manter, b.x + (b.w >> 1), b.y + 4 + ap, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' })
+      R.btRet = { ...b }; R.linhas.push(Tr.manter) }
+    viu('revanche')
+  }
+  UI.geoDaRevanche = geoDaRevanche
 
   /** Por cima do mundo, ainda com a câmera: selo de LEVEL UP com "antes > depois", contagem da horda no portão, "REPLACE?". */
   C.depoisDoMundo = (gg, t) => {
@@ -795,27 +983,28 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   UI.desenhar = (agora) => {
     const L = UI.L, f = M.fase
     g.setTransform(C.e, 0, 0, C.e, 0, 0); g.imageSmoothingEnabled = false
-    C.zonaTitulo = null
+    C.zonaTitulo = null; C.zonaChances = null
     if (f === 'fim') { fim(agora); aviso(agora); brinde(agora); status(agora); return }
     if (f === 'replay') { mesa(); faixaReplay(); hud(agora); aviso(agora); brinde(agora); status(agora); return }
     if (f === 'carta') {
       mesa()
-      const sel = M.sel >= 0 && M.mao[M.sel] && M.infoSel
+      const sel = M.sel >= 0 && M.mao[M.sel] && M.infoSel, rv = geoDaRevanche(agora), rvH = rv && L.cel ? rv.h : 0
       if (!M.cartaPosta) {
         if (!L.cel) premios(true)
         mao(agora)
-        if (sel) { faixa(linhasQueCabem(M.infoSel, 6)); viu('infoCarta') } else if (M.info) { faixa(linhasQueCabem(M.info, 7)); viu('info') } else if (L.cel) premios(false)
+        if (sel) { faixa(linhasQueCabem(M.infoSel, 6)); viu('infoCarta') } else if (M.info) { faixa(linhasQueCabem(M.info, 7), rvH); viu('info') } else if (L.cel && !rv) premios(false)
         ouroBt(L.sortear, 'sortear', 'reroll', M.sortear, agora, T.sortearNome)
         setaCarta(agora)
         chances()
       } else {
         premios(true)
-        if (M.info) { faixa(linhasQueCabem(M.info, 7)); viu('info') }
+        if (M.info) { faixa(linhasQueCabem(M.info, 7), rvH); viu('info') }
         const r = L.lutar2, pulsa = C.menos ? 0 : Math.round(Math.abs(Math.sin(agora / 240)) * 2)
         const d = bt('green', { ...r, y: r.y - pulsa }, 'lutar2'); Arte.texto(g, T.lutar, r.x + (r.w >> 1), r.y + 7 + d - pulsa, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }); g.globalAlpha = 1
         if (C.menos) { moldura(r.x - 2, r.y - 2, r.w + 4, 30); Arte.icone(g, 'play', r.x - 14, r.y + 8); viu('lutarFixo') } // Reduced motion: contorno de ouro e seta parados no lugar do pulso
       }
       if (M.consertar.visivel) ouroBt(L.consertar, 'consertar', 'life', M.consertar, agora, T.consertarNome)
+      if (rv) faixaDaRevanche(agora, rv)
     } else if (f === 'luta') { mesa(); resumo(L.resumo, true); if (!L.cel) premios(true) } else if (f === 'terreno') {
       mesa(); faixa(['#' + T.escolhaTerreno, ...(M.info || [])])
       const e = M.espolios[M.espolioI], ds = M.espolioDesc[M.espolioI]

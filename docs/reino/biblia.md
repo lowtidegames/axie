@@ -75,8 +75,8 @@ Sir Dent usa ×1,0 / 1,5 / 2,0 / 2,7 / 3,5 no lugar da regra geral. Squib Runner
 | id | Nome | Fam. | R | P | Texto do jogo | Valor por nível | Brilha com |
 |---|---|---|---|---|---|---|---|
 | B01 | Smithy | Pikewall | C | P | Neighbors deal more damage. | +20/30/40/50/60% | Frypan Cook, Clockwork Geese |
-| B02 | Bunkhouse | Pikewall | C | | Neighbor troops get extra soldiers. | +1/1/2/2/3 | Pikeman, Squib Runner |
-| B03 | Stone Wall | Pikewall | U | | Neighbors take less damage. | −15/20/25/30/35% | Doorman, Sir Dent |
+| B02 | Bunkhouse | Pikewall | C | | Neighbor troops get extra soldiers. | +1/1/1/2/2 soldados; vida +5/10/15/20/25% | Pikeman, Squib Runner |
+| B03 | Stone Wall | Pikewall | U | | Neighbors take less damage. | −30/36/42/48/55% | Doorman, Sir Dent |
 | B04 | Watchtower | Thornbow | C | P | Neighbor shooters see farther and hit harder. | alcance +0,5/0,75/1/1,25/1,5 e dano +10/15/20/25/30% | Hedge Archer, Granny Bolt |
 | B05 | Fletcher's Hut | Thornbow | U | | Neighbors attack faster. | +15/20/25/30/35% | Granny Bolt, Frypan Cook |
 | B06 | Cookhouse | Potluck | C | P | Neighbors heal every second. | 2/3/4/5/6 de vida por s | Pikeman, Doorman |
@@ -92,8 +92,8 @@ Sir Dent usa ×1,0 / 1,5 / 2,0 / 2,7 / 3,5 no lugar da regra geral. Squib Runner
 | M02 | Tar Puddle | Fizzwick | U | | Invaders here walk slower. | −40/45/50/55/60% de velocidade | atiradores atrás |
 | M03 | Angry Bees | Thornbow | U | | Invaders here get stung every second. | 4/6/8/10/13 de dano por s | Tar Puddle, Pie Thrower |
 | M04 | Rally Horn | Pikewall | U | | When invaders reach here, all soldiers attack faster for 5 s. | +30/40/50/60/75% | muitas tropas |
-| M05 | Second Helping | Potluck | R | | When invaders reach here, all soldiers heal. | 30/40/50/60/75% da vida | Sir Dent, frente dura |
-| M06 | Bramble Snare | Thornbow | C | P | The first invaders to step here are stuck for 2.5 s. | prende 3/4/5/6/8 invasores | Boom Barrel, Hedge Archer |
+| M05 | Second Helping | Potluck | R | | When invaders reach here, all soldiers heal. | 120/130/140/150/160% da vida | Sir Dent, frente dura |
+| M06 | Bramble Snare | Thornbow | C | P | The first invaders to step here are stuck for 3.5 s. | prende 4/5/6/8/10 invasores | Boom Barrel, Hedge Archer |
 | M07 | Seconds! | Potluck | E | | The first soldiers to fall get back up with half health. | 2/3/4/5/6 soldados | Sir Dent, Fuse Depot |
 | M08 | Grand Finale | Fizzwick | L | | When invaders reach here, every invader loses part of its health. | 15/22/30/40/50% da vida máxima | terreno 4–5; Tinker's Shed |
 
@@ -116,7 +116,7 @@ Chefes sofrem metade de lentidão, prisão e Grand Finale.
 **Chefes** (rodadas 5, 10, 15, 20; vêm com metade dos pontos da rodada; avisados 2 rodadas antes com silhueta e regra; depois da 20 repetem a cada 5 com o dobro de vida e dano):
 | Rodada | Chefe | Vida / Dano / Cad. | Regra especial (1 linha) | Espólio |
 |---|---|---|---|---|
-| 5 | Gutbucket the Wide | 450 / 14 / 1,5 | Each swing hits every soldier within 0.5. | 1 de 3 relíquias + 10 de ouro |
+| 5 | Gutbucket the Wide | 320 / 14 / 1,5 | Each swing hits every soldier within 0.5. | 1 de 3 relíquias + 10 de ouro |
 | 10 | Nip & Tuck | 500 cada / 16 / 1,0 | When one twin falls, the other gets 50% faster and stronger. | 1 de 3 relíquias + 10 de ouro |
 | 15 | Madame Moleworth | 1100 / 25 / 1,2 | Digs under the first three plots and comes up at plot 4. | 1 de 3 relíquias + 10 de ouro |
 | 20 | King Gobble the Uninvited | 2000 / 30 / 1,2 | Calls 4 Munchers every 5 s; cannot be slowed or stuck. | 1 de 3 relíquias + 10 de ouro + título |

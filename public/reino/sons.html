@@ -22,14 +22,15 @@
   .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px }
   #medidor { width: 130px; height: 14px; background: #14121b; border: 1px solid var(--borda); border-radius: 7px; overflow: hidden }
   #medidor i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--verde), var(--ouro) 70%, var(--rubi)) }
-  #fase { min-height: 22px; color: var(--azul); font-weight: 600 }
+  #fase, #fase-luta { min-height: 22px; color: var(--azul); font-weight: 600 }
+  button small.q { color: #d8cfe6; font-style: italic } b.am, button[data-amostra]::after { color: var(--verde); font-weight: 700 } button[data-amostra]::after { content: ' · recorded'; font-size: 12px }
   .p1 { border-left: 4px solid var(--rubi) } .p2 { border-left: 4px solid var(--ouro) } .p3 { border-left: 4px solid var(--azul) } .p4 { border-left: 4px solid var(--borda) }
 </style>
 </head>
 <body>
 <main>
   <h1>Kingdom — sound sheet</h1>
-  <p>Every sound here is made by code in your browser. Tap anything to listen. Left edge colour = priority (red never drops, grey drops first).</p>
+  <p>Tap anything to listen. Most sounds are made by code in your browser; the ones marked <b class="am">recorded</b> are samples. Under each name: <i>o que dispara o som no jogo</i>. Left edge colour = priority (red never drops, grey drops first).</p>
 
   <div class="barra">
     <button id="mudo" aria-pressed="false">Sound on</button>
@@ -53,6 +54,22 @@
     <span id="musica-estado">music stopped</span>
   </div>
 
+  <h2>Ambience — one per stretch of the road (R35)</h2>
+  <p>Made by code, never loops the same. Changing stretch crossfades in 1.5 s. Very quiet on purpose (it sits under the music).</p>
+  <div class="grade" id="ambientes"></div>
+  <p id="ambiente-estado">ambience off</p>
+
+  <h2>Battle feel (R35)</h2>
+  <div class="grade">
+    <button id="demo-luta" class="grande">Simulate a fight<small>march → 10 gestures → arrows → blast → boss stomp → boss falls → party</small></button>
+    <button id="demo-grupo">Squad hits together<small class="q">5 golpes do mesmo pelotão em 60 ms = 1 som só, mais forte</small></button>
+    <button id="demo-solto">Same 5 hits, 5 squads<small class="q">pelotões diferentes: cada um soa (até o teto de vozes)</small></button>
+    <button id="demo-hitstop">Hit-stop<small class="q">golpe forte: o agudo some por 60 ms junto com a parada</small></button>
+    <button id="demo-duck">Music ducks<small class="q">chefe caindo: a música abaixa 10 dB e volta</small></button>
+    <button id="demo-pan">Left → right<small class="q">posição estéreo leve pelo X na tela</small></button>
+  </div>
+  <p id="fase-luta">&nbsp;</p>
+
   <div id="efeitos"></div>
 </main>
 <script type="module">
@@ -65,7 +82,35 @@ const ROTULOS = {
   critico: 'Critical hit', soldadoCai: 'Soldier falls', muralha: 'Wall hit', casteloRacha: 'Castle cracks', vidaPerdida: 'Life lost', invasorChega: 'Invader arrives', chefeAnuncia: 'Boss announced', chefeEntra: 'Boss enters', chefeCai: 'Boss falls',
   vitoria: 'Victory', espolio: 'Loot appears', espolioEscolhe: 'Pick loot', derrota: 'Defeat', fimDePartida: 'End of match', recorde: 'New record', rankingSobe: 'Ranking climbs', cartaNova: 'New card unlocked', conquista: 'Achievement',
 }
-const GRUPOS = { 'interface': 'Interface', 'nível': 'Level up', 'batalha': 'Battle', 'invasor': 'Invader', 'chefe': 'Boss', 'resultado': 'End of battle', 'fim': 'End of match', 'álbum': 'Album and achievements' }
+Object.assign(ROTULOS, {
+  cartaVira: 'Card flips', cartaRara: 'Rare card shine', ouroTique: 'Gold counting tick', menuAbre: 'Menu opens', menuFecha: 'Menu closes', velocidade: 'Speed x1/x2/x4', replayPula: 'Replay: skip to fight', semSinal: 'Reconnecting', voltou: 'Back online',
+  apelidoOk: 'Nickname saved', gancho: 'End hook (tomorrow\'s road)', rankUp: 'Rank up', impacto: 'Impact star', golpeCorte: 'Hit: slash', golpeEstocada: 'Hit: thrust', golpeFrigideira: 'Hit: frying pan', golpeBicada: 'Hit: goose peck', golpeEsmaga: 'Hit: smash',
+  golpeMordida: 'Hit: bite', golpePortada: 'Hit: door bash', golpeInvestida: 'Hit: charge', golpeBarrigada: 'Hit: belly bump', arcoSolta: 'Bow release', arremesso: 'Throw', flechaFinca: 'Arrow sticks', splat: 'Pie / spud splat', fumaca: 'Smoke puff',
+  grupoCai: 'Squad wiped', explosao: 'Blast', poeira: 'Horde dust', gritoTropa: 'Troops shout', festaTropa: 'Victory jumps', recuoTropa: 'Defeat step back', pisao: 'Boss stomp', chefeJoelho: 'Boss kneels', chefeTomba: 'Boss hits the ground',
+  troca: 'Rematch: swap two plots', dica: 'Rematch: a swap wins (hint)',
+})
+
+// O QUE DISPARA cada som no jogo (em português, para o dono conferir ouvindo)
+const QUANDO = {
+  toque: 'qualquer botão; cada carta que vira (nota que sobe); liga/desliga e pinos de volume do Settings', cartaAparece: 'a rodada abre e a mão chega', cartaEscolhe: 'você toca numa carta da mão', cartaPoe: 'a carta pousa no terreno',
+  sortear: 'botão de sortear cartas de novo', ouro: 'o ouro acaba de contar (última moeda)', negado: 'falta ouro, comando recusado, erro do servidor, apelido recusado', faltaUm: 'a carta escolhida sobe de nível se for posta', consertar: 'botão de consertar uma vida',
+  nivelPequeno: 'terreno sobe de nível; bônus de família', nivelGrande: 'terreno chega ao nível máximo', marcha: 'a luta começa: a horda entra marchando', choque: 'o primeiro golpe da luta; depois, de longe, a massa da briga',
+  espada: 'só na folha (rodada simulada): tinido solto', flecha: 'só na folha (rodada simulada): flecha solta', magiaFogo: 'magia do barril', magiaGelo: 'magia do piche e do laço', magiaRaio: 'magia das abelhas e do finale; raio que chega', magiaCura: 'magia que cura ou levanta soldado',
+  critico: 'golpe forte (tira 40% da vida) e golpe do chefe, junto com a parada de impacto', soldadoCai: 'um soldado ou invasor cai (um sim, um não)', muralha: 'invasor bate no castelo; toupeira sai da terra', casteloRacha: 'derrota: o castelo racha', vidaPerdida: 'derrota: some uma vida',
+  invasorChega: 'você aperta lutar', chefeAnuncia: 'rodada de chefe abre; partida nova no servidor', chefeEntra: 'FURY! — o chefe entra em fúria e bate o pé', chefeCai: 'o último chefe leva o golpe final (a música abaixa 10 dB)',
+  vitoria: 'vitória da rodada', espolio: 'os 3 espólios aparecem', espolioEscolhe: 'você escolhe um espólio', derrota: 'derrota da rodada', fimDePartida: 'tela de fim de partida', recorde: 'a faixa de recorde entra (a música abaixa 9 dB)', rankingSobe: 'a contagem do fim e cada posição que sobe',
+  cartaNova: 'carta nova no álbum', conquista: 'conquista ganha',
+  cartaVira: 'cada carta da mão que vira para a frente (em cascata)', cartaRara: 'a carta que virou é Rara ou melhor (brilho)', ouroTique: 'cada passo do ouro contando no HUD e no letreiro', menuAbre: 'o menu / Settings abre', menuFecha: 'o menu fecha',
+  velocidade: 'botão x1 / x2 / x4 (na luta e no replay): sobe de tom com a velocidade', replayPula: 'replay: SKIP TO FIGHT', semSinal: 'aviso RECONNECTING...', voltou: 'aviso BACK ONLINE', apelidoOk: 'apelido trocado com sucesso', gancho: 'fim de partida: aparece a linha da estrada de amanhã',
+  rankUp: 'festa "RANK 6 > 4": fim da subida (a música abaixa 8 dB)',
+  impacto: 'estrela de impacto sem gesto próprio: magia, estouro, tiro à queima-roupa, falcão', golpeCorte: 'IMPACTO do corte (espada, machado)', golpeEstocada: 'IMPACTO da estocada (lança)', golpeFrigideira: 'IMPACTO da frigideira (de cima para baixo)',
+  golpeBicada: 'IMPACTO da bicada do ganso', golpeEsmaga: 'IMPACTO do esmaga (bruto e chefe)', golpeMordida: 'IMPACTO da mordida (Scoffer)', golpePortada: 'IMPACTO da portada (Doorman)', golpeInvestida: 'IMPACTO da investida (Sir Dent)', golpeBarrigada: 'IMPACTO da barrigada (Bloater)',
+  arcoSolta: 'a flecha ou o virote SAI do arco (fim da antecipação)', arremesso: 'torta, batata ou falcão sai voando', flechaFinca: 'a flecha CHEGA e finca (quadro do dano)', splat: 'torta ou batata chega e espatifa',
+  fumaca: 'a fumacinha de uma baixa', grupoCai: 'um pelotão inteiro do reino acaba (pausa de 250 ms)', explosao: 'estouro (Fuse Runner, barril)', poeira: 'a horda entra pelo portão levantando poeira', gritoTropa: 'os soldados dão o grito e o pulo antes da luta',
+  festaTropa: 'vitória: quem venceu comemora com dois pulos', recuoTropa: 'derrota: o reino recua um passo', pisao: 'o chefe POUSA o pisão de entrada (quadro da poeira)', chefeJoelho: 'queda do chefe, etapa 2: ajoelha', chefeTomba: 'queda do chefe, etapa final: tomba no chão',
+  troca: 'revanche: os dois terrenos trocam de lugar (SWAPPED)', dica: 'revanche: o par que vence acende (THIS SWAP WINS AS IT STANDS); espera a fanfarra acabar',
+}
+const GRUPOS = { 'interface': 'Interface', 'nível': 'Level up', 'batalha': 'Battle', 'golpes': 'Hits — one sound per gesture, on the impact frame (R35)', 'cena': 'Battle scene (R35)', 'invasor': 'Invader', 'chefe': 'Boss', 'resultado': 'End of battle', 'fim': 'End of match', 'álbum': 'Album and achievements' }
 const MOMENTOS = { construir: 'Build (calm)', batalha: 'Battle (drums come in)', chefe: 'Boss (tense, minor)', porUmFio: 'Last life (muffled, heartbeat)', vitoria: 'Victory (short party)', derrota: 'Defeat (minor, no drums)', fim: 'End and record (party)', menu: 'Menu and album (lute only)' }
 
 // nada toca antes do primeiro toque: o motor só liga aqui
@@ -79,11 +124,47 @@ for (const [camada, titulo] of Object.entries(GRUPOS)) {
   const g = document.createElement('div'); g.className = 'grade'; caixa.append(g)
   for (const e of lista) {
     const b = document.createElement('button'); b.className = 'p' + e.pri; b.dataset.som = e.nome
-    b.innerHTML = `${ROTULOS[e.nome] || e.nome}<small>${e.ms} ms · ${e.vars} take${e.vars > 1 ? 's' : ''}</small>`
+    b.innerHTML = `${ROTULOS[e.nome] || e.nome}<small>${e.ms} ms · ${e.vars} take${e.vars > 1 ? 's' : ''}${e.varia ? ' · pitch ±' + e.varia : ''}</small><small class="q">${QUANDO[e.nome] || ''}</small>`
     b.addEventListener('click', () => { Som.destravar(); Som.tocar(e.nome); b.classList.add('tocou'); setTimeout(() => b.classList.remove('tocou'), 120) })
     g.append(b)
   }
 }
+// ---- ambiente por trecho
+const AMB = { manha: 'Morning fields (birds)', tarde: 'Afternoon village (anvil, hen)', porDoSol: 'Sunset at the gates (wind, far bell)', noite: 'Boss night (crickets, owl)' }
+const AMB_Q = { manha: 'trecho 1 da estrada: campos, de manhã', tarde: 'trecho 2: a vila, à tarde', porDoSol: 'trecho 3: os portões, ao pôr do sol (4ª rodada do ciclo)', noite: 'trecho 4: noite de chefe' }
+for (const { nome } of [...Som.ambientes(), { nome: '' }]) {
+  const b = document.createElement('button'); b.dataset.ambiente = nome; b.innerHTML = nome ? `${AMB[nome] || nome}<small class="q">${AMB_Q[nome] || ''}</small>` : 'Ambience off'
+  b.addEventListener('click', () => { Som.destravar(); Som.ambiente(nome || null) })
+  $('ambientes').append(b)
+}
+// ---- sensação da batalha
+const cada = (n, ms, fazer) => { for (let i = 0; i < n; i++) setTimeout(() => fazer(i), i * ms) }
+$('demo-grupo').addEventListener('click', () => { Som.destravar(); cada(5, 12, () => Som.golpe(0, { grupo: 1 })) })
+$('demo-solto').addEventListener('click', () => { Som.destravar(); cada(5, 12, (i) => Som.golpe([0, 1, 4, 7, 8][i], { grupo: 10 + i, pan: i / 2 - 1 })) })
+$('demo-hitstop').addEventListener('click', () => { Som.destravar(); Som.golpe(4, { forca: 1.2 }); Som.tocar('critico'); Som.hitStop(60) })
+$('demo-duck').addEventListener('click', () => { Som.destravar(); Som.tocar('chefeCai') })
+$('demo-pan').addEventListener('click', () => { Som.destravar(); cada(7, 160, (i) => Som.golpe(0, { grupo: 20 + i, pan: i / 3 - 1 })) })
+// uma luta inteira da cena nova, na ordem em que a tela dispara
+const LUTA = [
+  [0, 'The horde marches in (dust at the gate)', () => { Musica.momento('batalha'); Som.tocar('marcha'); Som.tocar('poeira', { pan: -0.7 }); Som.tocar('gritoTropa', { em: 0.62, pan: 0.3 }) }],
+  [1800, 'First clash', () => { Som.tocar('choque'); Som.golpe(0, { grupo: 1, pan: -0.2 }) }],
+  ...[0, 1, 2, 3, 4, 6, 7, 8, 9].map((g, i) => [2500 + i * 450, i ? null : 'One hit per gesture: slash, thrust, pan, peck, smash, bite, door, charge, belly', () => Som.golpe(g, { grupo: 30 + g, pan: (i % 2 ? 0.5 : -0.5) })]),
+  [6800, 'Arrows: release, then the hit', () => Som.tocar('arcoSolta', { pan: -0.6 })], [7010, null, () => Som.golpe('flechaFinca', { grupo: 50, pan: 0.4 })],
+  [7400, null, () => Som.tocar('arcoSolta', { pan: -0.6 })], [7610, null, () => Som.golpe('flechaFinca', { grupo: 51, pan: 0.3 })], [7900, null, () => Som.tocar('arremesso', { pan: 0.5 })], [8110, null, () => Som.golpe('splat', { grupo: 52, pan: -0.3 })],
+  [8700, 'A casualty, a squad wiped out', () => { Som.tocar('soldadoCai', { pan: -0.3 }); setTimeout(() => Som.tocar('fumaca', { pan: -0.3 }), 300) }], [9500, null, () => Som.tocar('grupoCai', { pan: -0.4 })],
+  [10600, 'Blast (with hit-stop)', () => { Som.tocar('explosao', { pan: 0.2 }); Som.hitStop(60) }],
+  [11800, 'The boss lands his stomp', () => { Musica.momento('chefe'); Som.tocar('pisao', { pan: -0.5 }) }],
+  [13000, 'Boss hit (strong, hit-stop)', () => { Som.golpe(4, { grupo: 60, forca: 1.2 }); Som.tocar('critico'); Som.hitStop(60) }],
+  [14200, 'The boss falls: final blow → kneels → hits the ground', () => Som.tocar('chefeCai')], [14900, null, () => Som.tocar('chefeJoelho')], [15700, null, () => Som.tocar('chefeTomba')],
+  [17200, 'Victory: two jumps', () => { Som.tocar('festaTropa', { pan: 0.3 }); Musica.momento('vitoria') }],
+  [18600, '', () => { window.__luta.fim = true }],
+]
+window.__luta = { rodando: false, fim: false, fases: [] }
+let relogiosLuta = []
+$('demo-luta').addEventListener('click', () => {
+  Som.destravar(); relogiosLuta.forEach(clearTimeout); window.__luta = { rodando: true, fim: false, fases: [] }
+  relogiosLuta = LUTA.map(([ms, fase, fazer]) => setTimeout(() => { if (fase !== null) { $('fase-luta').textContent = fase || ' '; if (fase) window.__luta.fases.push(fase) } fazer(); if (window.__luta.fim) window.__luta.rodando = false }, ms))
+})
 // ---- música
 for (const { nome } of Musica.momentos()) {
   const b = document.createElement('button'); b.dataset.momento = nome; b.textContent = MOMENTOS[nome] || nome
@@ -104,7 +185,7 @@ $('vol-musica').addEventListener('input', (ev) => Som.volume('musica', ev.target
 $('menos').addEventListener('change', (ev) => Som.menosAnimacao(ev.target.checked))
 pintar()
 
-let picoVisto = 0
+let picoVisto = 0, amostrasVistas = 0
 setInterval(() => {
   const p = Som.picoAoVivo(), em = Musica.estado(), es = Som.estado()
   picoVisto = Math.max(p, picoVisto * 0.85); window.__picoMax = Math.max(window.__picoMax || 0, p)
@@ -112,6 +193,9 @@ setInterval(() => {
   $('vozes').textContent = es.vozes + ' voice' + (es.vozes === 1 ? '' : 's')
   $('musica-estado').textContent = em.tocando && em.momento ? `playing: ${em.momento} · ${Math.round(em.bpm)} bpm · bar ${em.compasso}${em.pendente && em.pendente !== em.momento ? ' → ' + em.pendente + ' at the bar line' : ''}` : 'music stopped'
   for (const b of $('momentos').children) b.classList.toggle('ativo', em.tocando && b.dataset.momento === em.momento)
+  for (const b of $('ambientes').children) b.classList.toggle('ativo', !!es.ambiente && b.dataset.ambiente === es.ambiente)
+  $('ambiente-estado').textContent = es.ambiente ? `ambience: ${es.ambiente}${es.ambienteSaindo ? ' (crossfading from ' + es.ambienteSaindo.nome + ')' : ''}` : 'ambience off'
+  if (es.amostras.length !== amostrasVistas) { amostrasVistas = es.amostras.length; for (const b of document.querySelectorAll('button[data-som]')) if (es.amostras.includes(b.dataset.som)) b.dataset.amostra = '1' }
 }, 60)
 
 // ---- uma rodada inteira: cartas → escolher → pôr → invasor chega → batalha de 12 s → vitória → espólio

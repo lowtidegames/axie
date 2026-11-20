@@ -50,9 +50,9 @@ export async function ligarGanchos(X) {
       return { parou, rodada: J.e.rodada, comandos: J.comandos.length }
     },
     /** O robô põe a carta (e o que mais quiser) até a hora de lutar; a luta fica para a tela. */
-    roboAteLutar() { let n = 0, s = 999; const inteiro = (k) => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s % k }; while (n++ < 50) { const cmd = escolher('ganancioso', J.e, inteiro); if (cmd.tipo === 'batalhar') break; if (!X.mandar(cmd)) throw new Error('comando recusado') } X.abrirRodada(); if (X.M().fase === 'chefe') X.seguir(); return { rodada: J.e.rodada, posta: J.e.cartaPosta } },
+    roboAteLutar(robo = 'ganancioso') { let n = 0, s = 999; const inteiro = (k) => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s % k }; while (n++ < 50) { const cmd = escolher(robo, J.e, inteiro); if (cmd.tipo === 'batalhar') break; if (!X.mandar(cmd)) throw new Error('comando recusado') } X.abrirRodada(); if (X.M().fase === 'chefe') X.seguir(); return { rodada: J.e.rodada, posta: J.e.cartaPosta } },
     /** A lista de comandos refaz a mesma partida no motor? */
-    reproduzir() { const r = X.reproduzir({ semente: J.semente, cartasLiberadas: J.liberadas, comandos: J.comandos }); return { ok: r.ok, igual: r.ok && JSON.stringify(r.resultado) === JSON.stringify(X.resultado(J.e)), resultado: r.resultado ?? null } },
+    reproduzir() { const r = X.reproduzir({ semente: J.semente, cartasLiberadas: J.liberadas, comandos: J.comandos, regra: J.regra }); return { ok: r.ok, igual: r.ok && JSON.stringify(r.resultado) === JSON.stringify(X.resultado(J.e)), resultado: r.resultado ?? null } },
     resultado: () => X.resultado(J.e),
     som: () => Som.estado(), musica: () => Musica.estado(),
     cena: () => { let vivos = 0, ocultos = 0; for (let i = 0; i < C.n; i++) { if (C.est[i] === 1) vivos++; if (C.oculto[i]) ocultos++ } return { bonecos: C.n, vivos, ocultos, etiquetas: C.etiquetas.slice(), contorno: { ...X.CONTORNO }, maxTipoVisivel: X.maxTipoVisivel(), tremidaMax: C.tremidaMax, flashes: C.flashes.slice(), picoParticulas: C.picoParticulas, limite: C.limite, menos: C.menos, nivelMax: Math.max(0, ...Array.from(C.nv.subarray(0, C.n))), lideres: Array.from(C.lider.subarray(0, C.n)).reduce((a, b) => a + b, 0), marcha: C.marcha, fimDeJogo: !!C.fimDeJogo, tipo: C.tipo, e: C.e, VW: C.VW, VH: C.VH, hora: C.hora, camX: C.cam.x, camMin: C.camMin, camMax: C.camMax, zoom: C.cam.zoom, tb: C.tb, vidas: C.vidas, filtro: C.g.canvas.style.filter } },
@@ -72,9 +72,9 @@ export async function ligarGanchos(X) {
       return { soldados: X.Bat().aliadosTotal, invasores: X.Bat().inimigosTotal, segundos: b.segundos }
     },
     origem: () => ({ ...Arte.origem }), temAtlas: () => Arte.temAtlas(),
-    cartao() { const M = X.M(); return X.cartaoDoReino(C, { rodadas: M.fim?.vencidas ?? 0, pontos: M.fim?.pontos ?? 0, recorde: !!M.fim?.novoRecorde, titulo: 'Keepmile', url: J.link || location.href }).toDataURL('image/png') },
+    cartao() { const M = X.M(); return X.cartaoDoReino(C, { rodadas: M.fim?.vencidas ?? 0, pontos: M.fim?.pontos ?? 0, recorde: !!M.fim?.novoRecorde, venceu: !!M.fim?.venceu, titulo: 'Keepmile', url: J.link || location.href }).toDataURL('image/png') },
     /** O que o cartão de compartilhar escreve (o desafio, as linhas dele, os pontos e o endereço) e a hora do dia em que foi desenhado. */
-    cartaoInfo() { const M = X.M(); return X.cartaoDoReino(C, { rodadas: M.fim?.vencidas ?? 0, pontos: M.fim?.pontos ?? 0, recorde: !!M.fim?.novoRecorde, titulo: 'Keepmile', url: J.link || location.href }).info },
+    cartaoInfo() { const M = X.M(); return X.cartaoDoReino(C, { rodadas: M.fim?.vencidas ?? 0, pontos: M.fim?.pontos ?? 0, recorde: !!M.fim?.novoRecorde, venceu: !!M.fim?.venceu, titulo: 'Keepmile', url: J.link || location.href }).info },
     guarda: () => Guarda.tudo(),
     areaDoTerreno: (k) => { const a = C.areaDoTerreno(k); return { x: a.x * C.css, y: a.y * C.css, w: a.w * C.css, h: a.h * C.css } },
     seguir: () => X.seguir(),
@@ -147,5 +147,50 @@ export async function ligarGanchos(X) {
     maoFixar: (ms) => { const M = X.M(); M.maoFixo = ms ?? undefined; if (ms != null) { M.maoRevelada = false; M.maoLog = [] } },
     pularParaLuta: () => X.pularParaLuta(),
     revela: () => ({ ...X.UI().REVELA }),
+    // ---- R39: a vitória (meta/selo do HUD, a festa do reino e o fim) como a tela guarda e desenha
+    vitoria: () => { const M = X.M(), V = M.vitoria, R = V?.reino || null; return { festas: J.festasDoReino, meta: M.meta ?? null, venceu: !!M.venceu, metaRet: X.UI().metaRet ? { ...X.UI().metaRet } : null, pronto: !!V?.pronto, reino: R ? { ms: R.ms, fim: R.fim, rodada: R.rodada, bate: R.bate ?? null, sai: R.sai ?? null, fogos: R.fogos || 0, fogosVistos: R.fogosVistos || 0, ha: performance.now() - R.t0, ret: R.ret ? { ...R.ret } : null } : null } },
+    fimInfo: () => { const f = X.M().fim; return f ? { venceu: !!f.venceu, titulo: f.titulo ?? null, linhas: f.tituloLinhas ?? null, tituloW: f.tituloW ?? 0, VW: C.VW, vencidas: f.vencidas, contou: !!f.contou, gancho: f.gancho ?? null, ganchoCabe: f.ganchoCabe ?? null, ganchoDegrau: f.ganchoDegrau ? { ...f.ganchoDegrau } : null, album: f.album ? { ...f.album } : null, fita: f.fitaRet ? { ...f.fitaRet } : null, veu: f.veuRet ? { ...f.veuRet } : null, painelY: X.UI().L.fimPainel.y, fecho: f.fechoRet ? { ...f.fechoRet } : null } : null },
+    // ---- R41: o aviso de conquista (ganha pelo gancho, para ver a placa e a fila; no modo local fica guardada no aparelho)
+    conquistar: (ids) => { for (const id of ids) X.conquista(id, X.S.on) },
+    brinde: () => { const M = X.M(), b = M.brinde; return b && performance.now() <= b.t0 + b.ms ? { titulo: b.titulo, texto: b.texto, ms: b.ms, conq: b.conq ?? null, mais: b.mais ?? 0, ret: M.brindeRet ? { ...M.brindeRet } : null } : null },
+    degrauPerto: (r, tem) => X.degrauPerto(r, tem),
+    /** A barra do chefe e a vida dele na batalha, lidas no MESMO quadro: o total nos eventos do motor, a vida de agora nos bonecos da luta e o que a cena desenhou. */
+    chefeNaLuta() {
+      const b = J.pos?.bat, id = b?.horda.chefe, ch = C.chefe; if (!id || !ch) return null
+      let vidaMotor = 0; for (const e of b.eventos) if (e[1] === 'n' && e[3] === 1 && e[4] === id) vidaMotor += e[6]
+      let hp = vidaMotor; for (let i = 0; i < C.n; i++) { if (C.idTipo[i] !== id || C.lado[i] !== 1 || C.est[i] === 0) continue; hp -= C.hpMax[i]; if (C.est[i] === 1 || C.est[i] === 3) hp += Math.max(0, C.hp[i]) }
+      return { id, vidaMotor, max: ch.max, f: ch.f, hpAgora: hp, desenhado: C.med.chefeBarraRet ? { ...C.med.chefeBarraRet } : null }
+    },
+    replayInfo: () => { const r = X.M().replay; return r ? { fim: r.fim, venceu: !!r.venceu } : null },
+    // ---- R46: a revanche (troca grátis de 2 terrenos). O que o motor diz, o que a tela guarda, o que a cena acendeu e a troca em curso
+    revanche() {
+      const M = X.M(), R = M.revanche, V = C.revancheVisto, t = C.troca, agora = performance.now()
+      return {
+        regra: J.regra ?? null, visao: J.v.revanche ? structuredClone(J.v.revanche) : null, trocas: J.op.comandos.filter((c) => c.tipo === 'trocar').length,
+        modelo: R ? { ativa: !!R.ativa, marcado: R.marcado, dica: R.dica ? { ...R.dica } : null, feita: !!R.feita, feitaHa: R.feita ? agora - R.feita : null, ret: R.ret ? { ...R.ret } : null, btRet: R.btRet ? { ...R.btRet } : null, linhas: (R.linhas || []).slice(), aberta: !!R.aberta } : null,
+        cena: V ? { marcado: V.marcado, dica: V.dica.slice(), pulsa: V.pulsa, pulso: V.pulso, rets: structuredClone(V.rets) } : null,
+        troca: t ? { a: t.a, b: t.b, ms: t.ms, some: !!t.some, ha: agora - t.t0 } : null,
+        med: { trocas: C.med.trocas, desvio: C.med.trocaDesvio, quadros: C.med.trocaQuadros, some: C.med.trocaSome },
+        terrenos: C.terrenos.map((x) => (x ? x.carta + ':' + x.nivel : null)),
+      }
+    },
+    /** Passa uma lista de comandos pela tela (as lutas pela reprodução de eventos, sem esperar) e abre a rodada em que parou. */
+    jogarComandos(cmds) {
+      for (const cmd of cmds) {
+        if (cmd.tipo === 'batalhar') { X.M().fase = 'carta'; X.lutar(true); fimDaLutaJa(); X.semTimers(); X.limparFestas() } else if (!X.mandar(cmd)) throw new Error('comando recusado: ' + JSON.stringify(cmd))
+      }
+      X.semTimers(); X.limparFestas()
+      if (J.e.fase === 'fim') X.fimDaPartida(); else if (J.e.fase === 'carta') { X.abrirRodada(); if (X.M().fase === 'chefe') X.seguir() }
+      return { comandos: J.comandos.length, rodada: J.e.rodada, fase: J.e.fase }
+    },
+    /** A partida local vista como REPLAY (o mesmo formato do servidor: início + passos com comando, eventos e visão), para ver a troca passar. */
+    replayLocal({ desde = 0 } = {}) { // `desde`: a partir de que comando (os de antes já entram feitos no início)
+      let e = X.reproduzir({ semente: J.semente, cartasLiberadas: J.liberadas, comandos: J.comandos.slice(0, desde), regra: J.regra }).estado
+      const inicio = X.visao(e), passos = []
+      for (const comando of J.comandos.slice(desde)) { const r = X.aplicar(e, comando); if (!r.ok) break; e = r.estado; passos.push({ comando, eventos: r.eventos, visao: X.visao(e) }) }
+      X.iniciarReplay({ apelido: 'TEST', inicio, passos, resultado: X.resultado(e) })
+      return { passos: passos.length, trocas: passos.filter((p) => p.comando.tipo === 'trocar').length }
+    },
+    tocar: (id, dados = {}) => X.aoTocar(id, dados, {}),
   }
 }

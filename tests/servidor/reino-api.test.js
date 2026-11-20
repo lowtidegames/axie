@@ -269,7 +269,7 @@ describe('R14 — anti-trapaça', () => {
       assert.equal(fim.status, 'terminada')
       assert.equal(fim.resultado.motivo, 'sem_vidas')
       const l = s.db.prepare('SELECT * FROM reino_partidas WHERE id = ?').get(fim.id)
-      const r = reproduzir({ semente: l.semente, cartasLiberadas: JSON.parse(l.liberadas), comandos: JSON.parse(l.comandos) })
+      const r = reproduzir({ semente: l.semente, cartasLiberadas: JSON.parse(l.liberadas), comandos: JSON.parse(l.comandos), regra: l.regra }) // regra mudou (R46): partida nova nasce com a regra 2 (gravada na linha)
       assert.equal(r.ok, true)
       assert.equal(r.resultado.pontos, l.pontos)
       assert.equal(r.resultado.vencidas, l.vencidas)
@@ -631,7 +631,7 @@ describe('R14 — álbum, conquistas e perfil', () => {
       const ini = (await api('GET', '/api/reino/perfil', a.token)).json
       assert.equal(ini.album.rodadasVencidas, 0)
       assert.deepEqual(ini.album.proxima, { carta: ALBUM.ordem[0], rodadas: 8, faltam: 8 })
-      assert.equal(ini.conquistas.length, 12)
+      assert.equal(ini.conquistas.length, 30) // regra mudou (R39): 12 → 30 conquistas
       assert.ok(ini.conquistas.every((c) => !c.feita))
       s.db.prepare('INSERT INTO reino_contas (conta_id, rodadas_vencidas, energia_saldo, energia_dia, criada_em) VALUES (?, 7, 3, ?, ?)').run(a.id, SEGUNDA, T0)
       let p = await abrir(api, a.token, 'treino')

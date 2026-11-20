@@ -3,8 +3,9 @@
 // shared/reino/, grava o resultado que ELE calculou e refaz a partida ao terminar (reproduzir) antes de contar.
 // Números de economia só de shared/reino/config.js (BETA); aqui só limites técnicos do servidor (PARAMS_REINO).
 import { createHash, createHmac, randomBytes } from 'node:crypto'
-import { aplicar as aplicarDoMotor, criarPartida, opcoes, reproduzir as reproduzirDoMotor, resultado as resultadoDoMotor, visao as visaoDoMotor } from '../../shared/reino/partida.js'
+import { aplicar as aplicarDoMotor, criarPartida, opcoes, reproduzir as reproduzirDoMotor, resistiu, resultado as resultadoDoMotor, visao as visaoDoMotor } from '../../shared/reino/partida.js'
 import { ALBUM, BETA, CARTAS, FAMILIAS, PARTIDA } from '../../shared/reino/config.js'
+import { IDS as IDS_DAS_CONQUISTAS, cartasPorRodadas, conquistasDoPasso, limiarDoAlbum, vitoriasDoPasso } from '../../shared/reino/conquistas.js'
 import { transacao } from '../db.mjs'
 import { ErroDoJogo } from '../jogo.mjs'
 import { chaveDoApelido } from '../apelido.mjs'
@@ -35,9 +36,8 @@ export const PARAMS_REINO = {
 
 export const MODOS = ['ranking', 'treino', 'estrada']
 
-/** As 12 conquistas (ids; nome e texto ficam na tela). Só título e enfeite. */
-export const CONQUISTAS = ['supper', 'road', 'plate', 'last', 'house', 'brass', 'family', 'penny', 'double', 'mole', 'pudding', 'librarian']
-const CHEFE_CONQUISTA = { gutbucket: 'road', niptuck: 'double', moleworth: 'mole', gobble: 'pudding' }
+/** As 30 conquistas (R39; ids na ordem de shared/reino/conquistas.js, onde mora a regra; texto fica na tela). Só título e enfeite. */
+export const CONQUISTAS = IDS_DAS_CONQUISTAS
 
 const DIA_MS = 86_400_000
 export const diaUtc = (t) => Math.floor(t / DIA_MS)
@@ -49,17 +49,8 @@ const erro = (status, codigo, motivo, extra) => new ErroDoJogo(status, codigo, m
 const json = (x) => JSON.stringify(x)
 const novoId = () => `pa_${randomBytes(12).toString('hex')}`
 
-/** Rodadas vencidas somadas que liberam a carta de índice i de ALBUM.ordem (docs/reino/biblia.md, seção 9). */
-export function limiarDoAlbum(i) {
-  return i <= ALBUM.quantasNoMeio
-    ? ALBUM.primeira + ALBUM.depoisCada * i
-    : ALBUM.primeira + ALBUM.depoisCada * ALBUM.quantasNoMeio + ALBUM.fimCada * (i - ALBUM.quantasNoMeio)
-}
-export function cartasPorRodadas(rodadas) {
-  let n = 0
-  while (n < ALBUM.ordem.length && limiarDoAlbum(n) <= rodadas) n++
-  return n
-}
+// R39: o álbum por rodadas (limiarDoAlbum, cartasPorRodadas) mora em shared/reino/conquistas.js (a tela usa o mesmo)
+export { cartasPorRodadas, limiarDoAlbum }
 export const liberadasPorRodadas = (rodadas) => [...ALBUM.inicial, ...ALBUM.ordem.slice(0, cartasPorRodadas(rodadas))]
 
 /** Liga pela média (faixa fixa) e posição (os primeiros viram a lenda). */
@@ -77,17 +68,8 @@ export function comandoLimpo(c) {
   if (c.carta !== undefined) k.carta = c.carta
   if (c.terreno !== undefined) k.terreno = c.terreno
   if (c.indice !== undefined) k.indice = c.indice
+  if (c.tipo === 'trocar') { k.a = c.a; k.b = c.b } // R46: a e b só no trocar
   return k
-}
-
-/** Eventos da batalha (arrays compactos) → { quedas, vivos } dos soldados. */
-function contarSoldados(eventos) {
-  const soldados = new Set(), vivos = new Set()
-  let quedas = 0
-  for (const x of eventos ?? []) {
-    if (x[1] === 'n' && x[3] === 0) { soldados.add(x[2]); vivos.add(x[2]) } else if (x[1] === 'c' && vivos.has(x[2])) { vivos.delete(x[2]); quedas++ } else if (x[1] === 'r' && soldados.has(x[2])) vivos.add(x[2])
-  }
-  return { quedas, vivos: vivos.size }
 }
 
 /**
@@ -134,8 +116,8 @@ export function criarReino(db, {
     aberta: db.prepare("SELECT * FROM reino_partidas WHERE conta_id = ? AND modo = ? AND status = 'aberta'"),
     abertas: db.prepare("SELECT * FROM reino_partidas WHERE conta_id = ? AND status = 'aberta' ORDER BY tocada_em DESC"),
     estradaDoDia: db.prepare("SELECT id, status FROM reino_partidas WHERE conta_id = ? AND modo = 'estrada' AND dia = ?"),
-    nova: db.prepare(`INSERT INTO reino_partidas (id, conta_id, modo, dia, temporada, semente, liberadas, estado, status, criada_em, tocada_em)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aberta', ?, ?)`),
+    nova: db.prepare(`INSERT INTO reino_partidas (id, conta_id, modo, dia, temporada, semente, liberadas, estado, status, criada_em, tocada_em, regra)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aberta', ?, ?, ?)`),
     salvar: db.prepare("UPDATE reino_partidas SET estado = ?, comandos = ?, tempos = ?, novidades = ?, seq = ?, tocada_em = ? WHERE id = ? AND seq = ? AND status = 'aberta'"),
     guardarResposta: db.prepare('UPDATE reino_partidas SET resposta = ? WHERE id = ?'),
     contaCriada: db.prepare('SELECT criada_em FROM contas WHERE id = ?'),
@@ -178,6 +160,9 @@ export function criarReino(db, {
     melhores: db.prepare(`SELECT id, modo, dia, temporada, pontos, vencidas, rodada, terminada_em FROM reino_partidas
                           WHERE conta_id = ? AND status = 'terminada' AND conferida = 1 ORDER BY pontos DESC, terminada_em ASC LIMIT ?`),
     maisRodadas: db.prepare("SELECT MAX(vencidas) n FROM reino_partidas WHERE conta_id = ? AND status = 'terminada' AND conferida = 1"),
+    // R39: partidas conferidas em que o reino resistiu (venceu a rodada da vitória). Treino não entra: treino além do
+    // teto (treinosGuardados) é apagado, e o número desceria (achado da segurança).
+    vitorias: db.prepare("SELECT COUNT(*) n FROM reino_partidas WHERE conta_id = ? AND status = 'terminada' AND conferida = 1 AND modo <> 'treino' AND vencidas >= ?"),
     treinosAlemDoTeto: db.prepare(`SELECT id FROM reino_partidas WHERE conta_id = ? AND modo = 'treino' AND status = 'terminada'
                                    AND id NOT IN (SELECT id FROM reino_partidas WHERE conta_id = ? AND status = 'terminada' ORDER BY pontos DESC, terminada_em ASC LIMIT ?)
                                    ORDER BY terminada_em DESC, rowid DESC LIMIT -1 OFFSET ?`),
@@ -244,9 +229,12 @@ export function criarReino(db, {
   const estadoDe = (linha) => JSON.parse(linha.estado)
   const comandosDe = (linha) => JSON.parse(linha.comandos)
 
+  // R46: a regra da partida vem da coluna (v9; as de antes = 1). O motor sem regra (ou com 1) joga a de antes.
+  const regraDe = (linha) => linha.regra ?? 1
+
   /** Partida terminada refeita pelo motor (com ou sem eventos). */
   function refazer(linha) {
-    return reproduzir({ semente: linha.semente, cartasLiberadas: JSON.parse(linha.liberadas), comandos: comandosDe(linha) })
+    return reproduzir({ semente: linha.semente, cartasLiberadas: JSON.parse(linha.liberadas), comandos: comandosDe(linha), regra: regraDe(linha) })
   }
   /** Estado atual: o gravado (aberta) ou o refeito (terminada). */
   function estadoAtual(linha) {
@@ -259,7 +247,11 @@ export function criarReino(db, {
     return r.estado
   }
 
-  const resultadoGravado = (linha) => ({ motivo: linha.motivo, pontos: linha.pontos, vencidas: linha.vencidas, rodada: linha.rodada, conta: linha.conferida === 1 })
+  // R39: venceu sai do número de vencidas JÁ conferido (partida que não bateu na conferência não venceu)
+  const resultadoGravado = (linha) => ({
+    motivo: linha.motivo, pontos: linha.pontos, vencidas: linha.vencidas, rodada: linha.rodada, conta: linha.conferida === 1,
+    venceu: linha.conferida === 1 && resistiu(linha.vencidas),
+  })
 
   /** O que a tela recebe de uma partida. Nunca a semente nem o estado do sorteio. */
   function resposta(linha, e, eventos = [], novidades = null) {
@@ -271,6 +263,7 @@ export function criarReino(db, {
       temporada: linha.temporada,
       status: aberta ? 'aberta' : 'terminada',
       seq: linha.seq,
+      regra: regraDe(linha), // R46: 1 = horda nova depois de perder; 2 = revanche (visao.revanche)
       visao: visaoDoMotor(e),
       opcoes: aberta ? opcoes(e) : null,
       eventos,
@@ -413,17 +406,18 @@ export function criarReino(db, {
     if (modo === 'ranking' && energiaAgora(c, t).atual < E.porPartidaDeRanking) throw semEnergia(c) // recusa rápida; a trava é na transação
     const liberadas = modo === 'estrada' ? ALBUM.inicial.slice() : liberadasPorRodadas(c.rodadas_vencidas)
     const semente = modo === 'estrada' ? sementeDaEstrada(dia) : randomBytes(16).toString('hex')
-    const e = criarPartida({ semente, cartasLiberadas: liberadas })
+    const regra = PARTIDA.regra // R46: a regra das partidas novas (gravada na linha e no estado)
+    const e = criarPartida({ semente, cartasLiberadas: liberadas, regra })
     const id = novoId()
     const linha = {
       id, conta_id: contaId, modo, dia, temporada: temporadaDoDia(dia), semente, liberadas: json(e.liberadas), estado: json(e),
-      comandos: '[]', tempos: '[]', novidades: null, seq: 0, status: 'aberta', criada_em: t, tocada_em: t,
+      comandos: '[]', tempos: '[]', novidades: null, seq: 0, status: 'aberta', criada_em: t, tocada_em: t, regra,
     }
     transacao(db, () => {
       garantirConta(contaId)
       if (modo === 'ranking') gastarEnergia(contaId)
       try {
-        q.nova.run(id, contaId, modo, dia, linha.temporada, semente, linha.liberadas, linha.estado, t, t)
+        q.nova.run(id, contaId, modo, dia, linha.temporada, semente, linha.liberadas, linha.estado, t, t, regra)
       } catch (x) {
         if (!/UNIQUE/i.test(String(x.message))) throw x
         if (modo === 'estrada' && q.estradaDoDia.get(contaId, dia)?.status === 'terminada') throw erro(409, 'ESTRADA_JA_JOGADA', 'Você já fez a estrada de hoje. Amanhã tem outra.')
@@ -435,36 +429,22 @@ export function criarReino(db, {
 
   // ---------------------------------------------------------------- comando
 
-  /** Conquistas novas e carta nova depois de um comando aplicado. Dentro de transação. */
+  /**
+   * Conquistas novas e carta nova depois de um comando aplicado. Dentro de transação. A regra das conquistas é a de
+   * shared/reino/conquistas.js, sobre o estado e os eventos que o MOTOR do servidor calculou (nada vem da tela).
+   */
   function novidadesDoPasso(linha, antes, depois, eventos, cmds) {
     const c = garantirConta(linha.conta_id)
     const tem = new Set(JSON.parse(c.conquistas))
-    const ganhou = []
-    const marcar = (id) => { if (!tem.has(id)) { tem.add(id); ganhou.push(id) } }
-    let vitorias = 0
-    for (const ev of eventos) {
-      if (ev.tipo !== 'batalha' || !ev.vitoria) continue
-      vitorias++
-      marcar('supper')
-      if (ev.horda?.chefe && CHEFE_CONQUISTA[ev.horda.chefe]) marcar(CHEFE_CONQUISTA[ev.horda.chefe])
-      const { quedas, vivos } = contarSoldados(ev.eventos)
-      if (quedas === 0) marcar('plate')
-      if (vivos === 1) marcar('last')
-      if (antes.rodada === 10 && !cmds.some((x) => x.tipo === 'sortear')) marcar('penny')
-    }
-    const t = depois.terrenos
-    if (t.every(Boolean)) {
-      marcar('house')
-      if (new Set(t.map((x) => CARTAS[x.carta].familia)).size === 1) marcar('family')
-    }
-    if (t.some((x) => x && x.nivel >= PARTIDA.nivelMax)) marcar('brass')
+    const ganhou = conquistasDoPasso({ antes, depois, eventos, comandos: cmds, rodadasAntes: c.rodadas_vencidas, tem })
+    for (const id of ganhou) tem.add(id)
+    const vitorias = vitoriasDoPasso(eventos)
     let cartaNova = null
     if (vitorias) {
       const antesN = cartasPorRodadas(c.rodadas_vencidas)
       const depoisN = cartasPorRodadas(c.rodadas_vencidas + vitorias)
       q.rodadas.run(vitorias, linha.conta_id)
       if (depoisN > antesN) cartaNova = ALBUM.ordem[depoisN - 1]
-      if (depoisN >= ALBUM.ordem.length) marcar('librarian')
     }
     if (ganhou.length) {
       const quando = JSON.parse(c.conquistas_quando || '{}') // R22: a hora em que cada conquista foi ganha
@@ -559,7 +539,7 @@ export function criarReino(db, {
   }
 
   function placarDoDia(dia, contaId) {
-    const lista = q.placarDoDia.all(dia, dia * DIA_MS, (dia + 1) * DIA_MS, P.placarDoDia).map((l, i) => ({ posicao: i + 1, apelido: l.apelido, pontos: l.pontos, vencidas: l.vencidas, partida: l.id }))
+    const lista = q.placarDoDia.all(dia, dia * DIA_MS, (dia + 1) * DIA_MS, P.placarDoDia).map((l, i) => ({ posicao: i + 1, apelido: l.apelido, pontos: l.pontos, vencidas: l.vencidas, venceu: resistiu(l.vencidas), partida: l.id }))
     const minha = q.minhaEstrada.get(contaId, dia)
     const fora = foraDoPlacar(contaId, dia)
     let voce = null
@@ -579,7 +559,7 @@ export function criarReino(db, {
   function placarDeOntem(dia, contaId) {
     const aberta = q.estradaDoDia.get(contaId, dia)?.status === 'aberta'
     const lista = q.placarDoDia.all(dia, dia * DIA_MS, (dia + 1) * DIA_MS, P.placarDoDia).map((l, i) => ({
-      posicao: i + 1, apelido: l.apelido, pontos: l.pontos, vencidas: l.vencidas,
+      posicao: i + 1, apelido: l.apelido, pontos: l.pontos, vencidas: l.vencidas, venceu: resistiu(l.vencidas),
       partida: l.conta_id === contaId || (!aberta && i < P.topoComReplay) ? l.id : null,
     }))
     return { dia: new Date(dia * DIA_MS).toISOString().slice(0, 10), lista }
@@ -638,9 +618,9 @@ export function criarReino(db, {
       apelido: q.apelido.get(contaId)?.apelido ?? null,
       album: { rodadasVencidas: rodadas, liberadas: liberadasPorRodadas(rodadas), total: Object.keys(CARTAS).length, proxima },
       conquistas: CONQUISTAS.map((id) => ({ id, feita: tem.has(id), quando: tem.has(id) && Number.isSafeInteger(quando[id]) ? new Date(quando[id]).toISOString() : null })),
-      recordes: { pontos: c.recorde, rodadasVencidas: q.maisRodadas.get(contaId)?.n ?? 0, partidas: c.partidas },
+      recordes: { pontos: c.recorde, rodadasVencidas: q.maisRodadas.get(contaId)?.n ?? 0, partidas: c.partidas, vitorias: q.vitorias.get(contaId, PARTIDA.rodadaDaVitoria).n },
       melhores: q.melhores.all(contaId, P.melhoresNoPerfil).map((m) => ({
-        id: m.id, modo: m.modo, pontos: m.pontos, vencidas: m.vencidas, rodada: m.rodada, quando: new Date(m.terminada_em).toISOString(),
+        id: m.id, modo: m.modo, pontos: m.pontos, vencidas: m.vencidas, venceu: resistiu(m.vencidas), rodada: m.rodada, quando: new Date(m.terminada_em).toISOString(),
       })),
       energia: energiaAgora(c, t),
       temporada: { numero: temporada, termina: new Date(inicioDaTemporada(temporada + 1)).toISOString(), voce: posicaoNaTemporada(temporada, contaId) },
@@ -741,7 +721,9 @@ export function criarReino(db, {
       return ja
     }
     const cmds = comandosDe(linha)
-    let e = criarPartida({ semente: linha.semente, cartasLiberadas: JSON.parse(linha.liberadas) })
+    // R46: com a regra da partida. Aqui é passo a passo (cada passo leva eventos e visão, com a dica da revanche): a partida
+    // terminada é montada uma vez e fica guardada (replayCacheBytes), e o pedido tem limite por conta e por IP.
+    let e = criarPartida({ semente: linha.semente, cartasLiberadas: JSON.parse(linha.liberadas), regra: regraDe(linha) })
     const inicio = json(visaoDoMotor(e))
     const passos = []
     for (let i = 0; i < cmds.length; i++) {
@@ -801,7 +783,7 @@ export function criarReino(db, {
     const passos = montado.passos.slice(desde, ate).map((t) => JSON.parse(t))
     return {
       id: linha.id, modo: linha.modo, dia: new Date(linha.dia * DIA_MS).toISOString().slice(0, 10), temporada: linha.temporada,
-      apelido: q.apelido.get(linha.conta_id)?.apelido ?? null, propria,
+      apelido: q.apelido.get(linha.conta_id)?.apelido ?? null, propria, regra: regraDe(linha),
       cartasLiberadas: liberadas, semente: linha.semente,
       inicio, passos, totalPassos: total, desde, proximo: ate < total ? ate : null,
       resultado: resultadoGravado(linha),

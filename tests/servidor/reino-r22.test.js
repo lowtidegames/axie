@@ -342,8 +342,9 @@ describe('R22 — migração v7 (banco usado da v6 e do zero)', () => {
 
     const { s, api } = await subir({ dbPath: arq, t: T0 + 60_000 })
     try {
-      assert.equal(VERSAO_DO_BANCO, 7)
-      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, 7)
+      // regra mudou (R39): entrou a v8 (só dados: conquistas de degrau)
+      assert.equal(VERSAO_DO_BANCO, 9) // regra mudou (R46): entrou a v9 (regra de cada partida)
+      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, 9) // regra mudou (R46): entrou a v9 (regra de cada partida)
       const copias = fs.readdirSync(path.join(pasta, 'copias')).filter((n) => n.startsWith('v6.db.v6.'))
       assert.equal(copias.length, 1, copias.join(','))
       const c = new DatabaseSync(path.join(pasta, 'copias', copias[0]), { readOnly: true })
@@ -360,7 +361,7 @@ describe('R22 — migração v7 (banco usado da v6 e do zero)', () => {
   test('banco novo nasce na v7 com as colunas novas', () => {
     const db = abrirBanco(':memory:')
     try {
-      assert.equal(db.prepare('PRAGMA user_version').get().user_version, 7)
+      assert.equal(db.prepare('PRAGMA user_version').get().user_version, 9) // regra mudou (R39): entrou a v8 (só dados: conquistas de degrau); (R46): entrou a v9 (regra de cada partida)
       const cols = db.prepare('PRAGMA table_info(reino_contas)').all().map((c) => c.name)
       assert.ok(cols.includes('apelido_trocado_em') && cols.includes('conquistas_quando'), cols.join(','))
     } finally { db.close() }

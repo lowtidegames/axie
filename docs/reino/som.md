@@ -1,5 +1,7 @@
 # Reino — direção de som (versão 1, 19/11/2026)
 
+> **Atualização R35 (20/11/2026).** Os números abaixo são da versão 1. Hoje: **73 efeitos** e **4 ambientes** por código (um por trecho da estrada, cruzando em 1,5 s), mais 38 amostras gravadas de 14 eventos em `public/reino/sons/`. O teste tem **149 conferências**. Peças novas em `som-reino.js`: `Som.golpe` (som no quadro do dano; o mesmo pelotão em 60 ms soa uma vez, mais forte; teto de ~25 golpes novos por segundo; altura e força variam), `Som.hitStop` (corte de agudo junto da parada), `Som.ambiente`, estéreo leve pelo X (teto ±0,6) e ducking (10 dB no chefe caindo, 9 dB no recorde). A cena avisa o som pelo gancho `C.aoSom` (`cena.js`). Volume e mudo usam rampa pelo relógio. A lista viva dos sons, com o evento que dispara cada um, é a folha `public/reino/sons.html`.
+
 Para ouvir: abra `public/reino/sons.html` (um botão por som, os momentos da música e "Simulate a round"). Motor: `public/reino/som-reino.js`. Tudo que está aqui já toca, fabricado por código. Tema, nomes e sons são PROVISÓRIOS até o dono ouvir e aprovar.
 
 ## 1. A frase e os 5 princípios

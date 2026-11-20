@@ -2,66 +2,66 @@ Reino — medidas do som (tests/tela/reino-som.e2e.mjs). Fabricado fora do tempo
 
 == Antes do primeiro toque
   ok: nada toca e nenhum contexto de áudio existe antes do primeiro toque (tocar devolve false; a música só fica pedida)
-  ok: a folha tem 37 botões de efeito e 8 momentos de música (mínimo 20 e 4)
+  ok: a folha tem 75 botões de efeito e 8 momentos de música (mínimo 20 e 4)
 
 == Efeitos: cada variação fabricada pela cadeia inteira e medida
 efeito            var  pico dBFS  alvo  duração ms  tabela  começo ms
 toque             1      -18.9   -18         53      60       6.2
 toque             2      -19.0   -18         61      60       6.2
 toque             3      -19.0   -18         58      60       6.2
-cartaAparece      1      -14.9   -14        174     200       7.2
-cartaAparece      2      -15.0   -14        222     200       7.6
-cartaAparece      3      -14.9   -14        223     200       7.0
+cartaAparece      1      -14.9   -14        176     200       7.2
+cartaAparece      2      -14.9   -14        222     200       7.6
+cartaAparece      3      -15.0   -14        223     200       7.0
 cartaEscolhe      1      -13.0   -12        217     220       6.1
-cartaEscolhe      2      -13.0   -12        218     220       6.1
-cartaEscolhe      3      -13.0   -12        221     220       6.1
+cartaEscolhe      2      -12.9   -12        218     220       6.1
+cartaEscolhe      3      -12.9   -12        221     220       6.1
 cartaPoe          1      -12.0   -11        316     320       6.2
-cartaPoe          2      -11.8   -11        305     320       6.2
+cartaPoe          2      -11.7   -11        305     320       6.2
 cartaPoe          3      -11.9   -11        331     320       6.3
-sortear           1      -14.0   -13        462     460       6.6
-sortear           2      -14.0   -13        552     460       6.4
-sortear           3      -13.9   -13        376     460       6.3
-ouro              1      -13.9   -13        218     190       6.3
-ouro              2      -13.9   -13        179     190       6.3
-ouro              3      -13.8   -13        171     190       6.3
+sortear           1      -14.0   -13        468     460       6.6
+sortear           2      -13.9   -13        552     460       6.4
+sortear           3      -13.8   -13        376     460       6.3
+ouro              1      -13.8   -13        218     190       6.3
+ouro              2      -14.0   -13        179     190       6.3
+ouro              3      -13.7   -13        170     190       6.3
 negado            1      -15.7   -15        199     200       6.4
 negado            2      -16.0   -15        197     200       6.4
 negado            3      -15.9   -15        199     200       6.4
 faltaUm           1      -15.0   -14        297     300       6.1
-consertar         1      -13.2   -12        544     550       6.3
-consertar         2      -13.0   -12        544     550       6.2
-consertar         3      -13.0   -12        549     550       6.2
+consertar         1      -13.1   -12        544     550       6.3
+consertar         2      -13.1   -12        544     550       6.2
+consertar         3      -12.9   -12        549     550       6.2
 nivelPequeno      1      -11.6   -11        414     430       6.1
-nivelPequeno      2      -11.5   -11        464     430       6.2
+nivelPequeno      2      -11.4   -11        464     430       6.2
 nivelPequeno      3      -11.8   -11        399     430       6.1
-nivelGrande       1       -8.8    -8       1085    1080       6.3
-marcha            1      -13.9   -13        808     770       6.1
+nivelGrande       1       -8.7    -8       1085    1080       6.3
+marcha            1      -13.9   -13        808     770       6.2
 marcha            2      -13.9   -13        812     770       6.2
 marcha            3      -14.0   -13        731     770       6.2
 choque            1      -12.0   -11        509     540       6.3
-choque            2      -12.0   -11        565     540       6.1
+choque            2      -12.0   -11        562     540       6.1
 choque            3      -11.9   -11        533     540       6.2
 espada            1      -16.9   -16         51      60       6.2
-espada            2      -17.0   -16         64      60       6.3
+espada            2      -16.9   -16         64      60       6.3
 espada            3      -17.0   -16         50      60       6.3
 flecha            1      -14.9   -14        213     220       7.7
 flecha            2      -14.8   -14        234     220       6.8
 flecha            3      -14.8   -14        215     220       7.9
-magiaFogo         1      -11.0   -10        399     380       6.3
-magiaFogo         2      -11.3   -10        361     380       6.2
+magiaFogo         1      -11.0   -10        399     380       6.2
+magiaFogo         2      -11.1   -10        361     380       6.2
 magiaFogo         3      -11.0   -10        364     380       6.3
-magiaGelo         1      -11.2   -11        412     410       6.3
+magiaGelo         1      -11.1   -11        412     410       6.3
 magiaGelo         2      -11.6   -11        423     410       6.3
-magiaGelo         3      -11.4   -11        388     410       6.3
-magiaRaio         1      -11.0   -10        198     200       6.1
-magiaRaio         2      -11.0   -10        211     200       6.0
-magiaRaio         3      -11.0   -10        206     200       6.2
-magiaCura         1      -12.8   -12        613     560       6.2
-magiaCura         2      -12.7   -12        511     560       6.1
-magiaCura         3      -12.8   -12        531     560       6.2
+magiaGelo         3      -11.3   -11        388     410       6.3
+magiaRaio         1      -12.4   -10        212     200       6.1
+magiaRaio         2      -10.0   -10        191     200       6.1
+magiaRaio         3       -9.7   -10        188     200       6.2
+magiaCura         1      -12.6   -12        611     560       6.2
+magiaCura         2      -12.6   -12        511     560       6.1
+magiaCura         3      -12.8   -12        535     560       6.2
 critico           1       -9.0    -8        335     340       6.1
 critico           2       -8.9    -8        344     340       6.1
-critico           3       -9.0    -8        331     340       6.2
+critico           3       -9.0    -8        331     340       6.1
 soldadoCai        1      -17.0   -16        230     230       6.2
 soldadoCai        2      -17.0   -16        228     230       6.2
 soldadoCai        3      -16.9   -16        232     230       6.2
@@ -73,7 +73,7 @@ casteloRacha      2       -8.2    -7        798     790       6.2
 casteloRacha      3       -8.3    -7        789     790       6.1
 vidaPerdida       1       -9.9    -9        746     750       6.2
 invasorChega      1      -10.8   -10        981     980       6.5
-chefeAnuncia      1       -9.0    -8       1303    1300       6.4
+chefeAnuncia      1       -9.0    -8       1303    1300       6.2
 chefeEntra        1       -8.2    -7        887     890       6.5
 chefeCai          1       -8.3    -7       1395    1400       7.2
 vitoria           1       -7.8    -7       1644    1640       6.4
@@ -81,17 +81,93 @@ espolio           1      -12.0   -11        496     500       7.0
 espolio           2      -12.2   -11        513     500       7.0
 espolio           3      -12.1   -11        497     500       7.0
 espolioEscolhe    1      -12.0   -11        283     260       6.2
-espolioEscolhe    2      -11.9   -11        239     260       6.1
+espolioEscolhe    2      -12.0   -11        239     260       6.1
 espolioEscolhe    3      -12.0   -11        252     260       6.2
 derrota           1       -9.8    -9       1634    1630       6.3
-fimDePartida      1       -8.1    -7       2314    2310       6.2
+fimDePartida      1       -8.0    -7       2314    2310       6.2
 recorde           1       -9.0    -8       1247    1250       6.2
-rankingSobe       1      -15.0   -14        155     140       6.1
+rankingSobe       1      -15.3   -14        158     140       6.1
 rankingSobe       2      -15.0   -14        146     140       6.1
 rankingSobe       3      -14.9   -14        132     140       6.1
 cartaNova         1      -10.2    -9        987     990       8.0
 conquista         1      -10.0    -9        965     960       6.3
-  ok: 37 efeitos na tabela (mínimo 20), 85 variações medidas
+cartaVira         1      -16.1   -15        128     128       7.2
+cartaVira         2      -15.8   -15        139     128       7.6
+cartaVira         3      -16.2   -15        115     128       7.6
+cartaRara         1      -13.0   -12        351     350       6.2
+ouroTique         1      -20.0   -19         41      37       6.2
+ouroTique         2      -19.9   -19         33      37       6.2
+ouroTique         3      -20.1   -19         36      37       6.2
+menuAbre          1      -15.9   -15        345     340       9.9
+menuFecha         1      -16.8   -16        267     280       6.2
+velocidade        1      -15.9   -15        172     160       7.8
+replayPula        1      -14.9   -14        498     500       6.4
+semSinal          1      -16.8   -16        376     400       6.2
+voltou            1      -15.0   -14        396     420       6.1
+apelidoOk         1      -12.9   -12        593     560       7.5
+gancho            1      -14.9   -14        555     560       6.1
+rankUp            1       -9.9    -9        917     900       6.4
+impacto           1      -16.0   -15         59      50       6.1
+impacto           2      -16.0   -15         39      50       6.2
+impacto           3      -15.9   -15         60      50       6.1
+golpeCorte        1      -15.0   -14         64      70       6.2
+golpeCorte        2      -15.0   -14         69      70       6.1
+golpeCorte        3      -14.9   -14         77      70       6.2
+golpeEstocada     1      -16.0   -15         29      30       6.1
+golpeEstocada     2      -16.0   -15         28      30       6.1
+golpeEstocada     3      -15.9   -15         30      30       6.1
+golpeFrigideira   1      -12.9   -12        200     175       6.2
+golpeFrigideira   2      -12.9   -12        152     175       6.1
+golpeFrigideira   3      -12.9   -12        180     175       6.1
+golpeBicada       1      -13.9   -13        172     195       6.1
+golpeBicada       2      -13.8   -13        222     195       6.1
+golpeBicada       3      -13.8   -13        183     195       6.1
+golpeEsmaga       1      -11.9   -11        172     170       6.2
+golpeEsmaga       2      -12.0   -11        162     170       6.2
+golpeEsmaga       3      -11.9   -11        174     170       6.2
+golpeMordida      1      -13.8   -13        122     120       6.2
+golpeMordida      2      -14.1   -13        119     120       6.2
+golpeMordida      3      -14.0   -13        117     120       6.2
+golpePortada      1      -12.9   -12        153     155       6.1
+golpePortada      2      -13.0   -12        154     155       6.1
+golpePortada      3      -13.0   -12        153     155       6.1
+golpeInvestida    1      -13.0   -12        122     105       6.2
+golpeInvestida    2      -13.0   -12         93     105       6.1
+golpeInvestida    3      -13.0   -12         97     105       6.2
+golpeBarrigada    1      -12.0   -12        293     275       6.2
+golpeBarrigada    2      -12.6   -12        263     275       6.3
+golpeBarrigada    3      -12.5   -12        262     275       6.2
+arcoSolta         1      -17.9   -17        199     185       6.1
+arcoSolta         2      -17.9   -17        179     185       6.2
+arcoSolta         3      -17.9   -17        176     185       6.1
+arremesso         1      -18.9   -18        188     180       8.0
+arremesso         2      -18.8   -18        181     180       8.0
+arremesso         3      -18.8   -18        181     180       9.1
+flechaFinca       1      -15.0   -14        128     140       6.2
+flechaFinca       2      -15.0   -14        127     140       6.2
+flechaFinca       3      -15.0   -14        127     140       6.1
+splat             1      -16.0   -15        204     225       6.2
+splat             2      -16.0   -15        253     225       6.1
+splat             3      -15.9   -15        205     225       6.2
+fumaca            1      -21.0   -20        111     125       6.3
+fumaca            2      -20.9   -20        140     125       6.3
+fumaca            3      -20.9   -20        136     125       6.4
+grupoCai          1      -12.9   -12        473     470       6.2
+explosao          1      -10.4    -9        437     440       6.2
+explosao          2      -10.1    -9        440     440       6.2
+explosao          3      -10.2    -9        450     440       6.2
+poeira            1      -22.9   -22        473     470       7.1
+gritoTropa        1      -13.8   -13        319     320       6.2
+festaTropa        1      -14.5   -13        726     700       8.3
+recuoTropa        1      -15.4   -15        470     470       6.7
+pisao             1       -8.2    -7        418     420       6.2
+chefeJoelho       1      -12.0   -11        154     155       6.2
+chefeTomba        1       -9.0    -8        590     590       6.3
+troca             1      -15.9   -15        267     290       7.8
+troca             2      -16.0   -15        276     290       9.4
+troca             3      -15.9   -15        261     290       9.3
+dica              1      -17.9   -17        410     380       6.2
+  ok: 75 efeitos na tabela (mínimo 20), 161 variações medidas
   ok: cada variação: pico no alvo (±2,5 dB) e abaixo de −3 dBFS, duração ±25% da tabela, começa em até 15 ms, sem estouro, variações diferentes
   ok: a cadeia não muda o volume de um som baixo (entrou −30,0 dBFS, saiu -30.3)
   ok: 12 sons grandes + música ao mesmo tempo: pico -3.5 dBFS (teto −3), sem estouro
@@ -102,12 +178,12 @@ construir       -16.7      -29.0       0.4  100
 batalha         -11.3      -27.9       1.4  100
 chefe           -10.3      -26.5       1.5  100
 porUmFio        -15.1      -29.4       1.6  100
-vitoria         -12.8      -26.1       0.8  100
-derrota         -18.1      -28.7       0.6  86
-fim             -11.5      -26.2       0.9  106
+vitoria         -12.6      -26.1       0.8  100
+derrota         -18.2      -28.7       0.6  86
+fim             -11.7      -26.2       0.9  106
 menu            -12.6      -31.4       2.3  88
   ok: 8 momentos de música tocam, sem estouro
-  ok: música abaixo dos efeitos: picos de -18.1 a -10.3 dBFS (teto −9), médio de -31.4 a -26.1 dBFS (faixa −40 a −22)
+  ok: música abaixo dos efeitos: picos de -18.2 a -10.3 dBFS (teto −9), médio de -31.4 a -26.1 dBFS (faixa −40 a −22)
   ok: o MOTIVO está nas notas certas em "construir": 67 74 71 72 69 67 64 69 (sol ré si dó lá | sol mi lá)
   ok: o mesmo motivo toca na batalha (charamela)
   ok: no menu o alaúde (corda dedilhada) toca o motivo afinado
@@ -116,14 +192,14 @@ menu            -12.6      -31.4       2.3  88
   ok: a música cresce com as rodadas: 100 → 121 batidas por minuto; rodada 12 mais cheia que a 1 (-25.3 contra -27.9 dBFS)
 
 == Ao vivo: cada botão da folha toca o seu som
-  ok: os 37 botões tocam (cada um contou 1 vez)
+  ok: os 75 botões tocam (cada um contou 1 vez)
   ok: áudio ligado depois do toque; atraso do toque ao som: 14 ms (limite 50)
-  ok: som saiu de verdade e o pico ao vivo ficou em -5.2 dBFS (teto −3)
+  ok: som saiu de verdade e o pico ao vivo ficou em -5.3 dBFS (teto −3)
   ok: nenhuma voz fica viva depois que os sons acabam
 
 == Teto de vozes
   ok: 160 pedidos de som de soldado em 1,6 s viram no máximo 6 vozes de tropa (ficaram 5)
-  ok: 13 sons longos juntos: 12 vozes vivas, a mais fraca e antiga saiu (1 troca)
+  ok: 13 sons longos juntos: 12 vozes vivas, a mais fraca e antiga saiu (5 troca)
   ok: com o teto cheio de sons importantes, um som fraco (espada) não entra e um mais forte (magia) entra no lugar do menos importante
 
 == Mudo, volumes guardados e "Menos animação"
@@ -134,24 +210,24 @@ menu            -12.6      -31.4       2.3  88
 == Música ao vivo: troca de momento na virada do compasso
   ok: "construir" começa a tocar depois do toque (100 batidas por minuto)
   ok: pedida a batalha, a música NÃO troca na hora: fica pedida
-  ok: a troca caiu na linha do compasso (1118.7 ms depois do pedido; compasso de 2400.0 ms)
+  ok: a troca caiu na linha do compasso (1139.0 ms depois do pedido; compasso de 2400.0 ms)
   ok: os 4 momentos pedidos (construir, batalha, chefe, vitória) tocam ao vivo; pico da música -12.7 dBFS
-  ok: parar a música: silêncio (pico 0.0006)
+  ok: parar a música: silêncio (pico 0.0009)
 
 == "Simulate a round": a rodada inteira
   ok: a rodada tocou na ordem: cartas → escolher → pôr → invasor → marcha → choque → vitória → espólio → ouro (76 sons)
   ok: 3 cartas aparecem e 3 moedas caem
   ok: a batalha dura 12.0 s e tem 62 sons (dezenas lutando sem virar barulho)
-  ok: no pior momento: 5 vozes (teto 12), 5 de tropa (teto 6)
+  ok: no pior momento: 6 vozes (teto 12), 6 de tropa (teto 6)
   ok: a música acompanhou: construir → batalha → vitoria → construir
-  ok: pico da rodada inteira ao vivo: -7.4 dBFS (teto −3)
+  ok: pico da rodada inteira ao vivo: -7.5 dBFS (teto −3)
 
 == Celular (390 × 844)
   ok: toca com o dedo, sem rolagem de lado, botões com 44 px ou mais de altura
 
 == Amostra gravada (manifesto de teste) no lugar do código
   ok: a amostra boa toca no lugar do código; arquivo estragado e nome desconhecido caem para o código, sem erro
-  ok: amostra entra no mesmo alvo de pico (-10.9 dBFS com os dois sons)
+  ok: amostra entra no mesmo alvo de pico (-11.1 dBFS com os dois sons)
 
 == Amostras reais do manifesto: carrega, pico, duração, começo sem atraso, tamanho
   ok: choque-1.mp3: carrega, mono, 290.7 ms, pico -11.2 dBFS (alvo -11), começa em 0.0 ms, 4 KB
@@ -176,11 +252,137 @@ menu            -12.6      -31.4       2.3  88
   ok: recorde-1.mp3: carrega, mono, 1456.3 ms, pico -8.9 dBFS (alvo -8), começa em 0.6 ms, 18 KB
   ok: recorde-2.mp3: carrega, mono, 1441.5 ms, pico -8.9 dBFS (alvo -8), começa em 0.7 ms, 18 KB
   ok: recorde-3.mp3: carrega, mono, 1463.9 ms, pico -8.9 dBFS (alvo -8), começa em 0.2 ms, 18 KB
-  ok: pasta public/reino/sons/ com 215 KB (limite 3 MB)
-  ok: cada evento do manifesto tem de 1 a 3 variações: {"choque":3,"marcha":2,"casteloRacha":3,"muralha":3,"chefeEntra":3,"flecha":2,"espolio":3,"recorde":3}
+  ok: golpeBicada-1.mp3: carrega, mono, 347.9 ms, pico -13.9 dBFS (alvo -13), começa em 0.5 ms, 5 KB
+  ok: golpeBicada-2.mp3: carrega, mono, 222.6 ms, pico -13.9 dBFS (alvo -13), começa em 3.0 ms, 3 KB
+  ok: golpeFrigideira-1.mp3: carrega, mono, 343.5 ms, pico -12.9 dBFS (alvo -12), começa em 3.0 ms, 5 KB
+  ok: golpeFrigideira-2.mp3: carrega, mono, 291.4 ms, pico -12.5 dBFS (alvo -12), começa em 3.1 ms, 4 KB
+  ok: golpeMordida-1.mp3: carrega, mono, 399.0 ms, pico -13.6 dBFS (alvo -13), começa em 3.0 ms, 6 KB
+  ok: golpeMordida-2.mp3: carrega, mono, 465.2 ms, pico -14.1 dBFS (alvo -13), começa em 3.0 ms, 6 KB
+  ok: golpeMordida-3.mp3: carrega, mono, 463.4 ms, pico -14.2 dBFS (alvo -13), começa em 0.3 ms, 6 KB
+  ok: golpePortada-1.mp3: carrega, mono, 304.1 ms, pico -13.0 dBFS (alvo -12), começa em 0.2 ms, 4 KB
+  ok: golpePortada-2.mp3: carrega, mono, 420.0 ms, pico -13.0 dBFS (alvo -12), começa em 0.5 ms, 6 KB
+  ok: golpePortada-3.mp3: carrega, mono, 420.2 ms, pico -12.9 dBFS (alvo -12), começa em 3.0 ms, 6 KB
+  ok: chefeTomba-1.mp3: carrega, mono, 1066.2 ms, pico -8.8 dBFS (alvo -8), começa em 0.1 ms, 13 KB
+  ok: chefeTomba-2.mp3: carrega, mono, 774.3 ms, pico -8.5 dBFS (alvo -8), começa em 0.2 ms, 10 KB
+  ok: chefeTomba-3.mp3: carrega, mono, 975.7 ms, pico -8.6 dBFS (alvo -8), começa em 1.8 ms, 12 KB
+  ok: pisao-1.mp3: carrega, mono, 723.9 ms, pico -7.9 dBFS (alvo -7), começa em 0.7 ms, 9 KB
+  ok: pisao-2.mp3: carrega, mono, 650.2 ms, pico -8.0 dBFS (alvo -7), começa em 0.1 ms, 8 KB
+  ok: pisao-3.mp3: carrega, mono, 609.4 ms, pico -7.9 dBFS (alvo -7), começa em 0.1 ms, 8 KB
+  ok: pasta public/reino/sons/ com 328 KB (limite 3 MB)
+  ok: cada evento do manifesto tem de 1 a 3 variações: {"choque":3,"marcha":2,"casteloRacha":3,"muralha":3,"chefeEntra":3,"flecha":2,"espolio":3,"recorde":3,"golpeBicada":2,"golpeFrigideira":2,"golpeMordida":3,"golpePortada":3,"chefeTomba":3,"pisao":3}
 
 == Em subpasta (caminhos relativos)
   ok: a folha abre, toca efeito e música servida de /jogos/um/dois/
+
+== R35 — ambiente por trecho da estrada (fabricado por código, medido fora do tempo real)
+ambiente   pico dBFS  médio dBFS  grilo 4,4k  bigorna 1,65k  sino 392  pios 3–4k
+manha         -23.9      -40.8      -92.4         -94.1     -78.0     -85.8
+tarde         -21.0      -44.6      -96.4         -71.3     -77.4     -83.9
+porDoSol      -22.6      -41.5     -122.1         -98.6     -59.3    -111.7
+noite         -24.7      -41.1      -71.1        -107.9     -70.2    -104.6
+  ok: 4 ambientes, todos bem baixos: pico de -24.7 a -21.0 dBFS (teto −20), médio de -44.6 a -40.8 dBFS (abaixo da música, que fica de −31 a −26)
+  ok: noite: o grilo (4,4 kHz) está lá (-71.1 dB; na manhã -92.4 dB)
+  ok: manhã: os pássaros (3–4 kHz) estão lá (-85.8 dB; à noite -104.6 dB)
+  ok: tarde na vila: a bigorna de longe (1,65 kHz) está lá (-71.3 dB; na manhã -94.1 dB)
+  ok: pôr do sol: o sino da torre (sol, 392 Hz) está lá (-59.3 dB; na manhã -78.0 dB)
+  ok: os 4 ambientes são diferentes entre si (menor diferença 1.13)
+  ok: a emenda entre dois pedaços (ao vivo, a cada 7,6 s) não abre buraco no leito: -52.2 dBFS antes, -54.5 na emenda, -52.2 depois
+  ok: posição estéreo leve: na ponta direita o lado direito fica 9.7 dB acima do esquerdo (na esquerda 9.8 dB; no meio -0.1) — nunca só num lado
+
+== R35 — ao vivo: ambiente cruza em 1,5 s · golpe agrupado · variação · hit-stop · ducking · mudo/volume · Reduced motion
+  ok: a folha lista os 75 sons do motor, cada um com o evento que o dispara, e os 4 ambientes + desligar
+  ok: 75 efeitos no motor (37 antigos + os da tela nova)
+  ok: as amostras novas carregam e a folha marca quais sons são gravados (14)
+  ok: ambiente "manha" toca sozinho, baixo (pico ao vivo -23.7 dBFS), sem gastar voz de efeito
+  ok: trocar de trecho cruza um ambiente no outro: a 0,75 s a noite está em 0.51 e a manhã em 0.49
+  ok: em 1,5 s o cruzamento acabou: só a noite toca
+  ok: ambiente desligado: silêncio em 2 s (pico 0.0000)
+  ok: 5 golpes do mesmo pelotão em 60 ms viram UM som só, mais forte (1 voz, 4 juntados)
+  ok: 5 pelotões com gestos diferentes, 50 ms entre eles: cada um soa com o som do seu gesto (corte, estocada, esmaga, portada, investida)
+  ok: os 10 gestos têm som próprio: golpeCorte, golpeEstocada, golpeFrigideira, golpeBicada, golpeEsmaga, impacto, golpeMordida, golpePortada, golpeInvestida, golpeBarrigada
+  ok: o mesmo golpe 16 vezes nunca sai igual: altura de -1.8 a 1.7 semitons (±2), força de -2.0 a 0.7 dB
+  ok: posição pelo X da tela entra leve: ponta direita = 0.6, meio-esquerda = -0.3 (teto ±0,6)
+  ok: som com espera (o grito no pulo, 620 ms depois): silêncio antes (0.0000), som na hora marcada (0.203)
+  ok: hit-stop: o agudo some (corte em 1100 Hz aos 35 ms) e volta (22000 Hz) — 60 ms
+  ok: som grande comum: a música abaixa 6 dB (0.50)
+  ok: chefe caindo: a música abaixa 10.5 dB, segura a queda inteira (0.30 aos 2,1 s) e volta (1.00)
+  ok: faixa de recorde: a música abaixa 9.1 dB e volta (1.00)
+  ok: luta cheia (150 unidades, 975 golpes pedidos em 4.0 s): no pior momento 7 vozes (teto 12), 6 de tropa (teto 6)
+  ok: sem metralhadora: 24.2 sons novos por segundo (teto 27); 793 golpes juntados no som que já tocava, 89 barrados pelo teto
+  ok: pico ao vivo da luta cheia com música, ambiente, crítico, explosão e pisão: -6.9 dBFS (teto −3)
+  ok: "Simulate a fight" toca a luta inteira da cena nova (31 sons, 10 fases)
+  ok: pico da luta simulada ao vivo: -6.8 dBFS (teto −3)
+  ok: mudo vale para os sons novos e para o ambiente (pico 0.0000; sem mudo 0.476)
+  ok: volume de efeitos vale para os novos: em 0 silêncio (0.0000), em 40% mais baixo (0.114 contra 0.476)
+  ok: Reduced motion NÃO tira som: golpe, carta, pisão, hit-stop e ambiente continuam (golpe na força 1.06; só o estouro grande 6 dB abaixo: 0.5)
+
+== R35 — no jogo: cada evento da tela nova dispara o som certo, no quadro do impacto
+  ok: antes do primeiro toque nada liga; o ambiente do trecho (manhã nos campos) só fica pedido
+  ok: as 3 cartas que viram: papel virando (cartaVira) + a nota que sobe, uma vez por carta (cartaVira 3, toque 3)
+  ok: depois do toque o ambiente do trecho toca (rodada 1: manhã nos campos)
+  ok: menu / Settings: som ao abrir e ao fechar
+  ok: a luta abre com chegada, marcha, poeira no portão, grito da tropa e o primeiro choque
+  ok: IMPACTO e SOM no mesmo quadro: 7 quadros com estrela de impacto, 7 com o som do golpe no MESMO quadro, 0 fora de ±1
+  ok: os golpes soam pelo gesto de quem bate (golpeFrigideira×4, golpeMordida×3)
+  ok: vitória: a comemoração dos dois pulos tem som (festaTropa)
+  ok: ouro contando: 9 tiques curtos e 1 moeda cheia no fim (antes: uma moeda inteira por passo)
+  ok: o PISÃO do chefe soa no quadro em que ele pousa (1 de 1 no mesmo quadro), não no nascer
+  ok: a queda do chefe em etapas tem som em cada uma: golpe final (chefeCai), ajoelha (chefeJoelho) e tomba (chefeTomba) — etapas 1>2>3>4
+  ok: ajoelhar e tombar soam no quadro da etapa (2 de 2 em ±1 quadro)
+  ok: chefe: a música abaixou (para 0.35) e a parada de impacto cortou o agudo 4 vez(es)
+  ok: vitória sobre o chefe: comemoração com som; o som antigo de entrada não toca mais fora de sincronia
+  ok: luta do chefe: 11 quadros com impacto, 11 com som no mesmo quadro, 0 fora de ±1
+  ok: luta cheia de verdade (45 soldados × 59 invasores): no pior quadro 7 vozes (teto 12) e 6 de tropa (teto 6)
+  ok: luta cheia: 53 quadros com impacto, 53 com o som no mesmo quadro, 0 fora de ±1
+  ok: luta cheia sem metralhadora: 9.0 sons novos por segundo (teto 27), 140 golpes juntados, 233 golpes na tela
+  ok: pico ao vivo no jogo com a luta cheia: -9.1 dBFS (teto −3)
+  ok: botão de velocidade: som próprio que sobe com a velocidade
+  ok: luta cheia: 4 gestos diferentes soaram (golpeFrigideira, golpeMordida, golpeEstocada, golpeBicada); explosão 0, fumaça 24, arremesso 4, pelotão caído 2
+  ok: Reduced motion no jogo NÃO tira som: 11 golpes, pisão, queda do chefe, festa, grito e ambiente (manha) continuam
+  ok: sem áudio no aparelho: a luta do chefe, as cartas e o menu rodam sem som e sem erro (0 erros)
+
+== R35 — eventos do modo servidor: a chamada do som está no lugar
+  ok: replay — SKIP TO FIGHT: chamada de som no ponto certo
+  ok: RECONNECTING / BACK ONLINE: chamada de som no ponto certo
+  ok: festa RANK 6 > 4: chamada de som no ponto certo
+  ok: gancho do fim: chamada de som no ponto certo
+  ok: troca de apelido: chamada de som no ponto certo
+  ok: replay x1/x2: chamada de som no ponto certo
+  ok: carta rara com brilho: chamada de som no ponto certo
+  ok: ambiente pelo trecho da cena: chamada de som no ponto certo
+  ok: golpe no evento do dano (impacto), não na antecipação: chamada de som no ponto certo
+  ok: tiro: som na saída do projétil: chamada de som no ponto certo
+  ok: todo nome de som que a tela pede existe no motor
+  ok: todo som do motor é disparado por algum evento da tela (só da folha/fundo: espada, flecha)
+
+== R43 — tique de contagem: soa em todo passo (mesmo com o teto cheio) e sobe de nota; som grande não empilha
+  ok: 7 fanfarras iguais coladas não empilham: ficam 2 vivas (teto 2), 5 antigas cortadas
+  ok: teto cheio com 12 vozes de prioridade 1 quando a contagem começa (12 12 12 12 12 12 12 12 12 12 12 10 11)
+  ok: os 13 tiques da contagem soam, um por passo de 70 ms, sem passar do teto (13 de 13, 0 recusados, no máximo 12 vozes)
+  ok: dois passos de contagem no mesmo instante soam os dois (rankingSobe e ouroTique); som comum repetido no mesmo instante continua virando um só
+  ok: a contagem sobe de nota: sem degrau toca sol (-47.5 dB contra -98.1 do ré), no degrau 7 toca ré (-44.3 dB contra -104.7 do sol)
+
+== R46 — revanche: "troca" (duas peças trocam de terreno) e "dica" (há uma troca que vence)
+som      var  pico dBFS  alvo  duração ms  agudo (>5 kHz) dB
+troca    1      -15.9   -15        267     -29.0
+troca    2      -16.0   -15        276     -29.7
+troca    3      -15.9   -15        261     -28.4
+dica     1      -17.9   -17        410     -32.0
+  ok: os dois sons da revanche existem no motor (troca e dica), na camada de interface, nenhum é som grande nem de tropa
+  ok: troca dura de 250 a 350 ms nas 3 variações (267, 276, 261 ms) e começa na hora
+  ok: dica dura de 300 a 450 ms (410 ms) e começa na hora
+  ok: volume dentro da régua dos sons de interface (-19 a -11 dBFS): troca no alvo -15 (-15.9, -16.0, -15.9), dica no alvo -17 (-17.9)
+  ok: a dica é o mais baixo dos dois (-17.9 dBFS) e tem prioridade baixa (3; a troca tem 2)
+  ok: sem agudo que irrite: acima de 5 kHz a troca fica -28.4 dB abaixo do som inteiro (no pior take) e a dica -32.0 dB (pedido: 18 dB ou mais)
+  ok: a dica são duas notas SUBINDO: primeiro o ré (-40.4 dB contra -96.8 do sol), depois o sol (-33.1 dB contra -62.8 do ré)
+  ok: a folha de ouvir mostra os dois, cada um com o evento que o dispara
+  ok: Som.tocar('troca') e Som.tocar('dica') tocam ao vivo (picos -16.6 e -18.0 dBFS); sem fanfarra a dica sai na hora
+  ok: mudo vale para os dois (pico 0.0000)
+  ok: repetidos 8 vezes em 360 ms não empilham: no máximo 2 trocas (teto 2) e 1 dica (teto 1) vivas
+  ok: "Menos animação": os dois continuam tocando na mesma força (1), sem som extra (2 sons para 2 pedidos)
+  ok: a dica nunca entra por cima de fanfarra: pedida durante a derrota, espera 1500.0 ms (teto 1500); a troca não espera
+  ok: teto de vozes: com 12 sons de prioridade 1 vivos, dica e troca ficam de fora e o teto continua em 12
+  ok: nome de som desconhecido (ou vazio) devolve false e não quebra nada
 
 == Geral
   ok: zero erro de console ou de página

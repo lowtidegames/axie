@@ -49,6 +49,15 @@ export function tingir(src, cor) {
   return c
 }
 
+/** R38 — cópia APAGADA (menos cor e um tom mais escura, sem mexer no alfa): a multidão atrás do chefe. `sat` 0..1 = quanto da cor sai. */
+export function apagar(src, sat = 0.45, sombra = '#BDB7D2') {
+  const c = tela(src.width, src.height), g = c.getContext('2d')
+  g.drawImage(src, 0, 0); g.globalCompositeOperation = 'saturation'; g.globalAlpha = sat; R(g, 0, 0, c.width, c.height, '#808080')
+  g.globalAlpha = 1; g.globalCompositeOperation = 'multiply'; R(g, 0, 0, c.width, c.height, sombra)
+  g.globalCompositeOperation = 'destination-in'; g.drawImage(src, 0, 0)
+  return c
+}
+
 export function espelhar(src) {
   const c = tela(src.width, src.height), g = c.getContext('2d')
   g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(src, 0, 0)
@@ -406,5 +415,63 @@ export function molduraPorCodigo(rar) {
   const c = tela(56, 78), g = c.getContext('2d'), m = RARIDADE_COR[rar] || RARIDADE_COR.C
   R(g, 0, 0, 56, 78, COR.ameixa); R(g, 1, 1, 54, 76, m.cor); R(g, 1, 1, 54, 1, m.claro); R(g, 1, 76, 54, 1, m.escuro); R(g, 3, 3, 50, 72, m.escuro); R(g, 4, 4, 48, 70, COR.creme)
   R(g, 4, 62, 48, 12, '#F0E2C0')
+  return c
+}
+
+// ------------------------------------------------------------------ MEDALHAS DAS CONQUISTAS (R44) — as 18 que não estão no atlas
+// Mesmo formato das 12 do atlas (`arte/reino/extras.py`): troféu de 19×21 com a janela de 11×11 no meio, desenho letra a letra na
+// MESMA paleta (cada letra é uma cor; `.` é vazio). Os degraus de rodadas são um MARCO DE ESTRADA de 13×13 (cobre a janela toda,
+// para o número da meta caber com folga); o número não mora aqui: quem desenha a medalha escreve o que vem do config.
+const PAL_M = {
+  r: '#E8404C', R: '#FFAAAA', d: '#A0283C', o: '#FFD650', O: '#FFF6BE', y: '#D69628', Y: '#B07024', w: '#F0ECE2', W: '#FFFFFF', k: '#2B1E3A',
+  p: '#9E98B4', P: '#CECAD8', q: '#6E668E', m: '#C48C54', n: '#96623C', N: '#684030', b: '#4884E8', B: '#AAD2FF', c: '#284296',
+  g: '#469C48', G: '#78C85C', e: '#FFF6E0', a: '#B0BAD2', A: '#ECF0F8', s: '#6C7496', f: '#E0489B', F: '#F88CC6', h: '#E87E2E', H: '#FAAA50',
+  x: '#96C8FA', X: '#D6ECFF', D: '#FAC878', E: '#FFFAE6',
+}
+const MEDALHAS = {
+  // chefes
+  nopatch: ['.........rr', '.AAAA...rr.', 'AAaaas.rr..', 'Aaaaasrr...', '.asssrr....', '..smrrm....', '...rrmm....', '..rr..mm...', '.rr....mn..', 'rr......nn.', 'r........n.'], // martelo riscado
+  scratch: ['.AAAAAAAAa.', '.AWaaaaaas.', '.Aarrarras.', '.AarRrrras.', '.Aaarrraas.', '.Aaaaraaas.', '.Aaaaaaaas.', '..Aaaaaas..', '...Aaaas...', '....ass....', '...........'], // escudo liso guardando o coração
+  // lutas
+  thread: ['.....e.....', '....e......', '.....e.....', '....e......', '..rr.e.rr..', '.rRrrrrrrr.', '.rRrrrrrrd.', '.rrrrrrrrd.', '..rrrrrrd..', '...rrrrd...', '....rdd....'], // um coração só, por um fio
+  seconds: ['.....G.....', '....GGG....', '...GGGGG...', '....ggg....', '...........', '.mm....mm..', '.mn....mn..', '.mnn...mnn.', '.mmmn..mmmn', '.NNNN..NNNN', 'ggggggggggg'], // de pé outra vez
+  encore: ['ooooooooooo', 'rrrd...drrr', 'rRrd...drRr', 'rRd..O..dRr', 'rRd.oOo.dRr', 'rrdOOOOOdrr', 'rd..oOo..dr', 'rd.oo.oo.dr', 'rd.......dr', 'rd.......dr', 'NNNNNNNNNNN'], // cortina aberta e a estrela
+  // reino
+  shields: ['...........', 'AAAAa.AAAAa', 'bBbbc.bBbbc', 'bBbbc.bBbbc', 'bbobc.bbobc', 'bbbbc.bbbbc', 'bbbbc.bbbbc', 'bbbbc.bbbbc', '.bbc...bbc.', '..c.....c..', '...........'], // escudos azuis lado a lado
+  bows: ['..eGg......', '..e..gg....', '..e....g...', '..e....g...', '..e.....gA.', 'GGmmmmmmgAA', '..e.....gA.', '..e....g...', '..e....g...', '..e..gg....', '..eGg......'], // arco verde armado
+  dish: ['...........', '....oOo....', '.....y.....', '...HHHhh...', '..HHhhhhh..', '.HHhhhhhhh.', '.Hhhhhhhhh.', 'AAAAAAAAAAa', '.aaaaaaaas.', '..sssssss..', '...........'], // prato coberto
+  sparks: ['......FF...', '.W...FFf...', '....FFf....', '...FFf.....', '..FFFFFF...', '.....FFf..W', '....FFf....', '...FFf.....', '..FFf...W..', '..Ff...WEW.', '..f.....W..'], // raio fúcsia e faíscas
+  mason: ['.PP.PPP.PP.', '.PPPPPPPPq.', '..Ppppppq..', '..Ppkkppq..', '..Ppkkppq..', '..Ppppppq..', '..Ppppppq..', '.PPpkkkpqq.', '.Pppkkkppq.', '...........', '..oy.oy.oy.'], // torre de pedra com os 3 pinos de nível
+  spicy: ['.......gG..', '......gg...', '.....rrrr..', '....rRrrrd.', '...rRrrrrd.', '..rRrrrrd..', '..rRrrrd...', '.rrrrdd....', '.rrdd......', '...........', '..oy.oy.oy.'], // pimenta com os 3 pinos de nível
+  pockets: ['.o...X...r.', 'oOo.xXb.rRd', 'ooy.xxb.rrd', 'BBBBBBBBBBc', 'bebebebebec', 'bbbbbbbbbbc', 'bebbbbbbbec', 'bbbbbbbbbbc', 'bebbbbbbbec', 'bbebebebebc', '.ccccccccc.'], // bolso com três relíquias
+  grand: ['.....W.....', 'o....o....o', 'oo..oOo..oo', 'oOo.oOo.oOy', 'oOoooOoooOy', 'oOooooooooy', 'orooobooory', 'oOooooooooy', 'yyyyyyyyyyy', '...........', '.W.......W.'], // coroa dourada
+}
+// os 5 degraus, do mais simples ao mais nobre (o número vai a partir da linha MARCO_NUMERO_Y, 5 linhas)
+const MARCOS = [
+  ['.............', '.DDDDDDDDDDD.', 'DmmmmmmmmmmmN', 'DmmmmmmmmmmmN', 'DmmmmmmmmmmmN', 'DmmmmmmmmmmmN', 'DmmmmmmmmmmmN', 'DmmmmmmmmmmmN', 'DmmmmmmmmmmmN', '.NNNNNNNNNNN.', '.....nN......', '.....nN......', '.gG..nN..gG..'], // tábua num pau
+  ['.o.........o.', '.DDDDDDDDDDD.', 'DmmmmmmmmmmmN', 'DmmmmmmmmmmmN', 'DmmmmmmmmmmmN', 'DmmmmmmmmmmmN', 'DmmmmmmmmmmmN', 'DmmmmmmmmmmmN', 'DmmmmmmmmmmmN', '.NNNNNNNNNNN.', '..nN.....nN..', '..nN.....nN..', 'gGnNg.gGgnNgG'], // placa de dois paus com pregos de ouro
+  ['...AAAAAAA...', '.AAPPPPPPPpp.', 'APPPPPPPPPPPp', 'APPPPPPPPPPPp', 'APPPPPPPPPPPp', 'APPPPPPPPPPPp', 'APPPPPPPPPPPp', 'APPPPPPPPPPPp', 'APPPPPPPPPPPp', 'APPPPPPPPPPPp', 'PPPPPPPPPPPpp', 'qqqqqqqqqqqqq', 'gG.g..gG..g.G'], // marco de pedra
+  ['..gAAAAAAAG..', '.GgPPPPPPPgg.', 'GgPPPPPPPPPPg', 'APPPPPPPPPPPp', 'APPPPPPPPPPPp', 'APPPPPPPPPPPp', 'APPPPPPPPPPPp', 'APPPPPPPPPPPp', 'APPPPPPPPPPPp', 'APPPPPPPPPPgG', 'PPPPPPPPPPGgg', 'qqqqqqqqgGgqq', 'gGgGrgGgGgoGg'], // pedra velha, com musgo e flores
+  ['.W.o..o..o.W.', '..oOooOooOy..', '.OOOOOOOOOOy.', 'OoooooooooooY', 'OoooooooooooY', 'OoooooooooooY', 'OoooooooooooY', 'OoooooooooooY', 'OoooooooooooY', 'OoooooooooooY', 'ooooooooooooY', 'yyyyyyyyyyyyy', 'gGgGgWgGgGgGg'], // marco de ouro coroado
+]
+export const MARCO_NUMERO_Y = 3
+function letras(linhas) {
+  const c = tela(linhas[0].length, linhas.length), g = c.getContext('2d')
+  linhas.forEach((l, y) => { for (let x = 0; x < l.length; x++) if (PAL_M[l[x]]) R(g, x, y, 1, 1, PAL_M[l[x]]) })
+  return c
+}
+/** Desenho da conquista (11×11, para a janela do troféu) ou null se esta não é das de código. */
+export function medalhaPorCodigo(id) { return MEDALHAS[id] ? letras(MEDALHAS[id]) : null }
+/** Marco de estrada do degrau `i` (0 a 4), 13×13, sem o número. */
+export function marcoPorCodigo(i) { return letras(MARCOS[Math.max(0, Math.min(MARCOS.length - 1, i))]) }
+/** Troféu 19×21 por código (sem atlas), igual ao do atlas: 'locked' (pedra fria) ou 'gold' (ouro com louros). */
+export function trofeuPorCodigo(estado) {
+  const c = tela(19, 21), g = c.getContext('2d'), ouro = estado === 'gold', T = ouro ? ['#FFF096', '#F4BE3C', '#B07024'] : ['#76648C', '#58466E', '#3A2E48']
+  R(g, 1, 0, 17, 19, COR.ameixa); R(g, 0, 1, 19, 17, COR.ameixa)
+  R(g, 1, 1, 17, 17, T[1]); R(g, 1, 1, 17, 1, T[0]); R(g, 1, 1, 1, 17, T[0]); R(g, 2, 17, 16, 1, T[2]); R(g, 17, 2, 1, 16, T[2])
+  R(g, 3, 3, 13, 13, COR.ameixa); R(g, 4, 4, 11, 11, ouro ? '#3A2A4E' : '#2C203E')
+  for (const [x, y] of [[1, 1], [17, 1], [1, 17], [17, 17]]) R(g, x, y, 1, 1, ouro ? '#FFFFFF' : T[0])
+  R(g, 6, 18, 7, 2, COR.ameixa); R(g, 7, 18, 5, 1, T[1]); R(g, 5, 20, 9, 1, COR.ameixa)
+  if (ouro) for (const [x, y] of [[0, 6], [0, 10], [18, 6], [18, 10]]) R(g, x, y, 1, 1, COR.grama[0])
   return c
 }

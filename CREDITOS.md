@@ -15,3 +15,4 @@ Tudo no Frayz é próprio (arte, nomes, cartas, sons), menos o que está nesta l
 - No aviso da Lilita One, o endereço de e-mail do autor (que vem entre parênteses no original) foi omitido, porque a guarda de privacidade do repositório não deixa subir endereço de e-mail. O resto do texto está igual ao do pacote.
 
 - Arte em pixel art do piloto (monstros, cenários, ovo, lugares e ícones): imagens geradas no PixelLab pela conta do estúdio, tratadas pelo estúdio; arquivos em `public/piloto/arte/`.
+- Efeitos sonoros do Keepmile (`public/reino/sons/`, 38 arquivos de 14 eventos): gerados no ElevenLabs (efeitos sonoros) pela conta do estúdio em 19/11 e 20/11/2026, tratados pelo estúdio (corte, nível, mono). Os outros sons, os 4 ambientes e toda a música são fabricados por código no aparelho. Pedidos e medidas em `sons/reino/`.

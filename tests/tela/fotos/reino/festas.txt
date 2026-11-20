@@ -6,19 +6,18 @@ Regra: uma por vez, 400 ms entre elas, a maior por último; conquista e carta no
    esperando a vez: First Supper, Clean Plate
 
 == depois da escolha: as conquistas da vitória, uma por vez, e a festa de nível
-    1. brinde tam 2  fase carta       8003 →    9519  (1517 ms)  First Supper
-    2. brinde tam 2  fase carta       9919 →   11436  (1517 ms, 400 ms depois da anterior)  Clean Plate
+    1. brinde tam 2  fase carta       8001 →    9517  (1517 ms)  First Supper
+    2. brinde tam 2  fase carta       9917 →   11434  (1517 ms, 400 ms depois da anterior)  Clean Plate
 
 == queda do chefe (rodada 5)
-    1. aviso  tam 2  fase luta        3557 →    5157  (1600 ms)  Gutbucket the Wide
-    2. aviso  tam 3  fase luta       10990 → na tela  (ainda na tela, 5833 ms depois da anterior)  Gutbucket DOWN!
+    1. aviso  tam 2  fase luta        3412 →    5029  (1617 ms)  Gutbucket the Wide
+    2. aviso  tam 3  fase luta       10845 → na tela  (ainda na tela, 5816 ms depois da anterior)  Gutbucket DOWN!
 
 == fim com recorde
    (nenhuma festa nova passou pela fila)
-   sequência do fim (não passa pela fila; ms depois de abrir a tela de fim): o número conta de 0 a 13 a partir de +450; faixa NEW RECORD com confete em +1610; a placa sobe em +2910; botões em +3360; fecho: Fuse Runner 696 DMG IN ROUND 14
+   sequência do fim (não passa pela fila; ms depois de abrir a tela de fim): o número conta de 0 a 14 a partir de +450; faixa NEW RECORD com confete em +1680; a placa sobe em +2980; botões em +3430; fecho: MAGIC 728 DMG IN ROUND 14
 
 == fim sem recorde
-    1. brinde tam 1  fase fim         5296 →    5852  (556 ms)  LINK COPIED: SAME ROAD
-    2. aviso  tam 1  fase carta      10212 →   10279  (67 ms, 4360 ms depois da anterior)  BOSS IN 2 ROUNDS
-    3. aviso  tam 1  fase carta      10729 →   10762  (33 ms, 450 ms depois da anterior)  BOSS IN 2 ROUNDS
-   sequência do fim (não passa pela fila; ms depois de abrir a tela de fim): o número conta de 0 a 2 a partir de +450; fecho sem recorde em +840; a placa sobe em +1840; botões em +2290; fecho: Pikeman 84 DMG IN ROUND 2
+    1. brinde tam 1  fase fim         6123 →    6711  (588 ms)  LINK COPIED: SAME ROAD
+    2. brinde tam 2  fase carta       8940 →    9715  (776 ms, 2229 ms depois da anterior)  Last One Standing
+   sequência do fim (não passa pela fila; ms depois de abrir a tela de fim): o número conta de 0 a 1 a partir de +450; fecho sem recorde em +770; a placa sobe em +1770; botões em +2220; fecho: Falconer 48 DMG IN ROUND 1

@@ -702,8 +702,13 @@ describe('R14 — replay', () => {
       assert.equal('semente' in propria.json, false)
       assert.ok(!propria.texto.includes(s.reino._interno.sementeDaEstrada(SEGUNDA)))
       assert.equal((await api('GET', `/api/reino/replay/${ea.id}`, b.token)).status, 404)
+      // quem abriu a estrada de hoje e passou da meia-noite com ela aberta não vê a dos outros daquele dia
+      relogio.t = (SEGUNDA + 1) * DIA - 60_000 // 23:59
+      const eb = await abrir(api, b.token, 'estrada')
+      relogio.t = (SEGUNDA + 1) * DIA + 60_000 // 00:01 do dia seguinte, ainda com ela aberta
+      assert.equal((await api('GET', `/api/reino/replay/${ea.id}`, b.token)).status, 404)
+      await api('POST', '/api/reino/partida/desistir', b.token, { partida: eb.id })
       // amanhã a estrada de ontem pode ser vista (do topo do placar), com a semente
-      relogio.t += DIA
       const ontem = await api('GET', `/api/reino/replay/${ea.id}`, b.token)
       assert.equal(ontem.status, 200, ontem.texto)
       assert.equal(ontem.json.semente, s.reino._interno.sementeDaEstrada(SEGUNDA))

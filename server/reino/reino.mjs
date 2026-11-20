@@ -121,8 +121,9 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
                         ORDER BY p.soma DESC, p.quando ASC, p.conta_id ASC LIMIT ?`),
     todosDaTemporada: db.prepare('SELECT conta_id, soma FROM reino_pontuacao WHERE temporada = ? ORDER BY soma DESC, quando ASC, conta_id ASC'),
     temporadaFechada: db.prepare('SELECT numero, fechada_em, contas FROM reino_temporadas WHERE numero = ?'),
+    // só as temporadas depois da última fechada (fecham em ordem): a consulta não cresce com o histórico
     temporadasPorFechar: db.prepare(`SELECT DISTINCT temporada FROM reino_partidas WHERE modo = 'ranking' AND temporada < ?
-                                     AND temporada NOT IN (SELECT numero FROM reino_temporadas) ORDER BY temporada`),
+                                     AND temporada > COALESCE((SELECT MAX(numero) FROM reino_temporadas), -1) ORDER BY temporada`),
     abertasDaTemporada: db.prepare("SELECT * FROM reino_partidas WHERE temporada = ? AND modo = 'ranking' AND status = 'aberta'"),
     fecharTemporada: db.prepare('INSERT INTO reino_temporadas (numero, fechada_em, contas) VALUES (?, ?, ?)'),
     titulo: db.prepare('INSERT INTO reino_titulos (temporada, conta_id, posicao, media, liga) VALUES (?, ?, ?, ?, ?)'),
@@ -566,6 +567,8 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     const hoje = diaUtc(agora())
     const estradaDeHoje = linha.modo === 'estrada' && linha.dia >= hoje
     if (!propria && (linha.modo === 'treino' || estradaDeHoje || linha.conferida !== 1)) throw naoAchou()
+    // estrada de um dia passado: quem ainda tem a estrada DAQUELE dia aberta (abriu antes da meia-noite) não vê a dos outros
+    if (!propria && linha.modo === 'estrada' && q.estradaDoDia.get(contaId, linha.dia)?.status === 'aberta') throw naoAchou()
     if (linha.status !== 'terminada') throw erro(409, 'PARTIDA_ABERTA', 'O replay só sai depois que a partida termina.')
     if (!propria && !noTopo(linha)) throw naoAchou()
     const liberadas = JSON.parse(linha.liberadas)

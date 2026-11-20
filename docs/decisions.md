@@ -3,6 +3,7 @@
 **Regra:** a decisão mais NOVA fica em cima. Vale mais que qualquer outro texto do repositório, inclusive o `CLAUDE.md`. Decisão aprovada é final: só reabre com prova nova, e alternativa recusada nunca é reoferecida. Decisão nova entra aqui no mesmo dia, no mesmo commit da mudança. Formato: `dd/mm/aaaa hh:mm BRT — o quê — "frase do dono" (onde)`.
 
 ## Abertas
+- ASSUMPTION (20/11 14:03, diretor, arte do Porão): os retratos grandes usam 48 cores (as 32 da régua + 16 de pele, cabelo e roupa; arte/porao/objetos/paleta_retrato.json); com 32 os rostos ficavam feios. Cena e interface seguem com 32. Lote de arte: 81 de 120 gerações usadas.
 - ASSUMPTION (20/11 05:03, diretor, parecer de segurança do Porão): quem atualiza o jogo a cada pouco mais de 10 min foge do Calor (regras.js, janela de 600 s). Aceito por enquanto: jogo pessoal, moeda fictícia. Fechar antes de qualquer publicação (opções: os primeiros 60 s de todo intervalo contam como conectado; tempo fora rende menos; teto diário de horas fora).
 - ABERTA (20/11): liga "Legend of the Mile" vai para os 10 primeiros com qualquer pontuação; com poucas contas soa estranho. Exigir piso de pontos é número de economia: só o dono decide.
 - ABERTA (20/11): sessão vence com 30 dias parado e não há outro jeito de entrar na conta (jogador perde álbum e ranking). Resolver pede login: decisão do dono antes do beta.

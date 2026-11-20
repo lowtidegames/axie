@@ -37,9 +37,13 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     L.letraGrande = 5 * C.css < 7.9
     { const fonte = L.letraGrande ? 'reino-contorno' : 'mini-contorno', alt = L.letraGrande ? 10 : 8, max = cel ? VW - 4 : Math.max(60, x0 - 10), ox = cel ? 3 : 6
       const itens = [{ s: T.chances, w: Arte.largura(T.chances, fonte) + 4 }, ...M.chances.map((c) => { const t = `${c.nome} ${c.chance}%`; return { s: t, c, w: 9 + Arte.largura(t, fonte) + 5 } })]
-      const linhas = [[]]; let x = 0
-      for (const it of itens) { if (x + it.w > max && linhas.at(-1).length) { linhas.push([]); x = 0 } linhas.at(-1).push({ ...it, x }); x += it.w }
-      L.odds = cel ? { x: ox, y: L.sortear.y + 28 * bs + 1 } : { x: ox, y: L.sortear.y - 1 - linhas.length * alt }
+      // R38 — no CELULAR as chances nunca descem para cima dos terrenos 5 e 6 (a seta do terreno vazio): só a ÚLTIMA linha fica debaixo
+      // do botão de sortear (largura inteira, colada nele); as outras sobem para o LADO do botão (à direita dele e do conserto, se houver)
+      const lado = cel ? (M.consertar?.visivel ? L.consertar.x + L.consertar.w : L.sortear.x + L.sortear.w) + 3 * bs - ox : 0
+      const quebra = (n) => { const linhas = [[]]; let x = 0; for (const it of itens) { if (x + it.w - (it.c ? 5 : 4) > (linhas.length < n ? max - lado : max) && linhas.at(-1).length) { linhas.push([]); x = 0 } linhas.at(-1).push({ ...it, x }); x += it.w } return linhas }
+      let linhas = quebra(1); for (let n = 2; cel && linhas.length > n - 1 && n <= 8; n++) linhas = quebra(n)
+      L.odds = cel ? { x: ox, y: L.sortear.y + 26 * bs - (linhas.length - 1) * alt } : { x: ox, y: L.sortear.y - 1 - linhas.length * alt }
+      L.odds.dx = linhas.map((_, i) => (i < linhas.length - 1 ? lado : 0))
       L.odds.linhas = linhas; L.odds.fonte = fonte; L.odds.alt = alt; L.odds.h = linhas.length * alt }
     L.faixa = cel ? { x: 0, y: VH - 88, w: VW, h: 0 } : { x: 6, y: L.odds.y - 50, w: x0 - 14, h: 48 }
     L.lutar2 = cel ? { x: 4, y: VH - 30, w: VW - 8, h: 26 } : { x: Math.floor(VW / 2) - 48, y: VH - 44, w: 96, h: 26 }
@@ -295,15 +299,16 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   /** As chances de raridade do sorteio junto do botão de sortear: quadradinho da cor + NOME + % (números do motor/servidor; só as que podem sair). */
   function chances() {
     const o = UI.L.odds; if (!M.chances.length || !o.linhas) return
-    if (UI.L.cel) { g.fillStyle = COR.ameixa; g.globalAlpha = 0.5; g.fillRect(0, o.y - 1, C.VW, o.h + 1); g.globalAlpha = 1 }
+    if (UI.L.cel) { g.fillStyle = COR.ameixa; g.globalAlpha = 0.5; o.linhas.forEach((lin, i) => { const x0 = o.dx[i] ? o.x + o.dx[i] - 2 : 0; g.fillRect(x0, o.y + i * o.alt, C.VW - x0, o.alt) }); g.globalAlpha = 1 } // (a tira escura acompanha cada linha: nada por cima do botão nem dos terrenos)
     o.linhas.forEach((lin, i) => {
-      const y = o.y + i * o.alt
+      const y = o.y + i * o.alt + (UI.L.cel ? 1 : 0)
       for (const it of lin) {
-        let x = o.x + it.x
+        let x = o.x + (o.dx[i] || 0) + it.x
         if (it.c) { g.fillStyle = COR.ameixa; g.fillRect(x, y, 7, 7); g.fillStyle = it.c.cor; g.fillRect(x + 1, y + 1, 5, 5); g.fillStyle = it.c.claro; g.fillRect(x + 1, y + 1, 5, 1); x += 9 }
         Arte.texto(g, it.s, x, y, { fonte: o.fonte })
       }
     })
+    C.zonaChances = { x: UI.L.cel ? 0 : o.x, y: o.y, w: UI.L.cel ? C.VW : Math.max(...o.linhas.map((lin) => { const u = lin.at(-1); return u ? u.x + u.w : 0 })), h: o.h } // R38: a cena desvia a seta do terreno desta zona
     UI.letra.chances = (UI.L.letraGrande ? 7 : 5) * C.css
     viu('chances'); viu('chancesNomes')
   }
@@ -795,7 +800,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   UI.desenhar = (agora) => {
     const L = UI.L, f = M.fase
     g.setTransform(C.e, 0, 0, C.e, 0, 0); g.imageSmoothingEnabled = false
-    C.zonaTitulo = null
+    C.zonaTitulo = null; C.zonaChances = null
     if (f === 'fim') { fim(agora); aviso(agora); brinde(agora); status(agora); return }
     if (f === 'replay') { mesa(); faixaReplay(); hud(agora); aviso(agora); brinde(agora); status(agora); return }
     if (f === 'carta') {

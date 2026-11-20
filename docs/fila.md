@@ -115,6 +115,14 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | A2 | Objetos e gente: Rugrigo em poses, luxos, trouxas, influenciadores, molduras de carta | artista-pixel | arte/porao/objetos/, porao/tela/arte/ (só os seus nomes) | A1 | PRONTO (f622fce; 31 de 70 gerações; 33 peças + 11 retratos) |
 | A3 | Kit de interface: botões, abas, janelas, barras, papéis de parede, ícones, barra de status | artista-pixel | arte/porao/interface/, porao/tela/arte/ui/ | A1 | PRONTO (0f0458f; 20 gerações; papéis de parede a clarear no A4) |
 | A4 | Aplicar o kit em todas as telas e aumentar a grade do porão | dev-tela (Opus) | porao/tela/*.js, estilo.css, tela.e2e.mjs | A2, A3 | PRONTO (cffbb1a juntado; e2e 94 conferências; trindade ≥ 85 em todas as fotos) |
-| P12 | Desenho da abertura + login por assinatura + progresso por conta | arquiteto (Opus) | — (só desenho) | — | RODANDO |
+| P12 | Desenho da abertura + login por assinatura + progresso por conta | arquiteto (Opus) | — (só desenho) | — | PRONTO (docs/porao/desenho-abertura.md) |
 | P13 | Textos da abertura: vó tutora, aviso da assinatura, sugestões de apelido, historinha | humorista (Fable) | porao/comum/nomes.js, porao/tests/nomes.test.js | — | RODANDO |
 | A5 | Arte da abertura: casa da vó à noite, logo do jogo, logo do estúdio, retrato da vó | artista-pixel | arte/porao/abertura/, porao/tela/arte/ (só nomes novos) | — | RODANDO (teto 15) |
+| P14 | Contas e migração v2 (T1) | nucleo-do-jogo | porao/servidor/banco.mjs, porao/tests/contas.test.js | P12 | RODANDO |
+| P15 | base58 e conferência da assinatura (T3) | engenheiro-de-carteira (Opus) | porao/comum/base58.js, porao/servidor/assinatura.mjs, porao/tests/assinatura.test.js | P12 | RODANDO |
+| P16 | Telas da abertura (T5) | dev-tela (Opus) | porao/tela/abertura.js, index.html, estilo.css, app.js, sprites.js | P12 | RODANDO |
+| P17 | Carteira no navegador e api de sessão (T6) | dev-tela (Opus) | porao/tela/carteira-navegador.js, api.js, porao/tests/carteira-navegador.test.mjs | P12 | RODANDO |
+| P18 | Vó tutora, apelido, história (T7) | dev-tela | porao/tela/vo.js | P16 | FILA |
+| P19 | Contas no jogo e apelido (T2) | nucleo-do-jogo | porao/servidor/jogo.mjs, porao/comum/apelido.js, porao/tests/jogo.test.js | P14 | FILA |
+| P20 | Sessão e rotas (T4) | engenheiro-de-carteira (Opus) | porao/servidor/sessao.mjs, index.mjs, porao/tests/api.test.js, sessao.test.js | P14, P15, P19 | FILA |
+| P21 | e2e da abertura (T8) | dev-tela | porao/tests/tela.e2e.mjs | P16, P17, P18 | FILA |

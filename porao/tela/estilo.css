@@ -294,8 +294,10 @@ body {
   .vo { left: 6px; right: 6px; top: calc(var(--alto-topo, 110px) + 6px); bottom: auto; max-width: none; }
   .vo--surge { animation-name: vo-desce; }
   .vo__balao { gap: 8px; padding: 8px 10px 8px 8px; }
-  .vo__retrato { width: 64px; height: 64px; }
-  .vo__texto { font-size: 14px; }
+  .vo__retrato { width: 40px; height: 40px; }
+  .vo__balao { align-items: center; padding: 4px 8px 4px 6px; }
+  .vo__nome { display: none; }
+  .vo__texto { font-size: 12px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 }
 
 /* fundo das janelas da vó (apelido, história) */

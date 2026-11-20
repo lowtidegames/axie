@@ -16,12 +16,24 @@
 // No modo falso há uma "Carteira de teste" registrada pelo Wallet Standard (par ed25519 do navegador
 // quando crypto.subtle tem Ed25519; senão assinatura fingida, aceita SÓ pelo modo falso).
 import * as R from '../comum/regras.js';
+import { TEXTOS } from '../comum/nomes.js';
 import { LUXOS, INFLUENCIADORES, CONTRATO } from '../comum/config.js';
 // carteira-navegador.js (e o base58 dele) só carrega quando a carteira de teste é usada:
 // a página do jogo abre mesmo se esse arquivo faltar.
 const paraBase58 = async (bytes) => (await import('./carteira-navegador.js')).paraBase58(bytes);
 
 const chaveNova = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+/** Nome do projeto como o servidor manda (jogo.mjs nomeProjeto): nome da ideia, ou a frase rebrand.N depois do golpe. */
+function nomeDoProjeto(p) {
+  const [r, n] = String(p.ideia).split('_');
+  const base = TEXTOS[`ideia.${r}.${n}.nome`] ?? p.ideia;
+  if (!(p.rebrands > 0)) return base;
+  let q = 0; while (typeof TEXTOS[`rebrand.${q + 1}`] === 'string') q++;
+  if (!q) return base;
+  const k = (((p.id - 1 + p.rebrands - 1) % q) + q) % q;
+  return TEXTOS[`rebrand.${k + 1}`].replaceAll('{nome}', base);
+}
 
 /** Visão pública a partir do estado (sem semente nem contador de sorteio). */
 export function montarVisao(estado, agora = Date.now(), extra = {}) {
@@ -36,7 +48,7 @@ export function montarVisao(estado, agora = Date.now(), extra = {}) {
   }
   const liberados = R.influenciadoresLiberados(estado);
   return {
-    estado: pub,
+    estado: { ...pub, projetos: pub.projetos.map((p) => ({ ...p, nome: nomeDoProjeto(p) })) },
     agora,
     previas: { tapete, batida: R.previaBatida(estado) },
     rendimentos,

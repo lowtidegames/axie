@@ -3,6 +3,7 @@
 **Regra:** a decisão mais NOVA fica em cima. Vale mais que qualquer outro texto do repositório, inclusive o `CLAUDE.md`. Decisão aprovada é final: só reabre com prova nova, e alternativa recusada nunca é reoferecida. Decisão nova entra aqui no mesmo dia, no mesmo commit da mudança. Formato: `dd/mm/aaaa hh:mm BRT — o quê — "frase do dono" (onde)`.
 
 ## Abertas
+- PARA O DONO (20/11 08:25): a `trava-economia` só vigia `shared/config.js`; os números do Keepmile (`shared/reino/config.js`) mudam sem a trava pedir linha aqui. Hoje é o diretor que anota à mão. Incluir o arquivo na trava é mexer em trava: decisão do dono.
 - ABERTA (20/11): liga "Legend of the Mile" vai para os 10 primeiros com qualquer pontuação; com poucas contas soa estranho. Exigir piso de pontos é número de economia: só o dono decide.
 - ABERTA (20/11): sessão vence com 30 dias parado e não há outro jeito de entrar na conta (jogador perde álbum e ranking). Resolver pede login: decisão do dono antes do beta.
 - ASSUMPTION (19/11 21:20, Keepmile, tela local): a liga mostrada no fim da partida com menos de 3 partidas usa a média das que existem; faixas das ligas são PROVISÓRIAS do beta sem dinheiro (`public/reino/js/ligas.js`). O servidor (R14) define a regra final.

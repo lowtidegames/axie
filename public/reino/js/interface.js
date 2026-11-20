@@ -308,7 +308,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
         Arte.texto(g, it.s, x, y, { fonte: o.fonte })
       }
     })
-    C.zonaChances = { x: UI.L.cel ? 0 : o.x, y: o.y, w: UI.L.cel ? C.VW : Math.max(...o.linhas.map((lin) => { const u = lin.at(-1); return u ? u.x + u.w : 0 })), h: o.h } // R38: a cena desvia a seta do terreno desta zona
+    C.zonaChances = { x: UI.L.cel ? 0 : o.x, y: o.y, w: UI.L.cel ? C.VW : Math.max(...o.linhas.map((lin) => { const u = lin.at(-1); return u ? u.x + u.w : 0 })), h: o.h, linhas: o.linhas.map((lin, i) => { const u = lin.at(-1), x0 = o.x + (o.dx[i] || 0); return { x: x0, y: o.y + i * o.alt, w: u ? u.x + u.w : 0, h: o.alt } }) } // R38: a cena desvia a seta do terreno desta zona (e o teste confere linha a linha)
     UI.letra.chances = (UI.L.letraGrande ? 7 : 5) * C.css
     viu('chances'); viu('chancesNomes')
   }

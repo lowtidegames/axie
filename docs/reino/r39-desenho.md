@@ -27,7 +27,7 @@ As 12 de hoje ficam com os mesmos ids e datas. Novas (só título, sem prêmio):
 | spicy | Extra Spicy | magia no nível 5 |
 | encore | Encore! | vencer a rodada 25 |
 | thread | By a Thread | vencer com 1 coração |
-| seconds | Second Serving | vencer a rodada logo depois de perdê-la |
+| seconds | Back on Your Feet | vencer a rodada logo depois de perdê-la |
 | nopatch | No Patches | vencer o chefe 10 sem consertar na partida |
 | scratch | Not a Scratch | vencer o chefe 15 com todos os corações |
 | pockets | Pocketful | 3 relíquias numa partida |

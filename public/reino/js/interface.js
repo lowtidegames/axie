@@ -2,6 +2,7 @@
 // com um botão de verdade (transparente, com foco de teclado) por cima de cada coisa tocável. Só mostra o modelo `M` que o app monta
 // a partir de `visao`/`opcoes`/eventos do motor; quem manda comando é o app. Nenhum número de regra nasce aqui.
 import * as Arte from './arte.js'
+import { desenharMedalha } from './telas.js'
 import { T } from './textos.js'
 
 export function criarInterface(C, CONFIG, camada, aoTocar) {
@@ -701,12 +702,12 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       if (pc) {
         // PC: a placa é baixa — a silhueta fica no canto direito (ao lado da liga) e o gancho da estrada embaixo dos pontos
         Arte.icone(g, 'loot', x, y0 - 2); Arte.texto(g, texto, x + 14, y0 - 1, { fonte: 'mini', cor: COR.creme }); barra(x + 14, y0 + 6, w - 16, 3, f.album ? f.album.pct : 100, '#7CC950')
-        if (f.gancho) { Arte.texto(g, quebrar(f.gancho, 190)[0], pc.gx, pc.gy, { fonte: 'mini', cor: COR.ouro }); viu('fimGancho') }
+        if (f.gancho) { const q = quebrar(f.gancho, 190); f.ganchoCabe = q.length === 1; Arte.texto(g, q[0], pc.gx, pc.gy, { fonte: 'mini', cor: COR.ouro }); viu('fimGancho') }
       } else {
         const tx = x + 31
         Arte.texto(g, texto, tx, y0 + 1, { fonte: 'mini', cor: COR.creme })
         barra(tx + 1, y0 + 9, w - 34, 3, f.album ? f.album.pct : 100, '#7CC950')
-        if (f.gancho) { Arte.texto(g, quebrar(f.gancho, w - 32)[0], tx, y0 + 17, { fonte: 'mini', cor: COR.ouro }); viu('fimGancho') }
+        if (f.gancho) { const q = quebrar(f.gancho, w - 32); f.ganchoCabe = q.length === 1; Arte.texto(g, q[0], tx, y0 + 17, { fonte: 'mini', cor: COR.ouro }); viu('fimGancho') }
       }
       viu('fimAlbum')
     }
@@ -754,23 +755,46 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   /** R39 — A FAIXA DO REINO: "ROUND 20 HELD!" grande, em ouro, numa faixa que atravessa a tela, e "KEEP GOING FOR SCORE" embaixo. Os fogos e
    *  o confete são da cena (o app solta). "Reduced motion": a faixa já no lugar, parada, sem brilho piscando. */
   function faixaDoReino(agora, R) {
-    const dt = agora - R.t0, cx = C.VW >> 1, cel = UI.L.cel, texto = T.festaReino(R.rodada)
-    let k = 2, lin = quebrar(texto, (C.VW - 12) / 2, 'reino-ouro')
-    for (const q of [4, 3]) { const l = quebrar(texto, (C.VW - 12) / q, 'reino-ouro'); if (l.length <= (cel ? 2 : 1)) { k = q; lin = l; break } }
-    const hT = lin.length * 10 * k, h = hT + 27, y = Math.floor(C.VH * (cel ? 0.3 : 0.27)), abre = C.menos ? 1 : Math.min(1, dt / 220), w = Math.round(C.VW * abre), x = cx - (w >> 1)
-    escurecer(C.menos ? 0.4 : Math.min(0.4, dt / 500))
+    const dt = agora - R.t0, cx = C.VW >> 1, cel = UI.L.cel, bate = R.bate || 0, sai = R.sai ?? 1e9
+    // R41: o número da rodada conta rolando até a rodada da vitória e POUSA com a batida (Reduced motion: já chega no número)
+    const n = C.menos || dt >= bate ? R.rodada : Math.max(1, Math.round(R.rodada * Math.max(0, dt - 200) / Math.max(1, bate - 200)))
+    const cheio = T.festaReino(R.rodada), texto = T.festaReino(n)
+    let k = 2, lin = quebrar(cheio, (C.VW - 12) / 2, 'reino-ouro')
+    for (const q of [4, 3]) { const l = quebrar(cheio, (C.VW - 12) / q, 'reino-ouro'); if (l.length <= (cel ? 2 : 1)) { k = q; lin = l; break } }
+    // R41: depois de `sai` a faixa ENCOLHE e sobe para debaixo do HUD (uma linha, letra pequena): o campo, a luta e a plaqueta voltam a ser vistos
+    const s = C.menos ? (dt >= sai ? 1 : 0) : Math.max(0, Math.min(1, (dt - sai) / 260)), pequena = s >= 1
+    if (pequena) { k = 1; lin = [cheio] }
+    const mostra = lin.length === 1 ? [texto] : quebrar(texto, (C.VW - 12) / k, 'reino-ouro')
+    const hT = lin.length * 10 * k, hG = hT + 27, hP = 16, y0 = Math.floor(C.VH * (cel ? 0.3 : 0.27)), yP = Math.ceil(UI.L.pinos.y + UI.L.pinos.h) + 4
+    const h = pequena ? hP : Math.round(hG + (hP - hG) * s), y = pequena ? yP : Math.round(y0 + (yP - y0) * s)
+    const abre = C.menos ? 1 : Math.min(1, dt / 220), w = Math.round(C.VW * abre), x = cx - (w >> 1)
+    escurecer((C.menos ? 0.4 : Math.min(0.4, dt / 500)) * (1 - s))
     g.fillStyle = COR.carmim; g.fillRect(x, y - 3, w, 2); g.fillRect(x, y + h + 1, w, 2)
     g.fillStyle = '#1C1230'; g.globalAlpha = 0.9; g.fillRect(x, y, w, h); g.globalAlpha = 1
     g.fillStyle = COR.ouro; g.fillRect(x, y, w, 2); g.fillRect(x, y + h - 2, w, 2); g.fillStyle = '#FFF096'; g.fillRect(x, y, w, 1); g.fillRect(x, y + h - 2, w, 1)
-    if (abre >= 1) {
-      const pop = C.menos ? 0 : Math.round(Math.max(0, 1 - (dt - 220) / 160) * 6)
-      lin.forEach((s, i) => Arte.titulo(g, s, cx, y + 9 + i * 10 * k - pop, k, true))
+    if (pequena) Arte.texto(g, cheio, cx, y + 4, { fonte: 'reino-ouro', alinhar: 'centro' })
+    else if (abre >= 1 && s === 0) {
+      const pop = C.menos ? 0 : Math.round(Math.max(0, 1 - (dt - bate) / 160) * (dt >= bate ? 6 : 0))
+      mostra.forEach((q, i) => Arte.titulo(g, q, cx, y + 9 + i * 10 * k - pop, k, true))
       Arte.texto(g, T.festaReinoSub, cx, y + 9 + hT + 4, { fonte: 'reino-contorno', alinhar: 'centro' })
       // brilhos de ouro andando pelas bordas da faixa (parados fora com Reduced motion)
       if (!C.menos) for (let i = 0; i < 6; i++) { const t = ((agora / 9 + i * 71) % (C.VW + 20)) - 10; g.fillStyle = '#FFF096'; g.fillRect(Math.round(i & 1 ? t : C.VW - t), i & 1 ? y - 1 : y + h - 1, 3, 1) }
     }
+    // R41: FOGOS POR CIMA do escurecido (desenhados aqui, depois dele): estouros em pixel, no máximo 3 de uma vez, 10 faíscas cada. Nunca com Reduced motion.
+    R.fogos = 0
+    if (!C.menos && dt >= bate && s < 1) {
+      const CORES = [COR.ouro, '#FFF096', COR.carmim, '#68A0F8']
+      for (let i = 0; i < 7; i++) {
+        const t = dt - bate - i * 230; if (t < 0 || t > 640) continue
+        const fx = C.VW * (0.14 + ((i * 37) % 73) / 100), fy = (i & 1 ? y + hG + 14 + ((i * 13) % 24) : Math.max(8, y0 - 18 - ((i * 17) % 30))), a = t / 640, r = 5 + 26 * (1 - (1 - a) * (1 - a))
+        g.fillStyle = CORES[i % 4]; g.globalAlpha = a > 0.7 ? 1 - (a - 0.7) / 0.3 : 1
+        for (let j = 0; j < 10; j++) { const an = (j / 10) * 6.283 + i; g.fillRect(Math.round(fx + Math.cos(an) * r), Math.round(fy + Math.sin(an) * r + a * a * 8), 2, 2) }
+        g.globalAlpha = 1; R.fogos++
+      }
+      if (R.fogos) { R.fogosVistos = (R.fogosVistos || 0) + 1; viu('fogosDoReino') }
+    }
     C.zonaTitulo = { x: 0, y: y - 4, w: C.VW, h: h + 8 }
-    R.ret = { x, y: y - 3, w, h: h + 6, linhas: lin, k, sub: T.festaReinoSub, maior: Math.max(...lin.map((q) => Arte.largura(q, 'reino-ouro'))) * k, VW: C.VW, VH: C.VH }
+    R.ret = { x, y: y - 3, w, h: h + 6, linhas: lin, k, sub: T.festaReinoSub, maior: Math.max(...lin.map((q) => Arte.largura(q, 'reino-ouro'))) * k, VW: C.VW, VH: C.VH, n, mostra: mostra.join(' '), pequena, s }
     viu('festaReino')
   }
   /** Aviso pequeno em placa (conquista, carta nova, relíquia): sempre abaixo do HUD, nunca por cima dele. */
@@ -785,7 +809,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const desce = C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 200) * 20)
     Arte.painel(g, x, y - desce, w, 30)
     const ic = b.icone
-    if (ic?.tipo === 'conquista' && Arte.conquista(g, ic.nome, x + 4, y + 4 - desce)) { /* medalha */ } else if (ic?.tipo === 'reliquia') Arte.reliquia(g, ic.id, x + 6, y + 8 - desce); else Arte.icone(g, ic?.tipo === 'carta' ? 'loot' : 'pudding', x + 8, y + 9 - desce)
+    if (ic?.tipo === 'conquista' && ic.conquista) { desenharMedalha(Arte, g, ic.conquista, true, x + 4, y + 4 - desce); viu('avisoConquista') } else if (ic?.tipo === 'conquista' && Arte.conquista(g, ic.nome, x + 4, y + 4 - desce)) { /* medalha */ } else if (ic?.tipo === 'reliquia') Arte.reliquia(g, ic.id, x + 6, y + 8 - desce); else Arte.icone(g, ic?.tipo === 'carta' ? 'loot' : 'pudding', x + 8, y + 9 - desce)
     Arte.texto(g, b.titulo, x + 27, y + 6 - desce, { fonte: 'mini', cor: COR.ouro })
     Arte.texto(g, b.texto, x + 27, y + 15 - desce, { fonte: Arte.largura(b.texto, 'reino') > w - 32 ? 'mini' : 'reino', cor: COR.creme })
     viu('brinde')

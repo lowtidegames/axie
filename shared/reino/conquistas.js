@@ -51,7 +51,7 @@ export const LISTA = [
   { id: 'last', nome: 'Last One Standing', grupo: 'lutas' },
   { id: 'penny', nome: 'Penny Pincher', grupo: 'lutas' },
   { id: 'thread', nome: 'By a Thread', grupo: 'lutas' },
-  { id: 'seconds', nome: 'Second Serving', grupo: 'lutas' },
+  { id: 'seconds', nome: 'Back on Your Feet', grupo: 'lutas' },
   { id: 'encore', nome: 'Encore!', grupo: 'lutas' },
   // reino
   { id: 'house', nome: 'Full House', grupo: 'reino' },

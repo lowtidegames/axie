@@ -21,7 +21,8 @@
 // diz que a conta mora neste aparelho e a sessão vencida (401) avisa uma vez que a conta é nova; seq velho num comando novo mostra
 // "OTHER TAB PLAYED" na hora; o fim do ranking escreve "RUN SCORE n" e "SEASON SCORE n (AVG OF YOUR BEST 3)" com os números do
 // servidor; a liga que vem por posição ganha a legenda "TOP 10 THIS SEASON"; e a linha da energia respira no menu Play (320 e 360).
-// Só uma parte: REINO_SO=r30 (a bateria completa é sem a variável).
+// R41 (função r41): selo HELD no perfil e na estrada (hoje/ontem), linha de vitórias e replay "HELD: N ROUNDS", com resposta simulada.
+// Só uma parte: REINO_SO=r30|r41 (a bateria completa é sem a variável).
 // Fotos em tests/tela/fotos/reino/servidor-*.png.
 // Rode pela trava:  node tools/trava-robos.mjs rodar "timeout 900 node tests/tela/reino-servidor.e2e.mjs"
 import { createRequire } from 'node:module'
@@ -1130,6 +1131,91 @@ async function festaDoRanking({ sessao }) {
   await ctx.close()
 }
 
+/** R41 — RESPOSTA SIMULADA: os caminhos da tela com `venceu: true` que o jogador simples do teste não alcança (ele não chega à rodada
+ *  20). A conta e a partida são de verdade; o teste só troca, no caminho, campos das respostas de perfil, ranking e replay (o contrato
+ *  do R39) — inclusive um item SEM o campo `venceu` (servidor antigo): a tela calcula pela regra do motor. */
+async function r41() {
+  console.log('\n=== R41 (celular 390x844): selo HELD, vitórias do perfil e replay com resposta simulada ===')
+  const ctx = await abrirContexto({ w: 390, h: 844, toque: true })
+  const page = await ctx.newPage(), erros = [], pedidos = []
+  vigiar(page, erros, pedidos)
+  const META = (await import('../../shared/reino/config.js')).PARTIDA.rodadaDaVitoria
+  const foto = async (nome) => { const arq = path.join(FOTOS, `servidor-${nome}.png`); await page.screenshot({ path: arq }); const kb = fs.statSync(arq).size / 1024; confere(kb < 400, `foto servidor-${nome}.png com ${kb.toFixed(0)} KB (< 400)`) }
+  const pronto = () => espera(page, () => document.documentElement.dataset.pronto === '1' && window.__keepmile?.pronto)
+  const fecharTela = async () => { if (await page.evaluate(() => !document.getElementById('tela').hidden)) { await page.keyboard.press('Escape'); await espera(page, () => document.getElementById('tela').hidden) } }
+  const abrirTela = async (botao, sel) => { await fecharTela(); await page.locator('#bt-menu').first().tap(); await espera(page, () => document.getElementById('tela').dataset.tela === 'menu' && !document.getElementById('tela').hidden); await page.locator(botao).first().tap(); await espera(page, (q) => !!document.querySelector(q) && !document.getElementById('telaCarregando'), sel) }
+  const lista = (sel) => page.evaluate((q) => [...document.querySelectorAll(q + ' li')].map((li) => ({ venceu: li.dataset.venceu, selo: li.querySelector('.km-selo')?.textContent || '', texto: li.textContent })), sel)
+  await page.goto(URL_JOGO); await pronto()
+  await espera(page, () => window.__keepmile.fase() === 'carta')
+  await page.keyboard.press('Shift')
+  await K(page, () => window.__keepmile.abrirModo('ranking'))
+  await K(page, () => window.__keepmile.jogarNoServidor({ semCarta: true }))
+  await espera(page, () => window.__keepmile.fase() === 'fim' && window.__keepmile.fimInfo()?.contou, null, 30_000)
+  { const f = await K(page, () => window.__keepmile.fimInfo())
+    confere(!f.venceu && f.titulo === T.fim, `R41: a partida de verdade (${f.vencidas} rodadas) acaba em "${f.titulo}", sem vitória`) }
+  await K(page, () => window.__keepmile.limparFestas())
+  // ---- as respostas trocadas no caminho
+  const trocar = (padrao, mexer) => page.route(padrao, async (rota) => { if (rota.request().method() !== 'GET') return rota.continue(); const r = await rota.fetch(); let j; try { j = await r.json() } catch { return rota.fulfill({ response: r }) } if (r.status() !== 200) return rota.fulfill({ response: r }); mexer(j); await rota.fulfill({ response: r, json: j }) })
+  await trocar('**/api/reino/perfil', (j) => {
+    const m = j.melhores[0]; if (!m) return
+    j.melhores = [{ ...m, pontos: 2100, vencidas: META + 1, venceu: true }, (({ venceu, ...resto }) => ({ ...resto, pontos: 2000, vencidas: META }))(m), { ...m, pontos: 500, vencidas: META - 1, venceu: false }]
+    j.recordes = { ...j.recordes, vitorias: 2 }
+  })
+  const linhas = (n) => [{ posicao: 1, apelido: 'Aunt Sorrel', pontos: 2100, vencidas: META + 1, venceu: true }, { posicao: 2, apelido: 'Old Server ' + n, pontos: 2000, vencidas: META }, { posicao: 3, apelido: 'Short Run ' + n, pontos: 500, vencidas: META - 1, venceu: false }]
+  await trocar('**/api/reino/ranking*', (j) => { j.estradaDoDia.lista = linhas(1); j.estradaDeOntem = { ...(j.estradaDeOntem || {}), dia: j.estradaDeOntem?.dia || '2026-11-19', lista: linhas(2) }; if (j.lista[0]) { j.lista[0].venceu = true; j.lista[0].vencidas = META + 5 } })
+  let semCampo = false
+  await trocar('**/api/reino/replay/*', (j) => { if (!j.resultado) return; j.resultado = { ...j.resultado, vencidas: META + 1, venceu: true }; if (semCampo) delete j.resultado.venceu })
+
+  // ---- perfil: selo nas melhores partidas e a linha de vitórias
+  await item('R41 perfil com vitória', page, async () => {
+    await abrirTela('#mLiga', '#listaMelhores')
+    const l = await lista('#listaMelhores'), v = await texto(page, '#perfilVitorias')
+    confere(l.length === 3 && l[0].venceu === '1' && l[0].selo === T.menu.selo, `R41 perfil: a melhor partida com \`venceu: true\` leva o selo "${l[0]?.selo}"`)
+    confere(l[1]?.venceu === '1' && l[1].selo === 'HELD', `R41 perfil: partida SEM o campo (servidor antigo) com ${META} rodadas vencidas também leva o selo (regra do motor)`)
+    confere(l[2]?.venceu === '0' && !l[2].selo, `R41 perfil: partida com ${META - 1} rodadas e \`venceu: false\` fica sem selo`)
+    confere(v === T.srv.perfil.vitorias(2) && v === 'Kingdom held in 2 runs', `R41 perfil: a linha de vitórias diz "${v}" (número do servidor)`)
+    await medirTela(page, 'R41 perfil com selos')
+    await page.evaluate(() => document.getElementById('listaMelhores').scrollIntoView({ block: 'center' })); await page.waitForTimeout(200)
+    await foto('r41-perfil-held-celular')
+  })
+  // ---- estrada: hoje e ontem com selo; ranking da temporada sem
+  await item('R41 estrada com vitória', page, async () => {
+    await abrirTela('#mPlacar', '#listaPlacar')
+    const h = await lista('#listaPlacar')
+    confere(h.length === 3 && h[0].venceu === '1' && h[0].selo === 'HELD' && h[1].venceu === '1' && h[1].selo === 'HELD' && h[2].venceu === '0' && !h[2].selo, `R41 estrada de hoje: selo em quem venceu (com o campo e sem ele), nenhum em quem não venceu (${h.map((x) => x.selo || '-').join(' ')})`)
+    await medirTela(page, 'R41 estrada de hoje com selos')
+    await foto('r41-estrada-held-celular')
+    await page.locator('#placarAbaOntem').tap(); await espera(page, () => !!document.getElementById('listaOntem'))
+    const o = await lista('#listaOntem')
+    confere(o.length === 3 && o[0].selo === 'HELD' && o[1].selo === 'HELD' && !o[2].selo, `R41 estrada de ontem: os mesmos selos (${o.map((x) => x.selo || '-').join(' ')})`)
+    await medirTela(page, 'R41 estrada de ontem com selos')
+    await abrirTela('#mRanking', '#listaTopo')
+    const r = await lista('#listaTopo')
+    confere(r.length > 0 && r.every((x) => x.venceu === '0' && !x.selo), 'R41 ranking da temporada: sem selo, mesmo se a resposta trouxer `venceu` (regra do desenho)')
+  })
+  // ---- replay: "HELD: N ROUNDS"
+  const verReplay = async (qual) => {
+    await abrirTela('#mLiga', '#listaMelhores')
+    await page.locator('#listaMelhores .km-ver').first().tap()
+    await espera(page, () => !!window.__keepmile.replayInfo())
+    for (let i = 0; i < 400; i++) { const r = await K(page, () => { const k = window.__keepmile; if (k.lutando()) k.avancarBatalha(); else if (k.fase() === 'replay' && !k.replayInfo()?.fim) k.pularParaLuta(); return k.replayInfo() }); if (!r || r.fim) break; await page.waitForTimeout(120) }
+    await espera(page, () => !!window.__keepmile.replayInfo()?.fim, null, 60_000)
+    const r = await K(page, () => window.__keepmile.replayInfo()), d = await K(page, () => window.__keepmile.desenhou())
+    confere(r.venceu && /^HELD: \d+ ROUNDS - SCORE \d+$/.test(r.fim) && r.fim.startsWith(`HELD: ${META + 1} ROUNDS`) && d.includes('replayFim'), `R41 replay (${qual}): o fim diz "${r.fim}"`)
+  }
+  await item('R41 replay com vitória', page, async () => {
+    await verReplay('com `venceu: true`'); await page.waitForTimeout(200); await foto('r41-replay-held-celular')
+    await page.locator('#bt-voltar-replay').tap(); await espera(page, () => !window.__keepmile.replayInfo())
+    semCampo = true
+    await verReplay('sem o campo: pela regra do motor')
+    await page.locator('#bt-voltar-replay').tap(); await espera(page, () => !window.__keepmile.replayInfo())
+  })
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  await fecharTela()
+  confere(erros.length === 0, 'R41: zero erro de console' + (erros.length ? ' — ' + erros.slice(0, 3).join(' | ') : ''))
+  await ctx.close()
+}
+
 const SO = process.env.REINO_SO || '' // para rodar só uma parte enquanto se trabalha nela (a bateria completa é sem isto)
 let codigo = 0
 try {
@@ -1142,6 +1228,7 @@ try {
     await desenho(conta)
   }
   if (!SO || SO === 'r30') { await sessaoVencida(); await r30() }
+  if (!SO || SO === 'r41') await r41()
 } catch (err) {
   falha('o teste parou: ' + (err?.stack || err))
   for (const c of browser.contexts()) for (const pg of c.pages()) console.log('  estado na parada: ' + JSON.stringify(await pg.evaluate(() => ({ fase: window.__keepmile?.fase(), srv: window.__keepmile?.servidor(), erros: window.__keepmile?.erros(), tela: document.getElementById('tela').hidden ? null : document.getElementById('tela').dataset.tela, v: (({ rodada, fase, cartaPosta, vidas }) => ({ rodada, fase, cartaPosta, vidas }))(window.__keepmile?.visao() || {}) })).catch((e) => String(e))))

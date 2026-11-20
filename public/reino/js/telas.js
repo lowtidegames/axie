@@ -11,6 +11,21 @@ const CINZA = '#CECAD8'
 /** "Common 50% · Uncommon 50%": só as raridades com chance (as de 0% não podem sair e não aparecem). */
 const textoDasChances = (l) => l.filter((r) => r.chance > 0).map((r) => `${r.nome} ${r.chance}%`).join(' · ')
 
+// R39: as 18 conquistas novas ainda não têm medalha no atlas — a medalha sai por código, no mesmo formato (19×21), com um ícone do
+// jogo; os degraus de rodadas mostram o próprio número. (R41: a mesma medalha vai no aviso de conquista da interface.)
+const ICONE_MEDALHA = { nopatch: 'life', scratch: 'shield', thread: 'life', seconds: 'reroll', encore: 'round', shields: 'shield', bows: 'troop', dish: 'pudding', sparks: 'magic', mason: 'building', spicy: 'magic', pockets: 'loot', grand: 'up' }
+export function desenharMedalha(Arte, g, c, ganha, x = 0, y = 0) {
+  if (Arte.conquista(g, c.nome, x, y, ganha)) return
+  const COR = Arte.COR
+  g.fillStyle = '#1C1230'; g.fillRect(x + 1, y, 17, 21); g.fillRect(x, y + 1, 19, 19)
+  g.fillStyle = ganha ? COR.ouro : '#4E3A66'; g.fillRect(x + 1, y + 1, 17, 19); g.fillStyle = ganha ? '#FFF096' : '#624C7C'; g.fillRect(x + 1, y + 1, 17, 1); g.fillRect(x + 1, y + 1, 1, 19)
+  g.fillStyle = ganha ? '#3A2A4E' : '#2B1E3A'; g.fillRect(x + 3, y + 3, 13, 15)
+  g.globalAlpha = ganha ? 1 : 0.45
+  if (c.id.startsWith('tally')) Arte.texto(g, String(c.meta), x + 10, y + 8, { fonte: 'mini', cor: ganha ? COR.ouro : COR.creme, alinhar: 'centro' })
+  else Arte.icone(g, ICONE_MEDALHA[c.id] || (ganha ? 'pudding' : 'pin-off'), x + 4, y + 5)
+  g.globalAlpha = 1
+}
+
 export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaPartida, emPartida, aoFechar, servidor = null }) {
   const fundo = document.getElementById('tela'), caixa = document.getElementById('telaCaixa'), COR = Arte.COR
   let aberta = null, engoleAte = 0, vestida = false, pedido = 0, aoSair = null
@@ -140,30 +155,25 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
   }
   function conquistas() {
     Musica.momento('menu')
-    if (sv) { comDados('conquistas', T.menu.conquistas, sv.perfil, (p) => conquistasCom(new Set(p.conquistas.filter((c) => c.feita).map((c) => c.id)), Object.fromEntries(p.conquistas.filter((c) => c.feita && c.quando).map((c) => [c.id, String(c.quando).slice(0, 10)])), p.album?.rodadasVencidas ?? 0)); return } // a data é a do servidor (`quando`; null = sem data)
-    abrir('conquistas', T.menu.conquistas, conquistasCom(new Set(Guarda.get('conquistas')), Guarda.get('conquistasEm') || {}, Guarda.get('rodadas')))
+    if (sv) { comDados('conquistas', T.menu.conquistas, sv.perfil, (p) => conquistasCom(new Set(p.conquistas.filter((c) => c.feita).map((c) => c.id)), Object.fromEntries(p.conquistas.filter((c) => c.feita && c.quando).map((c) => [c.id, String(c.quando).slice(0, 10)])), p.album?.rodadasVencidas ?? 0, novasDesde(p.conquistas.filter((c) => c.feita).map((c) => c.id)))); return } // a data é a do servidor (`quando`; null = sem data)
+    abrir('conquistas', T.menu.conquistas, conquistasCom(new Set(Guarda.get('conquistas')), Guarda.get('conquistasEm') || {}, Guarda.get('rodadas'), novasDesde(Guarda.get('conquistas'))))
   }
-  // R39: as 18 conquistas novas ainda não têm medalha no atlas — a medalha sai por código, no mesmo formato (19×21), com um ícone do
-  // jogo; os degraus de rodadas mostram o próprio número
-  const ICONE_MEDALHA = { nopatch: 'life', scratch: 'shield', thread: 'life', seconds: 'reroll', encore: 'round', shields: 'shield', bows: 'troop', dish: 'pudding', sparks: 'magic', mason: 'building', spicy: 'magic', pockets: 'loot', grand: 'up' }
+  /** R41 — as conquistas ganhas desde a última vez que a lista foi aberta (guardado no aparelho): levam o selo "NEW" desta vez só. */
+  function novasDesde(feitas) {
+    const vistas = Guarda.get('conquistasVistas'), novas = new Set(Array.isArray(vistas) ? feitas.filter((id) => !vistas.includes(id)) : [])
+    Guarda.set('conquistasVistas', [...new Set([...(Array.isArray(vistas) ? vistas : []), ...feitas])])
+    return novas
+  }
   function medalha(c, ganha) {
-    const m = Arte.miniatura(19, 21, (g) => {
-      if (Arte.conquista(g, c.nome, 0, 0, ganha)) return
-      g.fillStyle = '#1C1230'; g.fillRect(1, 0, 17, 21); g.fillRect(0, 1, 19, 19)
-      g.fillStyle = ganha ? COR.ouro : '#4E3A66'; g.fillRect(1, 1, 17, 19); g.fillStyle = ganha ? '#FFF096' : '#624C7C'; g.fillRect(1, 1, 17, 1); g.fillRect(1, 1, 1, 19)
-      g.fillStyle = ganha ? '#3A2A4E' : '#2B1E3A'; g.fillRect(3, 3, 13, 15)
-      g.globalAlpha = ganha ? 1 : 0.45
-      if (c.id.startsWith('tally')) Arte.texto(g, String(c.meta), 10, 8, { fonte: 'mini', cor: ganha ? COR.ouro : COR.creme, alinhar: 'centro' })
-      else Arte.icone(g, ICONE_MEDALHA[c.id] || (ganha ? 'pudding' : 'pin-off'), 4, 5)
-      g.globalAlpha = 1
-    }, 2)
+    const m = Arte.miniatura(19, 21, (g) => desenharMedalha(Arte, g, c, ganha), 2)
     m.dataset.icone = '1'
     return m
   }
   /** As 30 em 4 grupos (ordem e grupos do módulo da regra). Feita: borda e nome em ouro, o que dá e a data. Por fazer: apagada, com a
    *  condição; os degraus mostram a barra "123 / 200" (rodadas vencidas somadas da conta, do perfil ou do aparelho). */
-  function conquistasCom(tem, em, rodadas = 0) {
+  function conquistasCom(tem, em, rodadas = 0, novas = new Set()) {
     const w = LARG() - 66, ouroMini = Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno', feitas = CONQUISTAS.filter((c) => tem.has(c.id)).length
+    const nova = (c, e) => (novas.has(c.id) ? h('span', { style: 'display:flex;flex-wrap:wrap;gap:6px;align-items:center' }, [e, h('span', { class: 'km-nova', style: 'display:inline-flex;flex:none;padding:3px 5px 2px;background:var(--carmim);border:2px solid var(--ouro)' }, [letra(T.menu.nova, { fonte: 'mini', cor: COR.creme })])]) : e)
     const item = (c) => {
       const ganha = tem.has(c.id), degrau = !ganha && c.meta && c.medida === 'rodadasVencidas', valor = degrau ? Math.max(0, Math.min(c.meta, rodadas)) : 0
       // o que a conquista dá (só título e medalha: docs/reino/biblia.md, seção 9) e a data em que veio
@@ -171,7 +181,7 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
       const barra = degrau ? h('span', { class: 'km-degrau', 'data-valor': String(valor), 'data-meta': String(c.meta), style: 'display:flex;align-self:stretch;align-items:center;gap:8px' }, [
         h('span', { class: 'km-barra', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(c.meta), 'aria-valuenow': String(valor), style: 'display:block;flex:1 1 auto;height:10px;border-width:2px' }, [h('i', { style: `width:${Math.floor((valor * 100) / c.meta)}%` })]),
         letra(T.menu.degrau(valor, c.meta), { fonte: 'mini', cor: COR.creme, classe: 'km-degrau-texto' })]) : null
-      return h('li', { class: ganha ? 'km-feita' : '', 'data-id': c.id, 'data-em': em[c.id] || '', style: ganha ? 'background:#3A2452' : '' }, [medalha(c, ganha), h('span', { class: 'km-medalha-texto', style: 'flex:1 1 auto;min-width:0' }, [letra(c.nome, ganha ? { fonte: 'reino-ouro', larg: w } : { fonte: 'reino', cor: CINZA, larg: w }), letra(c.como, { fonte: 'mini', cor: ganha ? COR.creme : CINZA, larg: w }), da, barra])])
+      return h('li', { class: ganha ? 'km-feita' : '', 'data-id': c.id, 'data-nova': novas.has(c.id) ? '1' : '0', 'data-em': em[c.id] || '', style: ganha ? 'background:#3A2452' : '' }, [medalha(c, ganha), h('span', { class: 'km-medalha-texto', style: 'flex:1 1 auto;min-width:0' }, [nova(c, letra(c.nome, ganha ? { fonte: 'reino-ouro', larg: w - (novas.has(c.id) ? 40 : 0) } : { fonte: 'reino', cor: CINZA, larg: w })), letra(c.como, { fonte: 'mini', cor: ganha ? COR.creme : CINZA, larg: w }), da, barra])])
     }
     return [
       linha(`${feitas} / ${CONQUISTAS.length}`, { pid: 'conquistasConta', fonte: 'reino' }),

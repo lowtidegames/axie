@@ -115,7 +115,7 @@ function festasTique(agora) {
     if (f.fase && f.fase !== M.fase) f = null
   }
   if (!f) return
-  f.t0 = agora; if (F.fila.length >= 2) f.ms = Math.round(f.ms * 0.7) // fila comprida anda mais depressa
+  f.t0 = agora; if (F.fila.length >= 2 && !f.conq && !f.mais) f.ms = Math.round(f.ms * 0.7) // fila comprida anda mais depressa
   F.atual = f; M[f.tipo] = f; f.ao?.()
   if (f.voltou && f.log) { f.log.fim = 0; f.log.voltou = agora; return } // a mesma festa, de volta depois do chefe: não conta duas vezes
   f.log = { texto: f.texto, titulo: f.titulo ?? null, tam: f.tam, tipo: f.tipo, ini: agora, fim: 0, fase: M.fase }; F.log.push(f.log); if (F.log.length > 80) F.log.shift()
@@ -126,8 +126,18 @@ const kAviso = () => (C.tipo === 'celular' ? 1 : 2)
 function conquista(id, doServidor = false) {
   if (S.on ? !doServidor : !Guarda.conquista(id)) return // modo servidor: quem diz que a conquista veio é ele (`novidades`)
   const c = CONQUISTAS.find((x) => x.id === id)
-  festa({ tam: 2, tipo: 'brinde', ms: 2400, aposEspolio: true, titulo: T.conquista, texto: c.nome, icone: { tipo: 'conquista', nome: c.nome }, ao: () => { Som.tocar('conquista'); C.efeito('confetti', C.VW / 2 + C.cam.x, 60) } })
+  // R41 — O AVISO DA CONQUISTA: placa com a medalha e o nome, 1,5 s, com a batida de sempre. Fila curta: no máximo 3 à espera; as outras
+  // viram uma placa só, "+N MORE" (todas ficam guardadas e aparecem na lista com o selo NEW)
+  const som = () => { Som.tocar('conquista'); if (!C.menos) C.efeito('confetti', C.VW / 2 + C.cam.x, 60) }
+  if (F.fila.filter((f) => f.conq).length >= MAX_AVISOS) {
+    let m = F.fila.find((f) => f.mais)
+    if (!m) { m = { tam: 2, tipo: 'brinde', ms: AVISO_CONQUISTA, aposEspolio: true, titulo: T.conquista, texto: '', mais: 0, icone: { tipo: 'conquista' }, ao: som }; festa(m) }
+    m.mais++; m.texto = T.maisConquistas(m.mais)
+    return
+  }
+  festa({ tam: 2, tipo: 'brinde', ms: AVISO_CONQUISTA, aposEspolio: true, conq: id, titulo: T.conquista, texto: c.nome, icone: { tipo: 'conquista', nome: c.nome, conquista: c }, ao: som })
 }
+const AVISO_CONQUISTA = 1500, MAX_AVISOS = 3
 /** (modo local) Guarda e festeja as conquistas que o motor já deu e a tela ainda não mostrou. `so`: filtro (as outras continuam à espera). */
 function soltarConquistas(so = null) {
   if (S.on) return
@@ -473,11 +483,14 @@ function aoFimDaLuta(res) {
 /** R39 — A FESTA DO REINO (a rodada da vitória foi vencida): a faixa "ROUND 20 HELD!" (a interface desenha por `M.vitoria.reino`), fogos e
  *  confete em ondas enquanto ela dura, a fanfarra por cima do som de vitória. "Reduced motion": só a faixa e o som — sem flash (a cena
  *  já recusa), sem fogos, sem confete, sem tremida. Pulada com um toque: as ondas que faltavam não saem. */
-const FESTA_REINO = 2200
+const FESTA_REINO = 2200, REINO_BATE = 560, REINO_SAI = 1500 // a contagem pousa no número (batida); depois a faixa encolhe e sai do campo
 function festejarReino(R) {
   J.festasDoReino++
-  depois(420, () => { if (!R.fim) Som.tocar('recorde') })
+  R.bate = C.menos ? 0 : REINO_BATE; R.sai = REINO_SAI
+  depois(R.bate || 420, () => { if (R.fim) return; Som.tocar('recorde'); C.tremer(4, 120) }) // a batida: fanfarra + tremida leve (a cena recusa a tremida com Reduced motion)
   if (C.menos) return
+  // o número da rodada conta rolando até a rodada da vitória, com um tique por passo (no máximo 8 tiques)
+  for (let i = 1; i <= 8; i++) depois(200 + Math.round(((REINO_BATE - 200) * i) / 9), () => { if (!R.fim) Som.tocar('rankingSobe', { tom: i }) })
   const onda = (ms, nome, xs, y) => depois(ms, () => { if (R.fim || M.vitoria?.reino !== R) return; for (const dx of xs) C.efeito(nome, C.VW * (0.5 + dx) + C.cam.x, C.VH * y) })
   for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.3)
   for (const dx of [-0.24, 0.24]) C.efeito('fireworks', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.2)
@@ -540,6 +553,7 @@ function fimDaPartida(direto = false) {
     melhor: m ? T.melhorLinha(m.nome, m.dano, m.rodada) : null, faltaLinha: reg.novoRecorde ? null : n === 0 ? T.semRodadas : falta > 0 ? null : T.rodadasPara(falta), // R31: "N ROUNDS TO YOUR BEST" repetia o recorde da placa
     amigo: S.on ? linhaDoModo(null) : am != null ? { texto: T.desafioFim(am, n), ganhou: n > am } : null,
   }
+  if (!S.on) { const dg = degrauPerto(Guarda.get('rodadas'), Guarda.get('conquistas')); if (dg) { const t = T.degrauPerto(dg.nome.toUpperCase(), dg.falta); M.fim.gancho = Arte.largura(t, 'mini') <= (UI.L.cel ? C.VW - 40 : 190) ? t : T.degrauPertoCurto(dg.meta, dg.falta); M.fim.ganchoDegrau = dg } } // R41: um gancho a mais, no máximo (o do álbum já está na placa)
   if (S.on) { guardarFim(parado); depoisDoFim() }
   M.vidas = r.vidas; M.info = null; C.destaque = null; canvas.style.filter = ''
   // o reino final iluminado: tarde dourada, sem dessaturar
@@ -558,6 +572,13 @@ function fimDaPartida(direto = false) {
   depois(tSobe, () => Som.tocar('espolio'))
   depois(tBotoes, pronto)
   UI.mudou()
+}
+/** R41 — GANCHO HONESTO: o degrau de rodadas somadas mais próximo que ainda falta, só quando falta pouco (`PERTO` rodadas). Sem relógio. */
+const DEGRAU_PERTO = 10
+function degrauPerto(rodadas, tem) {
+  let melhor = null
+  for (const c of CONQUISTAS) { if (!c.id.startsWith('tally') || tem.includes(c.id)) continue; const falta = c.meta - rodadas; if (falta > 0 && falta <= DEGRAU_PERTO && (!melhor || falta < melhor.falta)) melhor = { id: c.id, nome: c.nome, falta, meta: c.meta } }
+  return melhor
 }
 /** As festas da luta (letreiros) não entram no fim; conquista e carta nova continuam na fila e aparecem depois da sequência. */
 function limparFestasDeLuta() { F.fila = F.fila.filter((f) => f.aposEspolio); if (F.atual) { M[F.atual.tipo] = null; if (F.atual.log) F.atual.log.fim = agoraMs(); F.atual = null } }
@@ -959,6 +980,7 @@ async function comecarNoServidor() {
     try {
       const [ab, perfil] = await Promise.all([Srv.aberta(), Srv.perfil()])
       S.perfil = perfil; S.energia = ab.energia
+      if (!Array.isArray(Guarda.get('conquistasVistas'))) Guarda.set('conquistasVistas', (perfil.conquistas || []).filter((c) => c.feita).map((c) => c.id))
       if (await voltarAoFim()) return
       if (ab.partida) entrar(ab.partida); else entrar(await Srv.abrir('treino'), null, true)
       return
@@ -1016,6 +1038,7 @@ async function comecar() {
   menos(guardado ?? matchMedia('(prefers-reduced-motion: reduce)').matches)
   addEventListener('resize', ajustar)
   // retoma a partida guardada (a não ser que o endereço peça outra estrada ou `nova=1`)
+  if (!S.on && !Array.isArray(Guarda.get('conquistasVistas'))) Guarda.set('conquistasVistas', Guarda.get('conquistas').slice()) // R41: as que o aparelho já tinha não são "NEW"
   if (!S.on) ligarDegrausGuardados()
   if (S.on) await comecarNoServidor(); else comecarPartida()
   // duas abas na MESMA partida: quando a outra anda, esta percebe e recarrega o estado antes de aceitar jogada
@@ -1024,7 +1047,7 @@ async function comecar() {
   requestAnimationFrame(quadro)
   if (TESTE) {
     const { ligarGanchos } = await import('./teste.js')
-    await ligarGanchos({ J, M: () => M, C, Bat: () => Bat, UI: () => UI, F, Som, Musica, Guarda, Arte, CONFIG, QUADROS, CUSTO, nq: () => nq, lutar, novaPartida, abrirRodada, fimDaPartida, mandar, ler, preencher, aoFimDaLuta, semTimers, limparFestas, festa, reproduzir, resultado, montarExercito, expandirHorda, cartaoDoReino, seguir, menos, CONTORNO, festejarReino, venceuDe, maxTipoVisivel, S, Srv, por, sairDoReplay, abrirModo, avisarServidor, maoNova, pularParaLuta })
+    await ligarGanchos({ J, M: () => M, C, Bat: () => Bat, UI: () => UI, F, Som, Musica, Guarda, Arte, CONFIG, QUADROS, CUSTO, nq: () => nq, lutar, novaPartida, abrirRodada, fimDaPartida, mandar, ler, preencher, aoFimDaLuta, semTimers, limparFestas, festa, reproduzir, resultado, montarExercito, expandirHorda, cartaoDoReino, seguir, menos, CONTORNO, festejarReino, venceuDe, conquista, degrauPerto, maxTipoVisivel, S, Srv, por, sairDoReplay, abrirModo, avisarServidor, maoNova, pularParaLuta })
   }
   document.documentElement.dataset.pronto = '1'
 }

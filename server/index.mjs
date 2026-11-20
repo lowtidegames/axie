@@ -4,6 +4,7 @@
 // Uso: `npm run servidor` · variáveis: PORTA (padrão 4800), HOST (padrão 127.0.0.1), DB_PATH (padrão ./dados/frayz-teste.db),
 // TRUST_PROXY=1 + TRUST_PROXY_IPS=ip1,ip2 (lidas no arranque: só pedido que CHEGA de um IP da lista tem o X-Forwarded-For lido;
 // sem a lista, o cabeçalho é ignorado e o boot avisa no log).
+// REINO_SEGREDO (opcional, 32+ letras): segredo da estrada do dia do Keepmile (sem ela, o sorteado na migração v5).
 // Chaves de emergência, lidas a CADA pedido: MANUTENCAO=1 (toda /api/* responde 503) · SAVE_SO_LEITURA=1 (todo POST 503; GET funciona).
 // Nos testes: import { iniciar } e passe { dbPath: ':memory:', porta: 0 }. `limites` sobrepõe qualquer item de PARAMS_SERVIDOR.
 import { createServer } from 'node:http'

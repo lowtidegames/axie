@@ -54,11 +54,11 @@ export function anel(cor, cor2) {
 export function varrida(fio = '#FFFFFF', lamina = '#CECAD8', sombra = '#2B1E3A') {
   const W = 26, H = 36, N = 3, c = tela(W * N, H), g = c.getContext('2d')
   for (let f = 0; f < N; f++) {
-    const a0 = [-1.25, -0.7, 0.15][f], a1 = [0.0, 0.85, 1.2][f], R = 16
+    const a0 = [-1.25, -0.7, 0.15][f], a1 = [0.0, 0.85, 1.2][f], R = 12
     for (let pass = 0; pass < 2; pass++) for (let y = -R - 1; y <= R + 1; y++) for (let x = -3; x <= R + 1; x++) {
       const d = Math.sqrt(x * x + y * y), a = Math.atan2(y, x)
       if (a < a0 || a > a1) continue
-      const gro = Math.max(1, 4.2 * (a - a0) / (a1 - a0)) // grossa na ponta que corta, fina no rabo
+      const gro = Math.max(1, 3.4 * (a - a0) / (a1 - a0)) // grossa na ponta que corta, fina no rabo
       if (pass === 0) { if (d > R + 1 || d < R - gro - 1) continue; if (f === 2 && ((x + y) & 1)) continue; g.fillStyle = sombra; g.fillRect(f * W + 4 + x, 18 + y, 1, 1); continue }
       if (d > R || d < R - gro) continue
       if (f === 2 && ((x + y) & 1)) continue

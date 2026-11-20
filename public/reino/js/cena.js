@@ -147,7 +147,8 @@ export function criarCena(canvas, CONFIG) {
     const R = Math.min(K, C.tipo === 'pc' ? 3 : 2), row = r % R, col = (r / R) | 0, cols = Math.ceil(K / R), h = (i * 2654435761) >>> 0
     LUG.lane = (R === 1 ? 0 : ((row / (R - 1)) * 2 - 1) * 0.86) + (((h >>> 4) % 5) - 2) * 0.025
     const passo = C.tipo === 'pc' ? 30 : 34, d = (inv ? -col : col - (cols - 1) / 2) * passo + (row % 2 ? passo * 0.42 : -passo * 0.12) + ((h >>> 9) % 5) - 2
-    LUG.dxe = Math.max(-40, Math.min(40, d))
+    // a FRENTE abre: o reino segura 14 centésimos para o lado do castelo e a horda 14 para o lado do portão — sobra um vão para o bote
+    LUG.dxe = Math.max(-40, Math.min(40, d + (inv ? -14 : 14)))
   }
   function agrupar() {
     const REP = Math.min(MAXREP, C.repMax), luta = C.emLuta && !C.marcha

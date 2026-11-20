@@ -95,7 +95,7 @@ function festa(f) { f.n = F.n++; F.fila.push(f); F.fila.sort((a, b) => a.tam - b
 function limparFestas() { F.fila.length = 0; if (F.atual) { M[F.atual.tipo] = null; if (F.atual.log) F.atual.log.fim = agoraMs(); F.atual = null } }
 /** Festa que espera: conquista e carta nova do álbum só DEPOIS da escolha do espólio (nada cai junto com a escolha); no fim de
  *  partida, só depois da entrada em sequência. */
-const seguraFesta = (f) => (f.aposEspolio && (M.fase === 'vitoria' || M.fase === 'terreno')) || (M.fase === 'fim' && M.fim && !M.fim.contou)
+const seguraFesta = (f) => (f.tipo === 'aviso' && faixaNaFrente()) || (f.aposEspolio && (M.fase === 'vitoria' || M.fase === 'terreno')) || (M.fase === 'fim' && M.fim && !M.fim.contou)
 const JA_VISTA = 700 // ms na tela a partir dos quais a festa interrompida pelo chefe não volta (não dispara duas vezes)
 function festasTique(agora) {
   const a = F.atual
@@ -255,6 +255,7 @@ function preencher() {
   M.familias = Object.keys(cont).map((id) => ({ id, n: cont[id], precisa: precisaDe(id), ligada: v.familias.includes(id) }))
   for (const id of v.familias) if (!J.familias.includes(id)) { const f = CONFIG.FAMILIAS[id]; festa({ tam: 2, tipo: 'aviso', ms: 2600, texto: T.bonus(f.nome), sub: f.texto, ouro: true, k: kAviso(), ao: () => Som.tocar('nivelPequeno') }) }
   J.familias = v.familias.slice()
+  revancheDaVisao()
 }
 function abrirRodada() {
   ler(); preencher()
@@ -263,7 +264,7 @@ function abrirRodada() {
   M.primeira = v.rodada === 1 && v.terrenos.every((t) => !t); C.destaque = null; J.ouroAlvo = v.ouro
   // R46 — REVANCHE: o motor (ou o servidor) diz se a troca grátis está valendo e qual par vence (`visao.revanche`; servidor antigo
   // ou partida de regra 1: o campo não existe e a tela não mostra nada)
-  M.revanche = v.revanche?.troca && J.op.comandos.some((c) => c.tipo === 'trocar') ? { ativa: true, marcado: 0, dica: null, dicaDoMotor: v.revanche.dica ? { a: v.revanche.dica.a, b: v.revanche.dica.b } : null, t0: agoraMs(), feita: 0 } : null
+  M.revanche = v.revanche?.troca && J.op.comandos.some((c) => c.tipo === 'trocar') ? { ativa: true, recolhida: false, marcado: 0, dica: v.revanche.dica ? { a: v.revanche.dica.a, b: v.revanche.dica.b } : null, par: null, adiados: [], t0: agoraMs(), feita: 0 } : null
   canvas.style.filter = ''
   C.mudarHora(Arte.horaDaRodada(v.rodada), false, v.rodada); Musica.rodada(v.rodada) // a rodada vai direto para a cena (trecho da estrada)
   montarReino(); Som.tocar('cartaAparece')
@@ -279,25 +280,38 @@ function abrirRodada() {
     Musica.momento(v.horda.chefe ? 'chefe' : v.vidas === 1 ? 'porUmFio' : 'construir')
     if (v.proximoChefe.avisado && !v.horda.chefe && J.avisado !== chave) { J.avisado = chave; const c = CONFIG.CHEFES.find((x) => x.id === v.proximoChefe.chefe); festa({ tam: 1, tipo: 'aviso', ms: 3200, texto: T.emRodadas(v.proximoChefe.rodada - v.rodada), sub: `${c.nome}: ${T.comUnidade(c.texto)}`, k: 1, fase: 'carta' }) }
     // véspera do chefe com vida perdida e ouro parado: um lembrete de 1 linha
-    if (!v.horda.chefe && v.proximoChefe.rodada - v.rodada === 1 && M.consertar.destaque) dizer(['#' + T.chefeAmanha(M.consertar.custo)], 7000)
+    // (R52, celular: com a faixa da revanche à vista é um aviso por vez — este fica para depois da troca ou do KEEP AS IS)
+    if (!v.horda.chefe && v.proximoChefe.rodada - v.rodada === 1 && M.consertar.destaque) { const lembrar = () => { if (M.fase === 'carta' && M.consertar.destaque) dizer(['#' + T.chefeAmanha(M.consertar.custo)], 7000) }; if (M.revanche && UI.L.cel) M.revanche.adiados.push(lembrar); else lembrar() }
   }
   M.setaCarta = M.primeira && !Guarda.get('dica') && !J.tocouCarta
   UI.mudou()
 }
 // ---------------------------------------------------------------- R46: revanche (a troca grátis de 2 terrenos)
-/** A faixa da revanche entra agora (depois do anúncio do chefe, se houve): a dica chega com o som dela. */
-function anunciarRevanche() {
-  const R = M.revanche; if (!R || !R.ativa) return
-  R.t0 = agoraMs()
-  if (!R.dicaDoMotor) return
-  // a DICA (o par aceso, a linha da faixa e o som dela) só entra depois que a fanfarra da derrota acabou
-  const acender = () => { if (M.revanche !== R || !R.ativa || R.dica) return; R.dica = R.dicaDoMotor; Som.tocar('dica'); UI.mudou() }
-  const espera = (J.derrotaEm || -1e9) + DICA_DEPOIS_DA_DERROTA - agoraMs()
-  if (espera > 0) depois(espera, acender); else acender()
+/** A faixa da revanche entra agora (depois do anúncio do chefe, se houve). */
+function anunciarRevanche() { const R = M.revanche; if (R && R.ativa) R.t0 = agoraMs() }
+/** A troca está à vista e os terrenos respondem a ela? (faixa aberta e sem carta da mão escolhida: com carta, o toque no terreno põe a carta) */
+const revancheAberta = () => M.fase === 'carta' && !!M.revanche?.ativa && !M.revanche.recolhida && M.sel < 0 && !M.replay
+/** A faixa (aberta, ou no "SWAPPED") ocupa a frente: os letreiros esperam a vez. */
+const faixaNaFrente = () => M.fase === 'carta' && !!M.revanche && ((M.revanche.ativa && !M.revanche.recolhida) || agoraMs() - (M.revanche.feita || -1e9) < 1300)
+/** R52 — A VISÃO MANDA: depois de cada passo a tela relê `visao.revanche` (a dica pode mudar de par, sumir ou aparecer quando o jogador
+ *  põe carta). Nada de dica velha: o par aceso apaga se a dica mudou; a troca que deixou de valer fecha a faixa. O sininho só toca
+ *  quando passa de "não há" para "há". */
+function revancheDaVisao() {
+  const R = M.revanche, rv = J.v.revanche
+  if (!R || !R.ativa) return
+  if (!rv?.troca) { M.revanche = null; return }
+  const d = rv.dica ? { a: rv.dica.a, b: rv.dica.b } : null, tinha = !!R.dica
+  if (R.par && !(d && d.a === R.par.a && d.b === R.par.b)) R.par = null
+  R.dica = d
+  if (d && !tinha) sininho()
 }
-const DICA_DEPOIS_DA_DERROTA = 1500
-/** A troca está à vista e os terrenos respondem a ela? (sem carta da mão escolhida: com carta, o toque no terreno põe a carta) */
-const revancheAberta = () => M.fase === 'carta' && !!M.revanche?.ativa && M.sel < 0 && !M.replay
+/** O sininho da dica: no máximo 1 vez a cada 2 s. */
+const SININHO_VAO = 2000
+function sininho() { if (agoraMs() - (J.dicaSomEm ?? -1e9) < SININHO_VAO) return; J.dicaSomEm = agoraMs(); Som.tocar('dica') }
+/** "SHOW ME": só agora o par da dica acende (cantos, setinhas e o sininho). */
+function mostrarPar() { const R = M.revanche; if (!R || !R.ativa || !R.dica) return; R.par = { a: R.dica.a, b: R.dica.b }; R.parEm = agoraMs(); Som.tocar('toque'); sininho(); UI.mudou() }
+/** Solta o que esperava a faixa sair da frente (celular: um aviso por vez). */
+function soltarAdiados(R) { const fs = R.adiados || []; R.adiados = []; for (const f of fs) f() }
 const podeTrocar = (a, b) => J.op.comandos.some((c) => c.tipo === 'trocar' && ((c.a === a && c.b === b) || (c.a === b && c.b === a)))
 /** Toque num terreno com a troca aberta: o 1º fica aceso (tocar de novo desmarca); o 2º manda a troca. Dois vazios não trocam. */
 function marcarTroca(k) {
@@ -319,20 +333,21 @@ function animarTroca(a, b) {
 function trocarTerrenos(a, b) {
   const R = M.revanche
   mandar({ tipo: 'trocar', a, b }, () => {
+    R.ativa = false; R.marcado = 0; R.dica = null; R.par = null; R.feita = agoraMs(); M.info = null
     preencher(); montarReino()
-    R.ativa = false; R.marcado = 0; R.dica = null; R.feita = agoraMs(); M.info = null
     animarTroca(a, b)
-    depois(1250, () => { if (M.revanche === R) { M.revanche = null; UI.mudou() } })
+    depois(1250, () => { if (M.revanche === R) { M.revanche = null; soltarAdiados(R); UI.mudou() } })
     soltarConquistas(); UI.mudou()
   })
 }
-/** "KEEP AS IS": fecha a faixa e apaga os destaques nesta rodada (pôr carta e lutar seguem como sempre). */
-function manterReino() { M.revanche = null; Som.tocar('toque'); UI.mudou() }
+/** "KEEP AS IS": recolhe a faixa na etiqueta "SWAP" (a troca continua valendo: a etiqueta reabre a faixa); os destaques apagam. */
+function manterReino() { const R = M.revanche; if (!R) return; R.recolhida = true; R.marcado = 0; Som.tocar('toque'); soltarAdiados(R); UI.mudou() }
+function reabrirRevanche() { const R = M.revanche; if (!R || !R.ativa) return; R.recolhida = false; R.t0 = agoraMs(); M.info = null; Som.tocar('toque'); UI.mudou() }
 
 function zerarPartida() {
   semTimers(); Bat.parar(); limparFestas()
   J.comandos = []; J.lutas = []; J.conqPend = []; J.anunciado = ''; J.avisado = ''; J.ultimaLuta = null; J.familias = []; J.chefesVistos = new Set(); J.emLuta = false
-  J.fimReg = null; J.melhor = null; J.desafio = null; J.sujo = false; J.relI = -1; J.infoPend = null; J.pularReino = null
+  J.fimReg = null; J.melhor = null; J.desafio = null; J.sujo = false; J.relI = -1; J.infoPend = null; J.pularReino = null; J.vinganca = null
   M.fim = null; M.selo = null; M.resumo = null; M.info = null; M.desafio = null; M.relSel = -1; M.revanche = null
   C.fimDeJogo = false; C.troca = null
 }
@@ -363,6 +378,7 @@ function retomar(p, aviso = null) {
   J.regra = p.regra ?? 1; J.semente = p.semente; J.liberadas = p.liberadas.slice(); J.e = r.estado; J.comandos = cmds.slice()
   J.desafio = p.desafio || null; M.desafio = J.desafio; J.melhor = p.melhor || null
   ler(); M.ouro = J.v.ouro; J.familias = J.v.familias.slice(); salvar()
+  if (J.v.revanche?.troca) J.vinganca = J.v.rodada // (recarregou com a troca ainda valendo: a luta que vem é a revanche)
   if (J.v.fase === 'espolio') mostrarEspolio()
   else { abrirRodada(); if (lutando) { if (M.fase === 'chefe') seguir(); lutar() } }
   if (cmds.length || aviso) festa({ tam: 1, tipo: 'brinde', ms: 2200, titulo: aviso || T.jogo, texto: T.continua(J.v.rodada), icone: { tipo: 'carta' } })
@@ -510,6 +526,19 @@ function aoFimDaLuta(res) {
     // ouro contando, depois os 3 espólios viram cartas grandes
     // (R30) o ouro do HUD conta JUNTO com o letreiro, do que estava à vista até o número que o motor/servidor mandou (`J.v.ouro`)
     const passos = Math.min(ouro, 12), ouroDe = M.ouro, ouroPara = J.v.ouro, V = M.vitoria
+    // R52 — FESTA DE VINGANÇA: esta luta era a revanche (a mesma horda que tinha vencido). Letreiro curto "REVENGE!" que bate, com a
+    // fanfarra dele; menor que a festa do reino e nunca junto dela. Reduced motion: só o letreiro e o som.
+    if (J.vinganca === pre.rodada && !reino) {
+      const G = V.vinganca = { t0: agoraMs() + VINGANCA_ESPERA, ms: VINGANCA_MS, bate: VINGANCA_BATE }
+      J.vingancas = (J.vingancas || 0) + 1
+      depois(VINGANCA_ESPERA + (C.menos ? 0 : VINGANCA_BATE), () => {
+        if (M.vitoria !== V || M.fase !== 'vitoria') return
+        Som.tocar('vinganca'); G.bateu = true
+        if (C.menos) return
+        C.tremer(3, 90); C.efeito('confetti', C.VW / 2 + C.cam.x, UI.L.espolio[0].y - 12); for (const dx of [-26, 26]) C.efeito('dust', C.VW / 2 + C.cam.x + dx, UI.L.espolio[0].y - 4, dx > 0)
+      })
+    }
+    J.vinganca = null
     const pronto = () => { if (M.vitoria !== V || V.pronto) return; if (reino) reino.fim = true; V.ouroMostra = ouro; V.pronto = true; V.prontoT0 = agoraMs(); J.ouroAlvo = J.v.ouro; Som.tocar('espolio'); UI.mudou() }
     // a festa do reino segura os espólios até acabar; um toque (depois do primeiro instante) pula e devolve o controle na hora
     J.pularReino = reino ? () => { if (!cedoDemais(reino.t0)) pronto() } : null
@@ -522,7 +551,8 @@ function aoFimDaLuta(res) {
   } else {
     const nome = res.quem ? (CONFIG.INVASORES[res.quem] || CONFIG.CHEFES.find((c) => c.id === res.quem))?.nome : null
     // derrota como "quase": o quanto da horda caiu é o número do motor (`pctHorda`); a mesma rodada volta com mais uma carta
-    J.derrotaEm = agoraMs(); M.fase = 'derrota'; M.derrota = { t0: agoraMs(), linha: nome ? (res.tocouCastelo ? T.chegou(nome) : T.varreu(nome)) : T.derrota, pct: bat.pctHorda, deNovo: J.e.fase !== 'fim' }
+    J.vinganca = J.e.fase !== 'fim' && J.v.revanche ? J.v.rodada : null // R52: a próxima luta é a revanche (a mesma horda)
+    M.fase = 'derrota'; M.derrota = { t0: agoraMs(), linha: nome ? (res.tocouCastelo ? T.chegou(nome) : T.varreu(nome)) : T.derrota, pct: bat.pctHorda, deNovo: J.e.fase !== 'fim', revanche: J.e.fase !== 'fim' && !!J.v.revanche }
     M.vidas = J.v.vidas; M.vidaSome = { i: J.v.vidas, ate: agoraMs() + 1200 }
     C.vidas = estadoCastelo(); C.casteloTreme = C.relogio + 600; C.tremer(6, 120)
     Som.tocar('casteloRacha'); depois(500, () => Som.tocar('vidaPerdida')); depois(900, () => Som.tocar('derrota'))
@@ -538,6 +568,7 @@ function aoFimDaLuta(res) {
 /** R39 — A FESTA DO REINO (a rodada da vitória foi vencida): a faixa "ROUND N HELD!" (N = rodada da vitória do config; a interface desenha por `M.vitoria.reino`), fogos e
  *  confete em ondas enquanto ela dura, a fanfarra por cima do som de vitória. "Reduced motion": só a faixa e o som — sem flash (a cena
  *  já recusa), sem fogos, sem confete, sem tremida. Pulada com um toque: as ondas que faltavam não saem. */
+const VINGANCA_ESPERA = 520, VINGANCA_MS = 1200, VINGANCA_BATE = 110
 const FESTA_REINO = 2200, REINO_BATE = 560, REINO_SAI = 1500, REINO_DEPOIS_DO_CHEFE = 900 // a contagem pousa no número (batida); depois a faixa encolhe e sai do campo
 function festejarReino(R) {
   depois(R.bate || 420, () => { if (R.fim) return; Som.tocar('recorde'); C.tremer(4, 120) }) // a batida: fanfarra + tremida leve (a cena recusa a tremida com Reduced motion)
@@ -693,6 +724,8 @@ function aoTocar(id, d, ev) {
   else if (id === 'horda') { Som.tocar('toque'); sobreAHorda() }
   else if (id === 'reliquias') sobreAsReliquias()
   else if (id === 'manter') manterReino()
+  else if (id === 'mostrar') mostrarPar()
+  else if (id === 'reabrir') reabrirRevanche()
 }
 addEventListener('pointermove', (ev) => {
   if (!arrasto || ev.pointerId !== arrasto.id || M.fase !== 'carta' || M.cartaPosta) return
@@ -733,6 +766,7 @@ function ligarVoltar() {
 function menos(v) { C.menos = !!v; Som.menosAnimacao(!!v); C.limite = (C.tipo === 'celular' ? 40 : 60) >> (v ? 1 : 0); document.documentElement.classList.toggle('km-menos', !!v); if (v) canvas.style.filter = '' }
 
 // ---------------------------------------------------------------- laço de desenho
+const ACESO = { marcado: 0, dica: null }
 const QUADROS = new Float32Array(600), CUSTO = new Float32Array(600); let nq = 0, ultimo = 0, ouroEm = 0, trechoSom = -1
 function quadro(agora) {
   requestAnimationFrame(quadro)
@@ -746,7 +780,7 @@ function quadro(agora) {
     festasTique(agora)
     if (M.ouro !== J.ouroAlvo && agora - ouroEm > 55) { ouroEm = agora; const d = J.ouroAlvo - M.ouro; M.ouro += Math.sign(d) * Math.max(1, Math.floor(Math.abs(d) / 6)); if (d > 0 && M.fase !== 'vitoria') { if (M.ouro === J.ouroAlvo) Som.tocar('ouro', { tom: 2 }); else Som.tocar('ouroTique', { tom: M.ouro % 8, pan: -0.5 }) } }
     { const tr = C.trecho(); if (tr !== trechoSom) { trechoSom = tr; Som.ambiente(tr) } } // R35: o ambiente do trecho (pássaros, vila, pôr do sol, grilos) cruza em 1,5 s
-    C.revanche = revancheAberta() ? M.revanche : null // R46: terreno marcado e par da dica (a cena só desenha)
+    if (revancheAberta()) { ACESO.marcado = M.revanche.marcado; ACESO.dica = M.revanche.par; C.revanche = ACESO } else C.revanche = null // R46/R52: terreno marcado e o par que o "SHOW ME" acendeu (a cena só desenha)
     UI.novoQuadro(); C.desenhar(agora, dt, dtAnim)
     UI.desenhar(agora)
   } catch (err) { if (!J.erros.includes(String(err))) { J.erros.push(String(err)); console.error(err) } }
@@ -779,6 +813,7 @@ function adotar(p) {
 function entrar(p, aviso = null, nova = false, direto = false) {
   zerarPartida(); J.replay = null; M.replay = null
   adotar(p); M.ouro = J.v.ouro; J.ouroAlvo = J.v.ouro; J.familias = J.v.familias.slice()
+  if (J.v.revanche?.troca) J.vinganca = J.v.rodada
   if (J.e.fase === 'fim') { if (S.fimVisto?.id === S.id) J.melhor = S.fimVisto.melhor || null; fimDaPartida(direto); avisarSessaoNova(); return }
   S.fimVisto = null; Srv.guardarFim(null) // partida em curso: a tela de fim guardada já não vale (Play again, treino novo)
   if (J.v.fase === 'espolio') mostrarEspolio(); else abrirRodada()

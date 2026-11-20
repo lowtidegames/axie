@@ -788,6 +788,54 @@ cabecalho('R46 — revanche: "troca" (duas peças trocam de terreno) e "dica" (h
   await p.close()
 }
 
+// ================================================================== R52 — a fanfarra da vingança ("REVENGE!"): 3 notas, por código
+cabecalho('R52 — revanche vencida: "vinganca" (fanfarra curta de 3 notas)')
+{
+  const p = await ctxPc.newPage(); vigiar(p); await p.goto(FOLHA); await p.click('h1'); await instalarMedidor(p)
+  const m = await p.evaluate(async () => {
+    const { Som, fora, medir, forca, SR, PRE } = window.__m, o = { nomes: Som.nomes(), linha: Som.tabela().find((t) => t.nome === 'vinganca'), vitoria: Som.tabela().find((t) => t.nome === 'vitoria') }
+    const { L, R } = await fora(1.4, (ctx, no, t) => Som.fabricar(ctx, no.fx, 'vinganca', t, 0)); o.med = medir(L, R)
+    const jan = (a, b, hz) => forca(L, Math.floor((PRE + a) * SR), Math.floor((PRE + b) * SR), hz), RE = 587.33, SOL = 783.99, SI = 987.77
+    o.notas = [[0.015, 0.095], [0.13, 0.205], [0.27, 0.52]].map(([a, b]) => [jan(a, b, RE), jan(a, b, SOL), jan(a, b, SI)])
+    return o
+  })
+  const lv = m.linha
+  anota(`vinganca 1    ${n1(m.med.picoDb).padStart(7)}  ${String(lv?.alvo).padStart(4)}  ${String(Math.round(m.med.ms)).padStart(9)}`)
+  confere(m.nomes.includes('vinganca') && lv?.camada === 'resultado' && lv.pri === 2 && !lv.grande && !lv.tropa && lv.vars === 1, 'R52: o som "vinganca" existe no motor, na camada de fim de batalha, prioridade 2, sem ser som grande (não abaixa a música)')
+  confere(m.med.ms >= 500 && m.med.ms <= 700 && m.med.estouros === 0 && m.med.atrasoMs <= 15, `R52: a fanfarra dura de 500 a 700 ms (${Math.round(m.med.ms)} ms) e começa na hora`)
+  confere(Math.abs(m.med.picoDb - lv.alvo) <= 2.5 && m.med.picoDb <= -3 && lv.alvo < m.vitoria.alvo && lv.ms < m.vitoria.ms / 2, `R52: volume no alvo ${lv.alvo} dBFS (${n1(m.med.picoDb)}), mais baixa e bem mais curta que a fanfarra da vitória (${m.vitoria.alvo} dBFS, ${m.vitoria.ms} ms)`)
+  { const [n1a, n2a, n3a] = m.notas
+    confere(n1a[0] > n1a[1] + 8 && n1a[0] > n1a[2] + 8 && n2a[1] > n2a[0] + 8 && n2a[1] > n2a[2] + 8 && n3a[2] > n3a[0] + 8 && n3a[2] > n3a[1] + 8, `R52: são 3 notas SUBINDO — ré (${n1(n1a[0])} dB), depois sol (${n1(n2a[1])} dB), depois si (${n1(n3a[2])} dB), cada uma dona da sua janela`) }
+  const v = await p.evaluate(async () => {
+    const { Som, Musica } = window.__reino, espera = (ms) => new Promise((ok) => setTimeout(ok, ms)), o = {}
+    const ouvir = async (ms) => { let pk = 0; for (let i = 0; i < ms / 20; i++) { pk = Math.max(pk, Som.picoAoVivo()); await espera(20) } return pk }
+    const copias = () => Som.estado().vivos.split(' ').filter((x) => x.startsWith('vinganca:')).length
+    Som.mudo(false); Som.volume('efeitos', 0.8); Som.menosAnimacao(false); Musica.parar(); await espera(300)
+    o.botao = document.querySelector('button[data-som="vinganca"] small.q')?.textContent.length || 0
+    o.amostra = Object.keys(Som.estado().amostras || {}).includes('vinganca')
+    let e0 = Som.estado(); o.tocou = Som.tocar('vinganca'); o.forca = Som.estado().ultimaForca; o.espera = Som.estado().ultimaEspera; o.pico = await ouvir(800)
+    let e1 = Som.estado(); o.normal = [e1.tocados - e0.tocados, (e1.porNome.vinganca || 0) - (e0.porNome.vinganca || 0)]; await espera(400)
+    Som.mudo(true); await espera(120); Som.tocar('vinganca'); o.mudo = await ouvir(700); Som.mudo(false); await espera(500)
+    o.max = 0; for (let i = 0; i < 6; i++) { Som.tocar('vinganca'); o.max = Math.max(o.max, copias()); await espera(50) }
+    await espera(1300)
+    // por cima da fanfarra da vitória: toca (não espera, não é barrada) e a música não abaixa por causa dela
+    Som.tocar('vitoria'); await espera(630); const d0 = Som.estado().duck; o.sobreVitoria = Som.tocar('vinganca'); o.esperaVitoria = Som.estado().ultimaEspera; o.duck = Som.estado().duck === d0; await espera(2200)
+    Som.menosAnimacao(true); e0 = Som.estado(); o.menosTocou = Som.tocar('vinganca'); o.menosForca = Som.estado().ultimaForca; o.menosPico = await ouvir(800); e1 = Som.estado(); o.menos = e1.tocados - e0.tocados; Som.menosAnimacao(false)
+    await espera(900); o.sobrou = Som.estado().vozes
+    return o
+  })
+  confere(v.botao >= 8, 'R52: a folha de ouvir mostra o "vinganca" com o evento que o dispara')
+  confere(v.amostra === false, 'R52: fabricado em código (nenhuma amostra gravada com esse nome)')
+  confere(v.tocou && v.forca === 1 && v.espera === 0 && v.pico > 0.03 && v.pico <= 0.71 && v.normal.join() === '1,1', `R52: Som.tocar('vinganca') toca ao vivo na hora (pico ${n1(20 * Math.log10(v.pico))} dBFS), um som para um pedido`)
+  confere(v.mudo < 0.001, `R52: mudo vale para a fanfarra (pico ${v.mudo.toFixed(4)})`)
+  confere(v.max === 1, `R52: repetida 6 vezes em 300 ms não empilha (${v.max} viva; teto 1)`)
+  confere(v.sobreVitoria === true && v.esperaVitoria === 0 && v.duck, 'R52: entra por cima do fim da fanfarra da vitória sem esperar e sem abaixar a música')
+  confere(v.menosTocou && v.menosForca === 1 && v.menos === 1 && v.menosPico > 0.03 && v.sobrou === 0, '"Menos animação": a fanfarra toca igual (força 1), sem som extra, e não deixa voz presa')
+  { const app = fs.readFileSync(path.join(PASTA, 'js', 'app.js'), 'utf8')
+    confere(/Som\.tocar\('vinganca'\)/.test(app) && /J\.vinganca === pre\.rodada/.test(app), "R52: o app chama Som.tocar('vinganca') na vitória da luta que era a revanche") }
+  await p.close()
+}
+
 // ================================================================== fim
 cabecalho('Geral')
 confere(erros.length === 0, 'zero erro de console ou de página' + (erros.length ? ': ' + erros.slice(0, 4).join(' | ') : ''))

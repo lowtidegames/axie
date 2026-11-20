@@ -167,8 +167,11 @@ export async function ligarGanchos(X) {
       const M = X.M(), R = M.revanche, V = C.revancheVisto, t = C.troca, agora = performance.now()
       return {
         regra: J.regra ?? null, visao: J.v.revanche ? structuredClone(J.v.revanche) : null, trocas: J.op.comandos.filter((c) => c.tipo === 'trocar').length,
-        modelo: R ? { ativa: !!R.ativa, marcado: R.marcado, dica: R.dica ? { ...R.dica } : null, feita: !!R.feita, feitaHa: R.feita ? agora - R.feita : null, ret: R.ret ? { ...R.ret } : null, btRet: R.btRet ? { ...R.btRet } : null, linhas: (R.linhas || []).slice(), aberta: !!R.aberta } : null,
-        cena: V ? { marcado: V.marcado, dica: V.dica.slice(), pulsa: V.pulsa, pulso: V.pulso, rets: structuredClone(V.rets) } : null,
+        modelo: R ? { ativa: !!R.ativa, recolhida: !!R.recolhida, marcado: R.marcado, dica: R.dica ? { ...R.dica } : null, par: R.par ? { ...R.par } : null, adiados: (R.adiados || []).length, feita: !!R.feita, feitaHa: R.feita ? agora - R.feita : null, ret: R.ret ? { ...R.ret } : null, btRet: R.btRet ? { ...R.btRet } : null, mostrarRet: R.mostrarRet ? { ...R.mostrarRet } : null, etiquetaRet: R.etiquetaRet ? { ...R.etiquetaRet } : null, linhas: (R.linhas || []).slice(), aberta: !!R.aberta } : null,
+        cena: V ? { marcado: V.marcado, dica: V.dica.slice(), pulsa: V.pulsa, pulso: V.pulso, rets: structuredClone(V.rets), setas: structuredClone(V.setas) } : null,
+        // R52: o fecho da tela de derrota, a festa de vingança e a rodada que vale como revanche
+        derrota: M.derrota ? { fecho: M.derrota.fecho ?? null, linhas: M.derrota.fechoLinhas ?? 0, revanche: !!M.derrota.revanche } : null,
+        vinganca: { n: J.vingancas || 0, rodada: J.vinganca ?? null, agora: M.vitoria?.vinganca ? { ha: agora - M.vitoria.vinganca.t0, ms: M.vitoria.vinganca.ms, bateu: !!M.vitoria.vinganca.bateu, visto: !!M.vitoria.vinganca.visto, ret: M.vitoria.vinganca.ret ? { ...M.vitoria.vinganca.ret } : null } : null },
         troca: t ? { a: t.a, b: t.b, ms: t.ms, some: !!t.some, ha: agora - t.t0 } : null,
         med: { trocas: C.med.trocas, desvio: C.med.trocaDesvio, quadros: C.med.trocaQuadros, some: C.med.trocaSome },
         terrenos: C.terrenos.map((x) => (x ? x.carta + ':' + x.nivel : null)),
@@ -192,5 +195,7 @@ export async function ligarGanchos(X) {
       return { passos: passos.length, trocas: passos.filter((p) => p.comando.tipo === 'trocar').length }
     },
     tocar: (id, dados = {}) => X.aoTocar(id, dados, {}),
+    /** (R52) Faz de conta que o motor mudou a dica da revanche (ele a recalcula quando o jogador põe carta): `d` = { a, b } ou null. A tela relê a visão. */
+    revancheDica(d) { if (!J.e.revanche) return false; J.e.revanche.dica = d ? { a: d.a, b: d.b } : null; X.ler(); X.preencher(); X.UI().mudou(); return true },
   }
 }

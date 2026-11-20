@@ -768,13 +768,14 @@ export function criarCena(canvas, CONFIG) {
   }
   const terrenoDoSoldado = (i) => Math.floor(C.x0[i] / 100) + 1
   // as duas setas da troca (uma para cada lado) em pixel, 8×7 com contorno escuro; feitas uma vez por cor
-  const SETAS_TROCA = ['.....#..', '#######.', '.....#..', '........', '..#.....', '.#######', '..#.....'], setasProntas = new Map()
+  // R52: maiores e mais limpas (haste de 2 px), 10×13 com contorno escuro
+  const SETAS_TROCA = ['......#...', '......##..', '#########.', '#########.', '......##..', '......#...', '..........', '...#......', '..##......', '.#########', '.#########', '..##......', '...#......'], setasProntas = new Map(), SETAS_W = 12, SETAS_H = 15
   function setasDeTroca(cor) {
     let c = setasProntas.get(cor); if (c) return c
-    c = Px.tela(10, 9); const q = c.getContext('2d')
-    const pinta = (ox, oy) => { for (let y = 0; y < 7; y++) for (let x = 0; x < 8; x++) if (SETAS_TROCA[y][x] === '#') q.fillRect(1 + x + ox, 1 + y + oy, 1, 1) }
+    c = Px.tela(SETAS_W, SETAS_H); const q = c.getContext('2d')
+    const pinta = (ox, oy) => { for (let y = 0; y < SETAS_TROCA.length; y++) for (let x = 0; x < 10; x++) if (SETAS_TROCA[y][x] === '#') q.fillRect(1 + x + ox, 1 + y + oy, 1, 1) }
     q.fillStyle = '#2B1E3A'; for (let d = 0; d < 8; d++) pinta(VIZ8[d * 2], VIZ8[d * 2 + 1])
-    q.fillStyle = cor; pinta(0, 0)
+    q.fillStyle = cor; pinta(0, 0); q.fillStyle = '#D8FFA8'; q.fillRect(1, 3, 9, 1); q.fillRect(2, 10, 9, 1) // luz de cima em cada haste
     setasProntas.set(cor, c); return c
   }
   const COR_MARCADO = '#FFD248', COR_DICA = '#8EE05A'
@@ -783,7 +784,7 @@ export function criarCena(canvas, CONFIG) {
   function marcasDaTroca(t) {
     const R = C.revanche; C.revancheVisto = null
     if (!R || C.destaque) return
-    const pulso = C.menos ? 1 : 0.5 + 0.5 * Math.sin(t / 260), vis = { marcado: 0, dica: [], pulsa: !C.menos, pulso, rets: {} }
+    const pulso = C.menos ? 1 : 0.5 + 0.5 * Math.sin(t / 260), vis = { marcado: 0, dica: [], pulsa: !C.menos, pulso, rets: {}, setas: {} }
     for (let k = 1; k <= 6; k++) {
       const m = R.marcado === k, d = !!R.dica && (R.dica.a === k || R.dica.b === k)
       if (!m && !d) continue
@@ -795,10 +796,12 @@ export function criarCena(canvas, CONFIG) {
       if (m) { g.fillStyle = '#FFF096'; g.fillRect(x, y, L, 1); g.fillRect(x + w - L, y, L, 1); g.fillRect(x + 2, y + h - 1, w - 4, 1) } // aceso: brilho no alto e a linha de baixo fechada
       g.globalAlpha = 1
       if (d) {
-        const s = setasDeTroca(COR_DICA), zc = C.zonaChances, b = C.menos ? 0 : Math.round(pulso * 2); let ya = y + 3
-        if (zc && x + (w >> 1) + 5 > zc.x && x + (w >> 1) - 5 < zc.x + zc.w && ya - 2 < zc.y + zc.h && ya + 9 > zc.y) ya = zc.y + zc.h + 3 // nunca por cima da linha das chances
-        C.setas.push({ k, tipo: 'troca', x: x + (w >> 1) - 5, y: ya - 2, w: 10, h: 11 })
-        g.drawImage(s, x + (w >> 1) - 5, ya - b)
+        // R52: as setinhas ficam ACIMA do terreno (no degrau entre os patamares), fora da cabeça de quem está nele
+        const s = setasDeTroca(COR_DICA), zc = C.zonaChances, livre = y - SETAS_H - 1, teto = (C.tetoDasSetas || 0) + 1, parado = C.menos || livre - 2 < teto, b = parado ? 0 : Math.round(pulso * 2); let ya = Math.max(teto, livre)
+        if (zc && x + (w >> 1) + 6 > zc.x && x + (w >> 1) - 6 < zc.x + zc.w && ya - 2 < zc.y + zc.h && ya + SETAS_H > zc.y) ya = zc.y + zc.h + 3 // nunca por cima da linha das chances
+        C.setas.push({ k, tipo: 'troca', x: x + (w >> 1) - 6, y: ya - (parado ? 0 : 2), w: SETAS_W, h: SETAS_H + (parado ? 0 : 2) })
+        g.drawImage(s, x + (w >> 1) - 6, ya - b)
+        vis.setas[k] = { x: x + (w >> 1) - 6, y: ya - (parado ? 0 : 2), w: SETAS_W, h: SETAS_H + (parado ? 0 : 2) }
         vis.dica.push(k)
       }
       if (m) vis.marcado = k

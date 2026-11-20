@@ -4,7 +4,7 @@
 // Respostas: { ok:true, acao, resultado, estado, repetido? } | { ok:true, estado, segundos, online, rendeu, eventos } (GET /api/estado)
 //            | { ok:false, erro, codigo } com status 400/401/403/404/405/409/413/415/429/500/503.
 // Sessão (tarefa 4, decisão do dono 20/11 18:17: login só por ASSINATURA, nenhuma transação, nenhum token):
-//   POST /api/sessao/desafio {carteira} → { ok, mensagem, nonce, venceEm }
+//   POST /api/sessao/desafio {carteira} → { ok, mensagem (SIWS), nonce, venceEm } (503 ocupado: teto de pendentes)
 //   POST /api/sessao/entrar {carteira, nonce, assinatura} → { ok, conta } + cookie (401 assinatura_invalida)
 //   POST /api/sessao/convidado → { ok, conta } + cookie (só no site local: conta convidada local padrão)
 //   GET /api/sessao → { ok, conta | null } · POST /api/sessao/sair → { ok } (apaga no banco e o cookie)
@@ -18,11 +18,11 @@ import { abrirBancoPorao, CAMINHO_PADRAO } from './banco.mjs'
 import { agir, verEstado, definirApelido } from './jogo.mjs'
 import { validarApelido } from '../comum/apelido.js'
 import {
-  siteDoServidor, siteSeguro, nomeDoCookie, lerCookie, linhaDoCookie,
+  siteDoServidor, origemDoSite, siteSeguro, nomeDoCookie, lerCookies, linhaDoCookie,
   criarDesafio, entrar, entrarConvidadoLocal, contaDaSessao, sair, limparVencidos,
 } from './sessao.mjs'
 import { carregarNomes } from './nomes-local.mjs'
-import { CABECALHOS_DE_SEGURANCA, criarLimite } from '../../server/api.mjs'
+import { CABECALHOS_DE_SEGURANCA, criarLimite, chaveDoIp } from '../../server/api.mjs'
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url))
 const PORAO = path.resolve(AQUI, '..')
@@ -35,6 +35,13 @@ export const LIMITES = {
   // PROVISÓRIO (proposta da tarefa 4; o dono decide): desafios por IP e demais rotas de sessão por IP.
   desafio: { max: 10, janelaMs: 60_000 },
   sessao: { max: 30, janelaMs: 60_000 },
+  // PROVISÓRIO (parecer v4, M2; o dono decide): teto GERAL de desafios válidos e não usados; acima → 503 ocupado.
+  desafiosPendentes: 1000,
+}
+
+/** Chave do limite por IP: IPv4 inteiro (mapeado ::ffff: vira IPv4); IPv6 pelo /64 (um cliente tem o /64 todo). */
+export function chaveDoLimite (endereco) {
+  return chaveDoIp(endereco || 'x')
 }
 
 // Pastas servidas: nada fora delas. servidor/, dados/ e nomes.local.json NUNCA entram aqui.
@@ -167,6 +174,7 @@ export async function iniciarServidor({
   porta = PORTA_PADRAO, host = HOST_UNICO, caminhoBanco = CAMINHO_PADRAO, caminhoNomes = 'porao/nomes.local.json',
   limitePedidos = LIMITES.pedidos, agora = Date.now, log = () => {}, pastas = PASTAS,
   site: siteOpcao, limiteDesafio = LIMITES.desafio, limiteSessao = LIMITES.sessao,
+  maxDesafiosPendentes = LIMITES.desafiosPendentes,
 } = {}) {
   if (host !== HOST_UNICO) throw new Error(`O porão só liga em ${HOST_UNICO} (pedido: "${host}"). Recusado.`)
   if (!Number.isInteger(porta) || porta < 0 || porta > 65535) throw new Error('Porta inválida.')
@@ -177,16 +185,25 @@ export async function iniciarServidor({
   const contarSessao = criarLimite(limiteSessao, agora)
   let portaReal = porta
   let site = null // fixado depois de ligar (precisa da porta real); NUNCA vem do pedido
+  let origem = null // { dominio, uri } da mensagem SIWS, tirados do site (nunca do Host)
   let seguro = false
   let ultimaLimpeza = -Infinity
   const siteLocal = () => site === `127.0.0.1:${portaReal}`
 
-  /** Conta do cookie da sessão (renova, se não estiver só leitura), ou { conta: null }. Põe o Set-Cookie da renovação. */
+  /** Conta do cookie da sessão (renova, se não estiver só leitura), ou { conta: null }. Põe o Set-Cookie da renovação.
+   *  2+ cookies da sessão no mesmo pedido (parecer v4): { duplicada: true } — quem chama recusa com 401 e manda apagar. */
   function sessaoDoPedido(req, res) {
-    const token = lerCookie(req.headers.cookie, nomeDoCookie(seguro))
+    const tokens = lerCookies(req.headers.cookie, nomeDoCookie(seguro))
+    if (tokens.length > 1) return { conta: null, token: null, duplicada: true }
+    const token = tokens[0] ?? null
     const s = contaDaSessao(db, token, { agora: agora(), renovar: !soLeitura() })
     if (s?.renovou) res.setHeader('Set-Cookie', linhaDoCookie(token, { seguro }))
     return s ? { ...s, token } : { conta: null, token }
+  }
+  const recusarDuplicada = (req, res) => {
+    req.resume()
+    res.setHeader('Set-Cookie', linhaDoCookie('', { seguro, apagar: true }))
+    return erro(res, 401, 'Sua sessão ficou confusa. Entre de novo.', 'sessao_duplicada')
   }
   const contaParaTela = contaId => verEstado(db, agora(), { textos, gravar: false, contaId }).estado?.conta ?? null
 
@@ -194,6 +211,7 @@ export async function iniciarServidor({
     if (caminho === '/api/sessao') {
       if (metodo !== 'GET') return erro(res, 405, 'Método não permitido.', 'metodo_invalido')
       const s = sessaoDoPedido(req, res)
+      if (s.duplicada) return recusarDuplicada(req, res)
       if (!s.conta && s.token) res.setHeader('Set-Cookie', linhaDoCookie('', { seguro, apagar: true }))
       return enviar(res, 200, { ok: true, conta: s.conta ? contaParaTela(s.conta.id) : null })
     }
@@ -202,7 +220,7 @@ export async function iniciarServidor({
       req.resume()
       if (!contarSessao(ip)) return erro(res, 429, 'Calma: pedidos demais. Espere um pouco.', 'limite')
       // Sair sempre funciona (até em SAVE_SO_LEITURA): apagar a sessão só deixa mais seguro.
-      sair(db, lerCookie(req.headers.cookie, nomeDoCookie(seguro)))
+      for (const token of lerCookies(req.headers.cookie, nomeDoCookie(seguro))) sair(db, token)
       res.setHeader('Set-Cookie', linhaDoCookie('', { seguro, apagar: true }))
       return enviar(res, 200, { ok: true })
     }
@@ -223,8 +241,8 @@ export async function iniciarServidor({
     if (caminho === '/api/sessao/desafio') {
       const t = agora()
       if (t - ultimaLimpeza >= 60_000) { ultimaLimpeza = t; limparVencidos(db, { agora: t }) }
-      const r = criarDesafio(db, { carteira: c.dados.carteira, site, agora: t })
-      if (!r.ok) return erro(res, 400, r.erro, r.codigo)
+      const r = criarDesafio(db, { carteira: c.dados.carteira, dominio: origem.dominio, uri: origem.uri, agora: t, maxPendentes: maxDesafiosPendentes })
+      if (!r.ok) return erro(res, r.codigo === 'ocupado' ? 503 : 400, r.erro, r.codigo)
       return enviar(res, 200, r)
     }
     if (caminho === '/api/sessao/entrar') {
@@ -236,6 +254,7 @@ export async function iniciarServidor({
     }
     // /api/apelido
     const s = sessaoDoPedido(req, res)
+    if (s.duplicada) return recusarDuplicada(req, res)
     if (!s.conta) return erro(res, 401, 'Entre de novo para continuar.', 'sem_sessao')
     // Formato primeiro (inclui mais de 20 letras → apelido.erro.feio), antes de "cedo" ou "já tem".
     const v = validarApelido(c.dados.apelido)
@@ -263,13 +282,17 @@ export async function iniciarServidor({
     // Cabeçalho próprio em TODA rota /api: uma página de fora não consegue mandá-lo sem pedir permissão (CORS).
     if (req.headers['x-porao'] !== '1') return erro(res, 403, 'Pedido sem a marca do jogo. Abra o jogo pela tela do porão.', 'sem_marca')
     if (emManutencao()) return erro(res, 503, 'O porão está em manutenção. Volte daqui a pouco.', 'manutencao')
-    const ip = req.socket.remoteAddress || 'x'
+    // PUBLICAR: atrás de proxy, o IP do socket é o do proxy (todo mundo cai na mesma chave). Antes de publicar, ler o
+    // IP do cliente do cabeçalho do proxy SÓ quando o pedido vem de um proxy confiável (lista fixa, como
+    // proxiesDoAmbiente em server/api.mjs); nunca confiar no cabeçalho de qualquer um.
+    const ip = chaveDoLimite(req.socket.remoteAddress)
     if (!contar(ip)) return erro(res, 429, 'Calma: pedidos demais. Espere um pouco.', 'limite')
     if (ROTAS_DE_SESSAO.has(url.pathname)) return tratarSessao(req, res, url.pathname, metodo, ip)
 
     if (url.pathname === '/api/estado') {
       if (metodo !== 'GET') return erro(res, 405, 'Método não permitido.', 'metodo_invalido')
       const s = sessaoDoPedido(req, res)
+      if (s.duplicada) return recusarDuplicada(req, res)
       if (!s.conta) return erro(res, 401, 'Entre de novo para continuar.', 'sem_sessao')
       return enviar(res, 200, verEstado(db, agora(), { textos, gravar: !soLeitura(), contaId: s.conta.id }))
     }
@@ -278,6 +301,7 @@ export async function iniciarServidor({
     if (!achada) return erro(res, 404, 'Rota não existe.', 'nao_achado')
     if (metodo !== 'POST') return erro(res, 405, 'Método não permitido.', 'metodo_invalido')
     const s = sessaoDoPedido(req, res)
+    if (s.duplicada) return recusarDuplicada(req, res)
     if (!s.conta) { req.resume(); return erro(res, 401, 'Entre de novo para continuar.', 'sem_sessao') }
     if (soLeitura()) { req.resume(); return erro(res, 503, 'O jogo está só para leitura agora. Tente mais tarde.', 'so_leitura') }
     const c = await lerCorpo(req, LIMITES.corpoMaxBytes)
@@ -303,6 +327,7 @@ export async function iniciarServidor({
   portaReal = server.address().port
   try {
     site = siteDoServidor({ site: siteOpcao, porta: portaReal })
+    origem = origemDoSite(site)
     seguro = siteSeguro(site)
     limparVencidos(db, { agora: agora() })
   } catch (e) {

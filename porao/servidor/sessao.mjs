@@ -1,7 +1,7 @@
 // Porão — sessão por ASSINATURA de mensagem (decisão do dono 20/11 18:17; desenho docs/porao/desenho-abertura.md).
 // NENHUMA transação, NENHUM token, nenhuma rede: só um texto que a carteira assina e o servidor confere.
 //
-// Desafio: PENDENTE → USADO | VENCIDO. O servidor monta a mensagem (site FIXO dado pelo servidor, nunca do pedido),
+// Desafio: PENDENTE → USADO | VENCIDO. O servidor monta a mensagem SIWS (domínio FIXO do servidor, nunca do pedido),
 //   guarda-a junto com o nonce (16 bytes, 5 min) e, no "entrar", confere a assinatura contra a mensagem GUARDADA.
 //   Uso único: o nonce é queimado com UPDATE condicional (1 linha) ANTES de conferir — uma tentativa por desafio,
 //   certa ou errada; dois "entrar" ao mesmo tempo, só um passa.
@@ -19,8 +19,11 @@ export const SESSAO = Object.freeze({
   duracaoMs: 7 * 24 * 3600_000,
   /** Renova (banco + cookie) no máximo 1 vez por minuto por sessão: não grava a cada pedido. */
   renovarAposMs: 60_000,
-  /** Desafios e sessões vencidos há mais que isto somem na limpeza (no máximo 1 vez por minuto). */
+  /** Sessões vencidas há mais que isto somem na limpeza (no máximo 1 vez por minuto). */
   guardarVencidosMs: 24 * 3600_000,
+  /** Desafios vencidos há mais que isto somem (parecer v4, M2): ~10 min depois de emitidos, não 24 h.
+   *  Apagar cedo é seguro: o "entrar" só aceita desafio ainda dentro da validade. */
+  guardarDesafiosVencidosMs: 5 * 60_000,
 })
 export const NOME_COOKIE = 'porao_sessao'
 export const NOME_COOKIE_SEGURO = `__Host-${NOME_COOKIE}`
@@ -31,11 +34,30 @@ const NONCE_VALIDO = /^[0-9a-f]{32}$/
 const sha256 = t => crypto.createHash('sha256').update(t).digest('hex')
 const ms = a => Math.floor(a)
 
-/** Site da mensagem: PORAO_SITE (se vier) ou 127.0.0.1:<porta>. Nunca o cabeçalho Host. */
+// Local: 127.0.0.1 ou localhost (com ou sem http:// e porta). Publicado: SÓ https://<domínio>[:porta], sem caminho.
+const SITE_LOCAL = /^(?:http:\/\/)?((?:127\.0\.0\.1|localhost)(?::[0-9]{1,5})?)\/?$/i
+const SITE_HTTPS = /^https:\/\/([a-z0-9](?:[a-z0-9.-]{0,98}[a-z0-9])?(?::[0-9]{1,5})?)\/?$/i
+
+/**
+ * Site da mensagem: PORAO_SITE (se vier) ou 127.0.0.1:<porta>. Nunca o cabeçalho Host.
+ * Recusa (erro claro, o servidor não sobe) site que não é local e não começa com https:// (parecer v4).
+ */
 export function siteDoServidor ({ site, porta }) {
   const s = site ?? process.env.PORAO_SITE ?? `127.0.0.1:${porta}`
   if (typeof s !== 'string' || !/^[\x21-\x7e]{1,128}$/.test(s)) throw new Error('PORAO_SITE inválido (só ASCII, sem espaço, até 128).')
+  if (!SITE_LOCAL.test(s) && !SITE_HTTPS.test(s)) {
+    throw new Error('PORAO_SITE inválido: fora do 127.0.0.1/localhost ele precisa ser https://<domínio> (sem caminho). O servidor não sobe assim.')
+  }
   return s
+}
+
+/** Domínio e URI da mensagem SIWS a partir do site (já conferido por siteDoServidor). */
+export function origemDoSite (site) {
+  const h = SITE_HTTPS.exec(site)
+  if (h) return { dominio: h[1].toLowerCase(), uri: `https://${h[1].toLowerCase()}` }
+  const l = SITE_LOCAL.exec(site)
+  if (l) return { dominio: l[1].toLowerCase(), uri: `http://${l[1].toLowerCase()}` }
+  throw new Error('PORAO_SITE inválido.')
 }
 
 /** https → cookie __Host- com Secure. */
@@ -43,16 +65,22 @@ export const siteSeguro = site => site.toLowerCase().startsWith('https://')
 export const nomeDoCookie = seguro => (seguro ? NOME_COOKIE_SEGURO : NOME_COOKIE)
 
 /**
- * Cria o desafio da carteira. → { ok: true, mensagem, nonce, venceEm } | { ok: false, erro, codigo: 'carteira_invalida' }.
+ * Cria o desafio da carteira. dominio/uri: do servidor (origemDoSite). maxPendentes: teto GERAL de desafios ainda
+ * válidos e não usados (acima → 'ocupado').
+ * → { ok: true, mensagem, nonce, venceEm } | { ok: false, erro, codigo: 'carteira_invalida' | 'ocupado' }.
  */
-export function criarDesafio (db, { carteira, site, agora }) {
+export function criarDesafio (db, { carteira, dominio, uri, agora, maxPendentes = Infinity }) {
   if (typeof carteira !== 'string' || !chavePublicaDe(carteira)) {
     return { ok: false, erro: 'Esse endereço de carteira não é válido.', codigo: 'carteira_invalida' }
   }
   const em = ms(agora)
+  if (Number.isFinite(maxPendentes)) {
+    const { n } = db.prepare('SELECT COUNT(*) AS n FROM desafios WHERE vence_em > ? AND usado_em IS NULL').get(em)
+    if (n >= maxPendentes) return { ok: false, erro: 'Muita gente entrando agora. Tente de novo em alguns minutos.', codigo: 'ocupado' }
+  }
   const nonce = crypto.randomBytes(SESSAO.nonceBytes).toString('hex')
   const venceEm = em + SESSAO.desafioMs
-  const mensagem = montarMensagem({ site, carteira, nonce, emitida: em, vence: venceEm })
+  const mensagem = montarMensagem({ dominio, uri, carteira, nonce, emitida: em, vence: venceEm })
   db.prepare('INSERT INTO desafios (nonce, carteira, mensagem, vence_em, usado_em) VALUES (?, ?, ?, ?, NULL)')
     .run(nonce, carteira, mensagem, venceEm)
   return { ok: true, mensagem, nonce, venceEm }
@@ -122,22 +150,28 @@ export function sair (db, token) {
   db.prepare('DELETE FROM sessoes WHERE hash = ?').run(sha256(token))
 }
 
-/** Apaga desafios e sessões vencidos há mais de SESSAO.guardarVencidosMs. */
+/** Apaga desafios vencidos há mais de SESSAO.guardarDesafiosVencidosMs e sessões há mais de SESSAO.guardarVencidosMs. */
 export function limparVencidos (db, { agora }) {
-  const corte = ms(agora) - SESSAO.guardarVencidosMs
-  db.prepare('DELETE FROM desafios WHERE vence_em < ?').run(corte)
-  db.prepare('DELETE FROM sessoes WHERE vence_em < ?').run(corte)
+  const em = ms(agora)
+  db.prepare('DELETE FROM desafios WHERE vence_em < ?').run(em - SESSAO.guardarDesafiosVencidosMs)
+  db.prepare('DELETE FROM sessoes WHERE vence_em < ?').run(em - SESSAO.guardarVencidosMs)
 }
 
-/** Valor do cookie `nome` no cabeçalho Cookie (o primeiro), ou null. */
-export function lerCookie (cabecalho, nome) {
-  if (typeof cabecalho !== 'string') return null
+/** Todos os valores do cookie `nome` no cabeçalho Cookie (na ordem), ou []. */
+export function lerCookies (cabecalho, nome) {
+  if (typeof cabecalho !== 'string') return []
+  const achados = []
   for (const parte of cabecalho.split(';')) {
     const i = parte.indexOf('=')
     if (i < 0) continue
-    if (parte.slice(0, i).trim() === nome) return parte.slice(i + 1).trim()
+    if (parte.slice(0, i).trim() === nome) achados.push(parte.slice(i + 1).trim())
   }
-  return null
+  return achados
+}
+
+/** Valor do cookie `nome` no cabeçalho Cookie (o primeiro), ou null. Quem lê SESSÃO usa lerCookies (2+ = recusa). */
+export function lerCookie (cabecalho, nome) {
+  return lerCookies(cabecalho, nome)[0] ?? null
 }
 
 /** Set-Cookie da sessão (token vazio + apagar = expira na hora). */

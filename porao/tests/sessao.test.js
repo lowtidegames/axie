@@ -70,10 +70,9 @@ describe('tarefa 4 — sessão por assinatura', () => {
     assert.equal(d.status, 200, d.texto)
     assert.match(d.json.nonce, /^[0-9a-f]{32}$/) // 16 bytes
     assert.equal(d.json.venceEm, relogio + 5 * 60_000)
-    // site fixo do servidor, nunca do pedido
-    assert.ok(d.json.mensagem.includes(`Site: 127.0.0.1:${porta}\n`), d.json.mensagem)
-    assert.ok(d.json.mensagem.includes(`Carteira: ${par.carteira}\n`))
-    assert.ok(d.json.mensagem.includes(`Numero de uso unico: ${d.json.nonce}\n`))
+    // site fixo do servidor, nunca do pedido (regra mudou no parecer v4, M1: texto SIWS no lugar de "Site:/Carteira:")
+    assert.ok(d.json.mensagem.startsWith(`127.0.0.1:${porta} wants you to sign in with your Solana account:\n${par.carteira}\n`), d.json.mensagem)
+    assert.ok(d.json.mensagem.includes(`\nNonce: ${d.json.nonce}\n`))
     assert.match(d.json.mensagem, /nao e uma transacao/)
 
     const e = await post('/api/sessao/entrar', { carteira: par.carteira, nonce: d.json.nonce, assinatura: par.assinar(d.json.mensagem) })
@@ -153,7 +152,7 @@ describe('tarefa 4 — sessão por assinatura', () => {
     assert.equal(e.status, 401)
     // e o pedido não consegue trocar a mensagem guardada (campo extra é ignorado)
     const d2 = await post('/api/sessao/desafio', { carteira: par.carteira, site: 'site-malvado.example' })
-    assert.ok(d2.json.mensagem.includes(`Site: 127.0.0.1:${porta}\n`))
+    assert.ok(d2.json.mensagem.startsWith(`127.0.0.1:${porta} wants you`))
     const e2 = await post('/api/sessao/entrar', { carteira: par.carteira, nonce: d2.json.nonce, assinatura: par.assinar(outra), mensagem: outra })
     assert.equal(e2.status, 401)
   })
@@ -162,7 +161,7 @@ describe('tarefa 4 — sessão por assinatura', () => {
     const par = parGerado()
     const d = await post('/api/sessao/desafio', { carteira: par.carteira }, { headers: { Host: `localhost:${porta}` } })
     assert.equal(d.status, 200)
-    assert.ok(d.json.mensagem.includes(`Site: 127.0.0.1:${porta}\n`))
+    assert.ok(d.json.mensagem.startsWith(`127.0.0.1:${porta} wants you`))
   })
 
   test('entradas tortas: carteira inválida, chave fraca, assinatura curta → 400/401 sem erro 500', async () => {
@@ -336,7 +335,7 @@ describe('tarefa 4 — sessão por assinatura', () => {
     try {
       const par = parGerado()
       const { d, e } = await entrarCom(par, { porta: s2.porta })
-      assert.ok(d.json.mensagem.includes('Site: https://porao.exemplo.test\n'))
+      assert.ok(d.json.mensagem.startsWith('porao.exemplo.test wants you') && d.json.mensagem.includes('\nURI: https://porao.exemplo.test\n'))
       assert.equal(e.status, 200, e.texto)
       const linha = String(e.headers['set-cookie'][0])
       assert.ok(linha.startsWith(`${NOME_COOKIE_SEGURO}=`))
@@ -362,8 +361,114 @@ describe('tarefa 4 — sessão por assinatura', () => {
       const s2 = await iniciarServidor({ porta: 0, caminhoBanco: path.join(pasta, 'env.db') })
       try {
         const d = await post('/api/sessao/desafio', { carteira: parGerado().carteira }, { porta: s2.porta })
-        assert.ok(d.json.mensagem.includes('Site: https://outro.exemplo.test\n'))
+        assert.ok(d.json.mensagem.startsWith('outro.exemplo.test wants you') && d.json.mensagem.includes('\nURI: https://outro.exemplo.test\n'))
       } finally { await s2.fechar() }
     } finally { delete process.env.PORAO_SITE }
+  })
+})
+
+// Consertos do parecer de segurança v4 (login do Porão; provas em seg-porao/v4 a1/a2/a3).
+describe('consertos v4 — login do Porão', () => {
+  const primeira = m => m.split('\n')[0]
+  const campo = (m, nome) => (m.split('\n').find(l => l.startsWith(`${nome}: `)) || '').slice(nome.length + 2)
+
+  test('mensagem_no_formato_siws_com_dominio_do_servidor', async () => {
+    const par = parGerado()
+    // Host de fora (localhost) não muda nada: domínio e URI só do servidor.
+    const d = await post('/api/sessao/desafio', { carteira: par.carteira, site: 'mau.example', dominio: 'mau.example' }, { headers: { Host: `localhost:${porta}` } })
+    assert.equal(d.status, 200, d.texto)
+    assert.equal(primeira(d.json.mensagem), `127.0.0.1:${porta} wants you to sign in with your Solana account:`)
+    assert.equal(d.json.mensagem.split('\n')[1], par.carteira)
+    assert.equal(campo(d.json.mensagem, 'URI'), `http://127.0.0.1:${porta}`)
+    assert.equal(campo(d.json.mensagem, 'Nonce'), d.json.nonce)
+    assert.equal(campo(d.json.mensagem, 'Expiration Time'), new Date(d.json.venceEm).toISOString())
+    const e = await post('/api/sessao/entrar', { carteira: par.carteira, nonce: d.json.nonce, assinatura: par.assinar(d.json.mensagem) })
+    assert.equal(e.status, 200, e.texto)
+
+    const s2 = await iniciarServidor({ porta: 0, caminhoBanco: path.join(pasta, 'siws.db'), site: 'https://porao.exemplo.test' })
+    try {
+      const d2 = await post('/api/sessao/desafio', { carteira: par.carteira }, { porta: s2.porta })
+      assert.equal(primeira(d2.json.mensagem), 'porao.exemplo.test wants you to sign in with your Solana account:')
+      assert.equal(campo(d2.json.mensagem, 'URI'), 'https://porao.exemplo.test')
+    } finally { await s2.fechar() }
+  })
+
+  test('revezamento (a3): o servidor sozinho NÃO distingue; a proteção é da carteira (SIWS: domínio ≠ origem → alerta)', async () => {
+    // O ladrão pede o desafio da vítima do servidor dele e mostra o texto no site dele. Se a carteira da vítima
+    // NÃO confere o domínio SIWS com a origem (carteira antiga, ou assinatura "crua"), a vítima assina e o ladrão entra.
+    // Por isso a mensagem é SIWS: Phantom/Solflare/Backpack comparam a 1ª linha com o site aberto e avisam.
+    // Este teste documenta o limite: sem a carteira conferir, o servidor aceita (não há como saber quem mostrou o texto).
+    const s2 = await iniciarServidor({ porta: 0, caminhoBanco: path.join(pasta, 'revez.db'), site: 'https://porao.exemplo.test' })
+    try {
+      const vitima = parGerado()
+      const d = await post('/api/sessao/desafio', { carteira: vitima.carteira }, { porta: s2.porta, ip: '127.0.0.50' })
+      // o que a carteira da vítima vê: o domínio do Porão, que não é o do site do ladrão
+      assert.equal(primeira(d.json.mensagem), 'porao.exemplo.test wants you to sign in with your Solana account:')
+      const e = await post('/api/sessao/entrar', { carteira: vitima.carteira, nonce: d.json.nonce, assinatura: vitima.assinar(d.json.mensagem) }, { porta: s2.porta, ip: '127.0.0.60' })
+      assert.equal(e.status, 200) // limite conhecido: só a carteira barra
+    } finally { await s2.fechar() }
+  })
+
+  test('dois cookies porao_sessao no mesmo pedido → 401 e manda apagar', async () => {
+    const a = (await entrarCom(parGerado())).e
+    const b = (await entrarCom(parGerado())).e
+    const dois = `${cookieDe(a)}; ${cookieDe(b)}`
+    for (const [m, c] of [['GET', '/api/sessao'], ['GET', '/api/estado'], ['POST', '/api/imprimir'], ['POST', '/api/apelido']]) {
+      const r = await pedir(m, c, { cookie: dois, ...(m === 'POST' ? { corpo: {}, headers: { 'Idempotency-Key': chave() } } : {}) })
+      assert.equal(r.status, 401, `${m} ${c}`)
+      assert.equal(r.json.codigo, 'sessao_duplicada')
+      assert.match(String(r.headers['set-cookie']), new RegExp(`^${NOME_COOKIE}=; .*Max-Age=0`))
+    }
+    // o mesmo cookie repetido também é recusado (não há como saber qual o navegador pôs primeiro)
+    assert.equal((await pedir('GET', '/api/estado', { cookie: `${cookieDe(a)}; ${cookieDe(a)}` })).status, 401)
+    // um só continua valendo
+    assert.equal((await pedir('GET', '/api/estado', { cookie: cookieDe(a) })).status, 200)
+  })
+
+  test('PORAO_SITE que não é local e não é https:// → o servidor recusa subir com erro claro', async () => {
+    for (const site of ['porao.exemplo.test', 'http://porao.exemplo.test', 'ftp://porao.exemplo.test', 'https://', 'https://porao.exemplo.test/caminho',
+    ['https://usuario', 'porao.exemplo.test'].join('@')]) { // endereço com usuário embutido (não é e-mail; montado assim para o guarda de privacidade)
+      await assert.rejects(iniciarServidor({ porta: 0, caminhoBanco: ':memory:', site }), /PORAO_SITE/, site)
+    }
+    try {
+      process.env.PORAO_SITE = 'porao.exemplo.test'
+      await assert.rejects(iniciarServidor({ porta: 0, caminhoBanco: ':memory:' }), /https:\/\//)
+    } finally { delete process.env.PORAO_SITE }
+    for (const site of ['127.0.0.1:5000', 'localhost:5000', 'http://127.0.0.1:5000', 'https://porao.exemplo.test', 'https://porao.exemplo.test:8443']) {
+      const s2 = await iniciarServidor({ porta: 0, caminhoBanco: ':memory:', site })
+      await s2.fechar()
+    }
+  })
+
+  test('desafios vencidos somem em ~10 min (não 24 h)', async () => {
+    const par = parGerado()
+    const d = await post('/api/sessao/desafio', { carteira: par.carteira })
+    const existe = () => srv.db.prepare('SELECT COUNT(*) AS n FROM desafios WHERE nonce = ?').get(d.json.nonce).n
+    passar(11 * 60_000)
+    await post('/api/sessao/desafio', { carteira: par.carteira }) // a limpeza roda no desafio
+    assert.equal(existe(), 0)
+  })
+
+  test('teto geral de desafios pendentes → 503 ocupado (e volta quando vencem)', async () => {
+    const s2 = await iniciarServidor({ porta: 0, caminhoBanco: path.join(pasta, 'teto.db'), agora: () => relogio, maxDesafiosPendentes: 3 })
+    try {
+      const st = []
+      for (let i = 0; i < 5; i++) {
+        const r = await post('/api/sessao/desafio', { carteira: parGerado().carteira }, { porta: s2.porta, ip: `127.0.3.${i + 2}` })
+        st.push(r.status)
+        if (r.status === 503) assert.equal(r.json.codigo, 'ocupado')
+      }
+      assert.deepEqual(st, [200, 200, 200, 503, 503])
+      passar(5 * 60_000)
+      assert.equal((await post('/api/sessao/desafio', { carteira: parGerado().carteira }, { porta: s2.porta, ip: '127.0.3.9' })).status, 200)
+    } finally { await s2.fechar() }
+  })
+
+  test('limite por IP: IPv6 agrupado por /64; IPv4 mapeado vira IPv4', async () => {
+    const servidor = await import('../servidor/index.mjs')
+    assert.equal(typeof servidor.chaveDoLimite, 'function')
+    assert.equal(servidor.chaveDoLimite('2001:db8:1:2:aaaa::1'), servidor.chaveDoLimite('2001:db8:1:2:bbbb:cccc:dddd:eeee'))
+    assert.notEqual(servidor.chaveDoLimite('2001:db8:1:2::1'), servidor.chaveDoLimite('2001:db8:1:3::1'))
+    assert.equal(servidor.chaveDoLimite('::ffff:127.0.0.5'), '127.0.0.5')
   })
 })

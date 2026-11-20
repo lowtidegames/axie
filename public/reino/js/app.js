@@ -702,11 +702,11 @@ async function erroDoComando(e) {
   const c = e.codigo
   if (c === 'PARTIDA_ACABOU' && e.extra.partida) { semTimers(); Bat.parar(); adotar(e.extra.partida); fimDaPartida(); return }
   // seq fora do lugar, comando que o motor recusou, partida que sumiu: a tela estava diferente do servidor → recarrega dele
-  if (/^SEQ_|^CONCORRENCIA$|^COMANDO_RECUSADO$|^PARTIDA_/.test(c) || e.status === 404 || e.status === 422) { if (c === 'COMANDO_RECUSADO') J.erros.push('servidor recusou um comando que estava nas opções'); await recarregar(); return }
+  if (/^SEQ_|^CONCORRENCIA$|^COMANDO_RECUSADO$|^PARTIDA_/.test(c) || e.status === 404 || e.status === 422) { if (c === 'COMANDO_RECUSADO') J.erros.push('servidor recusou um comando que estava nas opções'); await recarregar(/^SEQ_(ANTIGA|JA_USADA)$/.test(c) ? T.outraAba : T.srv.sincronizado); return } // seq velho num comando NOVO: outra aba (ou outro aparelho) andou com a partida — o mesmo aviso do modo local
   avisarServidor(c) // 429, manutenção, só leitura…: avisa e deixa jogar de novo (nada foi aplicado)
 }
 /** Recarrega a partida do servidor (SEQ_ANTIGA, SEQ_JA_USADA…). Se ela já terminou lá, abre um treino. */
-async function recarregar() {
+async function recarregar(aviso = T.srv.sincronizado) {
   try {
     const ab = await Srv.aberta(S.modo); S.energia = ab.energia
     if (ab.partida) { entrar(ab.partida, aviso); return }

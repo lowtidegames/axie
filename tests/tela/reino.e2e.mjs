@@ -341,7 +341,7 @@ async function rodar(fmt) {
   const p2 = await abrir(ctx)
   const v2 = await K(p2, (k) => k.visao())
   confere(JSON.stringify(v2.oferta) === JSON.stringify(v0.oferta) && JSON.stringify(v2.horda) === JSON.stringify(v0.horda) && JSON.stringify(v2.espolios) === JSON.stringify(v0.espolios), 'mesma semente: mesma oferta, horda e espólios')
-  const rep2 = await p2.evaluate(async ({ sem, cmds }) => { const { reproduzir } = await import(new URL('../../shared/reino/partida.js', location.href).href); const r = reproduzir({ semente: sem, cartasLiberadas: window.__keepmile.liberadas(), comandos: cmds }); return { ok: r.ok, estado: JSON.stringify(r.estado) } }, { sem: SEM, cmds: comandos })
+  const rep2 = await p2.evaluate(async ({ sem, cmds }) => { const { reproduzir } = await import(new URL('../../shared/reino/partida.js', location.href).href); const r = reproduzir({ semente: sem, cartasLiberadas: window.__keepmile.liberadas(), comandos: cmds, regra: window.__keepmile.estado().regra /* R46 (a regra mudou: partida nova nasce na regra 2): refaz com a regra da própria partida */ }); return { ok: r.ok, estado: JSON.stringify(r.estado) } }, { sem: SEM, cmds: comandos })
   confere(rep2.ok && rep2.estado === estadoA, 'mesma semente + mesmos comandos = a mesma partida, byte a byte')
 
   // ---------------------------------------------------------------- 6. perder vida (reino vazio)
@@ -1419,7 +1419,7 @@ async function r39(fmt) {
     if (fmt.nome === 'celular') await foto(page, 'r39-melhores-celular') }
   // conquistas ganhas pela regra comum nesta conta de teste (modo local)
   { const g = await K(page, (k) => k.guarda()), ids = new Set(LISTA.map((c) => c.id))
-    confere(g.conquistas.length >= 6 && g.conquistas.every((c) => ids.has(c)) && ['supper', 'road', 'double', 'mole', 'pudding', 'tally25'].every((c) => g.conquistas.includes(c)), `R39 conquistas (modo local, regra do módulo comum): ${g.conquistas.length} ganhas em 2 partidas — ${g.conquistas.join(', ')}`)
+    confere(g.conquistas.length >= 6 && g.conquistas.every((c) => ids.has(c)) && /* R46 (a regra mudou: depois da derrota volta a MESMA horda; o caminho destas 2 partidas de robô é outro e saem 16 conquistas, sem pudding e tally25) */ ['supper', 'road', 'double', 'mole', 'seconds', 'encore'].every((c) => g.conquistas.includes(c)), `R39 conquistas (modo local, regra do módulo comum): ${g.conquistas.length} ganhas em 2 partidas — ${g.conquistas.join(', ')}`)
     confere(g.conquistas.every((c) => /^\d{4}-\d\d-\d\d$/.test(g.conquistasEm[c] || '')), 'R39 conquistas: cada uma ganha na partida ficou com a data') }
   await ctx.close()
 

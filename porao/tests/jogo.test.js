@@ -10,7 +10,7 @@ import { abrirBancoPorao, carregarSave, MIGRACOES } from '../servidor/banco.mjs'
 import { agir, verEstado, estadoParaTela, somaDoDiario, ACOES } from '../servidor/jogo.mjs'
 import * as R from '../comum/regras.js'
 import { TEXTOS } from '../comum/nomes.js'
-import { RARIDADES, LUXOS, INFLUENCIADORES } from '../comum/config.js'
+import { RARIDADES, LUXOS, INFLUENCIADORES, CONTRATO } from '../comum/config.js'
 
 const T0 = 1_700_000_000_000
 const SEMENTE = 'SEMENTE-SECRETA-porao-7f3a9c'
@@ -303,5 +303,122 @@ describe('P8 — SAVE_SO_LEITURA e limpeza de pedidos', () => {
       assert.deepEqual(chaves, ['novo-0001'])
       db2.close()
     } finally { fs.rmSync(pasta, { recursive: true, force: true }) }
+  })
+})
+
+describe('textos novos do humorista ligados no servidor', () => {
+  /** Lista os textos de uma família (rebrand.1, rebrand.2...) na ordem. */
+  const familia = (pre) => { const l = []; for (let k = 1; TEXTOS[`${pre}.${k}`] !== undefined; k++) l.push(TEXTOS[`${pre}.${k}`]); return l }
+  const dinheiro = (n) => `$ ${Number(n).toLocaleString('pt-BR')}`
+
+  /** Estado com 1 projeto no ar, montado só pelas ações do servidor. */
+  function comProjeto() {
+    const db = bancoNovo()
+    let agora = T0
+    agir(db, { acao: 'imprimir', dados: {}, chave: chave(), agora: agora += 1000 })
+    agir(db, { acao: 'lancar', dados: { cartaId: carregarSave(db).cartas[0].id }, chave: chave(), agora: agora += 1000 })
+    const e = structuredClone(carregarSave(db))
+    db.close()
+    return e
+  }
+  const baseDe = (p) => TEXTOS[`ideia.${p.raridade}.${p.ideia.split('_')[1]}.nome`]
+
+  test('rebrand usa rebrand.1..N com {nome}, determinístico e sem sorteio', () => {
+    const lista = familia('rebrand')
+    assert.ok(lista.length >= 2)
+    const e = comProjeto()
+    const p = e.projetos[0]
+    const base = baseDe(p)
+    const vistos = new Set()
+    for (let r = 1; r <= lista.length; r++) {
+      p.rebrands = r
+      const sorteiosAntes = e.sorteios
+      const a = estadoParaTela(e).projetos[0].nome
+      assert.equal(estadoParaTela(e).projetos[0].nome, a, 'mesmo estado, mesmo nome')
+      assert.equal(e.sorteios, sorteiosAntes)
+      assert.ok(lista.some(m => m.replaceAll('{nome}', base) === a), `nome fora da lista: ${a}`)
+      assert.ok(!a.includes('{nome}'))
+      vistos.add(a)
+    }
+    assert.equal(vistos.size, lista.length, 'cada rebrand seguido usa um jeito diferente')
+    p.rebrands = 0
+    assert.equal(estadoParaTela(e).projetos[0].nome, base)
+    // a quantidade vem dos textos (nomes.local pode ter outra lista): com 1 jeito só, sempre ele
+    const so1 = { ...TEXTOS }
+    for (let k = 2; so1[`rebrand.${k}`]; k++) delete so1[`rebrand.${k}`]
+    so1['rebrand.1'] = '{nome} Turbo'
+    p.rebrands = 3
+    assert.equal(estadoParaTela(e, { textos: so1 }).projetos[0].nome, `${base} Turbo`)
+  })
+
+  test('batida pendente traz batida.frase da lista batida.*, determinística', () => {
+    const lista = familia('batida')
+    assert.ok(lista.length >= 2)
+    const e = comProjeto()
+    e.batida = { projetoId: e.projetos[0].id, custoRebrand: 30 }
+    const vistas = new Set()
+    for (let b = 1; b <= lista.length; b++) {
+      e.contagem.batidas = b
+      const t = estadoParaTela(e)
+      assert.ok(lista.includes(t.batida.frase), t.batida.frase)
+      assert.equal(estadoParaTela(e).batida.frase, t.batida.frase)
+      vistas.add(t.batida.frase)
+    }
+    assert.equal(vistas.size, lista.length, 'batidas seguidas mudam a frase')
+  })
+
+  test('batida traz o nome que o projeto terá depois do rebrand (prévia = resultado)', () => {
+    const e = comProjeto()
+    e.batida = { projetoId: e.projetos[0].id, custoRebrand: 1 }
+    e.caixa = Math.max(e.caixa, 10)
+    const previa = estadoParaTela(e).batida.nomeAposRebrand
+    const r = R.resolverBatida(e, 'rebrand')
+    assert.equal(r.ok, true, r.erro)
+    assert.equal(estadoParaTela(r.estado).projetos[0].nome, previa)
+  })
+
+  test('celular: oferta do vídeo 1 com {valor} = P1 real; vídeo 2 pelo mesmo preço tem texto', () => {
+    const e = comProjeto()
+    const p = e.projetos[0]
+    const p1 = CONTRATO.tamanhos.nano.p1
+    p.contrato = { influenciador: 'infl_1', tamanho: 'nano', fase: 'V1_NO_AR', videos: 1, p1, proposta: null, esperaRestante: 10, chorou: false, motivo: null, trazidasV1: 0 }
+    let t = estadoParaTela(e)
+    const oferta = t.celular.find(m => m.tipo === 'oferta')
+    assert.ok(!oferta.texto.includes('{valor}'), oferta.texto)
+    assert.ok(oferta.texto.includes(dinheiro(p1)), oferta.texto)
+    assert.equal(oferta.valor, p1)
+    // abaixo do limite: proposta = mesmo preço
+    p.contrato.proposta = p1
+    p.contrato.esperaRestante = 0
+    t = estadoParaTela(e)
+    const prop = t.celular.find(m => m.tipo === 'proposta')
+    assert.ok(prop, 'mensagem da proposta')
+    assert.equal(prop.valor, p1)
+    assert.equal(prop.texto, TEXTOS['msg.video2.mesmo_preco'].replaceAll('{projeto}', t.projetos[0].nome))
+    for (const m of t.celular) assert.ok(!/\{(projeto|valor|nome)\}/.test(m.texto ?? ''), m.texto)
+  })
+
+  test('rotulos.confianca vem de ui.confianca', () => {
+    const e = comProjeto()
+    assert.equal(estadoParaTela(e).rotulos.confianca, TEXTOS['ui.confianca'])
+    assert.equal(estadoParaTela(e, { textos: { ...TEXTOS, 'ui.confianca': 'Fé cega' } }).rotulos.confianca, 'Fé cega')
+  })
+
+  test('tapete e chat dos trouxas usam a quantidade de frases de nomes.js (sem número fixo)', () => {
+    const nTapete = familia('tapete').length
+    const nChat = familia('chat').length
+    const mais = { ...TEXTOS, [`tapete.${nTapete + 1}`]: 'TAPETE NOVO', [`chat.${nChat + 1}`]: 'CHAT NOVO' }
+    // tapete: o projeto de número N+1 usa a frase nova (antes voltava à 1)
+    const e = comProjeto()
+    e.projetos[0].id = nTapete + 1
+    e.projetos[0].fase = 'APLICADO'
+    assert.equal(estadoParaTela(e, { textos: mais }).projetos[0].textoTapete, 'TAPETE NOVO')
+    assert.equal(estadoParaTela(e).projetos[0].textoTapete, TEXTOS['tapete.1'])
+    // chat: projeto no ar de número N usa a frase N+1
+    const e2 = comProjeto()
+    e2.projetos[0].id = nChat
+    const trouxa = (t) => t.chat.find(m => m.tipo === 'trouxa').texto
+    assert.equal(trouxa(estadoParaTela(e2, { textos: mais })), 'CHAT NOVO')
+    assert.equal(trouxa(estadoParaTela(e2)), TEXTOS['chat.1'])
   })
 })

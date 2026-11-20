@@ -151,14 +151,17 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     titulo: db.prepare('INSERT INTO reino_titulos (temporada, conta_id, posicao, media, liga) VALUES (?, ?, ?, ?, ?)'),
     titulos: db.prepare('SELECT temporada, posicao, media, liga FROM reino_titulos WHERE conta_id = ? ORDER BY temporada DESC'),
     // placar do dia (K2): só conta criada antes das 00:00 UTC do dia (2º parâmetro) e com 1 ranking terminado e conferido
+    // ANTES do fim do dia (3º parâmetro, R19: ranking terminado depois não põe a conta para trás no placar daquele dia)
     placarDoDia: db.prepare(`SELECT p.id, p.conta_id, p.pontos, p.vencidas, c.apelido FROM reino_partidas p JOIN contas c ON c.id = p.conta_id
                              WHERE p.modo = 'estrada' AND p.dia = ? AND p.status = 'terminada' AND p.conferida = 1 AND c.criada_em < ?
-                             AND EXISTS (SELECT 1 FROM reino_partidas r WHERE r.conta_id = p.conta_id AND r.modo = 'ranking' AND r.status = 'terminada' AND r.conferida = 1)
+                             AND EXISTS (SELECT 1 FROM reino_partidas r WHERE r.conta_id = p.conta_id AND r.modo = 'ranking' AND r.status = 'terminada' AND r.conferida = 1
+                             AND r.terminada_em < ?)
                              ORDER BY p.pontos DESC, p.terminada_em ASC, p.conta_id ASC LIMIT ?`),
     minhaEstrada: db.prepare("SELECT pontos, terminada_em, status, conferida FROM reino_partidas WHERE conta_id = ? AND modo = 'estrada' AND dia = ?"),
     posicaoNaEstrada: db.prepare(`SELECT COUNT(*) n FROM reino_partidas p JOIN contas c ON c.id = p.conta_id
                                   WHERE p.modo = 'estrada' AND p.dia = ? AND p.status = 'terminada' AND p.conferida = 1 AND c.criada_em < ?
-                                  AND EXISTS (SELECT 1 FROM reino_partidas r WHERE r.conta_id = p.conta_id AND r.modo = 'ranking' AND r.status = 'terminada' AND r.conferida = 1)
+                                  AND EXISTS (SELECT 1 FROM reino_partidas r WHERE r.conta_id = p.conta_id AND r.modo = 'ranking' AND r.status = 'terminada' AND r.conferida = 1
+                             AND r.terminada_em < ?)
                                   AND (p.pontos > ? OR (p.pontos = ? AND (p.terminada_em < ? OR (p.terminada_em = ? AND p.conta_id < ?))))`),
     melhores: db.prepare(`SELECT id, modo, dia, temporada, pontos, vencidas, rodada, terminada_em FROM reino_partidas
                           WHERE conta_id = ? AND status = 'terminada' AND conferida = 1 ORDER BY pontos DESC, terminada_em ASC LIMIT ?`),
@@ -527,14 +530,14 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
   }
 
   function placarDoDia(dia, contaId) {
-    const lista = q.placarDoDia.all(dia, dia * DIA_MS, P.placarDoDia).map((l, i) => ({ posicao: i + 1, apelido: l.apelido, pontos: l.pontos, vencidas: l.vencidas, partida: l.id }))
+    const lista = q.placarDoDia.all(dia, dia * DIA_MS, (dia + 1) * DIA_MS, P.placarDoDia).map((l, i) => ({ posicao: i + 1, apelido: l.apelido, pontos: l.pontos, vencidas: l.vencidas, partida: l.id }))
     const minha = q.minhaEstrada.get(contaId, dia)
     const fora = foraDoPlacar(contaId, dia)
     let voce = null
     if (minha) {
       voce = { status: minha.status, pontos: minha.pontos, posicao: null, foraDoPlacar: fora }
       if (!fora && minha.status === 'terminada' && minha.conferida === 1) {
-        voce.posicao = q.posicaoNaEstrada.get(dia, dia * DIA_MS, minha.pontos, minha.pontos, minha.terminada_em, minha.terminada_em, contaId).n + 1
+        voce.posicao = q.posicaoNaEstrada.get(dia, dia * DIA_MS, (dia + 1) * DIA_MS, minha.pontos, minha.pontos, minha.terminada_em, minha.terminada_em, contaId).n + 1
       }
     }
     return { dia: new Date(dia * DIA_MS).toISOString().slice(0, 10), lista, voce, jogou: !!minha, foraDoPlacar: fora }
@@ -604,7 +607,7 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
       const p = posicaoNaTemporada(linha.temporada, linha.conta_id)
       return !!p && p.posicao <= P.topoComReplay
     }
-    if (linha.modo === 'estrada') return q.placarDoDia.all(linha.dia, linha.dia * DIA_MS, P.topoComReplay).some((l) => l.id === linha.id)
+    if (linha.modo === 'estrada') return q.placarDoDia.all(linha.dia, linha.dia * DIA_MS, (linha.dia + 1) * DIA_MS, P.topoComReplay).some((l) => l.id === linha.id)
     return false
   }
 
@@ -617,12 +620,11 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     if (ja) {
       replaysGuardados.delete(linha.id)
       replaysGuardados.set(linha.id, ja)
-      return ja.dados
+      return ja
     }
-    const liberadas = JSON.parse(linha.liberadas)
     const cmds = comandosDe(linha)
-    let e = criarPartida({ semente: linha.semente, cartasLiberadas: liberadas })
-    const inicio = visaoDoMotor(e)
+    let e = criarPartida({ semente: linha.semente, cartasLiberadas: JSON.parse(linha.liberadas) })
+    const inicio = json(visaoDoMotor(e))
     const passos = []
     for (let i = 0; i < cmds.length; i++) {
       const r = aplicar(e, cmds[i])
@@ -631,12 +633,15 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
         throw erro(500, 'PARTIDA_ILEGIVEL', 'Não consegui remontar esta partida. Ela ficou guardada; avise a equipe.')
       }
       e = r.estado
-      passos.push({ comando: cmds[i], eventos: r.eventos, visao: visaoDoMotor(e) })
+      passos.push(json({ comando: cmds[i], eventos: r.eventos, visao: visaoDoMotor(e) }))
     }
-    const dados = { liberadas, inicio, passos }
-    const bytes = json(dados).length
+    // R19: guardado já como TEXTO JSON (objetos montados ocupavam ~6,7x o tamanho do texto na memória); a página
+    // pedida é lida do texto na hora. bytes = soma dos tamanhos dos textos guardados.
+    const dados = { liberadas: linha.liberadas, inicio, passos }
+    const bytes = dados.liberadas.length + inicio.length + passos.reduce((n, t) => n + t.length, 0)
+    dados.bytes = bytes
     if (bytes <= P.replayCacheBytes) {
-      replaysGuardados.set(linha.id, { dados, bytes })
+      replaysGuardados.set(linha.id, dados)
       bytesGuardados += bytes
       for (const [k, v] of replaysGuardados) {
         if (bytesGuardados <= P.replayCacheBytes) break
@@ -671,13 +676,16 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
     if (!propria && !noTopo(linha)) throw naoAchou()
     const total = linha.seq
     if (!Number.isSafeInteger(desde) || desde < 0 || desde > total) throw erro(400, 'CAMPO_INVALIDO', 'Campo inválido: desde.')
-    const { liberadas, inicio, passos } = replayMontado(linha)
+    const montado = replayMontado(linha)
     const ate = Math.min(total, desde + P.replayPassosPorPagina)
+    const liberadas = JSON.parse(montado.liberadas)
+    const inicio = JSON.parse(montado.inicio)
+    const passos = montado.passos.slice(desde, ate).map((t) => JSON.parse(t))
     return {
       id: linha.id, modo: linha.modo, dia: new Date(linha.dia * DIA_MS).toISOString().slice(0, 10), temporada: linha.temporada,
       apelido: q.apelido.get(linha.conta_id)?.apelido ?? null, propria,
       cartasLiberadas: liberadas, semente: linha.semente,
-      inicio, passos: passos.slice(desde, ate), totalPassos: total, desde, proximo: ate < total ? ate : null,
+      inicio, passos, totalPassos: total, desde, proximo: ate < total ? ate : null,
       resultado: resultadoGravado(linha),
     }
   }
@@ -686,6 +694,7 @@ export function criarReino(db, { agora = Date.now, soLeitura = () => false, log 
   const _interno = {
     sementeDaEstrada, energiaAgora: (contaId) => energiaAgora(contaDoReino(contaId)), fecharTemporadas, hash: (x) => createHash('sha256').update(x).digest('hex'),
     motor: () => ({ ...contagem }), replaysGuardados: () => ({ partidas: replaysGuardados.size, bytes: bytesGuardados }),
+    replaysGuardadosValores: () => [...replaysGuardados.values()],
   }
 
   return { abrir, comando, desistir, verAberta, ranking, perfil, replay, _interno }

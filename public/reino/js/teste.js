@@ -52,7 +52,7 @@ export async function ligarGanchos(X) {
     /** O robô põe a carta (e o que mais quiser) até a hora de lutar; a luta fica para a tela. */
     roboAteLutar(robo = 'ganancioso') { let n = 0, s = 999; const inteiro = (k) => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s % k }; while (n++ < 50) { const cmd = escolher(robo, J.e, inteiro); if (cmd.tipo === 'batalhar') break; if (!X.mandar(cmd)) throw new Error('comando recusado') } X.abrirRodada(); if (X.M().fase === 'chefe') X.seguir(); return { rodada: J.e.rodada, posta: J.e.cartaPosta } },
     /** A lista de comandos refaz a mesma partida no motor? */
-    reproduzir() { const r = X.reproduzir({ semente: J.semente, cartasLiberadas: J.liberadas, comandos: J.comandos }); return { ok: r.ok, igual: r.ok && JSON.stringify(r.resultado) === JSON.stringify(X.resultado(J.e)), resultado: r.resultado ?? null } },
+    reproduzir() { const r = X.reproduzir({ semente: J.semente, cartasLiberadas: J.liberadas, comandos: J.comandos, regra: J.regra }); return { ok: r.ok, igual: r.ok && JSON.stringify(r.resultado) === JSON.stringify(X.resultado(J.e)), resultado: r.resultado ?? null } },
     resultado: () => X.resultado(J.e),
     som: () => Som.estado(), musica: () => Musica.estado(),
     cena: () => { let vivos = 0, ocultos = 0; for (let i = 0; i < C.n; i++) { if (C.est[i] === 1) vivos++; if (C.oculto[i]) ocultos++ } return { bonecos: C.n, vivos, ocultos, etiquetas: C.etiquetas.slice(), contorno: { ...X.CONTORNO }, maxTipoVisivel: X.maxTipoVisivel(), tremidaMax: C.tremidaMax, flashes: C.flashes.slice(), picoParticulas: C.picoParticulas, limite: C.limite, menos: C.menos, nivelMax: Math.max(0, ...Array.from(C.nv.subarray(0, C.n))), lideres: Array.from(C.lider.subarray(0, C.n)).reduce((a, b) => a + b, 0), marcha: C.marcha, fimDeJogo: !!C.fimDeJogo, tipo: C.tipo, e: C.e, VW: C.VW, VH: C.VH, hora: C.hora, camX: C.cam.x, camMin: C.camMin, camMax: C.camMax, zoom: C.cam.zoom, tb: C.tb, vidas: C.vidas, filtro: C.g.canvas.style.filter } },
@@ -162,5 +162,35 @@ export async function ligarGanchos(X) {
       return { id, vidaMotor, max: ch.max, f: ch.f, hpAgora: hp, desenhado: C.med.chefeBarraRet ? { ...C.med.chefeBarraRet } : null }
     },
     replayInfo: () => { const r = X.M().replay; return r ? { fim: r.fim, venceu: !!r.venceu } : null },
+    // ---- R46: a revanche (troca grátis de 2 terrenos). O que o motor diz, o que a tela guarda, o que a cena acendeu e a troca em curso
+    revanche() {
+      const M = X.M(), R = M.revanche, V = C.revancheVisto, t = C.troca, agora = performance.now()
+      return {
+        regra: J.regra ?? null, visao: J.v.revanche ? structuredClone(J.v.revanche) : null, trocas: J.op.comandos.filter((c) => c.tipo === 'trocar').length,
+        modelo: R ? { ativa: !!R.ativa, marcado: R.marcado, dica: R.dica ? { ...R.dica } : null, feita: !!R.feita, feitaHa: R.feita ? agora - R.feita : null, ret: R.ret ? { ...R.ret } : null, btRet: R.btRet ? { ...R.btRet } : null, linhas: (R.linhas || []).slice(), aberta: !!R.aberta } : null,
+        cena: V ? { marcado: V.marcado, dica: V.dica.slice(), pulsa: V.pulsa, pulso: V.pulso, rets: structuredClone(V.rets) } : null,
+        troca: t ? { a: t.a, b: t.b, ms: t.ms, some: !!t.some, ha: agora - t.t0 } : null,
+        med: { trocas: C.med.trocas, desvio: C.med.trocaDesvio, quadros: C.med.trocaQuadros, some: C.med.trocaSome },
+        terrenos: C.terrenos.map((x) => (x ? x.carta + ':' + x.nivel : null)),
+      }
+    },
+    /** Passa uma lista de comandos pela tela (as lutas pela reprodução de eventos, sem esperar) e abre a rodada em que parou. */
+    jogarComandos(cmds) {
+      for (const cmd of cmds) {
+        if (cmd.tipo === 'batalhar') { X.M().fase = 'carta'; X.lutar(true); fimDaLutaJa(); X.semTimers(); X.limparFestas() } else if (!X.mandar(cmd)) throw new Error('comando recusado: ' + JSON.stringify(cmd))
+      }
+      X.semTimers(); X.limparFestas()
+      if (J.e.fase === 'fim') X.fimDaPartida(); else if (J.e.fase === 'carta') { X.abrirRodada(); if (X.M().fase === 'chefe') X.seguir() }
+      return { comandos: J.comandos.length, rodada: J.e.rodada, fase: J.e.fase }
+    },
+    /** A partida local vista como REPLAY (o mesmo formato do servidor: início + passos com comando, eventos e visão), para ver a troca passar. */
+    replayLocal({ desde = 0 } = {}) { // `desde`: a partir de que comando (os de antes já entram feitos no início)
+      let e = X.reproduzir({ semente: J.semente, cartasLiberadas: J.liberadas, comandos: J.comandos.slice(0, desde), regra: J.regra }).estado
+      const inicio = X.visao(e), passos = []
+      for (const comando of J.comandos.slice(desde)) { const r = X.aplicar(e, comando); if (!r.ok) break; e = r.estado; passos.push({ comando, eventos: r.eventos, visao: X.visao(e) }) }
+      X.iniciarReplay({ apelido: 'TEST', inicio, passos, resultado: X.resultado(e) })
+      return { passos: passos.length, trocas: passos.filter((p) => p.comando.tipo === 'trocar').length }
+    },
+    tocar: (id, dados = {}) => X.aoTocar(id, dados, {}),
   }
 }

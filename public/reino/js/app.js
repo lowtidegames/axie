@@ -172,7 +172,9 @@ function montarReino(comHorda = true) {
   if (comHorda && v.horda) {
     M.hordaN = expandirHorda(v.horda).length; M.hordaChefe = v.horda.chefe
     const tipos = [...new Set(v.horda.ordem)], cabem = C.tipo === 'celular' ? 4 : 8, fila = [...tipos]
-    for (const t of v.horda.ordem) { if (fila.length >= Math.min(cabem, v.horda.ordem.length)) break; if (t !== v.horda.chefe) fila.push(t) }
+    // no prelúdio, de cada tipo aparecem no máximo os REPRESENTANTES da cena (`C.repMax`); o número real fica na plaqueta "xN"
+    const porTipo = {}; for (const t of fila) porTipo[t] = 1
+    for (const t of v.horda.ordem) { if (fila.length >= Math.min(cabem, v.horda.ordem.length)) break; if (t !== v.horda.chefe && porTipo[t] < (C.repMax || cabem)) { porTipo[t]++; fila.push(t) } }
     fila.slice(0, cabem).forEach((t, i, a) => { const chefe = t === v.horda.chefe; C.nascer(1, t, chefe ? -30 : -6 - (i * (C.VW < 500 && C.tipo === 'pc' ? 22 : 46)) / Math.max(1, a.length) - (i % 2) * 4, 1, chefe ? 0.3 : ((i * 5) % 7) / 3.5 - 0.9, 0) })
   }
 }
@@ -221,7 +223,7 @@ function abrirRodada() {
   M.fase = 'carta'; M.sel = -1; M.armado = null; M.trocar = 0; M.info = null; M.infoSel = null; M.vitoria = null; M.derrota = null; M.maoT0 = agoraMs() + 150; M.pulsaLutar = v.cartaPosta
   M.primeira = v.rodada === 1 && v.terrenos.every((t) => !t); C.destaque = null; J.ouroAlvo = v.ouro
   canvas.style.filter = ''
-  C.mudarHora(Arte.horaDaRodada(v.rodada)); Musica.rodada(v.rodada)
+  C.mudarHora(Arte.horaDaRodada(v.rodada), false, v.rodada); Musica.rodada(v.rodada) // a rodada vai direto para a cena (trecho da estrada)
   montarReino(); Som.tocar('cartaAparece')
   const chave = v.rodada + ':' + v.vidas
   if (v.horda.chefe && J.anunciado !== chave) {
@@ -293,7 +295,7 @@ function retomarFim(f) {
 function mostrarEspolio() {
   preencher()
   M.fase = 'vitoria'; M.sel = -1; M.vitoria = { t0: agoraMs() - 1000, ouro: 0, ouroMostra: 0, pronto: true, prontoT0: agoraMs() - 1000, chefe: null, selo: null, mvp: null }
-  C.mudarHora(Arte.horaDaRodada(J.v.rodada), true); J.ouroAlvo = J.v.ouro
+  C.mudarHora(Arte.horaDaRodada(J.v.rodada), true, J.v.rodada); J.ouroAlvo = J.v.ouro
   montarReino(false); Musica.momento('vitoria'); UI.mudou()
 }
 
@@ -779,7 +781,7 @@ function iniciarReplay(rep, volta = null) {
 }
 function replayParado(p) {
   preencher(); M.fase = 'replay'; M.sel = -1; M.vidas = J.v.vidas; J.ouroAlvo = J.v.ouro; C.destaque = null; canvas.style.filter = ''; C.noite = 0
-  C.mudarHora(Arte.horaDaRodada(J.v.rodada)); montarReino(J.v.fase === 'carta'); C.vidas = estadoCastelo()
+  C.mudarHora(Arte.horaDaRodada(J.v.rodada), false, J.v.rodada); montarReino(J.v.fase === 'carta'); C.vidas = estadoCastelo()
   if (p) { eventosDeTerreno(p.eventos.filter((x) => x.tipo === 'posta' || x.tipo === 'nivel')); M.replay.linha = legendaDoPasso(p.comando) }
   Musica.momento('construir'); UI.mudou()
 }

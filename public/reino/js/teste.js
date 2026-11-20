@@ -56,7 +56,9 @@ export async function ligarGanchos(X) {
     resultado: () => X.resultado(J.e),
     som: () => Som.estado(), musica: () => Musica.estado(),
     cena: () => { let vivos = 0, ocultos = 0; for (let i = 0; i < C.n; i++) { if (C.est[i] === 1) vivos++; if (C.oculto[i]) ocultos++ } return { bonecos: C.n, vivos, ocultos, etiquetas: C.etiquetas.slice(), contorno: { ...X.CONTORNO }, maxTipoVisivel: X.maxTipoVisivel(), tremidaMax: C.tremidaMax, flashes: C.flashes.slice(), picoParticulas: C.picoParticulas, limite: C.limite, menos: C.menos, nivelMax: Math.max(0, ...Array.from(C.nv.subarray(0, C.n))), lideres: Array.from(C.lider.subarray(0, C.n)).reduce((a, b) => a + b, 0), marcha: C.marcha, fimDeJogo: !!C.fimDeJogo, tipo: C.tipo, e: C.e, VW: C.VW, VH: C.VH, hora: C.hora, camX: C.cam.x, camMin: C.camMin, camMax: C.camMax, zoom: C.cam.zoom, tb: C.tb, vidas: C.vidas, filtro: C.g.canvas.style.filter } },
-    zerarMedidas() { C.tremidaMax = 0; C.picoParticulas = 0; C.flashes.length = 0; marca = X.nq() },
+    zerarMedidas() { C.tremidaMax = 0; C.picoParticulas = 0; C.flashes.length = 0; marca = X.nq(); C.zerarMedidas?.() },
+    // ---- a cena nova (R21/R25): as medidas do movimento, o teto de representantes por pelotão e quem representa cada boneco
+    med: () => structuredClone(C.med), zerarMedidasDaCena: () => C.zerarMedidas(), repMax: () => C.repMax, rep: (i) => C.rep(i),
     /** Tempo de quadro desde zerarMedidas(): mediana do intervalo entre quadros e do custo de desenhar (ms). */
     quadros() { const n = Math.min(600, X.nq() - marca), a = [], b = []; for (let i = 0; i < n; i++) { const k = (X.nq() - 1 - i + 6000) % 600; a.push(X.QUADROS[k]); b.push(X.CUSTO[k]) } return { n, intervalo: mediana(a), custo: mediana(b), pior: Math.max(0, ...b) } },
     /** Luta de vitrine com o reino e a horda cheios (80+ bonecos) para medir o tempo de quadro. Não mexe na partida. */

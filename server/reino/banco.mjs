@@ -81,3 +81,14 @@ export function migracaoV5(db) {
 export function migracaoV6(db) {
   db.exec('ALTER TABLE reino_partidas ADD COLUMN resposta TEXT')
 }
+
+/**
+ * v7 — tarefa R22: quando a conta trocou o apelido pela última vez (1 troca por 24 h) e quando ganhou cada conquista
+ * ({ id: ms }). Conquista ganha antes da v7 fica sem data (a tela mostra "feita", sem dia).
+ */
+export function migracaoV7(db) {
+  db.exec(`
+  ALTER TABLE reino_contas ADD COLUMN apelido_trocado_em INTEGER;
+  ALTER TABLE reino_contas ADD COLUMN conquistas_quando TEXT NOT NULL DEFAULT '{}';
+  `)
+}

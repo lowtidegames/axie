@@ -350,7 +350,9 @@ export function costas(g, x, y) {
 // ------------------------------------------------------------------ cenário
 /** Geometria (terrenos, portão, castelo, escadas) de 'pc' ou 'celular'. */
 export function geometria(tipo) { const c = A.atlas?.cenarios?.[tipo]; return c?.terrenos?.length === 6 ? c : Cod.GEOMETRIA[tipo] }
-export function horaDaRodada(r) { const t = A.atlas?.cenarios?.rodadas || Cod.GEOMETRIA.rodadas; return t[((r - 1) % 5) + 1] || 'morning' }
+export function horaDaRodada(r) { A.rodadaPedida = r; const t = A.atlas?.cenarios?.rodadas || Cod.GEOMETRIA.rodadas; return t[((r - 1) % 5) + 1] || 'morning' }
+/** A rodada da última hora pedida (lida uma vez): a cena usa para saber o TRECHO da estrada (a 4ª rodada do ciclo é o pôr do sol nos portões). */
+export function rodadaPedida() { const r = A.rodadaPedida || 0; A.rodadaPedida = 0; return r }
 /** Planos, nuvens e luz de uma hora. */
 export function cenario(tipo, hora) {
   return guardada(`c:${tipo}:${hora}`, () => {

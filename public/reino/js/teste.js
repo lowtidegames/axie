@@ -146,5 +146,6 @@ export async function ligarGanchos(X) {
     maoNova: () => { X.M().maoFixo = undefined; X.maoNova(0) },
     maoFixar: (ms) => { const M = X.M(); M.maoFixo = ms ?? undefined; if (ms != null) { M.maoRevelada = false; M.maoLog = [] } },
     pularParaLuta: () => X.pularParaLuta(),
+    revela: () => ({ ...X.UI().REVELA }),
   }
 }

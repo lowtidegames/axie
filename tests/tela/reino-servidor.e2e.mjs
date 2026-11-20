@@ -13,6 +13,10 @@
 // replay volta à tela de onde saiu); recarregar na tela de fim volta a ela até o Play again; conquistas com a data do servidor; menu
 // curto (SETTINGS abre som/música/efeitos/Reduced motion; X e Close sempre à vista); o aviso de rede não cobre a 2ª linha do HUD; e
 // nada de "X more for <liga menor>" quando a liga da conta já é maior.
+// R27: no fim de uma partida de ranking, a subida de posição vira festa ("ON THE BOARD: RANK n", "RANK 6 > 4" com o número rolando) e,
+// sem subir, não há festa; "N points to pass <nome>" no ranking; o gancho do fim (silhueta da próxima carta + a estrada do dia pelo
+// relógio do servidor, sempre menos de 24 h); replay vivo (a carta de cada passo, SKIP TO FIGHT, MVP da luta, x1/x2, WATCH AGAIN e
+// BACK); e o nome digitado aparece ao vivo na letra em pixel.
 // Fotos em tests/tela/fotos/reino/servidor-*.png.
 // Rode pela trava:  node tools/trava-robos.mjs rodar "timeout 900 node tests/tela/reino-servidor.e2e.mjs"
 import { createRequire } from 'node:module'
@@ -84,6 +88,7 @@ const topoEPe = (page) => page.evaluate(() => {
 /** O aviso do servidor não cobre o HUD: fica abaixo da fileira dos pinos do chefe (2ª linha) e, no celular, do sorteio e das chances. */
 const avisoForaDoHud = (page) => page.evaluate(() => { const q = window.__keepmile, m = q.modelo(), L = q.layout(); return !!m.statusRet && !!L.pinos && m.statusRet.y >= L.pinos.y + L.pinos.h && (!L.cel || m.statusRet.y >= L.odds.y + L.odds.h) })
 const K = (page, f, arg) => page.evaluate(f, arg)
+const CARTAS = (await import('../../shared/reino/config.js')).CARTAS
 const modelo = (page) => page.evaluate(() => window.__keepmile.modelo())
 const srv = (page) => page.evaluate(() => window.__keepmile.servidor())
 const espera = (page, f, arg, ms = 15_000) => page.waitForFunction(f, arg, { timeout: ms })
@@ -353,6 +358,13 @@ async function celular() {
   const rk1 = (await api('GET', '/api/reino/ranking', await token())).json
   confere(fim.liga.marca === T.srv.posicaoMarca(rk1.voce.posicao) && fim.media === rk1.voce.pontos, `fim do ranking: posição e média da temporada vêm do servidor (${rk1.voce.posicao}º, ${rk1.voce.pontos})`)
   confere(fim.amigo?.texto === T.srv.energiaCurta(2, 9), 'e a energia que sobrou (2/9)')
+  await item('fim do ranking: festa e gancho', page, async () => {
+    await espera(page, () => !!window.__keepmile.modelo().fim?.gancho && window.__keepmile.desenhou().includes('fimGancho'))
+    const f = (await modelo(page)).fim, d = await K(page, () => window.__keepmile.desenhou())
+    confere(!!f.subiu && f.subiu.de === null && f.subiu.para === rk1.voce.posicao && f.subiu.texto === T.srv.subiu.entrou(rk1.voce.posicao) && d.includes('fimSubiu'), `R27: a 1ª partida de ranking pôs a conta no placar: "${f.subiu?.texto}" (a posição é a do servidor)`)
+    confere(f.gancho === T.srv.gancho.aberta && d.includes('fimSilhueta') && !!f.album?.carta, `R27: o fim tem o gancho: a silhueta da próxima carta (${f.album?.carta}, ${T.proximaCarta(f.album?.falta)}) e "${f.gancho}" (a conta ainda não jogou a estrada de hoje)`)
+    confere(!/prize|reward|\$|earn|token/i.test([f.gancho, f.subiu?.texto].join(' ')), 'R27: nenhuma promessa de prêmio na festa nem no gancho')
+  })
   confere(rk1.voce.liga === 'legend' && !!rk1.voce.faltaParaProxima && rk1.voce.faltaParaProxima.liga !== 'legend', `com poucas contas o servidor manda a liga do topo (legend) junto com "${rk1.voce.faltaParaProxima?.pontos} para ${rk1.voce.faltaParaProxima?.liga}"`)
   confere(fim.liga.proxima == null && fim.liga.pct === 100, 'R23: a placa do fim não diz "<liga menor> IN X" para quem já é Legend of the Mile')
 
@@ -371,6 +383,19 @@ async function celular() {
   }
   await medirTela(page, 'ranking')
   await foto('ranking-celular')
+  await item('ranking: quanto falta para passar', page, async () => {
+    // com os números de verdade: quem está logo acima no topo (se a conta é a 1ª, não há linha)
+    const eu = rk1.voce, acima = rk1.lista.find((l) => l.posicao === eu.posicao - 1), dito = await texto(page, '#rankPassar')
+    confere(acima ? dito === T.srv.ranking.passar(acima.pontos - eu.pontos + 1, acima.apelido) : dito === null, acima ? `R27: "${dito}" — a diferença entre os pontos que o servidor mandou (${acima.pontos} e ${eu.pontos}), mais 1` : `R27: a conta é a ${eu.posicao}ª do topo e não há ninguém logo acima: sem linha "to pass"`)
+    // e com certeza de haver alguém acima: o teste troca a resposta do ranking (conta em 2º; "Old Ember" em 1º com 7 pontos a mais)
+    await fecharTela()
+    await page.route('**/api/reino/ranking*', async (rota) => { const r = await rota.fetch(), j = await r.json(), meu = j.lista.find((l) => l.apelido === e.apelido); j.voce = { ...j.voce, posicao: 2 }; j.lista = [{ ...meu, posicao: 1, apelido: 'Old Ember', pontos: j.voce.pontos + 7, partida: null }, { ...meu, posicao: 2 }]; await rota.fulfill({ response: r, json: j }) })
+    await abrirTela('#mRanking', 'ranking')
+    await page.unroute('**/api/reino/ranking*')
+    confere((await texto(page, '#rankPassar')) === T.srv.ranking.passar(8, 'Old Ember') && (await texto(page, '#rankPassar')) === '8 points to pass Old Ember', `R27: com "Old Ember" 7 pontos acima, o ranking diz "${await texto(page, '#rankPassar')}"`)
+    await medirTela(page, 'ranking com a linha "to pass"')
+    await fecharTela(); await abrirTela('#mRanking', 'ranking')
+  })
   await item('ranking: liga e Watch', page, async () => {
     confere((await texto(page, '#rankLiga')).includes('Legend of the Mile') && !(await page.evaluate(() => !!document.getElementById('rankProxima'))) && !/more for/i.test(await texto(page, '#rankLiga')), 'R23: Legend of the Mile sem a linha "X more for Road Warden" (liga menor)')
     const bts = await page.evaluate(() => [...document.querySelectorAll('#listaTopo li')].map((li) => { const b = li.querySelector('.km-ver'), r = b?.getBoundingClientRect(); return { partida: b ? b.dataset.partida : null, w: r ? r.width : 0, h: r ? r.height : 0, texto: b ? b.textContent : '' } }))
@@ -420,6 +445,14 @@ async function celular() {
   await page.waitForTimeout(400)
   fim = (await modelo(page)).fim
   confere(fim.amigo?.texto === T.srv.fora.CONTA_NOVA && !/RANK \d/.test(fim.amigo.texto), 'fim da estrada: diz que está fora do placar e por quê; não diz posição')
+  await item('gancho da estrada no fim', page, async () => {
+    await espera(page, () => /^NEW ROAD/.test(window.__keepmile.modelo().fim?.gancho || '') && window.__keepmile.desenhou().includes('fimGancho'))
+    const f = (await modelo(page)).fim, ed = (await api('GET', '/api/reino/ranking', await token())).json.estradaDoDia, falta = Date.parse(ed.dia + 'T00:00:00Z') + DIA - Date.now()
+    confere(falta > 0 && falta <= DIA && [falta, falta - 60_000, falta + 60_000].some((x) => f.gancho === T.srv.gancho.nova(T.srv.em(x))) && /^NEW ROAD IN (\d+H )?\d+M$/.test(f.gancho), `R27: depois de jogar a estrada, o fim diz "${f.gancho}" (o tempo do servidor até a virada do dia: menos de 24 h)`)
+    confere(!f.subiu && !(await K(page, () => window.__keepmile.desenhou())).includes('fimSubiu'), 'R27: fim da estrada (não é ranking): nenhuma festa de posição')
+    await page.waitForTimeout(300)
+    await foto('fim-gancho-celular')
+  })
   await tap('#bt-denovo')
   await espera(page, () => document.getElementById('tela').dataset.tela === 'jogar' && !!document.getElementById('jEstrada'))
   confere((await texto(page, '#jEstrada')).includes(T.srv.jogar.estradaFeita), 'depois de jogar: "Done today. Available tomorrow."')
@@ -433,6 +466,8 @@ async function celular() {
   { const rk = (await api('GET', '/api/reino/ranking', await token())).json, ed = rk.estradaDoDia
     confere(ed.voce && ed.voce.posicao === null && !ed.lista.some((l) => l.apelido === e.apelido), 'o servidor não pôs a conta no placar de hoje')
     confere((await texto(page, '#placarVoce')) === T.srv.placar.fora(ed.voce.pontos) && (await texto(page, '#placarFora')) === T.srv.foraFrase.CONTA_NOVA, 'placar do dia: "not on the board" e o motivo')
+    { const t = await texto(page, '#placarDia'), falta = Date.parse(ed.dia + 'T00:00:00Z') + DIA - Date.now()
+      confere(/ - new road in (\d+h )?\d+m$/.test(t) && [falta, falta - 60_000, falta + 60_000].some((x) => t === T.srv.placar.dia(ed.dia, T.srv.em(x))), `R27: a estrada do DIA vira em menos de 24 h: "${t}" (nunca "1d ...")`) }
     confere((await page.evaluate(() => document.querySelectorAll('#listaPlacar li.km-feita').length)) === 0 && !(await texto(page, '#listaPlacar')).includes(e.apelido), 'a conta não aparece marcada nem listada no placar')
     confere(!!(await texto(page, '#placarFeita')) && !(await page.evaluate(() => !!document.getElementById('placarJogar'))), 'sem botão de jogar a estrada de novo hoje')
   }
@@ -457,6 +492,9 @@ async function celular() {
     { const c = await page.evaluate(() => { const i = document.getElementById('apelidoCampo'), r = i.getBoundingClientRect(), cx = document.getElementById('telaCaixa').getBoundingClientRect(); return { h: r.height, dentro: r.left >= cx.left && r.right <= cx.right, tipo: i.type, max: i.maxLength, sel: getComputedStyle(i).userSelect } })
       confere(c.h >= 43.5 && c.dentro && c.tipo === 'text' && c.max === 16 && c.sel !== 'none', 'R23: campo de texto comum (teclado do aparelho), 44 px, dentro da caixa, até 16 letras') }
     await medirTela(page, 'trocar o nome')
+    await page.fill('#apelidoCampo', NOVO)
+    confere((await texto(page, '#apelidoPrevia')) === A.novo(NOVO) && (await page.evaluate(() => { const c = document.querySelector('#apelidoPrevia canvas'); return !!c && c.width > 40 })), `R27: o nome digitado aparece AO VIVO na letra em pixel do jogo ("${A.novo(NOVO)}")`)
+    await page.fill('#apelidoCampo', 'Dame'); confere((await texto(page, '#apelidoPrevia')) === A.novo('Dame'), 'R27: e acompanha cada mudança do campo')
     await page.fill('#apelidoCampo', NOVO)
     await foto('apelido-celular')
     const m0 = pedidos.length
@@ -538,6 +576,23 @@ async function celular() {
     const rep = await modelo(page), total = (await api('GET', `/api/reino/replay/${idRanking}`, await token())).json.totalPassos
     confere(rep.replay.n === total && rep.replay.nome === e.apelido, `as páginas juntas dão a partida inteira (${total} passos)`)
     confere(rep.modoRot === T.srv.replayRot, 'o HUD diz REPLAY')
+    await item('replay vivo: a carta do passo e SKIP TO FIGHT', page, async () => {
+      // espera um passo de "pôr carta" (se a 1ª luta já começou, passa por ela)
+      for (let i = 0; i < 200; i++) { const m = await modelo(page); if (m.replay.passo) break; if (m.fase === 'luta') await K(page, () => window.__keepmile.avancarBatalha()); await page.waitForTimeout(40) }
+      const m = await modelo(page), ps = m.replay.passo, doSrv = (await api('GET', `/api/reino/replay/${idRanking}?desde=${m.replay.i - 1}`, await token())).json.passos[0].comando
+      confere(!!ps && doSrv.tipo === 'por' && ps.carta === doSrv.carta && ps.terreno === doSrv.terreno && (await K(page, () => window.__keepmile.desenhou())).includes('replayCarta') && m.replay.linha === T.srv.replay.por(CARTAS[ps.carta].nome, ps.terreno), `R27: o passo mostra a carta escolhida e onde foi posta (${m.replay.linha}), como o servidor gravou`)
+      const b = await page.evaluate(() => { const e = document.getElementById('bt-pular-luta'), r = e?.getBoundingClientRect(); return r ? { w: r.width, h: r.height, dentro: r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, rot: e.getAttribute('aria-label') } : null })
+      confere(!!b && b.w >= 43.5 && b.h >= 43.5 && b.dentro && b.rot === T.srv.replay.pular && (await K(page, () => window.__keepmile.desenhou())).includes('replayPular'), `R27: botão "${T.srv.replay.pular}" com ${Math.round(b?.w)}x${Math.round(b?.h)} px`)
+      await foto('replay-vivo-celular')
+      // velocidade no replay: só x1 e x2
+      const v0 = (await modelo(page)).vel; await tap('#bt-vel'); const v1 = (await modelo(page)).vel; await tap('#bt-vel'); const v2 = (await modelo(page)).vel
+      confere([v0, v1, v2].every((v) => v === 1 || v === 2) && v1 !== v0 && v2 === v0, `R27: a velocidade do replay alterna x1/x2 (${v0} > ${v1} > ${v2})`)
+      if ((await modelo(page)).fase === 'replay' && (await page.evaluate(() => !!document.getElementById('bt-pular-luta')))) {
+        await tap('#bt-pular-luta')
+        const foi = await espera(page, () => window.__keepmile.fase() === 'luta', null, 1500).then(() => true, () => false)
+        confere(foi, 'R27: SKIP TO FIGHT vai direto para a luta')
+      } else confere((await modelo(page)).fase === 'luta', 'R27: SKIP TO FIGHT vai direto para a luta (a luta já tinha começado)')
+    })
     await espera(page, () => window.__keepmile.fase() === 'luta', null, 20_000)
     confere((await K(page, () => window.__keepmile.lutando())), 'o replay passa a luta na tela de batalha')
     await foto('replay-luta-celular')
@@ -548,12 +603,27 @@ async function celular() {
     await espera(page, () => window.__keepmile.fase() === 'replay')
     confere(await espera(page, () => window.__keepmile.desenhou().includes('replay'), null, 3000).then(() => true, () => false), 'entre as lutas, a faixa do replay diz de quem é e o passo')
     await foto('replay-celular')
-    // até o fim, pulando cada luta
-    for (let i = 0; i < 400; i++) { const m = await modelo(page); if (m.replay.fim) break; if (m.fase === 'luta') await K(page, () => window.__keepmile.avancarBatalha()); await page.waitForTimeout(60) }
+    // até o fim, pulando cada luta (e anotando o MVP que a faixa mostra depois de cada uma)
+    const mvps = []
+    const ateOFim = async () => { for (let i = 0; i < 400; i++) { const m = await modelo(page); if (m.replay.fim) break; if (m.replay.mvp && !mvps.includes(m.replay.mvp)) mvps.push(m.replay.mvp); if (m.fase === 'luta') await K(page, () => window.__keepmile.avancarBatalha()); await page.waitForTimeout(60) } }
+    { const m1 = (await modelo(page)).replay; if (m1.mvp) mvps.push(m1.mvp) }
+    await ateOFim()
+    confere(mvps.length >= 1 && mvps.every((x) => /^MVP: .+ \d+$/.test(x)), `R27: depois de cada luta a faixa mostra o MVP dela (${mvps.slice(0, 3).join(' | ')})`)
     const fimR = (await modelo(page)).replay, grav = perfil2.melhores.find((m) => m.id === idRanking)
     confere(fimR.fim === T.srv.replay.fim(grav.vencidas, grav.pontos) && fimR.i === total, `o replay termina no resultado gravado (${fimR.fim})`)
+    await item('replay vivo: WATCH AGAIN e BACK', page, async () => {
+      const bts = await page.evaluate(() => ['bt-rever', 'bt-voltar-replay', 'bt-pular-luta'].map((id) => { const e = document.getElementById(id), r = e?.getBoundingClientRect(); return r ? { id, w: r.width, h: r.height, rot: e.getAttribute('aria-label') } : null }))
+      confere(!!bts[0] && !!bts[1] && !bts[2] && bts[0].rot === T.srv.replay.rever && bts[1].rot === T.srv.replay.voltar && [bts[0], bts[1]].every((b) => b.w >= 43.5 && b.h >= 43.5) && (await K(page, () => window.__keepmile.desenhou())).includes('replayFim'), 'R27: no fim do replay: "WATCH AGAIN" e "BACK", com 44 px (e sem SKIP)')
+      await page.waitForTimeout(200); await foto('replay-fim-celular')
+      await tap('#bt-rever')
+      await espera(page, () => { const r = window.__keepmile.modelo().replay; return !!r && !r.fim && r.i <= 2 })
+      confere((await modelo(page)).replay.n === total, 'R27: WATCH AGAIN recomeça o mesmo replay do começo')
+      await ateOFim()
+      confere((await modelo(page)).replay.fim === fimR.fim, 'R27: e ele chega ao mesmo fim')
+    })
     confere((await srv(page)).seq === seqAntes && pedidos.slice(m0).every((p) => p.metodo === 'GET'), 'assistir não manda comando nenhum')
-    await tap('#bt-sair-replay')
+    // (R27: no fim do replay o jogador sai pelo "BACK"; o X de sair continua conferido no ranking e no PC)
+    await tap((await page.evaluate(() => !!document.getElementById('bt-voltar-replay'))) ? '#bt-voltar-replay' : '#bt-sair-replay')
     await espera(page, () => !window.__keepmile.modelo().replay)
     confere((await modelo(page)).fase === 'fim' && (await srv(page)).modo === 'estrada', 'sair do replay volta para onde o jogador estava')
     confere(await espera(page, () => document.getElementById('tela').dataset.tela === 'perfil' && !document.getElementById('tela').hidden && !!document.getElementById('listaMelhores'), null, 8000).then(() => true, () => false), 'R23: e o perfil, de onde o replay foi aberto, está de volta')
@@ -615,6 +685,12 @@ async function pc({ sessao, apelido }) {
   await foto('estrada-fim-pc')
   await abrirTela('#mPlacar', '#placarVoce')
   confere((await texto(page, '#placarVoce')) === T.srv.placar.voce(1, rk.estradaDoDia.voce.pontos) && (await page.evaluate(() => document.querySelectorAll('#listaPlacar li.km-feita').length)) === 1, 'placar do dia: a conta aparece e está marcada, com os pontos do servidor')
+  // R27, item 3 (a foto servidor-placar-pc dizia "NEW ROAD IN 1D 19H"): neste teste o DIA do servidor anda 1 dia (relógio injetado), mas o
+  // cabeçalho Date das respostas — de onde a tela tira o relógio dele — é o do computador. Em produção os dois são o mesmo relógio. A tela
+  // agora não escreve tempo impossível para a estrada do dia (mais de 24 h): diz "new road tomorrow".
+  { const t = await texto(page, '#placarDia'), g = (await modelo(page)).fim?.gancho
+    confere(!/\dd \d+h/.test(t) && t === T.srv.placar.dia(rk.estradaDoDia.dia, null), `R27: com o relógio do aparelho 1 dia atrás do dia do servidor, a estrada não diz "1d 19h": "${t}"`)
+    confere(g === T.srv.gancho.amanha, `R27: e o gancho do fim também não inventa hora: "${g}"`) }
   await medirTela(page, 'placar do dia (PC)')
   await foto('placar-pc')
   await item('estrada de ontem', page, async () => {
@@ -761,12 +837,70 @@ async function sessaoVencida() {
   await ctx.close()
 }
 
+// =============================================================== R27: RANKING COM FESTA (celular, dia 2). A posição "antes" e "depois" é a do
+// perfil do servidor; para a subida acontecer com certeza, o teste troca SÓ o campo `posicao` da resposta do perfil (6 antes, 4 depois).
+async function festaDoRanking({ sessao }) {
+  console.log('\n=== ranking com festa (celular, dia 2) ===')
+  const ctx = await abrirContexto({ w: 360, h: 740, toque: true }, sessao)
+  const page = await ctx.newPage(), erros = [], pedidos = []
+  vigiar(page, erros, pedidos)
+  const foto = async (nome) => { const arq = path.join(FOTOS, `servidor-${nome}.png`); await page.screenshot({ path: arq }); console.log('  foto: ' + path.relative(process.cwd(), arq)) }
+  const troca = { pos: 4 }
+  await page.route('**/api/reino/perfil', async (rota) => { const r = await rota.fetch(), j = await r.json(); if (r.ok() && j.temporada) j.temporada.voce = { ...(j.temporada.voce || { pontos: 0, partidas: 1, liga: 'gate', faltaParaProxima: null }), posicao: troca.pos }; await rota.fulfill({ response: r, json: j }) })
+  const rankedAteOFim = async () => {
+    const c = await K(page, () => window.__keepmile.abrirModo('ranking'))
+    if (c) throw new Error('não abriu o ranking: ' + c)
+    await espera(page, () => window.__keepmile.servidor().modo === 'ranking' && window.__keepmile.fase() !== 'fim')
+    await K(page, () => window.__keepmile.jogarNoServidor({ ateRodada: 2 }))
+    await K(page, () => window.__keepmile.jogarNoServidor({ semCarta: true }))
+    await espera(page, () => window.__keepmile.fase() === 'fim' && window.__keepmile.modelo().fim?.contou && !!window.__keepmile.modelo().fim.gancho, null, 20_000)
+  }
+  await item('ranking com festa', page, async () => {
+    await page.goto(URL_JOGO)
+    await espera(page, () => document.documentElement.dataset.pronto === '1' && window.__keepmile?.pronto)
+    await page.keyboard.press('Shift') // o som só toca depois do primeiro toque ou tecla
+    // 1) a posição não mudou (4 antes, 4 depois): nada de festa
+    await rankedAteOFim()
+    await page.waitForTimeout(500)
+    let f = (await modelo(page)).fim
+    confere(!f.subiu && !(await K(page, () => window.__keepmile.desenhou())).includes('fimSubiu') && f.liga.marca === T.srv.posicaoMarca(4), 'R27: sem subir de posição (RANK 4 antes e depois): nenhuma festa falsa no fim')
+    // 2) 6 antes, 4 depois: a faixa "RANK 6 > 4" com o número rolando e som
+    troca.pos = 6
+    await page.reload()
+    await espera(page, () => document.documentElement.dataset.pronto === '1' && window.__keepmile?.pronto)
+    await page.keyboard.press('Shift')
+    await K(page, () => window.__keepmile.zerarMedidas())
+    const somAntes = await K(page, () => (window.__keepmile.som().porNome.rankingSobe || 0))
+    const abriu = await K(page, () => window.__keepmile.abrirModo('ranking'))
+    if (abriu) throw new Error('não abriu o ranking: ' + abriu)
+    await K(page, () => window.__keepmile.jogarNoServidor({ ateRodada: 2 }))
+    troca.pos = 4
+    // enquanto a festa passa, anota os números que a faixa mostrou
+    await page.evaluate(() => { window.__rola = []; window.__rolaT = setInterval(() => { const s = window.__keepmile.modelo().fim?.subiu; if (s && s.mostra != null && window.__rola.at(-1) !== s.mostra) window.__rola.push(s.mostra) }, 15) })
+    await K(page, () => window.__keepmile.jogarNoServidor({ semCarta: true }))
+    await espera(page, () => !!window.__keepmile.modelo().fim?.subiu && window.__keepmile.modelo().fim.subiu.mostra === 4 && window.__keepmile.desenhou().includes('fimSubiu'), null, 20_000)
+    await page.waitForTimeout(900)
+    f = (await modelo(page)).fim
+    const rola = await page.evaluate(() => { clearInterval(window.__rolaT); return window.__rola })
+    confere(f.subiu.de === 6 && f.subiu.para === 4 && f.subiu.texto === T.srv.subiu.rank(6, 4) && f.subiu.texto === 'RANK 6 > 4', `R27: a posição subiu de 6 para 4: a faixa "${f.subiu.texto}" no fim`)
+    confere(rola[0] >= 5 && rola.at(-1) === 4 && rola.every((n, i) => i === 0 || n < rola[i - 1]), `R27: o número rola de cima para baixo até a posição nova (${rola.join(' > ')})`)
+    confere((await K(page, () => (window.__keepmile.som().porNome.rankingSobe || 0))) > somAntes, 'R27: a subida tem som (rankingSobe)')
+    { const cn = await K(page, () => window.__keepmile.cena()); let maxFl = 0; for (const t of cn.flashes) maxFl = Math.max(maxFl, cn.flashes.filter((x) => x >= t && x < t + 1000).length); confere(maxFl <= 3 && cn.picoParticulas <= cn.limite, `R27: a festa fica nos limites (flash ${maxFl}/s, partículas ${cn.picoParticulas}/${cn.limite})`) }
+    confere(f.liga.marca === T.srv.posicaoMarca(4), 'R27: e a placa diz a posição nova (RANK 4)')
+    await foto('ranking-subiu-celular')
+  })
+  await page.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {})
+  confere(erros.length === 0, 'ranking com festa: zero erro de console' + (erros.length ? ' — ' + erros.slice(0, 3).join(' | ') : ''))
+  await ctx.close()
+}
+
 let codigo = 0
 try {
   SORREL = await roboDeRanking('Aunt Sorrel', 2) // "ontem": conta criada e 1 partida de ranking terminada
   relogio.desvio = 0
   const conta = await celular()
   await pc(conta)
+  await festaDoRanking(conta)
   await desenho(conta)
   await sessaoVencida()
 } catch (err) {

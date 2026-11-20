@@ -55,7 +55,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     // fim de partida: placa embaixo, tela cheia
     if (cel) { L.fimPainel = { x: 0, y: VH - 139, w: VW, h: 139 }; L.fimBotoes = [{ x: 4, y: VH - 29, w: VW - 72, h: 26 }, { x: VW - 64, y: VH - 29, w: 60, h: 26 }] } else {
       const pw = Math.min(VW - 8, 420), px = (VW - pw) >> 1
-      L.fimPainel = { x: px, y: VH - 114, w: pw, h: 112 }; L.fimBotoes = [{ x: px + 8, y: VH - 34, w: 196, h: 26 }, { x: px + 214, y: VH - 34, w: pw - 222, h: 26 }]
+      L.fimPainel = { x: px, y: VH - 98, w: pw, h: 96 }; L.fimBotoes = [{ x: px + 8, y: VH - 34, w: 196, h: 26 }, { x: px + 214, y: VH - 34, w: pw - 222, h: 26 }]
     }
     // replay (modo servidor): a faixa de baixo com a carta do passo, o texto e os botões (SKIP TO FIGHT; no fim WATCH AGAIN e BACK)
     { const R = cel ? L.mesa : { x: (VW - 250) >> 1, y: VH - 90, w: 250, h: 88 }, by = cel ? VH - 30 : VH - 32
@@ -386,7 +386,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       else if (M.primeira && M.sel < 0 && i === 1 && !C.menos) y -= Math.round(Math.abs(Math.sin(agora / 300)) * 4) // a do meio balança: "toque em mim"
       // virada (0 = verso inteiro, 1 = frente inteira): o cartão estreita até o meio, troca de face e abre
       const tv = aberta ? 1 : Math.max(0, Math.min(1, (base - REVELA.espera - i * REVELA.passo) / REVELA.vira)), frente = tv >= 0.5
-      if (!frente) viradas++; else if (M.maoLog && M.maoLog[i] == null) M.maoLog[i] = Math.round(agora)
+      if (!frente) viradas++; else if (!aberta && M.maoLog && M.maoLog[i] == null) M.maoLog[i] = Math.round(agora)
       const larg = tv <= 0 || tv >= 1 ? 1 : Math.max(0.1, Math.abs(1 - 2 * tv))
       if (larg < 1) { g.save(); g.translate(r.x + 28, 0); g.scale(larg, 1); g.translate(-(r.x + 28), 0) }
       if (frente) {
@@ -651,17 +651,24 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       viu('fimLiga')
     }
     // O GANCHO: a SILHUETA da próxima carta do álbum com quantas rodadas faltam e, no modo servidor, a estrada do dia (relógio dele)
-    const album = (x, y0, w) => {
-      const id = f.album && f.album.carta && CONFIG.CARTAS[f.album.carta] ? f.album.carta : null
+    const album = (x, y0, w, pc = null) => {
+      const id = f.album && f.album.carta && CONFIG.CARTAS[f.album.carta] ? f.album.carta : null, sx = pc ? pc.x : x + 2, sy = pc ? pc.y : y0 - 1
       if (id) {
         let c = silhuetas.get(id); if (!c) { c = Arte.miniatura(56, 78, (gg) => Arte.carta(gg, id, 1, 0, 0, { silhueta: true }), 1); silhuetas.set(id, c) }
-        g.fillStyle = COR.ameixa; g.fillRect(x + 2, y0 - 1, 23, 31); g.drawImage(c, x + 3, y0, 21, 29); Arte.texto(g, '?', x + 13, y0 + 10, { fonte: 'reino-contorno', alinhar: 'centro' })
-        f.silhuetaRet = { x: x + 2, y: y0 - 1, w: 23, h: 31 }; viu('fimSilhueta')
-      } else Arte.icone(g, 'loot', x + 8, y0 + 8)
-      const tx = x + 31
-      Arte.texto(g, f.album ? T.proximaCarta(f.album.falta) : T.todasCartas, tx, y0 + 1, { fonte: 'mini', cor: COR.creme })
-      barra(tx + 1, y0 + 9, w - 34, 3, f.album ? f.album.pct : 100, '#7CC950')
-      if (f.gancho) { Arte.texto(g, quebrar(f.gancho, w - 32)[0], tx, y0 + 17, { fonte: 'mini', cor: COR.ouro }); viu('fimGancho') }
+        g.fillStyle = COR.ameixa; g.fillRect(sx, sy, 23, 31); g.drawImage(c, sx + 1, sy + 1, 21, 29); Arte.texto(g, '?', sx + 11, sy + 11, { fonte: 'reino-contorno', alinhar: 'centro' })
+        f.silhuetaRet = { x: sx, y: sy, w: 23, h: 31 }; viu('fimSilhueta')
+      } else if (!pc) Arte.icone(g, 'loot', x + 8, y0 + 8)
+      const texto = f.album ? T.proximaCarta(f.album.falta) : T.todasCartas
+      if (pc) {
+        // PC: a placa é baixa — a silhueta fica no canto direito (ao lado da liga) e o gancho da estrada embaixo dos pontos
+        Arte.icone(g, 'loot', x, y0 - 2); Arte.texto(g, texto, x + 14, y0 - 1, { fonte: 'mini', cor: COR.creme }); barra(x + 14, y0 + 6, w - 16, 3, f.album ? f.album.pct : 100, '#7CC950')
+        if (f.gancho) { Arte.texto(g, quebrar(f.gancho, 190)[0], pc.gx, pc.gy, { fonte: 'mini', cor: COR.ouro }); viu('fimGancho') }
+      } else {
+        const tx = x + 31
+        Arte.texto(g, texto, tx, y0 + 1, { fonte: 'mini', cor: COR.creme })
+        barra(tx + 1, y0 + 9, w - 34, 3, f.album ? f.album.pct : 100, '#7CC950')
+        if (f.gancho) { Arte.texto(g, quebrar(f.gancho, w - 32)[0], tx, y0 + 17, { fonte: 'mini', cor: COR.ouro }); viu('fimGancho') }
+      }
       viu('fimAlbum')
     }
     // a placa sobe: pontos, liga e próxima carta
@@ -673,7 +680,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
         numeros(0, 5, P.w); liga(4, 47, P.w - 8); album(4, 79, P.w - 8)
       } else {
         Arte.painel(g, P.x, 0, P.w, P.h)
-        numeros(P.x + 8, 7, 196); liga(P.x + 214, 8, P.w - 222); album(P.x + 214, 44, P.w - 222)
+        numeros(P.x + 8, 7, 196); liga(P.x + 214, 8, P.w - 250); album(P.x + 214, 47, P.w - 250, { x: P.x + P.w - 31, y: 16, gx: P.x + 12, gy: 54 })
       }
       g.restore()
     }

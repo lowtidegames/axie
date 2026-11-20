@@ -183,7 +183,7 @@ function maoNova(atraso = 0) {
   M.maoT0 = agoraMs() + atraso; M.maoRevelada = !!C.menos; M.maoLog = []
   if (C.menos) return
   const t0 = M.maoT0, R = UI.REVELA
-  for (let i = 0; i < 3; i++) depois(atraso + R.espera + i * R.passo + (R.vira >> 1), () => { if (M.fase === 'carta' && M.maoT0 === t0 && !M.maoRevelada && !M.cartaPosta) Som.tocar('toque', { tom: i * 2 }) })
+  for (let i = 0; i < 3; i++) depois(atraso + R.espera + i * R.passo + (R.vira >> 1), () => { if (M.fase === 'carta' && M.maoT0 === t0 && !M.cartaPosta) Som.tocar('toque', { tom: i * 2 }) })
 }
 function nivelNaMao(carta) { let n = 0; for (const t of J.v.terrenos) if (t && t.carta === carta && t.nivel < CONFIG.PARTIDA.nivelMax) n = Math.max(n, t.nivel); return n }
 const precisaDe = (fam) => (J.v.reliquias.includes('banner') ? CONFIG.RELIQUIAS.banner.terrenos : CONFIG.FAMILIAS[fam].terrenos)
@@ -316,7 +316,7 @@ function destacar(carta, comandos) {
 function vizinhosDe(k) { const al = J.v.reliquias.includes('blueprints') ? CONFIG.RELIQUIAS.blueprints.alcance : 1, s = new Set(); for (let d = 1; d <= al; d++) for (const j of [k - d, k + d]) if (j >= 1 && j <= 6) s.add(j); return s }
 function selecionar(i) {
   if (M.fase !== 'carta' || M.cartaPosta) return
-  M.maoRevelada = true // tocar numa carta no meio da revelação mostra as três na hora (nunca se escolhe carta virada)
+  M.maoRevelada = true; M.maoT0 = 0 // tocar numa carta no meio da revelação mostra as três na hora (nunca se escolhe carta virada) e cala os sons de virada que faltavam
   M.trocar = 0; M.armado = null; M.info = null; M.infoSel = null
   if (i < 0 || M.sel === i) { M.sel = -1; C.destaque = null; Som.tocar('toque'); return }
   M.sel = i; M.infoSel = infoDaCarta(i); J.tocouCarta = true; M.setaCarta = false
@@ -545,7 +545,7 @@ function aoTocar(id, d, ev) {
     return
   }
   if (!id.includes(':') && J.sujo && id !== 'menu') { J.sujo = false; if (!discoIgual() && sincronizar()) return } // outra aba andou com a partida
-  if (id.startsWith('aperta:carta')) { M.maoRevelada = true; arrasto = { indice: d.indice, x0: ev.clientX, y0: ev.clientY, id: ev.pointerId, moveu: false }; return }
+  if (id.startsWith('aperta:carta')) { M.maoRevelada = true; M.maoT0 = 0; arrasto = { indice: d.indice, x0: ev.clientX, y0: ev.clientY, id: ev.pointerId, moveu: false }; return }
   if (id.startsWith('entra:terreno')) { if (M.fase === 'carta' && M.sel >= 0 && C.destaque && CONFIG.CARTAS[M.mao[M.sel].carta].tipo === 'construcao') C.destaque.vizinhos = C.destaque.terrenos.has(d.terreno) ? vizinhosDe(d.terreno) : new Set(); return }
   if (id.includes(':')) return
   if (id.startsWith('carta')) { selecionar(d.indice); UI.mudou(); return }
@@ -776,7 +776,11 @@ async function depoisDoFim() {
     M.fim.gancho = ganchoDaEstrada(rk.estradaDoDia)
     // RANKING COM FESTA: só no fim de uma partida de ranking que contou, e só se o servidor diz posição melhor ou liga maior que antes
     const s = S.modo === 'ranking' && nova && S.resultado?.conta !== false ? subidaNoRanking(antes, p.temporada?.voce || null) : null
-    if (s && !M.fim.subiu) { M.fim.subiu = s; festejarSubida(s) }
+    if (s && !M.fim.subiu) {
+      // a faixa entra junto do fecho do fim (depois da contagem); com tudo parado, na hora
+      const f = M.fim, espera = f.parado || f.contou ? 0 : Math.max(0, f.t0 + f.tFaixa + (f.novoRecorde ? 500 : 0) - agoraMs())
+      s.t0 = agoraMs() + espera; f.subiu = s; festejarSubida(s, espera)
+    }
     UI.mudou()
   } catch { /* fica o que já estava na placa */ }
 }
@@ -788,11 +792,11 @@ function subidaNoRanking(a, d) {
   const liga = a && ordem.indexOf(d.liga) > ordem.indexOf(a.liga) ? nomeDe(d.liga) : null
   return pos || liga ? { de: pos ? pos.de : null, para: pos ? pos.para : null, liga, t0: agoraMs(), ms: 700 } : null
 }
-function festejarSubida(s) {
-  if (C.menos || s.de == null || s.para == null) { Som.tocar('nivelPequeno'); return }
+function festejarSubida(s, espera = 0) {
+  if (C.menos || s.de == null || s.para == null) { depois(espera, () => Som.tocar('nivelPequeno')); return }
   const n = Math.min(8, s.de - s.para)
-  for (let i = 1; i <= n; i++) depois(Math.round((s.ms * i) / n), () => Som.tocar('rankingSobe', { tom: i }))
-  depois(s.ms + 120, () => { Som.tocar('nivelPequeno'); C.efeito('confetti', C.VW / 2 + C.cam.x, C.VH * 0.4) })
+  for (let i = 1; i <= n; i++) depois(espera + Math.round((s.ms * i) / n), () => Som.tocar('rankingSobe', { tom: i }))
+  depois(espera + s.ms + 120, () => { Som.tocar('nivelPequeno'); C.efeito('confetti', C.VW / 2 + C.cam.x, C.VH * 0.4) })
 }
 /** O GANCHO honesto do fim (modo servidor): a estrada do dia. O tempo é o do relógio do servidor e nunca passa de 1 dia — se a conta
  *  der mais que isso (relógio do aparelho fora do lugar), a tela não escreve número: só "tomorrow". */

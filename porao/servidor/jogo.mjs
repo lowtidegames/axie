@@ -147,11 +147,30 @@ function prefixoIdeia(ideia) {
 }
 const nomeIdeia = (ideia, textos) => texto(textos, `${prefixoIdeia(ideia)}.nome`)
 
-/** Nome do golpe na tela: rebrand renomeia ("Nome 2.0", "Nome 3.0"...). */
-function nomeProjeto(p, textos) {
-  const base = nomeIdeia(p.ideia, textos)
-  return p.rebrands > 0 ? `${base} ${p.rebrands + 1}.0` : base
+/** Quantas frases a família tem (prefixo.1, prefixo.2... sem buraco), lida dos textos em uso; nunca número fixo. */
+function quantas(textos, prefixo) {
+  const conta = (t) => { let n = 0; while (typeof t[`${prefixo}.${n + 1}`] === 'string') n++; return n }
+  return conta(textos) || conta(TEXTOS)
 }
+
+/** k-ésima frase da família (k ≥ 0, dá a volta). Determinística: sem sorteio. */
+function fraseDa(textos, prefixo, k) {
+  const n = quantas(textos, prefixo)
+  return n ? texto(textos, `${prefixo}.${(((k % n) + n) % n) + 1}`) : `${prefixo}.1`
+}
+
+/**
+ * Nome do golpe na tela. Rebrand renomeia com rebrand.1..N ({nome} = nome da ideia); o jeito vem do número do
+ * projeto + quantos rebrands ele já teve (rebrands seguidos do mesmo projeto nunca repetem até dar a volta).
+ */
+function nomeProjeto(p, textos, rebrands = p.rebrands) {
+  const base = nomeIdeia(p.ideia, textos)
+  if (!(rebrands > 0)) return base
+  return fraseDa(textos, 'rebrand', p.id - 1 + rebrands - 1).replaceAll('{nome}', base)
+}
+
+/** Dinheiro como a tela mostra ("$ 1.200"). */
+const dinheiro = (n) => `$ ${Number(n || 0).toLocaleString('pt-BR')}`
 
 /** infl_<n> → "influ.<tamanho>.<k>" (k-ésimo do mesmo tamanho no catálogo). */
 const CHAVE_INFLU = (() => {
@@ -232,13 +251,13 @@ export function estadoParaTela(estado, { textos = TEXTOS } = {}) {
       }
       const msg = (tipo, chaveTexto, extra = {}) => celular.push({
         projetoId: p.id, influenciador: c.influenciador, de: nomeInf, tipo,
-        texto: chaveTexto ? citar(texto(textos, chaveTexto), nome) : null, ...extra,
+        texto: chaveTexto ? citar(texto(textos, chaveTexto), nome).replaceAll('{valor}', dinheiro(extra.valor)) : null, ...extra,
       })
       msg('oferta', 'msg.video1.oferta', { valor: c.p1 })
       if (c.proposta !== null && (c.fase === 'PEDE_MAIS' || c.chorou || c.motivo === 'sumiu' || (c.proposta > c.p1))) {
         msg('pede_mais', 'msg.melhorar.oferta', { valor: c.chorou ? Math.round(c.p1 * CONTRATO.multiplicadorP2) : c.proposta })
       } else if (c.proposta !== null) {
-        msg('proposta', null, { valor: c.proposta }) // sem texto próprio em nomes.js ainda: a tela mostra o valor
+        msg('proposta', 'msg.video2.mesmo_preco', { valor: c.proposta }) // abaixo do limite: vídeo 2 pelo mesmo preço
       }
       if (c.chorou) msg('desconto', 'msg.choro.resposta', { valor: c.proposta })
       if (c.motivo === 'sumiu') msg('sumiu', 'msg.sumir')
@@ -249,7 +268,7 @@ export function estadoParaTela(estado, { textos = TEXTOS } = {}) {
         if (posts.length) chat.push({ projetoId: p.id, autor: nomeInf, tipo: 'post', texto: citar(texto(textos, posts[(p.id + v - 1) % posts.length]), nome) })
       }
     }
-    if (noAr(p)) chat.push({ projetoId: p.id, autor: null, tipo: 'trouxa', texto: texto(textos, `chat.${(p.id % 8) + 1}`) })
+    if (noAr(p)) chat.push({ projetoId: p.id, autor: null, tipo: 'trouxa', texto: fraseDa(textos, 'chat', p.id) })
     const previa = noAr(p) && p.fase !== 'LANCAMENTO' && !estado.batida ? R.previaTapete(estado, p.id) : null
     return {
       id: p.id,
@@ -258,7 +277,7 @@ export function estadoParaTela(estado, { textos = TEXTOS } = {}) {
       nome,
       textoLancamento: citar(texto(textos, `${pre}.lancamento`), nome),
       textoFim: p.fase === 'APLICADO' || p.fase === 'APREENDIDO' ? citar(texto(textos, `${pre}.fim`), nome) : null,
-      textoTapete: p.fase === 'APLICADO' ? texto(textos, `tapete.${((p.id - 1) % 7) + 1}`) : null,
+      textoTapete: p.fase === 'APLICADO' ? fraseDa(textos, 'tapete', p.id - 1) : null,
       fase: p.fase,
       noAr: noAr(p),
       hype: arred(p.hype, 1),
@@ -312,7 +331,13 @@ export function estadoParaTela(estado, { textos = TEXTOS } = {}) {
     })),
     fusao: { quantidade: FUSAO.quantidade },
     projetos,
-    batida: pb ? { ...pb, projetoNome: alvo ? nomeProjeto(alvo, textos) : null } : null,
+    batida: pb ? {
+      ...pb,
+      projetoNome: alvo ? nomeProjeto(alvo, textos) : null,
+      nomeAposRebrand: alvo ? nomeProjeto(alvo, textos, alvo.rebrands + 1) : null, // prévia do nome se pagar o rebrand
+      frase: fraseDa(textos, 'batida', Math.max(0, estado.contagem.batidas - 1)), // muda a cada batida, sem sorteio
+    } : null,
+    rotulos: { confianca: texto(textos, 'ui.confianca') },
     luxos: LUXOS.map(l => ({
       id: l.id,
       nome: texto(textos, `${CHAVE_LUXO[l.id]}.nome`),

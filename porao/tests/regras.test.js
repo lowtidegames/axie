@@ -3,7 +3,7 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import * as R from '../comum/regras.js'
-import { CHANCES, RARIDADES, TEMPO, CONTRATO, PRESTIGIO, LUXOS, IMPRESSORA, CALOR, FASES } from '../comum/config.js'
+import { CHANCES, RARIDADES, TEMPO, CONTRATO, PRESTIGIO, LUXOS, IMPRESSORA, CALOR, FASES, TROUXAS } from '../comum/config.js'
 
 const T0 = 1_700_000_000_000
 
@@ -270,15 +270,46 @@ describe('Calor, batida e rebrand', () => {
     assert.equal(r.estado.contagem.batidas, 1)
   })
 
-  test('tapete que leva o Calor a 100 sem outro projeto no ar: Calor só zera', () => {
+  // Regra mudou (20/11, conserto 1 do núcleo): antes a batida sem projeto no ar zerava o Calor de graça.
+  // Agora, com caixa para pagar, cobra uma multa = rebrand mais barato e o Calor cai como no rebrand.
+  const MULTA = Math.min(...Object.values(CALOR.rebrandCusto))
+
+  test('batida sem projeto no ar e com caixa: cobra a multa (rebrand mais barato), Calor cai como no rebrand; prévia = resultado', () => {
     let { estado, id } = noAr(novo(), 'mitico')
     estado = online(estado, 30)
     estado.calor = 99
+    estado.caixa = 1000
     const pv = R.previaTapete(estado, id)
     assert.equal(pv.batida, false)
+    assert.equal(pv.multa, MULTA)
+    assert.equal(pv.calorDepois, CALOR.depoisDoRebrand)
     const r = R.puxarTapete(estado, id)
+    assert.equal(r.ok, true)
+    assert.equal(r.multa, MULTA)
+    assert.equal(r.ganho, pv.ganho)
+    assert.equal(r.estado.batida, null)
+    assert.equal(r.estado.calor, CALOR.depoisDoRebrand)
+    assert.equal(r.estado.caixa, 1000 + r.ganho - MULTA)
+    assert.equal(r.estado.caixaTotal, estado.caixaTotal + r.ganho) // multa não desconta do ganho da vida
+    assert.ok(r.eventos.some(ev => ev.tipo === 'multa' && ev.valor === MULTA))
+    assert.equal(r.estado.contagem.batidas, estado.contagem.batidas + 1)
+  })
+
+  test('batida sem projeto no ar e sem caixa para a multa: Calor só zera, nada é cobrado', () => {
+    let { estado, id } = noAr(novo(), 'comum')
+    estado = online(estado, FASES.lancamentoSeg + 1)
+    estado.calor = 99.99
+    estado.caixa = 0
+    const pv = R.previaTapete(estado, id)
+    assert.ok(pv.ganho < MULTA, `ganho ${pv.ganho} devia ser menor que a multa`)
+    assert.equal(pv.multa, 0)
+    assert.equal(pv.calorDepois, 0)
+    const r = R.puxarTapete(estado, id)
+    assert.equal(r.multa, 0)
     assert.equal(r.estado.batida, null)
     assert.equal(r.estado.calor, 0)
+    assert.equal(r.estado.caixa, r.ganho)
+    assert.ok(r.eventos.some(ev => ev.tipo === 'calor_zerou'))
   })
 })
 
@@ -391,6 +422,30 @@ describe('contrato de influenciador', () => {
       fins.add(proj(R.responderContrato(x, alto.id, 'chorar').estado, alto.id).contrato.fase)
     }
     assert.equal(fins.size, 2)
+  })
+
+  test('trouxas do vídeo somam ACIMA do limite: contratar cedo ou no pico traz o mesmo bônus', () => {
+    // cedo: contrata logo depois do lançamento (fase HYPE) e espera chegar ao pico
+    let cedo = noAr(novo('video-cedo'), 'comum')
+    let e1 = online(cedo.estado, FASES.lancamentoSeg + 5)
+    assert.equal(proj(e1, cedo.id).fase, 'HYPE')
+    e1.caixa = 100
+    const r1 = R.contratar(e1, cedo.id, 'infl_1')
+    assert.equal(r1.ok, true, r1.erro)
+    e1 = online(r1.estado, 600)
+    // no pico: espera o pico e só então contrata
+    let pico = noAr(novo('video-pico'), 'comum')
+    let e2 = online(pico.estado, 600)
+    assert.equal(proj(e2, pico.id).fase, 'PICO')
+    e2.caixa = 100
+    const r2 = R.contratar(e2, pico.id, 'infl_1')
+    assert.equal(r2.ok, true, r2.erro)
+    e2 = online(r2.estado, 60)
+    assert.equal(r1.trazidas, r2.trazidas)
+    const esperado = TROUXAS.maximo.comum + r1.trazidas
+    assert.equal(proj(e1, cedo.id).fase, 'PICO')
+    assert.ok(Math.abs(proj(e1, cedo.id).trouxas - esperado) < 1e-6, `cedo: ${proj(e1, cedo.id).trouxas} ≠ ${esperado}`)
+    assert.ok(Math.abs(proj(e2, pico.id).trouxas - esperado) < 1e-6, `pico: ${proj(e2, pico.id).trouxas} ≠ ${esperado}`)
   })
 
   test('vídeo 3 sai sozinho depois do tapete e dá carimbo; 3 carimbos = REINCIDENTE', () => {

@@ -75,7 +75,7 @@ export function estadoInicial({ semente, agora }) {
     batida: null, // { projetoId, custoRebrand } enquanto pendente
     proximoId: 1,
     cartas: [], // gaveta: { id, ideia, raridade }
-    projetos: [], // { id, ideia, raridade, fase, hype, trouxas, tempoNoAr, lancamentoRestante, rebrands, ganhoNoAr, contrato }
+    projetos: [], // { id, ideia, raridade, fase, hype, trouxas, trouxasVideo, tempoNoAr, lancamentoRestante, rebrands, ganhoNoAr, contrato }
     luxos: [], // ids de LUXOS
     prestigio: { nivel: 0 },
     pseudonimo: 0,
@@ -83,6 +83,21 @@ export function estadoInicial({ semente, agora }) {
     carteirinha: {}, // influenciador → carimbos
     contagem: { impressoes: 0, fusoes: 0, lancamentos: 0, tapetes: 0, batidas: 0, rebrands: 0, prisoes: 0 },
   }
+}
+
+/** Ids antigos de luxo → ids atuais (20/11: ids alinhados com os textos e os sprites). Só nomes, nenhum número. */
+export const LUXOS_RENOMEADOS = Object.freeze({
+  tapete_persa: 'ar_condicionado',
+  cafeteira_chique: 'maquina_bebida',
+  cofre: 'tela_curva',
+  carro_na_garagem: 'garagem',
+})
+
+/** Save antigo → formato atual (ids de luxo renomeados). Devolve cópia; o estado recebido não muda. */
+export function atualizarEstado(estado) {
+  const e = copiar(estado)
+  e.luxos = [...new Set(e.luxos.map(id => LUXOS_RENOMEADOS[id] || id))]
+  return e
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -113,11 +128,23 @@ export function rendimentoPorHora(estado, projetoId) {
 // ---------------------------------------------------------------------------------------------
 // Calor e batida
 // ---------------------------------------------------------------------------------------------
+/** Multa da batida sem projeto no ar = o rebrand mais barato da config (não é número novo). */
+export const MULTA_SEM_PROJETO = Math.min(...Object.values(CALOR.rebrandCusto))
+
 function dispararBatida(e, eventos) {
   const alvos = e.projetos.filter(noAr)
-  if (alvos.length === 0) { // nada a perder: Calor só zera
-    e.calor = 0
-    eventos.push({ tipo: 'calor_zerou' })
+  if (alvos.length === 0) {
+    // Nenhum projeto a perder. Com caixa para a multa: paga e o Calor cai como no rebrand.
+    // Sem caixa para a multa: o Calor só zera (como o desenho pede).
+    if (e.caixa >= MULTA_SEM_PROJETO) {
+      e.caixa -= MULTA_SEM_PROJETO
+      e.calor = CALOR.depoisDoRebrand
+      e.contagem.batidas += 1
+      eventos.push({ tipo: 'multa', valor: MULTA_SEM_PROJETO })
+    } else {
+      e.calor = 0
+      eventos.push({ tipo: 'calor_zerou' })
+    }
     return
   }
   alvos.sort((a, b) => indiceRaridade(b.raridade) - indiceRaridade(a.raridade) || b.trouxas - a.trouxas || a.id - b.id)
@@ -133,6 +160,11 @@ function somarCalor(e, delta, eventos) {
   if (e.batida) return
   e.calor = Math.min(CALOR.maximo, Math.max(0, e.calor + delta))
   if (e.calor >= CALOR.maximo - EPS) dispararBatida(e, eventos)
+}
+
+/** Soma das multas de uma lista de eventos (para a prévia e para o diário de caixa). */
+export function multaDosEventos(eventos) {
+  return (eventos || []).reduce((s, ev) => s + (ev && ev.tipo === 'multa' ? ev.valor : 0), 0)
 }
 
 /** O que a batida pendente mostra: projeto ameaçado, custo do rebrand e se dá para pagar. */
@@ -178,6 +210,11 @@ export function resolverBatida(estado, escolha) {
 // ---------------------------------------------------------------------------------------------
 // Tempo
 // ---------------------------------------------------------------------------------------------
+/** Limite de trouxas do projeto: o da raridade + as trouxas trazidas pelos vídeos (vídeo soma acima do limite). */
+export function limiteDeTrouxas(p) {
+  return TROUXAS.maximo[p.raridade] + (p.trouxasVideo || 0)
+}
+
 /** Avança um projeto dt segundos (máquina de fases). Devolve o caixa (fração) que rendeu. */
 function avancarProjeto(p, dt, b, eventos) {
   let ganho = 0
@@ -185,7 +222,7 @@ function avancarProjeto(p, dt, b, eventos) {
   const gasto = HYPE.gastoPorMin * (1 - b.hype) / 60
   const recarga = HYPE.recargaPorMin / 60
   const cresce = TROUXAS.crescimentoPorMin[p.raridade] / 60
-  const maximo = TROUXAS.maximo[p.raridade]
+  const maximo = limiteDeTrouxas(p)
   let resta = dt
   let guarda = 0
   p.tempoNoAr += dt
@@ -381,6 +418,7 @@ export function lancar(estado, cartaId) {
     fase: 'LANCAMENTO',
     hype: HYPE.maximo,
     trouxas: TROUXAS.iniciais[carta.raridade],
+    trouxasVideo: 0, // somadas pelos vídeos: sobem o limite do projeto
     tempoNoAr: 0,
     lancamentoRestante: FASES.lancamentoSeg,
     rebrands: 0,
@@ -413,8 +451,8 @@ function podePuxar(estado, projetoId) {
 }
 
 /**
- * Prévia (antes de decidir): { ok, ganho, calor (quanto soma), calorDepois, batida (vai dar batida?), video3,
- * projetoAmeacado (se batida) }.
+ * Prévia (antes de decidir): { ok, ganho, multa (batida sem projeto no ar: cobrada na hora; 0 se não houver),
+ * calor (quanto soma), calorDepois, batida (vai dar batida?), video3, projetoAmeacado (se batida) }.
  */
 export function previaTapete(estado, projetoId) {
   const erro = podePuxar(estado, projetoId)
@@ -424,6 +462,7 @@ export function previaTapete(estado, projetoId) {
   return {
     ok: true,
     ganho: r.ganho,
+    multa: r.multa,
     calor: r.calor,
     calorDepois: r.estado.calor,
     batida,
@@ -453,7 +492,7 @@ export function puxarTapete(estado, projetoId) {
     eventos.push({ tipo: 'video3', projetoId: p.id, influenciador: id, carimbos: e.carteirinha[id] })
   }
   somarCalor(e, calor, eventos)
-  return { ok: true, estado: e, ganho, calor, video3, batida: !!e.batida, eventos }
+  return { ok: true, estado: e, ganho, multa: multaDosEventos(eventos), calor, video3, batida: !!e.batida, eventos }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -508,6 +547,7 @@ function videoNoAr(e, p, eventos) {
   const t = CONTRATO.tamanhos[p.contrato.tamanho]
   const trazidas = Math.round(t.trouxasVideo * CONTRATO.trouxasPorRaridade[p.raridade])
   p.trouxas += trazidas
+  p.trouxasVideo = (p.trouxasVideo || 0) + trazidas
   p.hype = Math.min(HYPE.maximo, p.hype + t.hypeVideo)
   somarCalor(e, t.calorVideo * (1 - bonus(e).calor), eventos)
   return trazidas

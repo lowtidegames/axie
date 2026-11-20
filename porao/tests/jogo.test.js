@@ -6,11 +6,12 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { abrirBancoPorao, carregarSave, MIGRACOES } from '../servidor/banco.mjs'
+import { abrirBancoPorao, carregarSave, gravarSave, MIGRACOES } from '../servidor/banco.mjs'
 import { agir, verEstado, estadoParaTela, somaDoDiario, ACOES } from '../servidor/jogo.mjs'
 import * as R from '../comum/regras.js'
 import { TEXTOS } from '../comum/nomes.js'
-import { RARIDADES, LUXOS, INFLUENCIADORES, CONTRATO } from '../comum/config.js'
+import { RARIDADES, LUXOS, INFLUENCIADORES, CONTRATO, CALOR } from '../comum/config.js'
+import { LUXOS as LUXOS_DA_CENA } from '../tela/cena.js'
 
 const T0 = 1_700_000_000_000
 const SEMENTE = 'SEMENTE-SECRETA-porao-7f3a9c'
@@ -76,7 +77,7 @@ describe('tarefa 4 — banco e ações do porão', () => {
     assert.ok(linhas.length > 20)
     for (const l of linhas) {
       assert.ok(Number.isSafeInteger(l.valor) && l.valor !== 0, `valor inválido no diário: ${l.valor}`)
-      assert.ok(['rendimento', ...Object.keys(ACOES)].includes(l.motivo), l.motivo)
+      assert.ok(['rendimento', 'multa', ...Object.keys(ACOES)].includes(l.motivo), l.motivo) // 'multa': batida sem projeto no ar (20/11)
     }
     db.close()
   })
@@ -420,5 +421,73 @@ describe('textos novos do humorista ligados no servidor', () => {
     const trouxa = (t) => t.chat.find(m => m.tipo === 'trouxa').texto
     assert.equal(trouxa(estadoParaTela(e2, { textos: mais })), 'CHAT NOVO')
     assert.equal(trouxa(estadoParaTela(e2)), TEXTOS['chat.1'])
+  })
+})
+
+describe('consertos do núcleo (20/11): multa da batida e luxos alinhados', () => {
+  // Tabela única: id do config (= nome do sprite) → chave do texto em nomes.js → tipo de bônus que o texto sugere.
+  const TABELA = {
+    cadeira_gamer: ['luxo.2', 'rendimento'],
+    aquario: ['luxo.1', 'hype'],
+    ar_condicionado: ['luxo.6', 'calor'],
+    letreiro_neon: ['luxo.5', 'rendimento'],
+    maquina_bebida: ['luxo.3', 'hype'],
+    tela_curva: ['luxo.7', 'calor'],
+    garagem: ['luxo.4', 'rendimento'],
+  }
+
+  test('luxos: cada id tem o texto que combina com ele e com o bônus, e os que têm sprite usam o mesmo id', () => {
+    assert.deepEqual(LUXOS.map(l => l.id), Object.keys(TABELA))
+    const t = estadoParaTela(R.estadoInicial({ semente: SEMENTE, agora: T0 }))
+    for (const l of LUXOS) {
+      const [k, tipo] = TABELA[l.id]
+      const v = t.luxos.find(x => x.id === l.id)
+      assert.equal(v.nome, TEXTOS[`${k}.nome`], l.id)
+      assert.equal(v.descricao, TEXTOS[`${k}.descricao`], l.id)
+      assert.deepEqual(Object.keys(l.bonus), [tipo], l.id)
+    }
+    assert.equal(new Set(t.luxos.map(l => l.nome)).size, LUXOS.length, 'dois luxos com o mesmo nome')
+    for (const id of ['aquario', 'cadeira_gamer', 'maquina_bebida', 'garagem']) assert.ok(LUXOS_DA_CENA.includes(id), `sprite ${id}`)
+  })
+
+  test('save antigo com ids velhos de luxo continua com o luxo comprado e o bônus', () => {
+    const db = bancoNovo()
+    const e = carregarSave(db)
+    e.luxos = ['carro_na_garagem', 'cafeteira_chique', 'tapete_persa', 'cofre']
+    gravarSave(db, e, T0)
+    const { estado: t } = verEstado(db, T0 + 1000)
+    const comprados = t.luxos.filter(l => l.comprado).map(l => l.id).sort()
+    assert.deepEqual(comprados, ['ar_condicionado', 'garagem', 'maquina_bebida', 'tela_curva'])
+    assert.deepEqual(carregarSave(db).luxos.slice().sort(), comprados)
+    const soma = k => LUXOS.filter(l => comprados.includes(l.id)).reduce((s, l) => s + (l.bonus[k] || 0), 0)
+    assert.equal(t.bonus.rendimento, Math.round(soma('rendimento') * 100) / 100)
+    assert.equal(t.bonus.calor, Math.round(soma('calor') * 100) / 100)
+    db.close()
+  })
+
+  test('multa da batida sem projeto no ar vai ao diário com motivo próprio e a soma bate', () => {
+    const db = bancoNovo()
+    let e = R.estadoInicial({ semente: SEMENTE, agora: T0 })
+    e.cartas.push({ id: e.proximoId++, ideia: 'mitico_1', raridade: 'mitico' })
+    e = R.lancar(e, e.cartas[0].id).estado
+    e.calor = 99
+    gravarSave(db, e, T0)
+    const pid = e.projetos[0].id
+    const multa = Math.min(...Object.values(CALOR.rebrandCusto))
+    const { estado: t } = verEstado(db, T0 + 10_000)
+    const pv = t.projetos[0].previaTapete
+    assert.equal(pv.multa, multa) // caixa 0, mas o ganho do tapete paga a multa (prévia avisa antes)
+    const c0 = carregarSave(db).caixa // rendimento dos 10 s
+    const r = agir(db, { acao: 'tapete', dados: { projetoId: pid }, chave: chave(), agora: T0 + 10_000 })
+    assert.equal(r.ok, true, r.erro)
+    assert.equal(r.resultado.multa, multa)
+    assert.equal(r.resultado.ganho, pv.ganho)
+    assert.equal(r.estado.caixa, c0 + pv.ganho - multa)
+    assert.equal(r.estado.calor, CALOR.depoisDoRebrand)
+    const linhas = db.prepare('SELECT motivo, valor FROM diario ORDER BY id').all()
+    assert.ok(linhas.some(l => l.motivo === 'multa' && l.valor === -multa), JSON.stringify(linhas))
+    assert.ok(linhas.some(l => l.motivo === 'tapete' && l.valor === r.resultado.ganho))
+    assert.equal(somaDoDiario(db), carregarSave(db).caixa)
+    db.close()
   })
 })

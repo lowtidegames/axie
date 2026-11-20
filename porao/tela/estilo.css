@@ -297,7 +297,7 @@ body {
   .vo__retrato { width: 40px; height: 40px; }
   .vo__balao { align-items: center; padding: 4px 8px 4px 6px; }
   .vo__nome { display: none; }
-  .vo__texto { font-size: 12px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .vo__texto { font-size: 14px; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 }
 
 /* fundo das janelas da vó (apelido, história) */

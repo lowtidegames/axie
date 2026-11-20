@@ -2,11 +2,14 @@
 // partida nova), ÁLBUM, CONQUISTAS (com medalha, o que dá e a data), BEST RUNS (liga provisória do beta + as melhores partidas), a
 // pergunta de sair e a do link de amigo. Tudo na LETRA DO JOGO (as fontes em pixel do atlas, desenhadas em canvas) e no mesmo
 // acabamento das cartas (painel e botões do atlas). Fecham por 4 jeitos: X, Esc, botão de baixo e toque fora.
+import { chancesReais } from '../../../shared/reino/partida.js'
 import { LIGAS, ligaDe, mediaDasMelhores } from './ligas.js'
 import { CONQUISTAS, T } from './textos.js'
 
 const ALTURA = { reino: [7, 9], 'reino-contorno': [9, 11], 'reino-ouro': [9, 11], mini: [5, 7], 'mini-contorno': [7, 8], 'mini-ouro': [7, 8] } // [altura da letra, passo da linha]
 const CINZA = '#CECAD8'
+/** "Common 50% · Uncommon 50%": só as raridades com chance (as de 0% não podem sair e não aparecem). */
+const textoDasChances = (l) => l.filter((r) => r.chance > 0).map((r) => `${r.nome} ${r.chance}%`).join(' · ')
 
 export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaPartida, emPartida, aoFechar, servidor = null }) {
   const fundo = document.getElementById('tela'), caixa = document.getElementById('telaCaixa'), COR = Arte.COR
@@ -125,7 +128,9 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
     return [
       linha(`${livres.size} / ${ordem.length} · ${T.album.somadas(rodadas)}`, { pid: 'albumConta', fonte: 'reino' }),
       linha(prox ? T.album.proxima(prox - rodadas) : T.album.todas, { pid: 'albumProxima' }), barra, grade, detalhe,
-      linha(T.album.chances + ': ' + CONFIG.RARIDADES.map((r) => `${r.nome} ${r.chance}%`).join(' · '), { pid: 'albumChances', cor: CINZA, classe: 'km-chances' }),
+      // R31: a chance de AGORA é a do motor para as cartas liberadas (só as raridades que podem sair); a tabela com tudo liberado vem à parte, rotulada
+      linha(T.album.chances + ': ' + textoDasChances(chancesReais([...livres])), { pid: 'albumChances', classe: 'km-chances' }),
+      livres.size < ordem.length ? linha(T.album.chancesTodas + ': ' + textoDasChances(chancesReais(ordem)), { pid: 'albumChancesTodas', cor: CINZA, classe: 'km-chances' }) : null,
     ]
   }
   function conquistas() {

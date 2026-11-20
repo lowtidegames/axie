@@ -25,7 +25,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as CFG from '../../shared/reino/config.js'
-import { criarPartida, visao as visaoDoMotor } from '../../shared/reino/partida.js'
+import { chancesReais, criarPartida, visao as visaoDoMotor } from '../../shared/reino/partida.js'
 import { LIGAS, ligaDe, mediaDasMelhores } from '../../public/reino/js/ligas.js'
 import { T } from '../../public/reino/js/textos.js'
 
@@ -42,7 +42,8 @@ const GUARDAR = new Set(['mao-revelacao-1-celular', 'mao-revelacao-2-celular', '
   'festa-fim-recorde-antes-celular', 'festa-fim-recorde-pico-celular', 'festa-fim-sem-recorde-antes-celular', 'festa-fim-sem-recorde-pico-celular',
   'horda-legivel-celular', 'horda-legivel-pc', 'album-pixel-celular', 'menu-pixel-celular', 'link-amigo-celular', 'link-amigo-pergunta-celular', 'primeira-partida-celular', '320x568-espolio',
   'replace-celular', 'reliquias-hud-celular', 'guia-ouro-celular', 'conquistas-pixel-celular',
-  'mao-rara-brilho-celular']) // R30
+  'mao-rara-brilho-celular', // R30
+  'mao-chances-inicial-celular', 'mao-chances-album-cheio-celular', 'album-chances-celular']) // R31
 const SEM = 'e2e-keepmile-1' // semente fixa: as mesmas cartas, hordas e espólios sempre
 
 const falhas = []
@@ -146,8 +147,10 @@ async function rodar(fmt) {
   confere(m.hordaN === v0.horda.ordem.length && v0.espolios.length === 3, `horda (${m.hordaN}) e 3 espólios à vista antes da luta`)
   confere((await K(page, (k) => k.som().ligado)) === false, 'nada de som antes do primeiro toque (nem contexto de áudio)')
   confere((await K(page, (k) => k.temAtlas())) === temAtlasNoDisco, `atlas de arte ${temAtlasNoDisco ? 'carregado' : 'ausente: tudo por código'}`)
-  // R13 item 1: chances de raridade junto do botão de sortear, já no primeiro sorteio (números do config)
-  confere(JSON.stringify(m.chances.map((c) => [c.id, c.chance])) === JSON.stringify(CFG.RARIDADES.map((r) => [r.id, r.chance])) && (await viuJa(page, 'chances')), `chances do sorteio à vista junto do botão de sortear (${m.chances.map((c) => c.chance + '%').join(' ')})`)
+  // R13 item 1: chances de raridade junto do botão de sortear, já no primeiro sorteio.
+  // R31 (a regra mudou: veto do guardião, "chance sempre verdadeira"): antes conferia a tabela fixa do config; agora são as do MOTOR
+  // para as cartas desta partida — álbum inicial: só Common 50% e Uncommon 50% (as de 0% não aparecem)
+  confere(JSON.stringify(m.chances.map((c) => [c.id, c.chance])) === JSON.stringify([['C', 50], ['U', 50]]) && JSON.stringify(m.chances.map((c) => [c.id, c.chance])) === JSON.stringify(v0.chances.filter((c) => c.chance > 0).map((c) => [c.id, c.chance])) && (await viuJa(page, 'chances')), `chances do sorteio à vista junto do botão de sortear, as do motor (${m.chances.map((c) => c.nome + ' ' + c.chance + '%').join(' ')})`)
   // R13 item 3: os nomes novos (do config) na tela; nenhum nome antigo
   const rotulos = await page.evaluate(() => [...document.querySelectorAll('#toques button')].map((b) => b.getAttribute('aria-label')).join(' | '))
   const nomes = JSON.stringify([Object.values(CFG.CARTAS).map((c) => c.nome + c.texto), Object.values(CFG.INVASORES).map((c) => c.nome + c.texto), CFG.CHEFES.map((c) => c.nome + c.texto)])
@@ -262,10 +265,12 @@ async function rodar(fmt) {
   // conquistas desta vitória esperam na fila e só aparecem depois da escolha, uma por vez
   let fe = await K(page, (k) => k.festas())
   confere(fe.atual === null && fe.fila.length >= 2 && fe.log.length === 0 && (await modelo(page)).brinde === null, `ordem das festas: na escolha do espólio nenhuma placa na tela; ${fe.fila.length} conquistas esperam a escolha`)
-  // R13 itens 1, 5 e 7: antes de escolher, o texto da carta, o efeito de cada espólio e a chance da bolsa virar relíquia (config)
+  // R13 itens 1, 5 e 7: antes de escolher, o texto da carta, o efeito de cada espólio e a chance da bolsa virar relíquia.
+  // R31 (a regra mudou): a bolsa já vem sorteada — com relíquia diz a chance do MOTOR (visao.chanceReliquia); sem relíquia, só o ouro (sem %)
   mm = await modelo(page)
-  { const vv = await K(page, (k) => k.visao()), ic = vv.espolios.findIndex((e) => e.tipo === 'carta'), ib = vv.espolios.findIndex((e) => e.tipo === 'bolsa')
-    confere(mm.espolioDesc[ic].texto === CFG.CARTAS[vv.espolios[ic].carta].texto && mm.espolioDesc[ib].texto.includes(`${CFG.PARTIDA.bolsa.chanceReliquia}%`) && (await viuJa(page, 'espolioDesc')), `espólio: texto da carta e chance da bolsa à vista ("${mm.espolioDesc[ib].titulo}: ${mm.espolioDesc[ib].texto}")`)
+  { const vv = await K(page, (k) => k.visao()), ic = vv.espolios.findIndex((e) => e.tipo === 'carta'), ib = vv.espolios.findIndex((e) => e.tipo === 'bolsa'), tb = mm.espolioDesc[ib].texto
+    const bolsaOk = vv.espolios[ib].reliquia ? tb.includes(`${vv.chanceReliquia}%`) : tb === T.bolsaSo && !tb.includes('%')
+    confere(mm.espolioDesc[ic].texto === CFG.CARTAS[vv.espolios[ic].carta].texto && bolsaOk && (await viuJa(page, 'espolioDesc')), `espólio: texto da carta e a bolsa verdadeira à vista ("${mm.espolioDesc[ib].titulo}: ${tb}")`)
     confere(mm.resumo.mvp >= 0 && mm.resumo.dano.reduce((a, b) => a + b, 0) > 0 && /MVP/.test(mm.vitoria.mvp || ''), `resumo da luta na vitória: dano por terreno e ${mm.vitoria.mvp}`) }
   await page.waitForTimeout(700)
   await foto(page, nome('espolio'))
@@ -431,10 +436,14 @@ async function rodar(fmt) {
   await page.waitForSelector('#tela:not([hidden])', { timeout: 5000 })
   await page.getByRole('button', { name: 'Album' }).click()
   await page.waitForSelector('#albumGrade', { timeout: 5000 })
-  const alb = await page.evaluate(() => ({ total: document.querySelectorAll('#albumGrade .km-carta').length, livres: document.querySelectorAll('#albumGrade [data-livre="1"]').length, conta: document.getElementById('albumConta').textContent, prox: document.getElementById('albumProxima').textContent, chances: document.getElementById('albumChances').textContent }))
+  const alb = await page.evaluate(() => ({ total: document.querySelectorAll('#albumGrade .km-carta').length, livres: document.querySelectorAll('#albumGrade [data-livre="1"]').length, conta: document.getElementById('albumConta').textContent, prox: document.getElementById('albumProxima').textContent, chances: document.getElementById('albumChances').textContent, todas: document.getElementById('albumChancesTodas')?.textContent ?? null }))
   const livresMotor = await K(page, (k) => k.liberadas().length)
   confere(alb.total === 30 && alb.livres === livresMotor && alb.livres >= 12, `álbum: 30 cartas, ${alb.livres} liberadas e ${alb.total - alb.livres} em silhueta ("${alb.prox}")`)
-  confere(/Common 50%/.test(alb.chances) && /Legendary 1%/.test(alb.chances), 'álbum mostra a chance de cada raridade (números do motor)')
+  // R31 (a regra mudou): antes conferia a tabela fixa ("Legendary 1%") como chance de agora; agora a de AGORA é a do motor para as cartas
+  // liberadas (só as que podem sair) e a tabela com tudo liberado vem numa linha à parte, rotulada
+  { const ch = chancesReais(await K(page, (k) => k.liberadas())).filter((r) => r.chance > 0), agora = ch.map((r) => `${r.nome} ${r.chance}%`)
+    confere(alb.chances.startsWith(T.album.chances) && agora.every((t) => alb.chances.includes(t)) && CFG.RARIDADES.filter((r) => !ch.some((c) => c.id === r.id)).every((r) => !alb.chances.includes(r.nome)), `álbum: a chance de agora é a do motor para estas cartas ("${alb.chances}")`)
+    confere(alb.todas && alb.todas.startsWith(T.album.chancesTodas) && CFG.RARIDADES.every((r) => alb.todas.includes(`${r.nome} ${r.chance}%`)), `álbum: a tabela com tudo liberado à parte e rotulada ("${alb.todas}")`) }
   await page.locator('#albumGrade [data-livre="1"]').first().click()
   confere(/\w/.test(await page.locator('#albumDetalhe').textContent()), 'tocar numa carta mostra nome, família e regra')
   if (fmt.toque) await foto(page, 'album-celular')
@@ -828,7 +837,9 @@ async function r17(fmt) {
     confere(m.setaCarta === true && (await viuJa(p, 'setaCarta')), 'D7: primeira partida — uma seta "TAP A CARD" em cima da mão')
     confere(await viuJa(p, 'nome:sortear'), 'D7: o botão de sortear tem nome ("REROLL" e o preço)')
     { const lay = await K(p, (k) => k.layout()), txt = lay.odds.linhas.flat().join(' | ')
-      confere(CFG.RARIDADES.every((r) => txt.includes(`${r.nome} ${r.chance}%`)) && (await viuJa(p, 'chancesNomes')), `chances com o NOME da raridade além da cor: "${txt}"`) }
+      // R31 (a regra mudou): só as raridades que o motor diz que podem sair, com o número dele; as de 0% não aparecem
+      const vc = (await K(p, (k) => k.visao())).chances
+      confere(vc.filter((r) => r.chance > 0).every((r) => txt.includes(`${r.nome} ${r.chance}%`)) && vc.filter((r) => r.chance === 0).every((r) => !txt.includes(r.nome)) && (await viuJa(p, 'chancesNomes')), `chances com o NOME da raridade além da cor, só as possíveis: "${txt}"`) }
     await p.waitForTimeout(700)
     if (fmt.toque) await foto(p, 'primeira-partida-celular')
     await conferirLayout(p, 'primeira partida')
@@ -1207,6 +1218,49 @@ async function r30() {
   await ctx.close()
 }
 
+/** R31 (veto do guardião): a chance da tela é a do motor. Álbum inicial: só Common/Uncommon 50/50; álbum cheio (gancho de teste): a
+ *  tabela inteira da rodada 2 em diante (na rodada 1 só Tropas que lutam: sem lendária); o álbum separa "agora" de "tudo liberado". */
+async function r31() {
+  console.log('\n=== R31: chances verdadeiras (celular 360×740) ===')
+  const erros = [], ruins = []
+  const ctx = await browser.newContext({ viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1, reducedMotion: 'reduce' })
+  const page = await ctx.newPage(); vigiar(page, erros, ruins)
+  const abrirJogo = async (q) => { await page.goto(base + q); await page.waitForFunction(() => window.__keepmile?.pronto, null, { timeout: 20000 }); await page.waitForTimeout(250) }
+  const odds = async () => (await K(page, (k) => k.layout())).odds.linhas.flat().join(' ')
+  const pares = (l) => JSON.stringify(l.map((c) => [c.id, c.chance]))
+  const soma = (l) => l.reduce((a, c) => a + c.chance, 0)
+  await abrirJogo(`?teste=1&nova=1&semente=${SEM}`)
+  let m = await modelo(page), v = await K(page, (k) => k.visao()), txt = await odds()
+  confere(pares(m.chances) === JSON.stringify([['C', 50], ['U', 50]]) && soma(m.chances) === 100 && txt.includes('Common 50%') && txt.includes('Uncommon 50%') && !/Rare|Epic|Legendary/.test(txt), `R31: álbum inicial: a mão mostra só "${txt}" (soma ${soma(m.chances)})`)
+  confere(pares(m.chances) === pares(v.chances.filter((c) => c.chance > 0)) && pares(v.chances) === pares(chancesReais(CFG.ALBUM.inicial)), 'R31: o número da mão é o do motor (visao.chances = chancesReais do álbum)')
+  await foto(page, 'mao-chances-inicial-celular')
+  // o álbum: a chance de AGORA (só Common/Uncommon) e, à parte e rotulada, a tabela com tudo liberado
+  await page.locator('#bt-menu').tap(); await page.waitForSelector('#tela:not([hidden])', { timeout: 5000 })
+  await page.getByRole('button', { name: 'Album' }).click(); await page.waitForSelector('#albumChances', { timeout: 5000 })
+  let alb = await page.evaluate(() => ({ agora: document.getElementById('albumChances').textContent, todas: document.getElementById('albumChancesTodas')?.textContent ?? null }))
+  confere(alb.agora === `${T.album.chances}: Common 50% · Uncommon 50%`, `R31: álbum inicial: "${alb.agora}"`)
+  confere(alb.todas === `${T.album.chancesTodas}: ` + CFG.RARIDADES.map((r) => `${r.nome} ${r.chance}%`).join(' · '), `R31: e à parte: "${alb.todas}"`)
+  await page.evaluate(() => document.getElementById('albumChancesTodas').scrollIntoView({ block: 'center' })); await page.waitForTimeout(150)
+  await foto(page, 'album-chances-celular')
+  // álbum cheio pelo gancho de teste
+  await K(page, (k, n) => k.guardaSet('rodadas', n), 100000)
+  await abrirJogo(`?teste=1&nova=1&semente=${SEM}`)
+  const todas = await K(page, (k) => k.liberadas())
+  m = await modelo(page); txt = await odds()
+  const tropas = chancesReais(todas.filter((id) => CFG.CARTAS[id].tipo === 'tropa' && CFG.CARTAS[id].dano > 0)).filter((c) => c.chance > 0)
+  confere(todas.length === Object.keys(CFG.CARTAS).length && pares(m.chances) === pares(tropas) && !txt.includes('Legendary') && soma(m.chances) === 100, `R31: álbum cheio, rodada 1 (só Tropas que lutam): "${txt}"`)
+  await K(page, (k) => k.jogarSozinho({ ateRodada: 2 })); await page.waitForTimeout(1500)
+  m = await modelo(page); v = await K(page, (k) => k.visao()); txt = await odds()
+  confere(v.rodada === 2 && pares(m.chances) === JSON.stringify(CFG.RARIDADES.map((r) => [r.id, r.chance])) && CFG.RARIDADES.every((r) => txt.includes(`${r.nome} ${r.chance}%`)) && soma(m.chances) === 100, `R31: álbum cheio, rodada 2: a tabela inteira "${txt}" (soma ${soma(m.chances)})`)
+  await foto(page, 'mao-chances-album-cheio-celular')
+  await page.locator('#bt-menu').tap(); await page.waitForSelector('#tela:not([hidden])', { timeout: 5000 })
+  await page.getByRole('button', { name: 'Album' }).click(); await page.waitForSelector('#albumChances', { timeout: 5000 })
+  alb = await page.evaluate(() => ({ agora: document.getElementById('albumChances').textContent, todas: document.getElementById('albumChancesTodas')?.textContent ?? null }))
+  confere(alb.agora === `${T.album.chances}: ` + CFG.RARIDADES.map((r) => `${r.nome} ${r.chance}%`).join(' · ') && alb.todas === null, `R31: álbum cheio: "${alb.agora}" (sem a linha repetida de "tudo liberado")`)
+  confere(erros.length === 0 && ruins.length === 0, 'R31: zero erro e zero 404' + (erros.length + ruins.length ? ' → ' + [...erros, ...ruins].slice(0, 4).join(' | ') : ''))
+  await ctx.close()
+}
+
 const SO = process.env.REINO_SO || '' // para rodar só uma parte enquanto se trabalha nela (a bateria completa é sem isto)
 try {
   if (!SO || SO === 'base' || SO === 'celular') await rodar({ nome: 'celular', w: 360, h: 740, toque: true })
@@ -1221,6 +1275,7 @@ try {
     await soLayout(1920, 1080, false)
   }
   if (!SO || SO === 'r30') await r30()
+  if (!SO || SO === 'r31') await r31()
 } catch (e) { falha('exceção: ' + (e?.stack || e)) }
 await browser.close()
 servidor.close()

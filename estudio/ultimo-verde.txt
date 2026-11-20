@@ -1,4 +1,5 @@
-094f6fe7b152377fd9cd129c3f5fc85db3afd039
+3bf56e7e958cdff9408c86354b0f3c5955444759
 # Último commit com a bateria completa verde E publicado no site de teste. Só o diretor escreve (docs/orquestra.md, seção 2).
-# 20/11/2026 18:47 BRT · publicação 50344f32-1e66-42f2-9c6d-433276041e70 (Railway, site de teste)
-# npm test 459 · travas 20 · reino 1423 · reino-servidor 377 · reino-movimento 189 · reino-som 181 · reino-letras 31 · 0 falha
+# 20/11/2026 19:26 BRT · publicação 449732c9-0366-4b0e-8a4b-6683c917522f (Railway, site de teste)
+# npm test 467 · travas 20 · reino 1423 · reino-servidor 377 · reino-movimento 189 · reino-som 181 · reino-letras 31 · 0 falha
+# Verde anterior: 094f6fe7b152377fd9cd129c3f5fc85db3afd039 (20/11 18:47 BRT)

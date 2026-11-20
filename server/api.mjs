@@ -6,6 +6,7 @@ import path from 'node:path'
 import { ErroDoJogo } from './jogo.mjs'
 import { lerArquivo, redirecionamento } from './estatico.mjs'
 import { apelidoPermitido, limparApelido } from './apelido.mjs'
+import { apelidoBarrado } from './reino/apelidos-barrados.mjs'
 
 // ---------------------------------------------------------------------------------------------
 // Parâmetros do servidor — TODOS PROVISÓRIOS (não são números de economia; segurança e ritmo do protótipo).
@@ -218,6 +219,8 @@ function lerCorpoConta(c) {
   const apelido = limparApelido(c.apelido)
   const { min, max } = PARAMS_SERVIDOR.apelido
   if (apelido.length < min || apelido.length > max || !apelidoPermitido(apelido)) throw recusa('APELIDO_INVALIDO', `Apelido de ${min} a ${max} letras (alfabeto latino, com acento), números, espaço, ponto, traço ou _.`)
+  // R24: a conta nova passa pela mesma lista da troca de apelido (equipe e ofensa; sem acento, I/l/1 e rn/m juntos)
+  if (apelidoBarrado(apelido)) throw recusa('APELIDO_BARRADO', 'Esse apelido não pode ser usado. Escolha outro.')
   return { apelido }
 }
 

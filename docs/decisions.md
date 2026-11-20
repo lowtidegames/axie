@@ -3,6 +3,8 @@
 **Regra:** a decisão mais NOVA fica em cima. Vale mais que qualquer outro texto do repositório, inclusive o `CLAUDE.md`. Decisão aprovada é final: só reabre com prova nova, e alternativa recusada nunca é reoferecida. Decisão nova entra aqui no mesmo dia, no mesmo commit da mudança. Formato: `dd/mm/aaaa hh:mm BRT — o quê — "frase do dono" (onde)`.
 
 ## Abertas
+- ABERTA (20/11): liga "Legend of the Mile" vai para os 10 primeiros com qualquer pontuação; com poucas contas soa estranho. Exigir piso de pontos é número de economia: só o dono decide.
+- ABERTA (20/11): sessão vence com 30 dias parado e não há outro jeito de entrar na conta (jogador perde álbum e ranking). Resolver pede login: decisão do dono antes do beta.
 - ASSUMPTION (19/11 21:20, Keepmile, tela local): a liga mostrada no fim da partida com menos de 3 partidas usa a média das que existem; faixas das ligas são PROVISÓRIAS do beta sem dinheiro (`public/reino/js/ligas.js`). O servidor (R14) define a regra final.
 - ASSUMPTION (15/11 16:55, piloto simples; o dono confirma ou troca): pontos da vitória = número do lugar (1 a 5), derrota 0 — é só para o piloto, não é número de economia aprovado; raridade do monstro = a do corpo (é o que a tabela do ovo anuncia); o ovo do começo sorteia entre as 5 espécies que têm desenho; o time já vem com os 3 que nasceram dos ovos.
 - PARA O DONO (15/11 01:35, seguranca): antes de haver prêmio, decidir com a economia — abrir luta gasta energia e desistir conta como derrota (A6); custo e teto da costura (A3). Enquanto o repositório for público, os pareceres de segurança e os scripts de ataque ficam à vista de qualquer pessoa: tornar privado antes de ligar dinheiro.

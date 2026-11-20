@@ -18,6 +18,8 @@ Sem dinheiro e sem token: só título e enfeite. O servidor sorteia, aplica cada
 | `GET /api/reino/ranking?cursor=&temporada=` | cursor da página anterior; temporada opcional | `Ranking` | 400 CURSOR_INVALIDO · 400 TEMPORADA_INVALIDA |
 | `GET /api/reino/perfil` | — | `Perfil` | — |
 | `GET /api/reino/replay/:id?desde=` | `desde` opcional (1º passo da página; padrão 0) | `Replay` | 400 CAMPO_INVALIDO (desde) · 404 (não existe ou não pode ver) · 409 PARTIDA_ABERTA · 409 ESTRADA_DE_HOJE · 429 MUITOS_PEDIDOS (por conta e por IP) |
+| `POST /api/reino/apelido` | `{ apelido }` — 3–16 de [A-Za-z0-9 _-], com letra ou número, sem espaço nas pontas nem dois seguidos | 200 `Perfil` | 400 APELIDO_INVALIDO · 400 APELIDO_BARRADO · 400 CAMPO_DESCONHECIDO · 409 APELIDO_EM_USO (único sem caixa; I/l/1 e O/0 contam igual) · 429 APELIDO_TROCADO_HOJE `{podeEm}` (1 troca por 24 h; recusa não gasta a vez) · 429 MUITOS_PEDIDOS (10 tentativas/h por conta, 30/h por IP; contam as recusadas) |
+| `GET /api/reino/partida/ultima?modo=` | modo opcional | `{ partida: Partida \| null }` — a última TERMINADA da própria conta (do modo, ou de qualquer um); nunca a aberta; sem semente | 400 MODO_INVALIDO · 400 CAMPO_DESCONHECIDO · 429 MUITOS_PEDIDOS (só quando precisa remontar a partida: conta no limite do replay) |
 
 Sempre possíveis: 401 SEM_SESSAO/SESSAO_VENCIDA · 429 MUITOS_PEDIDOS · 503 MANUTENCAO (tudo) · 503 SO_LEITURA (todo POST).
 
@@ -50,3 +52,6 @@ Sempre possíveis: 401 SEM_SESSAO/SESSAO_VENCIDA · 429 MUITOS_PEDIDOS · 503 MA
 - Enfeites (bandeira, piso, moldura) e nomes dos títulos na tela: só os ids da liga e da conquista.
 - Ranking de temporadas antigas usa as mesmas tabelas; não há "melhores de todos os tempos".
 - Painel do dono e qualquer prêmio: nada aqui.
+
+
+**R22 (banco v7).** Ranking: `lista[]` ganha `partida` (id da MELHOR partida terminada e conferida da conta na temporada, ou null fora do top 10 do replay; a própria sempre vem) e `estradaDeOntem: { dia, lista: [{ posicao, apelido, pontos, vencidas, partida }] }` (placar do dia passado, só leitura; `partida` = null fora do top 10 e, para quem ainda tem a estrada de ontem aberta, null em todas menos a própria). Perfil: `conquistas: [{ id, feita, quando (ISO ou null) }]` e `trocaDeApelido: { podeEm: ISO | null }` (null = já pode trocar).

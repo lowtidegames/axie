@@ -10,6 +10,8 @@
 //   reproduzir({ semente, cartasLiberadas, comandos }) → { ok, estado, resultado } | { ok: false, erro, indice }
 //   chancesReais(cartas)                        → [{ id, nome, chance }] chance real (%) de cada raridade para essas cartas
 //   sortearCartaDaSemente(semente, cartas)      → uma carta, pelo mesmo sorteio (conferência das chances)
+//   chancesDaMao({ cartas, sobe })              → [{ id, nome, chance, exata }] chance (%) de cada raridade na MÃO (sem repetir)
+//   sortearMaoDaSemente(semente, cartas, sobe)  → uma mão, pelo mesmo sorteio (conferência das chances da mão)
 //
 // Comandos:
 //   { tipo: 'por', carta: 'T01', terreno: 1..6 }   põe uma carta da oferta (1 por oferta)
@@ -67,11 +69,64 @@ function sortearCarta(e, pool, fora = []) {
  * mesma queda do sorteio acima (uma fonte só). Raridade sem carta no conjunto: 0. Soma 100 (ou tudo 0 com o conjunto vazio).
  */
 export function chancesReais(cartas) {
-  if (!Array.isArray(cartas)) throw new Error('Lista de cartas inválida')
-  const cand = cartas.filter((id) => typeof id === 'string' && Object.hasOwn(CARTAS, id))
-  const tem = temRaridade(cand), conta = RARIDADES.map(() => 0)
-  if (cand.length) for (let x = 0; x < DADO_RARIDADE; x++) conta[raridadeQueSai(raridadeDoNumero(x), tem)]++
+  const conta = contaDoDado(temRaridade(cartasValidas(cartas)))
   return RARIDADES.map((r, i) => ({ id: r.id, nome: r.nome, chance: (conta[i] * 100) / DADO_RARIDADE }))
+}
+
+const cartasValidas = (cartas) => {
+  if (!Array.isArray(cartas)) throw new Error('Lista de cartas inválida')
+  return cartas.filter((id) => typeof id === 'string' && Object.hasOwn(CARTAS, id))
+}
+const indiceDaRaridade = (id) => RARIDADES.findIndex((r) => r.id === CARTAS[id].raridade)
+
+/** Quantos números do dado (de DADO_RARIDADE) dão cada raridade, dado quais raridades há (`tem`): cada número pela queda do sorteio. */
+function contaDoDado(tem) {
+  const conta = RARIDADES.map(() => 0)
+  if (tem.some(Boolean)) for (let x = 0; x < DADO_RARIDADE; x++) conta[raridadeQueSai(raridadeDoNumero(x), tem)]++
+  return conta
+}
+
+/**
+ * R34: chance (%) de cada raridade NA MÃO que sai (fração esperada das cartas da mão), EXATA, pelo mesmo caminho de sortearOferta:
+ * a carta que sobe (uma das `sobe`, por igual) e depois cartas de `cartas` SEM REPETIR, cada uma pelo dado acima. As cartas de uma
+ * raridade são iguais entre si para o dado, então basta seguir quantas sobram de cada raridade (no máximo 5^3 caminhos).
+ * `chance` = inteiros que somam 100 (maior resto, empate na ordem do config); `exata` = o valor sem arredondar.
+ */
+export function chancesDaMao({ cartas, sobe = [] } = {}) {
+  const pool = cartasValidas(cartas), sob = cartasValidas(sobe)
+  const esperado = RARIDADES.map(() => 0)
+  const seguir = (conta, faltam, p) => {
+    if (!faltam || !conta.some((n) => n > 0)) return
+    const dist = contaDoDado(conta.map((n) => n > 0)).map((n) => n / DADO_RARIDADE)
+    dist.forEach((q, i) => { if (!q) return; esperado[i] += p * q; conta[i]--; seguir(conta, faltam - 1, p * q); conta[i]++ })
+  }
+  const contar = (lista) => { const c = RARIDADES.map(() => 0); for (const id of lista) c[indiceDaRaridade(id)]++; return c }
+  if (!sob.length) seguir(contar(pool), TAMANHO_DA_MAO, 1)
+  else for (const s of sob) { esperado[indiceDaRaridade(s)] += 1 / sob.length; seguir(contar(pool.filter((id) => id !== s)), TAMANHO_DA_MAO - 1, 1 / sob.length) }
+  const total = esperado.reduce((a, b) => a + b, 0)
+  const exata = esperado.map((v) => (total ? (v * 100) / total : 0))
+  const chance = exata.map(Math.floor)
+  if (total) {
+    const sobra = 100 - chance.reduce((a, b) => a + b, 0)
+    const ordem = exata.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0] || a[1] - b[1])
+    for (let k = 0; k < sobra; k++) chance[ordem[k][1]]++
+  }
+  return RARIDADES.map((r, i) => ({ id: r.id, nome: r.nome, chance: chance[i], exata: exata[i] }))
+}
+
+const TAMANHO_DA_MAO = 3
+
+/** A mão: a carta que sobe (se houver, uma das `sobe`) e depois cartas de `pool` sem repetir, até 3. */
+function sortearOferta(e, pool, sobe) {
+  const oferta = []
+  if (sobe.length) oferta.push(sobe[int(e, sobe.length)])
+  while (oferta.length < TAMANHO_DA_MAO) { const c = sortearCarta(e, pool, oferta); if (!c) break; oferta.push(c) }
+  return oferta
+}
+
+/** Uma mão sorteada por uma semente própria, com o MESMO sorteio da partida (para conferir as chances da mão). */
+export function sortearMaoDaSemente(semente, cartas, sobe = []) {
+  return sortearOferta({ sorteio: estadoDaSemente(semente) }, cartas, sobe)
 }
 
 /** Uma carta sorteada de `cartas` por uma semente própria, com o MESMO sorteio da partida (para conferir as chances). */
@@ -83,6 +138,8 @@ export function sortearCartaDaSemente(semente, cartas) {
 /** Cartas de onde sai a mão desta rodada: na rodada 1, só as Tropas que lutam (Soup Carrier sozinho não vence ninguém). */
 const tropasQueLutam = (lista) => lista.filter((id) => CARTAS[id].tipo === 'tropa' && CARTAS[id].dano > 0)
 const cartasDaMao = (e) => (e.rodada === 1 ? tropasQueLutam(e.liberadas) : e.liberadas)
+/** Cartas que podem vir como LEVEL UP na 1ª posição (rodada 2 em diante): as do reino abaixo do nível máximo. */
+const sobeDe = (e) => (e.rodada === 1 ? [] : [...new Set(e.terrenos.filter((t) => t && t.nivel < P.nivelMax).map((t) => t.carta))])
 
 /** Chance (em %) de a bolsa de uma rodada comum trazer relíquia: a do config, ou 0 se não sobra relíquia livre. */
 const chanceDaReliquia = (livres) => (livres > 0 ? P.bolsa.chanceReliquia : 0)
@@ -135,17 +192,10 @@ function novosEspolios(e) {
 }
 
 function novaOferta(e) {
-  const oferta = []
-  let levelUp = false
-  const pool = cartasDaMao(e)
-  if (e.rodada !== 1) {
-    const sobe = [...new Set(e.terrenos.filter((t) => t && t.nivel < P.nivelMax).map((t) => t.carta))]
-    if (sobe.length) { oferta.push(sobe[int(e, sobe.length)]); levelUp = true }
-  }
   // rodada 1: três Tropas diferentes que lutam; depois, a carta que sobe (se houver) e o resto do álbum
-  while (oferta.length < 3) { const c = sortearCarta(e, pool, oferta); if (!c) break; oferta.push(c) }
-  e.oferta = oferta
-  e.levelUp = levelUp
+  const sobe = sobeDe(e)
+  e.oferta = sortearOferta(e, cartasDaMao(e), sobe)
+  e.levelUp = sobe.length > 0
   e.sorteios = 0
   e.cartaPosta = false
 }
@@ -368,7 +418,8 @@ export function visao(e) {
     espolios: e.espolios.map((x) => ({ ...x })),
     // R31: chances VERDADEIRAS desta partida (as do sorteio acima): por raridade, para as cartas de onde sai a mão agora;
     // e a da bolsa trazer relíquia nesta rodada (null na rodada do chefe, que não sorteia bolsa)
-    chances: chancesReais(cartasDaMao(e)),
+    // R34: a chance é a da MÃO que sai (sem repetir carta e com a carta que sobe), não a de uma carta sozinha
+    chances: chancesDaMao({ cartas: cartasDaMao(e), sobe: sobeDe(e) }),
     chanceReliquia: e.horda && e.horda.chefe ? null : chanceDaReliquia(reliquiasLivres(e).length),
     reliquias: e.reliquias.slice(),
     ultima: e.ultima ? { ...e.ultima } : null,

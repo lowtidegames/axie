@@ -25,7 +25,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as CFG from '../../shared/reino/config.js'
-import { chancesReais, criarPartida, visao as visaoDoMotor } from '../../shared/reino/partida.js'
+import { chancesDaMao, criarPartida, visao as visaoDoMotor } from '../../shared/reino/partida.js'
 import { LIGAS, ligaDe, mediaDasMelhores } from '../../public/reino/js/ligas.js'
 import { T } from '../../public/reino/js/textos.js'
 
@@ -149,8 +149,9 @@ async function rodar(fmt) {
   confere((await K(page, (k) => k.temAtlas())) === temAtlasNoDisco, `atlas de arte ${temAtlasNoDisco ? 'carregado' : 'ausente: tudo por código'}`)
   // R13 item 1: chances de raridade junto do botão de sortear, já no primeiro sorteio.
   // R31 (a regra mudou: veto do guardião, "chance sempre verdadeira"): antes conferia a tabela fixa do config; agora são as do MOTOR
-  // para as cartas desta partida — álbum inicial: só Common 50% e Uncommon 50% (as de 0% não aparecem)
-  confere(JSON.stringify(m.chances.map((c) => [c.id, c.chance])) === JSON.stringify([['C', 50], ['U', 50]]) && JSON.stringify(m.chances.map((c) => [c.id, c.chance])) === JSON.stringify(v0.chances.filter((c) => c.chance > 0).map((c) => [c.id, c.chance])) && (await viuJa(page, 'chances')), `chances do sorteio à vista junto do botão de sortear, as do motor (${m.chances.map((c) => c.nome + ' ' + c.chance + '%').join(' ')})`)
+  // para as cartas desta partida — álbum inicial: só Common e Uncommon (as de 0% não aparecem).
+  // R34 (a regra mudou: achado da segurança): é a chance da MÃO, que não repete carta — rodada 1 (3 Tropas comuns, 2 incomuns) = 54/46
+  confere(JSON.stringify(m.chances.map((c) => [c.id, c.chance])) === JSON.stringify([['C', 54], ['U', 46]]) && JSON.stringify(m.chances.map((c) => [c.id, c.chance])) === JSON.stringify(v0.chances.filter((c) => c.chance > 0).map((c) => [c.id, c.chance])) && (await viuJa(page, 'chances')), `chances do sorteio à vista junto do botão de sortear, as do motor (${m.chances.map((c) => c.nome + ' ' + c.chance + '%').join(' ')})`)
   // R13 item 3: os nomes novos (do config) na tela; nenhum nome antigo
   const rotulos = await page.evaluate(() => [...document.querySelectorAll('#toques button')].map((b) => b.getAttribute('aria-label')).join(' | '))
   const nomes = JSON.stringify([Object.values(CFG.CARTAS).map((c) => c.nome + c.texto), Object.values(CFG.INVASORES).map((c) => c.nome + c.texto), CFG.CHEFES.map((c) => c.nome + c.texto)])
@@ -441,9 +442,9 @@ async function rodar(fmt) {
   confere(alb.total === 30 && alb.livres === livresMotor && alb.livres >= 12, `álbum: 30 cartas, ${alb.livres} liberadas e ${alb.total - alb.livres} em silhueta ("${alb.prox}")`)
   // R31 (a regra mudou): antes conferia a tabela fixa ("Legendary 1%") como chance de agora; agora a de AGORA é a do motor para as cartas
   // liberadas (só as que podem sair) e a tabela com tudo liberado vem numa linha à parte, rotulada
-  { const ch = chancesReais(await K(page, (k) => k.liberadas())).filter((r) => r.chance > 0), agora = ch.map((r) => `${r.nome} ${r.chance}%`)
+  { const ch = chancesDaMao({ cartas: await K(page, (k) => k.liberadas()) }).filter((r) => r.chance > 0), agora = ch.map((r) => `${r.nome} ${r.chance}%`)
     confere(alb.chances.startsWith(T.album.chances) && agora.every((t) => alb.chances.includes(t)) && CFG.RARIDADES.filter((r) => !ch.some((c) => c.id === r.id)).every((r) => !alb.chances.includes(r.nome)), `álbum: a chance de agora é a do motor para estas cartas ("${alb.chances}")`)
-    confere(alb.todas && alb.todas.startsWith(T.album.chancesTodas) && CFG.RARIDADES.every((r) => alb.todas.includes(`${r.nome} ${r.chance}%`)), `álbum: a tabela com tudo liberado à parte e rotulada ("${alb.todas}")`) }
+    confere(alb.todas && alb.todas.startsWith(T.album.chancesTodas) && chancesDaMao({ cartas: Object.keys(CFG.CARTAS) }).every((r) => alb.todas.includes(`${r.nome} ${r.chance}%`)), `álbum: a tabela com tudo liberado à parte e rotulada ("${alb.todas}")`) }
   await page.locator('#albumGrade [data-livre="1"]').first().click()
   confere(/\w/.test(await page.locator('#albumDetalhe').textContent()), 'tocar numa carta mostra nome, família e regra')
   if (fmt.toque) await foto(page, 'album-celular')
@@ -1221,7 +1222,8 @@ async function r30() {
   await ctx.close()
 }
 
-/** R31 (veto do guardião): a chance da tela é a do motor. Álbum inicial: só Common/Uncommon 50/50; álbum cheio (gancho de teste): a
+/** R31 (veto do guardião): a chance da tela é a do motor. R34: é a chance da MÃO (sem repetir carta). Álbum inicial: só Common/Uncommon
+ *  (rodada 1: 54/46; no álbum 50/50); álbum cheio (gancho de teste): a
  *  tabela inteira da rodada 2 em diante (na rodada 1 só Tropas que lutam: sem lendária); o álbum separa "agora" de "tudo liberado". */
 async function r31() {
   console.log('\n=== R31: chances verdadeiras (celular 360×740) ===')
@@ -1234,15 +1236,15 @@ async function r31() {
   const soma = (l) => l.reduce((a, c) => a + c.chance, 0)
   await abrirJogo(`?teste=1&nova=1&semente=${SEM}`)
   let m = await modelo(page), v = await K(page, (k) => k.visao()), txt = await odds()
-  confere(pares(m.chances) === JSON.stringify([['C', 50], ['U', 50]]) && soma(m.chances) === 100 && txt.includes('Common 50%') && txt.includes('Uncommon 50%') && !/Rare|Epic|Legendary/.test(txt), `R31: álbum inicial: a mão mostra só "${txt}" (soma ${soma(m.chances)})`)
-  confere(pares(m.chances) === pares(v.chances.filter((c) => c.chance > 0)) && pares(v.chances) === pares(chancesReais(CFG.ALBUM.inicial)), 'R31: o número da mão é o do motor (visao.chances = chancesReais do álbum)')
+  confere(pares(m.chances) === JSON.stringify([['C', 54], ['U', 46]]) && soma(m.chances) === 100 && txt.startsWith(T.chances) && txt.includes('Common 54%') && txt.includes('Uncommon 46%') && !/Rare|Epic|Legendary/.test(txt), `R31: álbum inicial: a mão mostra só "${txt}" (soma ${soma(m.chances)})`)
+  confere(pares(m.chances) === pares(v.chances.filter((c) => c.chance > 0)) && pares(v.chances) === pares(chancesDaMao({ cartas: CFG.ALBUM.inicial.filter((id) => CFG.CARTAS[id].tipo === 'tropa' && CFG.CARTAS[id].dano > 0) })), 'R34: o número da mão é o do motor (visao.chances = chancesDaMao das Tropas da rodada 1)')
   await foto(page, 'mao-chances-inicial-celular')
   // o álbum: a chance de AGORA (só Common/Uncommon) e, à parte e rotulada, a tabela com tudo liberado
   await page.locator('#bt-menu').tap(); await page.waitForSelector('#tela:not([hidden])', { timeout: 5000 })
   await page.getByRole('button', { name: 'Album' }).click(); await page.waitForSelector('#albumChances', { timeout: 5000 })
   let alb = await page.evaluate(() => ({ agora: document.getElementById('albumChances').textContent, todas: document.getElementById('albumChancesTodas')?.textContent ?? null }))
   confere(alb.agora === `${T.album.chances}: Common 50% · Uncommon 50%`, `R31: álbum inicial: "${alb.agora}"`)
-  confere(alb.todas === `${T.album.chancesTodas}: ` + CFG.RARIDADES.map((r) => `${r.nome} ${r.chance}%`).join(' · '), `R31: e à parte: "${alb.todas}"`)
+  confere(alb.todas === `${T.album.chancesTodas}: ` + chancesDaMao({ cartas: Object.keys(CFG.CARTAS) }).map((r) => `${r.nome} ${r.chance}%`).join(' · '), `R31: e à parte: "${alb.todas}"`)
   await page.evaluate(() => document.getElementById('albumChancesTodas').scrollIntoView({ block: 'center' })); await page.waitForTimeout(150)
   await foto(page, 'album-chances-celular')
   // álbum cheio pelo gancho de teste
@@ -1250,16 +1252,17 @@ async function r31() {
   await abrirJogo(`?teste=1&nova=1&semente=${SEM}`)
   const todas = await K(page, (k) => k.liberadas())
   m = await modelo(page); txt = await odds()
-  const tropas = chancesReais(todas.filter((id) => CFG.CARTAS[id].tipo === 'tropa' && CFG.CARTAS[id].dano > 0)).filter((c) => c.chance > 0)
+  const tropas = chancesDaMao({ cartas: todas.filter((id) => CFG.CARTAS[id].tipo === 'tropa' && CFG.CARTAS[id].dano > 0) }).filter((c) => c.chance > 0)
   confere(todas.length === Object.keys(CFG.CARTAS).length && pares(m.chances) === pares(tropas) && !txt.includes('Legendary') && soma(m.chances) === 100, `R31: álbum cheio, rodada 1 (só Tropas que lutam): "${txt}"`)
   await K(page, (k) => k.jogarSozinho({ ateRodada: 2 })); await page.waitForTimeout(1500)
   m = await modelo(page); v = await K(page, (k) => k.visao()); txt = await odds()
-  confere(v.rodada === 2 && pares(m.chances) === JSON.stringify(CFG.RARIDADES.map((r) => [r.id, r.chance])) && CFG.RARIDADES.every((r) => txt.includes(`${r.nome} ${r.chance}%`)) && soma(m.chances) === 100, `R31: álbum cheio, rodada 2: a tabela inteira "${txt}" (soma ${soma(m.chances)})`)
+  { const sobe = [...new Set(v.terrenos.filter((t) => t && t.nivel < CFG.PARTIDA.nivelMax).map((t) => t.carta))], esp = chancesDaMao({ cartas: todas, sobe }).filter((c) => c.chance > 0)
+    confere(v.rodada === 2 && pares(m.chances) === pares(esp) && esp.every((r) => txt.includes(`${r.nome} ${r.chance}%`)) && soma(m.chances) === 100, `R34: álbum cheio, rodada 2 (com a carta que sobe): "${txt}" (soma ${soma(m.chances)})`) }
   await foto(page, 'mao-chances-album-cheio-celular')
   await page.locator('#bt-menu').tap(); await page.waitForSelector('#tela:not([hidden])', { timeout: 5000 })
   await page.getByRole('button', { name: 'Album' }).click(); await page.waitForSelector('#albumChances', { timeout: 5000 })
   alb = await page.evaluate(() => ({ agora: document.getElementById('albumChances').textContent, todas: document.getElementById('albumChancesTodas')?.textContent ?? null }))
-  confere(alb.agora === `${T.album.chances}: ` + CFG.RARIDADES.map((r) => `${r.nome} ${r.chance}%`).join(' · ') && alb.todas === null, `R31: álbum cheio: "${alb.agora}" (sem a linha repetida de "tudo liberado")`)
+  confere(alb.agora === `${T.album.chances}: ` + chancesDaMao({ cartas: todas }).map((r) => `${r.nome} ${r.chance}%`).join(' · ') && alb.todas === null, `R31: álbum cheio: "${alb.agora}" (sem a linha repetida de "tudo liberado")`)
   confere(erros.length === 0 && ruins.length === 0, 'R31: zero erro e zero 404' + (erros.length + ruins.length ? ' → ' + [...erros, ...ruins].slice(0, 4).join(' | ') : ''))
   await ctx.close()
 }

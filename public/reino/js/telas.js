@@ -2,7 +2,7 @@
 // partida nova), ÁLBUM, CONQUISTAS (com medalha, o que dá e a data), BEST RUNS (liga provisória do beta + as melhores partidas), a
 // pergunta de sair e a do link de amigo. Tudo na LETRA DO JOGO (as fontes em pixel do atlas, desenhadas em canvas) e no mesmo
 // acabamento das cartas (painel e botões do atlas). Fecham por 4 jeitos: X, Esc, botão de baixo e toque fora.
-import { chancesReais } from '../../../shared/reino/partida.js'
+import { chancesDaMao } from '../../../shared/reino/partida.js'
 import { LIGAS, ligaDe, mediaDasMelhores } from './ligas.js'
 import { CONQUISTAS, T } from './textos.js'
 
@@ -128,9 +128,9 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
     return [
       linha(`${livres.size} / ${ordem.length} · ${T.album.somadas(rodadas)}`, { pid: 'albumConta', fonte: 'reino' }),
       linha(prox ? T.album.proxima(prox - rodadas) : T.album.todas, { pid: 'albumProxima' }), barra, grade, detalhe,
-      // R31: a chance de AGORA é a do motor para as cartas liberadas (só as raridades que podem sair); a tabela com tudo liberado vem à parte, rotulada
-      linha(T.album.chances + ': ' + textoDasChances(chancesReais([...livres])), { pid: 'albumChances', classe: 'km-chances' }),
-      livres.size < ordem.length ? linha(T.album.chancesTodas + ': ' + textoDasChances(chancesReais(ordem)), { pid: 'albumChancesTodas', cor: CINZA, classe: 'km-chances' }) : null,
+      // R31/R34: a chance de AGORA é a do motor para uma mão destas cartas liberadas (sem repetir; só as raridades que podem sair); a tabela com tudo liberado vem à parte, rotulada
+      linha(T.album.chances + ': ' + textoDasChances(chancesDaMao({ cartas: [...livres] })), { pid: 'albumChances', classe: 'km-chances' }),
+      livres.size < ordem.length ? linha(T.album.chancesTodas + ': ' + textoDasChances(chancesDaMao({ cartas: ordem })), { pid: 'albumChancesTodas', cor: CINZA, classe: 'km-chances' }) : null,
     ]
   }
   function conquistas() {

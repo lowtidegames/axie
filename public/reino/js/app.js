@@ -394,7 +394,7 @@ function lutar(rapido = false) {
     M.fase = 'luta'; M.sel = -1; M.infoSel = null; M.armado = null; M.trocar = 0; M.info = null; C.destaque = null
     canvas.style.filter = C.menos ? '' : 'saturate(1.1)'
     Musica.momento(bat.horda.chefe ? 'chefe' : 'batalha'); if (!rapido) Som.tocar('invasorChega')
-    Bat.iniciar({ eventos: bat.eventos, horda: bat.horda, terrenos: pre.terrenos, exercito: montarExercito(pre.terrenos, pre.reliquias), segundos: bat.segundos, rodada: pre.rodada }, aoFimDaLuta)
+    Bat.iniciar({ eventos: bat.eventos, horda: bat.horda, terrenos: pre.terrenos, exercito: montarExercito(pre.terrenos, pre.reliquias), segundos: bat.segundos, rodada: pre.rodada, painelCurto: UI.L.cel && pre.terrenos.filter(Boolean).length <= 2 }, aoFimDaLuta)
     if (rapido) Bat.pular()
     UI.mudou()
   })
@@ -866,7 +866,7 @@ function passoDoReplay() {
   const bat = p.comando.tipo === 'batalhar' ? p.eventos.find((x) => x.tipo === 'batalha') : null
   if (bat) {
     M.fase = 'luta'; M.replay.linha = ''; M.replay.passo = null; M.replay.mvp = null; C.destaque = null; Musica.momento(bat.horda.chefe ? 'chefe' : 'batalha')
-    Bat.iniciar({ eventos: bat.eventos, horda: bat.horda, terrenos: antes.terrenos, exercito: montarExercito(antes.terrenos, antes.reliquias), segundos: bat.segundos, rodada: antes.rodada }, () => {
+    Bat.iniciar({ eventos: bat.eventos, horda: bat.horda, terrenos: antes.terrenos, exercito: montarExercito(antes.terrenos, antes.reliquias), segundos: bat.segundos, rodada: antes.rodada, painelCurto: false }, () => {
       if (J.replay !== R) return
       // o MVP da luta que acabou de passar (do resumo dos eventos) fica na faixa até o passo seguinte
       const Z = resumoDaLuta(), nomeMvp = Z.mvp > 0 ? CONFIG.CARTAS[Z.cartas[Z.mvp]]?.nome : Z.mvp === 0 ? T.resumo.magia : null

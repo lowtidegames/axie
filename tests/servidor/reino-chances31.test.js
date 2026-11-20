@@ -9,7 +9,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ALBUM, CARTAS, PARTIDA, RARIDADES, RELIQUIAS } from '../../shared/reino/config.js'
-import { aplicar, chancesReais, criarPartida, reproduzir, sortearCartaDaSemente, visao } from '../../shared/reino/partida.js'
+import { aplicar, chancesDaMao, chancesReais, criarPartida, reproduzir, sortearCartaDaSemente, visao } from '../../shared/reino/partida.js'
 import { escolher } from '../../shared/reino/robos.js'
 import { criarRng } from '../../shared/rng.js'
 
@@ -109,19 +109,24 @@ describe('R31: 20.000 sorteios do motor batem com chancesReais (até 1,5 ponto)'
 })
 
 describe('R31: a visão leva as chances da partida', () => {
-  test('álbum inicial: 50/50 já na rodada 1; relíquia da bolsa = a do config', () => {
+  // R34 (a regra mudou: achado da segurança): a visão traz a chance da MÃO (sem repetir carta), não a de uma carta sozinha.
+  // Rodada 1 do álbum inicial: 3 Tropas comuns e 2 incomuns, sem repetir → Common 54 · Uncommon 46 (antes dizia 50/50).
+  test('álbum inicial: rodada 1 = a chance da mão de Tropas sem repetir (54/46); relíquia da bolsa = a do config', () => {
     const v = visao(criarPartida({ semente: 'r31:v1' }))
-    assert.deepEqual(mapa(v.chances), { C: 50, U: 50, R: 0, E: 0, L: 0 })
+    assert.deepEqual(mapa(v.chances), { C: 54, U: 46, R: 0, E: 0, L: 0 })
     assert.equal(v.chanceReliquia, PARTIDA.bolsa.chanceReliquia)
   })
-  test('álbum completo: rodada 1 só Tropas que lutam (sem lendária); da rodada 2 em diante, a tabela inteira', () => {
+  test('álbum completo: rodada 1 só Tropas que lutam (sem lendária); da rodada 2 em diante, o álbum inteiro com a carta que sobe', () => {
     let e = criarPartida({ semente: 'r31:v2', cartasLiberadas: TODAS })
-    assert.deepEqual(mapa(visao(e).chances), mapa(chancesReais(TODAS.filter((id) => CARTAS[id].tipo === 'tropa' && CARTAS[id].dano > 0))))
+    assert.deepEqual(mapa(visao(e).chances), mapa(chancesDaMao({ cartas: TODAS.filter((id) => CARTAS[id].tipo === 'tropa' && CARTAS[id].dano > 0) })))
     assert.equal(visao(e).chances.find((r) => r.id === 'L').chance, 0)
     const rng = criarRng('r31:v2robo')
     while (e.rodada === 1 && e.fase !== 'fim') e = aplicar(e, escolher('ganancioso', e, (n) => rng.inteiro(n)), { eventos: false }).estado
     assert.equal(e.rodada, 2)
-    assert.deepEqual(mapa(visao(e).chances), TABELA)
+    const sobe = [...new Set(e.terrenos.filter((t) => t && t.nivel < PARTIDA.nivelMax).map((t) => t.carta))]
+    assert.ok(sobe.length > 0)
+    assert.deepEqual(mapa(visao(e).chances), mapa(chancesDaMao({ cartas: TODAS, sobe })))
+    assert.equal(visao(e).chances.reduce((a, r) => a + r.chance, 0), 100)
   })
   test('rodada do chefe: a bolsa não sorteia relíquia (chanceReliquia null); sem relíquia livre: 0', () => {
     const e = criarPartida({ semente: 'r31:v3' })

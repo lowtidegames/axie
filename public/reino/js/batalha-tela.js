@@ -106,7 +106,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       if (!eraVivo) { C.est[i] = 2; C.tocarAnim(i, AN.fall); return }
       if (C.lado[i] === 0) { B.aliados--; B.quedasDeSoldado++ } else B.inimigos--
       // R26 — um grupo inteiro do reino acabou: 250 ms de respiro (a cena segura em câmera lenta no ponto) e poeira onde ele caiu
-      if (C.lado[i] === 0 && !quieto) { const k = terrenoDe[e[2]]; if (k && --vivosT[k] === 0 && B.aliados > 0 && !C.menos) { B.lentoAte = Math.max(B.lentoAte, agora + 250); const q = tela(i); C.efeito('dust', q.x + C.cam.x, q.y + 2); B.gruposCaidos = (B.gruposCaidos || 0) + 1 } }
+      if (C.lado[i] === 0 && !quieto) { const k = terrenoDe[e[2]]; if (k && --vivosT[k] === 0 && B.aliados > 0 && !C.menos) { B.lentoAte = Math.max(B.lentoAte, agora + 250); C.med.gruposCaidos++; C.med.pausaGrupoMs = Math.round(B.lentoAte - agora); const q = tela(i); C.efeito('dust', q.x + C.cam.x, q.y + 2); B.gruposCaidos = (B.gruposCaidos || 0) + 1 } }
       const chefe = C.lado[i] === 1 && chefes.has(B.tipoDe(e[2]))
       if (chefe) chefesVivos--
       if (quieto) { C.est[i] = 4; return }
@@ -199,7 +199,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     if (B.fimEm) { if (agora >= B.fimEm) { B.ativa = false; C.emLuta = false; const r = B.resultado, f = B.aoFim; B.aoFim = null; f?.(r) } return dtReal }
     if (B.preludioAte) { if (agora < B.preludioAte - (B.vel > 1 ? 900 : 0)) return dtReal; comecarLuta() }
     if (agora < B.pausaAte) return 0 // pausa de impacto: o mundo inteiro segura
-    B.lento = agora < B.lentoAte
+    B.lento = agora < B.lentoAte; if (B.lento) C.med.lentoMs += dtReal
     const fator = B.vel * (B.vel === 1 ? B.ritmo : 1) * (B.lento ? 0.5 : 1)
     C.tb += dtReal * fator / 100; fatorAgora = fator
     const ev = B.ev

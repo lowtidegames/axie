@@ -13,8 +13,11 @@ export const duracaoDoGolpe = (ant) => ant + BOTE_MS + SEGURA_MS + VOLTA_MS
 
 /** GESTO de cada tipo (R26): o mesmo tempo, um corpo diferente — reconhecível de relance.
  *  corte (espada, machado: avança e inclina) · estocada (lança: reto e comprido) · frigideira (de cima para baixo: cresce e esmaga) ·
- *  bicada (ganso: o pescoço vai, o pé fica) · esmaga (bruto e chefe: sobe e desce com o corpo todo) · tiro (puxa e leva o coice). */
-export const GESTO = { corte: 0, estocada: 1, frigideira: 2, bicada: 3, esmaga: 4, tiro: 5 }
+ *  bicada (ganso: o pescoço vai, o pé fica) · esmaga (bruto e chefe: sobe e desce com o corpo todo) · tiro (puxa e leva o coice).
+ *  R28: mordida (Scoffer: abre a boca para cima, PULA no alvo e fecha achatando) · portada (Doorman: firma atrás da porta e empurra
+ *  reto, largo, sem inclinar) · investida (Sir Dent: agacha fundo, dispara baixo e comprido e passa 2 px do alvo) · barrigada (Bloater:
+ *  incha e bate de barriga, inclinado para trás). */
+export const GESTO = { corte: 0, estocada: 1, frigideira: 2, bicada: 3, esmaga: 4, tiro: 5, mordida: 6, portada: 7, investida: 8, barrigada: 9 }
 
 /** GOLPE: antecipa (~90–120 ms: encolhe e recua) → bote (60 ms: cruza o vão até o alvo) → parada no impacto (45 ms) → volta (160 ms,
  *  passa 1 px do ponto e assenta). `peso` 1 soldado, 1.5 bruto, 2 chefe. `alcance` = px até o alvo (o vão entre as frentes).
@@ -22,12 +25,19 @@ export const GESTO = { corte: 0, estocada: 1, frigideira: 2, bicada: 3, esmaga: 
 export function golpe(P, ms, ant, peso = 1, gesto = 0, alcance = 6) {
   if (ms < 0) return 0
   const tiro = gesto === GESTO.tiro, bic = gesto === GESTO.bicada, cima = gesto === GESTO.frigideira || gesto === GESTO.esmaga
-  const rec = Math.round((bic ? 1 : 3) * peso), av = tiro ? -Math.round(2 * peso) : bic ? Math.max(2, Math.round(alcance * 0.45)) : gesto === GESTO.estocada ? alcance + 1 : alcance
+  const G = GESTO
+  const rec = Math.round((bic || gesto === G.barrigada ? 1 : gesto === G.mordida || gesto === G.portada ? 2 : gesto === G.investida ? 5 : 3) * peso)
+  const av = tiro ? -Math.round(2 * peso) : bic ? Math.max(2, Math.round(alcance * 0.45)) : gesto === G.estocada ? alcance + 1 : gesto === G.investida ? alcance + 2 : gesto === G.portada ? Math.max(3, Math.round(alcance * 0.7)) : gesto === G.barrigada ? Math.max(3, Math.round(alcance * 0.8)) : alcance
   if (ms < ant) {
     const f = sai(ms / ant); P.dx -= Math.round(rec * f)
-    if (cima) { P.alt += Math.round(3 * peso * f); P.larg -= Math.round(1 * f); P.incl -= Math.round(1 * f) } // levanta a frigideira: cresce
+    if (cima) { P.alt += Math.round(3 * peso * f); P.larg -= Math.round(1 * f); P.incl -= Math.round(1 * f); if (gesto === GESTO.esmaga) P.dy -= Math.round(2 * f) } // levanta a frigideira: cresce (o bruto sai do chão)
+    else if (tiro) { P.incl -= Math.round(2 * f); P.larg -= Math.round(1 * f) } // puxa a corda: o corpo vai para trás, sem agachar
     else if (bic) { P.incl -= Math.round(3 * f); P.alt += Math.round(1 * f) } // pescoço para trás
     else if (gesto === GESTO.estocada) { P.larg -= Math.round(1 * f); P.incl -= Math.round(1 * f); P.alt -= Math.round(1 * f) }
+    else if (gesto === G.mordida) { P.alt += Math.round(3 * f); P.larg -= Math.round(1 * f); P.incl -= Math.round(1 * f) } // abre a boca: estica para cima
+    else if (gesto === G.portada) { P.larg -= Math.round(2 * f); P.incl -= Math.round(2 * f) } // firma atrás da porta
+    else if (gesto === G.investida) { P.alt -= Math.round(3 * f); P.larg += Math.round(2 * f); P.incl += Math.round(1 * f) } // agacha fundo, já apontado para a frente
+    else if (gesto === G.barrigada) { P.larg += Math.round(3 * f); P.alt += Math.round(2 * f) } // incha
     else { P.alt -= Math.round(2 * peso * f); P.larg += Math.round(2 * peso * f); P.incl -= Math.round(1.4 * f * peso) }
     return (P.fase = FASE.antecipa)
   }
@@ -36,9 +46,13 @@ export function golpe(P, ms, ant, peso = 1, gesto = 0, alcance = 6) {
     const f = ms < BOTE_MS ? sai(ms / BOTE_MS) : 1
     P.dx += Math.round(-rec + (av + rec) * f)
     if (tiro) P.incl -= Math.round(peso)
-    else if (cima) { P.alt -= Math.round(4 * peso * f); P.larg += Math.round(3 * peso * f); P.incl += Math.round(2 * f) } // desce com tudo: esmaga
+    else if (cima) { P.alt -= Math.round(4 * peso * f); P.larg += Math.round(3 * peso * f); P.incl += Math.round(2 * f); if (gesto === GESTO.esmaga) { P.larg += Math.round(1 * f); P.dy += Math.round(1 * f) } } // desce com tudo: esmaga (o bruto afunda 1 px no chão)
     else if (bic) { P.incl += Math.round(5 * f); P.alt -= Math.round(2 * f); P.larg += 1 } // o pescoço estica até o alvo
     else if (gesto === GESTO.estocada) { P.larg += Math.round(4 * f); P.alt -= 1; P.incl += 1 } // comprido e reto
+    else if (gesto === G.mordida) { P.dy -= ms < BOTE_MS ? Math.round(Math.sin(ms / BOTE_MS * Math.PI) * 4) : 0; P.alt -= Math.round(3 * f); P.larg += Math.round(3 * f); P.incl += Math.round(1 * f) } // pula e fecha a boca: achata
+    else if (gesto === G.portada) P.larg += Math.round(3 * f) // empurra reto: largo, de pé, sem inclinar
+    else if (gesto === G.investida) { P.incl += Math.round(3 * f); P.larg += Math.round(2 * f); P.alt -= Math.round(2 * f) } // baixo e comprido
+    else if (gesto === G.barrigada) { P.larg += Math.round(5 * f); P.alt -= Math.round(1 * f); P.incl -= Math.round(1 * f) } // de barriga, o corpo para trás
     else { P.larg += Math.round(2 * peso); P.alt -= 1; P.incl += Math.round(2 * peso) }
     return (P.fase = FASE.bote)
   }

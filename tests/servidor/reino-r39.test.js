@@ -97,7 +97,8 @@ describe('R39 — perfil', () => {
     try {
       const a = await conta()
       const dia = Math.floor(T0 / DIA)
-      gravarTerminada(s.db, { id: pid(1), conta: a.id, dia, vencidas: 21, quando: T0 - 3000 })
+      // (segurança R39: vitória em treino não entra em recordes.vitorias; esta partida é de ranking)
+      gravarTerminada(s.db, { id: pid(1), conta: a.id, modo: 'ranking', dia, vencidas: 21, quando: T0 - 3000 })
       gravarTerminada(s.db, { id: pid(2), conta: a.id, dia, vencidas: 19, quando: T0 - 2000 })
       gravarTerminada(s.db, { id: pid(3), conta: a.id, dia, vencidas: 30, conferida: 0, quando: T0 - 1000 })
       const p = (await api('GET', '/api/reino/perfil', a.token)).json
@@ -112,6 +113,25 @@ describe('R39 — perfil', () => {
       assert.equal(ult.id, pid(3))
       assert.equal(ult.resultado.conta, false)
       assert.equal(ult.resultado.venceu, false, 'refeita não bateu: não venceu')
+    } finally { await fechar(s) }
+  })
+})
+
+describe('R39 — recordes.vitorias (achado da segurança)', () => {
+  test('recordes.vitorias não desce quando treinos além do teto são apagados (vitória em treino não entra)', async () => {
+    const { s, api, conta } = await subir()
+    try {
+      const a = await conta()
+      const dia = Math.floor(T0 / DIA)
+      gravarTerminada(s.db, { id: pid(90), conta: a.id, modo: 'ranking', dia, vencidas: 22, quando: T0 - 500_000 })
+      gravarTerminada(s.db, { id: pid(91), conta: a.id, modo: 'estrada', dia, vencidas: 20, quando: T0 - 499_000 })
+      for (let k = 0; k < 110; k++) gravarTerminada(s.db, { id: `pa_t${String(k).padStart(23, '0')}`, conta: a.id, dia, vencidas: 20, pontos: 100 + k, quando: T0 - 400_000 + k })
+      const antes = (await api('GET', '/api/reino/perfil', a.token)).json.recordes.vitorias
+      assert.equal(antes, 2)
+      const p = await abrir(api, a.token, 'treino')
+      assert.equal((await api('POST', '/api/reino/partida/desistir', a.token, { partida: p.id })).status, 200)
+      assert.ok(s.db.prepare("SELECT COUNT(*) n FROM reino_partidas WHERE conta_id = ? AND modo = 'treino'").get(a.id).n < 111, 'teto apagou treinos')
+      assert.equal((await api('GET', '/api/reino/perfil', a.token)).json.recordes.vitorias, 2)
     } finally { await fechar(s) }
   })
 })
@@ -230,7 +250,7 @@ describe('R39 — migração v8 (só dados)', () => {
     ins.run(vet.conta.id, 230, 12, 2600, dia, JSON.stringify(antigas), JSON.stringify(quando), T0 - 30 * DIA)
     ins.run(nova.conta.id, 3, 1, 300, dia, '["supper"]', JSON.stringify({ supper: T0 - HORA }), T0 - DIA)
     ins.run(trapaca.conta.id, 60, 3, 0, dia, '[]', '{}', T0 - DIA)
-    gravarTerminada(db7, { id: pid(1), conta: vet.conta.id, dia, vencidas: 26, quando: T0 - 5 * HORA })
+    gravarTerminada(db7, { id: pid(1), conta: vet.conta.id, modo: 'ranking', dia, vencidas: 26, quando: T0 - 5 * HORA })
     gravarTerminada(db7, { id: pid(2), conta: vet.conta.id, dia, vencidas: 12, quando: T0 - 4 * HORA })
     gravarTerminada(db7, { id: pid(3), conta: trapaca.conta.id, dia, vencidas: 40, conferida: 0, quando: T0 - 4 * HORA })
     assert.equal(db7.prepare('PRAGMA user_version').get().user_version, 7)
@@ -288,6 +308,30 @@ describe('R39 — migração v8 (só dados)', () => {
       MIGRACOES[7](db, { agora: () => T0 })
       assert.deepEqual(db.prepare('SELECT conquistas, conquistas_quando FROM reino_contas').get(), uma)
     } finally { db.close() }
+  })
+
+  test('v8 sobe com 1 conta de conquistas estragado e não mexe nela', () => {
+    const db = abrirBanco(':memory:', { migracoes: MIGRACOES.slice(0, 7) })
+    const avisos = []
+    const logAntes = console.log
+    try {
+      const jogo = criarJogo(db, { agora: () => T0, log: () => {} })
+      const ins = db.prepare('INSERT INTO reino_contas (conta_id, rodadas_vencidas, energia_saldo, energia_dia, conquistas, criada_em) VALUES (?, 300, 3, 0, ?, ?)')
+      const ids = []
+      for (const [k, txt] of [['Quebrada Um', '[supper'], ['Quebrada Dois', '{}'], ['Quebrada Tres', 'null'], ['Inteira', '[]']]) {
+        const { conta } = jogo.criarConta(k)
+        ins.run(conta.id, txt, T0)
+        ids.push([conta.id, txt])
+      }
+      console.log = (...x) => avisos.push(x.join(' '))
+      MIGRACOES[7](db, { agora: () => T0 })
+      console.log = logAntes
+      const ler = (id) => db.prepare('SELECT conquistas FROM reino_contas WHERE conta_id = ?').get(id).conquistas
+      for (const [id, txt] of ids.slice(0, 3)) assert.equal(ler(id), txt, 'estragada fica como estava')
+      assert.deepEqual(JSON.parse(ler(ids[3][0])), ['tally25', 'tally50', 'tally100', 'tally200'])
+      assert.equal(avisos.length, 3, avisos.join('\n'))
+      for (const a of avisos) assert.ok(/AVISO/.test(a) && !/Quebrada/.test(a), a)
+    } finally { console.log = logAntes; db.close() }
   })
 
   test('banco novo nasce na v8', () => {

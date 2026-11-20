@@ -15,7 +15,7 @@ Jogo de reino: cartas postas em 6 terrenos, batalha automática sem dado, partid
 - `js/particulas.js` · efeitos por código (fumaça, anel, rastro, névoa) · `fumaca`, `anel`, `varrida`, `graduar` · `js/textos.js` · textos em inglês · `T`, `CONQUISTAS`, `CHEFE_CONQUISTA`
 - `js/guarda.js` · o que fica no aparelho · `Guarda` (get/set, partida, conquista, rodadaVencida) · `js/ligas.js` · liga do beta só local · `LIGAS`, `ligaDe`, `mediaDasMelhores`
 - `js/servidor.js` · ponte com `/api/reino` (conta, seq, repetição de pedido) · `Srv`, `ErroS` · `js/fim.js` · cartão PNG para postar · `cartaoDoReino`, `compartilhar`, `linkDaEstrada`
-- `js/teste.js` · ganchos de teste (só com `?teste=1`) · `ligarGanchos` · `som-reino.js` · som e música por código (WebAudio) · `Som` (`golpe`, `hitStop`, `ambiente`), `Musica`; a cena chama pelo gancho `C.aoSom` · `sons.html` · folha para ouvir cada som · `sons/` · mp3 do castelo
+- `js/teste.js` · ganchos de teste (só com `?teste=1`) · `ligarGanchos` · `som-reino.js` · som e música por código (WebAudio) · `Som` (`golpe`, `hitStop`, `ambiente`), `Musica`; a cena chama pelo gancho `C.aoSom` · chefe em destaque: `C.anunciarChefe`, `COR_CHEFE` (`cena.js`), `folhaApagada` (`arte.js`) · chances × seta: `C.zonaChances`, `C.setas` · `sons.html` · folha para ouvir cada som · `sons/` · mp3 do castelo
 - `arte/` · atlas (`atlas.json` = `atlas.js`, gerado por `python3 -B arte/reino/atlas.py`; não editar), PNGs, `galeria.html` (ver animando), `LEIAME.md` · `arte-provisoria/` · peças de reserva
 
 ### Motor — `shared/reino/` (roda igual no servidor e no navegador; usa `shared/rng.js`)

@@ -101,6 +101,19 @@ const viu = (page) => K(page, (k) => k.desenhou())
 const viuJa = (page, tag) => page.waitForFunction((t) => window.__keepmile.desenhou().includes(t), tag, { timeout: 2000 }).then(() => true, () => false)
 const fase = (page, f, prazo = 20000) => page.waitForFunction((x) => window.__keepmile.fase() === x, f, { timeout: prazo })
 
+/** R38 (item 3) — a linha das chances ("ODDS THIS HAND") não toca em nenhuma seta de terreno (a do terreno vazio e a do terreno em
+ *  destaque), nem passa por cima do botão de sortear ou do de consertar. Retângulos em px de arte, do último quadro desenhado. */
+async function chancesSemSeta(page, onde, { pedeDesvio = false } = {}) {
+  await page.waitForTimeout(120)
+  const r = await page.evaluate(() => {
+    const C = window.__kmCena, z = C.zonaChances, toca = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+    if (!z) return null
+    const setas = C.setas.map((s) => ({ ...s })), bts = ['sortear', 'consertar'].map((id) => document.getElementById('bt-' + id)).filter(Boolean).map((b) => { const q = b.getBoundingClientRect(); return { id: b.id, x: q.x / C.css, y: q.y / C.css, w: q.width / C.css, h: q.height / C.css } })
+    return { n: z.linhas.length, zona: [z.x, z.y, z.w, z.h], setas: setas.length, vazio5: setas.some((s) => s.k === 5 && s.tipo === 'vazio'), cruzam: setas.filter((s) => z.linhas.some((l) => toca(l, s)) || (C.tipo === 'celular' && toca(z, s))).map((s) => `${s.tipo} do terreno ${s.k}`), botoes: bts.filter((b) => z.linhas.some((l) => toca(l, b))).map((b) => b.id), desviada: C.med.setaDesviada, folga: Math.min(...setas.map((s) => (s.y >= z.y + z.h ? s.y - z.y - z.h : s.y + s.h <= z.y ? z.y - s.y - s.h : 1e9))) }
+  })
+  confere(!!r && r.setas > 0 && r.cruzam.length === 0 && r.botoes.length === 0 && (!pedeDesvio || r.desviada > 0), `R38: ${onde}: a linha das chances (${r?.n} linha(s), zona ${r?.zona.join(',')}) não cruza nenhuma das ${r?.setas} setas de terreno` + (r?.cruzam.length ? ' → cruza: ' + r.cruzam.join(', ') : '') + (r?.botoes.length ? ' → por cima do botão: ' + r.botoes.join(', ') : '') + (pedeDesvio ? ` (a seta do destaque desviou em ${r?.desviada} quadros)` : ''))
+}
+
 /** Nada cortado nem sobreposto na tela visível; toque ≥ 44 px; o canvas cobre a tela. */
 async function conferirLayout(page, onde) {
   const r = await page.evaluate(() => {
@@ -165,6 +178,7 @@ async function rodar(fmt) {
   confere(/Fuse Runner/.test(rotulos) && ['Fuse Runner', 'Scoffer', 'Tick & Tock', 'Mole Digger'].every((n) => nomes.includes(n)) && !/Squib|Muncher|Nip & Tuck|Mole Raider/.test(nomes + rotulos), 'nomes novos na tela e no config (Fuse Runner, Scoffer, Tick & Tock, Mole Digger); nenhum antigo')
   await page.waitForTimeout(700)
   await foto(page, nome('abertura'))
+  await chancesSemSeta(page, 'abertura')
   await conferirLayout(page, 'abertura')
 
   // ---------------------------------------------------------------- R27, item 6: as 3 cartas chegam VIRADAS e viram em cascata
@@ -216,6 +230,7 @@ async function rodar(fmt) {
     confere(inf.includes(c.texto) && inf.includes(`LEVEL 1 OF ${CFG.PARTIDA.nivelMax}`) && inf.includes(CFG.RARIDADES.find((r) => r.id === c.raridade).nome) && inf.includes(`${fam.nome} 0/${fam.terrenos} > 1/${fam.terrenos}`) && (await viuJa(page, 'infoCarta')), `carta escolhida: texto, pinos = nível, moldura = raridade e a faixa da família ("${(m.infoSel || []).at(-1)}")`) }
   await page.waitForTimeout(350)
   await foto(page, nome('mao'))
+  await chancesSemSeta(page, 'carta escolhida (terrenos em destaque)')
   await toca(page, 'terreno1')
   let v = await K(page, (k) => k.visao())
   confere(v.terrenos[0]?.carta === m.mao[qual].carta && v.cartaPosta, `tocar no terreno põe a carta (${v.terrenos[0]?.carta} no terreno 1)`)
@@ -1136,6 +1151,11 @@ async function soLayout(w, h, toque) {
   await page.waitForTimeout(500)
   await foto(page, `abertura-${w}x${h}`)
   await conferirLayout(page, `${w}×${h} abertura`)
+  await chancesSemSeta(page, `${w}×${h} abertura`)
+  // R38: o pior caso — o terreno 5 (e o 6) em destaque com a seta em cima; a seta nunca sobe para cima das chances
+  await page.evaluate(() => { const C = window.__kmCena; C.destaque = { terrenos: new Set([5, 6]), sobe: new Set([6]), forte: 5 } })
+  await chancesSemSeta(page, `${w}×${h} terrenos 5 e 6 em destaque`)
+  await page.evaluate(() => { window.__kmCena.destaque = null })
   await page.locator('#bt-carta0').click(); await page.locator('#bt-terreno2').click()
   await conferirLayout(page, `${w}×${h} carta posta`)
   await page.locator('#bt-lutar').click()
@@ -1267,6 +1287,7 @@ async function r31() {
   { const sobe = [...new Set(v.terrenos.filter((t) => t && t.nivel < CFG.PARTIDA.nivelMax).map((t) => t.carta))], esp = chancesDaMao({ cartas: todas, sobe }).filter((c) => c.chance > 0)
     confere(v.rodada === 2 && pares(m.chances) === pares(esp) && esp.every((r) => txt.includes(`${r.nome} ${r.chance}%`)) && soma(m.chances) === 100, `R34: álbum cheio, rodada 2 (com a carta que sobe): "${txt}" (soma ${soma(m.chances)})`) }
   await foto(page, 'mao-chances-album-cheio-celular')
+  await chancesSemSeta(page, 'álbum cheio (todas as raridades) no celular')
   await page.locator('#bt-menu').tap(); await page.waitForSelector('#tela:not([hidden])', { timeout: 5000 })
   await page.getByRole('button', { name: 'Album' }).click(); await page.waitForSelector('#albumChances', { timeout: 5000 })
   alb = await page.evaluate(() => ({ agora: document.getElementById('albumChances').textContent, todas: document.getElementById('albumChancesTodas')?.textContent ?? null }))

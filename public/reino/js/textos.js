@@ -48,6 +48,45 @@ export const T = {
   },
   album: { titulo: 'Album', chances: 'Draw chances', proxima: (n) => (n === 1 ? 'Next card: 1 more round won' : `Next card: ${n} more rounds won`), todas: 'Every card unlocked', somadas: (n) => `${n} rounds won so far`, bloqueada: 'Locked card' },
   tipo: { tropa: 'Troop', construcao: 'Building', magia: 'Magic' },
+  // MODO SERVIDOR (docs/reino/servidor.md): avisos curtos, modos de partida, temporada, placar do dia, perfil e replay. Todo número vem do servidor.
+  srv: {
+    rede: 'RECONNECTING...', voltou: 'BACK ONLINE', sincronizado: 'SYNCED WITH SERVER', carregando: 'Loading...', deNovo: 'Try again', acabou: 'THAT RUN ENDED ON THE SERVER',
+    erro: {
+      MUITOS_PEDIDOS: 'Too many requests. Wait a moment.', MUITAS_PARTIDAS: 'Too many new runs. Wait a little.', MUITAS_CONTAS: 'Too many new accounts from here. Wait a little.',
+      MANUTENCAO: 'Maintenance. Back soon.', SO_LEITURA: 'Read only right now. Nothing changed.', SEM_REDE: 'No connection. Try again.',
+      SEM_ENERGIA: 'No ranked energy left. Training is free.', ESTRADA_JA_JOGADA: "Today's road is done. Available tomorrow.", ESTRADA_DE_HOJE: "Replays of today's road: available tomorrow.",
+      PARTIDA_ABERTA: 'That run is still open.', PARTIDA_NAO_ENCONTRADA: 'That run is not available.', PADRAO: 'Something went wrong. Try again.',
+    },
+    modo: { treino: 'TRAINING', ranking: 'RANKED', estrada: 'DAILY ROAD' }, replayRot: 'REPLAY',
+    modoNome: { treino: 'Training', ranking: 'Ranked', estrada: "Today's road" },
+    modoSub: { treino: 'FREE PRACTICE', estrada: 'SAME ROAD FOR EVERYONE TODAY' }, energiaCurta: (a, m) => `RANKED ENERGY ${a}/${m}`,
+    fora: { CONTA_NOVA: "OFF TODAY'S BOARD: NEW ACCOUNT. PLAY FREELY.", SEM_RANKING: "OFF TODAY'S BOARD: FINISH 1 RANKED RUN FIRST." },
+    foraFrase: { CONTA_NOVA: "Off today's board: this account is new. From tomorrow, with 1 ranked run finished, you are in.", SEM_RANKING: "Off today's board: finish 1 ranked run to enter." },
+    noPlacar: (n) => `TODAY'S ROAD: RANK ${n} ON THE BOARD`, foraSemMotivo: "TODAY'S ROAD: NOT ON THE BOARD", naoContou: 'THIS RUN DID NOT COUNT',
+    semLiga: 'UNRANKED', semRanking: 'NO RANKED RUN THIS SEASON', temporadaMarca: 'SEASON', posicao: (n) => String(n), posicaoMarca: (n) => `RANK ${n}`, // a letra do jogo não tem o sinal de número: a posição vai por extenso
+    postar: (n, url) => `Keepmile: I held ${n} round${n === 1 ? '' : 's'}. ${url}`,
+    em: (ms) => { const m = Math.max(0, Math.ceil(ms / 60000)), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60); return d ? `${d}d ${h}h` : h ? `${h}h ${m % 60}m` : `${m}m` },
+    energia: (a, m) => `Ranked energy ${a}/${m}`, energiaVolta: (n, quando) => `+${n} in ${quando}`,
+    jogar: {
+      titulo: 'Play', menu: 'Play', treino: 'Training', treinoSub: 'Free. Counts for your album.', ranking: 'Ranked run', rankingSub: (a, m) => `Uses 1 energy. You have ${a}/${m}.`,
+      semEnergia: (quando) => `No energy. More in ${quando}.`, estrada: "Today's road", estradaSub: 'Same road for everyone. 1 try a day.', estradaFeita: 'Done today. Available tomorrow.',
+      continuar: 'Resume', aberta: 'In progress',
+    },
+    ranking: {
+      titulo: 'Season', menu: 'Season ranking', temporada: (n, quando) => `Season ${n} - ends in ${quando}`, fechada: (n) => `Season ${n} - closed`, regra: (n) => `Score: average of your best ${n} ranked runs`,
+      voce: (pos, pts) => `Rank ${pos} - ${pts} points`, semVoce: 'No ranked run this season yet', proxima: (nome, n) => `${n} more for ${nome}`, topo: 'Top keepers', vazio: 'No ranked runs yet this season',
+      mais: 'More', ligas: 'Titles', faixa: (de) => `${de} or more`, lenda: (n) => `Top ${n} of the season`, beta: 'Beta: titles only.', partidas: (n) => `${n} run${n === 1 ? '' : 's'}`,
+    },
+    placar: {
+      titulo: "Today's road", menu: "Today's road", dia: (d, quando) => `${d} - new road in ${quando}`, voce: (pos, pts) => `You: rank ${pos} - ${pts} points`, aberta: 'Your road is in progress', naoJogou: 'You have not played today',
+      fora: (pts) => `Your run: ${pts} - not on the board`, vazio: 'Nobody on the board yet', jogar: "Play today's road", replays: "Replays of today's road open tomorrow.", linha: (pts, n) => `${pts} - ${n} round${n === 1 ? '' : 's'}`,
+    },
+    perfil: {
+      titulo: 'Profile', menu: 'Profile', recordes: (p, r, n) => `Best ${p} - Longest ${r} round${r === 1 ? '' : 's'} - ${n} run${n === 1 ? '' : 's'}`, temporada: (n, quando) => `Season ${n} ends in ${quando}`, titulos: 'Past seasons',
+      titulo1: (t, pos, liga, pts) => `Season ${t}: rank ${pos} - ${liga} - ${pts}`, melhores: 'Best runs', ver: 'Watch', nenhuma: 'No runs yet', corrida: (n, modo, dia) => `${n} round${n === 1 ? '' : 's'} - ${modo} - ${dia}`, nome: (n) => `Name: ${n}`,
+    },
+    replay: { sair: 'Leave replay', de: (n) => `REPLAY: ${n}`, passo: (i, n) => `STEP ${i}/${n}`, fim: (r, p) => `RUN OVER: ${r} ROUNDS - SCORE ${p}`, saia: 'TAP X TO LEAVE', por: (carta, k) => `${carta} > PLOT ${k}`, espolio: 'TOOK A REWARD', desistir: 'GAVE UP' },
+  },
   aria: {
     carta: (n) => `Card ${n}`, terreno: (k) => `Plot ${k}`, sortear: (c) => `Reroll cards for ${c} gold`, consertar: (c) => `Repair one life for ${c} gold`, vel: (v) => `Speed ${v}x`, som: 'Sound on or off', menu: 'Menu', espolio: (n) => `Take ${n}`, seguir: 'Continue', lutar: 'Fight',
     vidas: 'What hearts are', pinos: 'When the boss comes', horda: 'Who is coming', ganhe: 'What you can win', reliquias: 'What your relics do', pular: 'Skip',

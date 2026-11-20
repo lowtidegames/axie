@@ -65,4 +65,10 @@ body { font: 14px/1.3 ui-monospace, Menlo, Consolas, monospace; color: var(--cre
 .km-liga-topo { display: flex; gap: 12px; align-items: center; padding: 8px 10px; background: var(--ameixa); border: 3px solid var(--filete); }
 .km-liga-topo > span { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
 .km-escada li { flex-direction: row; gap: 10px; align-items: center; padding: 4px 10px; }
+/* modo servidor: topo da temporada e placar do dia (posição + nome), melhores partidas com "Watch", botões de modo em duas linhas */
+.km-energia { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.km-topo li { flex-direction: row; gap: 10px; align-items: center; padding: 6px 10px; }
+.km-corridas li { justify-content: space-between; }
+.km-ver { flex: none; min-width: 76px; justify-content: center; }
+.km-bt:disabled { opacity: .6; }
 @media (prefers-reduced-motion: reduce) { #cena { transition: none; } }

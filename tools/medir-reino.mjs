@@ -25,7 +25,7 @@ function restaurar() { while (desfazer.length) { const [o, k, v] = desfazer.pop(
 /** Cada variante: `cfg()` muda números (com `por`, desfeito depois) e/ou `regras` (regra simulada no laço da partida). */
 export const VARIANTES = {
   base: {},
-  // 1º chefe mais leve para o novato
+  // 1º chefe mais leve para o novato — JÁ APLICADA no config em 20/11 (R37): hoje igual à base
   chefe320: { cfg: () => por(CHEFES[0], 'vida', 320) },
   chefe280: { cfg: () => por(CHEFES[0], 'vida', 280) },
   // guardar a mão (lutar sem pôr carta) rende ouro
@@ -36,7 +36,8 @@ export const VARIANTES = {
   sobem2: { regras: { sobem2: true } },
   // conserto mais barato (ouro com uso real): 20, 30, 40…
   conserto10: { cfg: () => por(P.ouro, 'consertoPasso', 10) },
-  // as 4 cartas mortas e o Bunkhouse (números)
+  // as 4 cartas mortas e o Bunkhouse (números) — JÁ APLICADA no config em 20/11 (R37), menos Market Stall (fora da decisão):
+  // hoje só muda Market Stall 3..8 → 5..12
   cartas: {
     cfg: () => {
       por(CARTAS.B03, 'valores', [30, 36, 42, 48, 55]) // Stone Wall 25..45 → 30..55
@@ -46,7 +47,7 @@ export const VARIANTES = {
       por(CARTAS.B02, 'valores2', [5, 10, 15, 20, 25]) // Bunkhouse vida 10..40 → 5..25
     },
   },
-  // pacote: as três que mexem no novato e na decisão
+  // pacote: as três que mexem no novato e na decisão — o chefe 320 JÁ ESTÁ no config (R37); hoje só soma ouroGuardar 3
   pacote: { cfg: () => { por(CHEFES[0], 'vida', 320) }, regras: { ouroGuardar: 3 } },
 }
 

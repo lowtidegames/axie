@@ -259,8 +259,8 @@ describe('R39 — migração v8 (só dados)', () => {
     let foto
     const { s, api } = await subir({ dbPath: arq, t: T0 + 60_000 })
     try {
-      assert.equal(VERSAO_DO_BANCO, 8)
-      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, 8)
+      assert.equal(VERSAO_DO_BANCO, 9) // regra mudou (R46): entrou a v9 (regra de cada partida)
+      assert.equal(s.db.prepare('PRAGMA user_version').get().user_version, 9) // regra mudou (R46): entrou a v9 (regra de cada partida)
       const copias = fs.readdirSync(path.join(pasta, 'copias')).filter((n) => n.startsWith('v7.db.v7.'))
       assert.equal(copias.length, 1, copias.join(','))
       const c = new DatabaseSync(path.join(pasta, 'copias', copias[0]), { readOnly: true })
@@ -288,7 +288,7 @@ describe('R39 — migração v8 (só dados)', () => {
     // 2º boot: nada a migrar, nenhuma cópia nova, nada muda
     const s2 = await subir({ dbPath: arq, t: T0 + 120_000 })
     try {
-      assert.equal(s2.s.db.prepare('PRAGMA user_version').get().user_version, 8)
+      assert.equal(s2.s.db.prepare('PRAGMA user_version').get().user_version, 9) // regra mudou (R46): entrou a v9 (regra de cada partida)
       assert.deepEqual(s2.s.db.prepare('SELECT * FROM reino_contas ORDER BY conta_id').all(), foto)
       assert.equal(fs.readdirSync(path.join(pasta, 'copias')).length, 1)
     } finally { await fechar(s2.s) }
@@ -336,6 +336,6 @@ describe('R39 — migração v8 (só dados)', () => {
 
   test('banco novo nasce na v8', () => {
     const db = abrirBanco(':memory:')
-    try { assert.equal(db.prepare('PRAGMA user_version').get().user_version, 8) } finally { db.close() }
+    try { assert.equal(db.prepare('PRAGMA user_version').get().user_version, 9) /* regra mudou (R46): entrou a v9 */ } finally { db.close() }
   })
 })

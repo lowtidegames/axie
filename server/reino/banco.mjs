@@ -118,3 +118,12 @@ export function migracaoV8(db) {
     if (faltam.length) gravar.run(JSON.stringify([...tem, ...faltam]), c.conta_id)
   }
 }
+
+/**
+ * v9 — tarefa R46: a REGRA de cada partida fica gravada fora do estado (a partida terminada guarda só semente e comandos).
+ * Toda partida de antes fica com a regra 1 (horda nova depois de perder), inclusive as abertas; as novas nascem com
+ * PARTIDA.regra (server/reino/reino.mjs). Só acrescenta a coluna; nenhuma linha muda.
+ */
+export function migracaoV9(db) {
+  db.exec('ALTER TABLE reino_partidas ADD COLUMN regra INTEGER NOT NULL DEFAULT 1')
+}

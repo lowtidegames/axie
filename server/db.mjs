@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite'
 import fs from 'node:fs'
 import path from 'node:path'
 import { apelidoValido, chaveDoApelido, chaveDoApelidoV2, chaveDoApelidoV3, limparApelido } from './apelido.mjs'
-import { migracaoV5, migracaoV6, migracaoV7, migracaoV8 } from './reino/banco.mjs'
+import { migracaoV5, migracaoV6, migracaoV7, migracaoV8, migracaoV9 } from './reino/banco.mjs'
 
 export const MIGRACOES = [
   // v1 — contas, bonecos (com dono), livro-razão dos bonecos, lutas, respostas de comandos (idempotência), pedidos.
@@ -178,6 +178,8 @@ export const MIGRACOES = [
   migracaoV7,
   // v8 — tarefa R39: só dados — conquistas de degrau (rodadas somadas) e Encore! que o banco já prova, sem data (server/reino/banco.mjs).
   migracaoV8,
+  // v9 — tarefa R46: a regra de cada partida do Keepmile (antigas = 1; novas = PARTIDA.regra, com a revanche) (server/reino/banco.mjs).
+  migracaoV9,
 ]
 
 export const VERSAO_DO_BANCO = MIGRACOES.length

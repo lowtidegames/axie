@@ -3,6 +3,7 @@
 // Todo corpo é conferido campo a campo: campo desconhecido, tipo errado ou id fora do formato = recusa (400).
 import { ErroDoJogo } from '../jogo.mjs'
 import { MODOS } from './reino.mjs'
+import { PARTIDA } from '../../shared/reino/config.js'
 
 /** Resposta de `/public/reino/modo.json` no servidor (o arquivo parado diz "local"). */
 export const MODO_REINO = Object.freeze({ modo: 'servidor', api: '/api/reino/' })
@@ -10,7 +11,7 @@ export const MODO_REINO = Object.freeze({ modo: 'servidor', api: '/api/reino/' }
 const recusa = (codigo, motivo, status = 400) => new ErroDoJogo(status, codigo, motivo)
 const ehObjeto = (x) => x !== null && typeof x === 'object' && !Array.isArray(x) && Object.getPrototypeOf(x) === Object.prototype
 const RE = { partida: /^pa_[0-9a-f]{24}$/, carta: /^[TBM][0-9]{2}$/, cursor: /^[A-Za-z0-9_-]{1,80}$/ }
-const TIPOS = ['por', 'sortear', 'consertar', 'batalhar', 'espolio', 'desistir']
+const TIPOS = ['por', 'sortear', 'consertar', 'batalhar', 'espolio', 'desistir', 'trocar'] // trocar: R46 (revanche)
 
 function soCampos(corpo, permitidos, onde = 'corpo') {
   if (!ehObjeto(corpo)) throw recusa('CORPO_INVALIDO', `O ${onde} precisa ser um objeto JSON.`)
@@ -30,14 +31,18 @@ function modo(v) {
 }
 
 function lerComando(k) {
-  soCampos(k, ['tipo', 'carta', 'terreno', 'indice'], 'comando')
+  soCampos(k, ['tipo', 'carta', 'terreno', 'indice', 'a', 'b'], 'comando')
   if (!TIPOS.includes(k.tipo)) throw recusa('CAMPO_INVALIDO', 'Campo inválido: tipo.')
   const c = { tipo: k.tipo }
   if (k.carta !== undefined) { if (typeof k.carta !== 'string' || !RE.carta.test(k.carta)) throw recusa('CAMPO_INVALIDO', 'Campo inválido: carta.'); c.carta = k.carta }
   if (k.terreno !== undefined) c.terreno = inteiro(k.terreno, 1, 6, 'terreno')
   if (k.indice !== undefined) c.indice = inteiro(k.indice, 0, 2, 'indice')
-  const pode = { por: ['carta', 'terreno'], espolio: ['indice', 'terreno'] }[c.tipo] ?? []
-  for (const campo of ['carta', 'terreno', 'indice']) if (c[campo] !== undefined && !pode.includes(campo)) throw recusa('CAMPO_DESCONHECIDO', `O comando ${c.tipo} não leva ${campo}.`)
+  // R46: os dois terrenos da troca (o motor confere se a troca vale agora)
+  if (k.a !== undefined) c.a = inteiro(k.a, 1, PARTIDA.terrenos, 'a')
+  if (k.b !== undefined) c.b = inteiro(k.b, 1, PARTIDA.terrenos, 'b')
+  const pode = { por: ['carta', 'terreno'], espolio: ['indice', 'terreno'], trocar: ['a', 'b'] }[c.tipo] ?? []
+  for (const campo of ['carta', 'terreno', 'indice', 'a', 'b']) if (c[campo] !== undefined && !pode.includes(campo)) throw recusa('CAMPO_DESCONHECIDO', `O comando ${c.tipo} não leva ${campo}.`)
+  if (c.tipo === 'trocar' && (c.a === undefined || c.b === undefined)) throw recusa('CAMPO_INVALIDO', 'A troca precisa dos dois terrenos (a e b).')
   return c
 }
 

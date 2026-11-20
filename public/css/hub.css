@@ -1,0 +1,347 @@
+/* Frayz — o HUB nas peças do ateliê (tarefa 18): cabeçalho e abas iguais em todas as telas, prateleira de bonecos,
+   ficha do escolhido, Aventura com energia, Costura e casulo, Mural e a ficha da coleção. Importado no começo de luta.css
+   (vem depois de frayz.css e pecas.css: as regras daqui valem por cima das antigas com a mesma força).
+   Formato: #hub[data-formato="pc" | "celular"] (app.js decide pelo mesmo critério das peças). */
+
+/* ============================================================ 1. fundo, cabeçalho e abas */
+#hub { color: var(--linho); font: 600 14px/1.3 var(--letra-texto); background-color: var(--noite);
+  background-image: radial-gradient(80% 60% at 8% 0%, rgba(255, 200, 87, 0.10), transparent 62%), radial-gradient(70% 60% at 100% 0%, rgba(110, 193, 255, 0.07), transparent 60%); }
+#cab { gap: var(--e3); padding: 6px var(--e4) 4px; padding-top: max(6px, env(safe-area-inset-top)); background-color: #241634; background-image: var(--trama); border-bottom: 0; }
+#cab .logo { display: block; font-size: 0; line-height: 0; }
+#cab .logo .fz-logo { display: block; }
+.cab-opc { gap: var(--e3); flex-wrap: nowrap; }
+#hub .opc { min-height: var(--toque); font: 800 14px/1.1 var(--letra-texto); color: var(--linho); }
+#hub .opc input { width: 22px; height: 22px; accent-color: var(--fio-da-maldicao); }
+#btnMudo { flex: none; white-space: nowrap; min-height: var(--toque); min-width: var(--toque); padding: 0 14px; border: 0; border-radius: var(--canto-etiqueta); background: var(--pano-claro); background-image: var(--trama); color: var(--linho);
+  font: 800 14px/1 var(--letra-texto); box-shadow: 0 0 0 2px var(--noite-funda), 0 3px 0 2px var(--noite-funda); }
+#btnMudo::after { inset: 4px; border-radius: var(--canto-etiqueta); border-color: rgba(242, 230, 201, 0.45); }
+#btnMudo[aria-pressed="true"] { color: var(--linho-apagado); }
+
+/* abas: etiquetas de pano costuradas na borda da mesa (a aberta é de linho, com a costura do fio da maldição) */
+#abas.abas { gap: 6px; padding: 6px var(--e3) 0; background-color: #241634; background-image: var(--trama); border-bottom: 0; box-shadow: inset 0 -2px 0 var(--noite-funda), 0 6px 10px rgba(10, 4, 18, 0.35); }
+#abas .aba { position: relative; min-height: var(--toque); padding: 6px 4px 8px; border: 0; border-radius: 10px 10px 0 0; white-space: normal; line-height: 1.02;
+  background-color: var(--pano-escuro); background-image: var(--trama); color: var(--linho-apagado); font: 400 16px/1.02 var(--letra-titulo); letter-spacing: 0.01em;
+  box-shadow: inset 0 0 0 2px var(--noite-funda); }
+#abas .aba::after { content: ""; position: absolute; inset: 4px 4px 0; border: 1.5px dashed rgba(242, 230, 201, 0.28); border-bottom: 0; border-radius: 7px 7px 0 0; pointer-events: none; }
+#abas .aba:hover { color: var(--linho); }
+#abas .aba.on { background-color: var(--linho); background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 40%); color: var(--noite-funda); box-shadow: inset 0 0 0 2px var(--noite-funda), 0 -3px 0 0 var(--fio-da-maldicao); }
+#abas .aba.on::after { border-color: var(--fio-da-maldicao); }
+#abas .aba:focus-visible { outline: 3px solid var(--ouro-de-vela); outline-offset: -5px; }
+#hub[data-formato="celular"] #abas { gap: 4px; padding: 6px 8px 0; }
+#hub[data-formato="celular"] #abas .aba { font-size: 14px; letter-spacing: 0; padding: 4px 1px 6px; }
+#hub[data-formato="celular"] #abas .aba::after { inset: 3px 3px 0; }
+#hub[data-formato="celular"] #cab { padding-left: var(--e3); padding-right: var(--e3); }
+#hub[data-formato="celular"] .opc span { max-width: 84px; font-size: 13px; line-height: 1.05; }
+
+/* ============================================================ 2. corpo das telas */
+#hub .aba-tela { background: none; }
+#hub .hub-corpo { padding: var(--e3) var(--e5) var(--e4); }
+#hub[data-formato="celular"] .hub-corpo { padding: var(--e2) var(--e3) var(--e4); }
+.hub-topo { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px var(--e4); margin-bottom: var(--e2); }
+.hub-titulo { margin: 0; font: 400 26px/1.05 var(--letra-titulo); color: var(--linho); }
+.hub-dica { margin: 0; color: var(--linho-apagado); font-size: 14px; line-height: 1.3; }
+.hub-subtitulo { margin: var(--e3) 0 0; font: 400 19px/1.1 var(--letra-titulo); color: var(--linho); }
+.hub-subtitulo small { font: 600 14px/1.2 var(--letra-texto); color: var(--linho-apagado); opacity: 1; }
+#hub[data-formato="celular"] .hub-titulo { font-size: 21px; }
+#hub[data-formato="celular"] .hub-dica { font-size: 13px; }
+
+/* a mesa de baixo (os 3 lugares bordados + o botão-retalho) */
+#hub .hub-mesa { flex: none; display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--e3) var(--e5); padding: 6px var(--e5) max(var(--e3), env(safe-area-inset-bottom));
+  border-top: 0; background-color: #241634; background-image: radial-gradient(60% 120% at 50% 0%, rgba(255, 200, 87, 0.10), transparent 70%), var(--trama); box-shadow: 0 -2px 0 var(--noite-funda), inset 0 10px 14px rgba(10, 4, 18, 0.35); }
+#hub .hub-mesa .fz-botao { min-width: 150px; min-height: 52px; font-size: 20px; }
+#hub[data-formato="celular"] .hub-mesa { gap: 6px var(--e3); padding: 4px var(--e3) max(var(--e2), env(safe-area-inset-bottom)); }
+#hub[data-formato="celular"] .hub-mesa .fz-botao { flex: 1 1 auto; min-width: 0; font-size: 18px; }
+#hub .time-escolhido.fz-time__circulos { gap: var(--e2); }
+#hub .time-escolhido .fz-circulo { width: 84px; height: 92px; gap: 4px; }
+#hub .time-escolhido .fz-circulo__anel { bottom: 15px; height: 28px; }
+#hub .time-escolhido .fz-circulo .fz-boneco { margin-bottom: 2px; }
+#hub[data-formato="celular"] .time-escolhido.fz-time__circulos { gap: 2px; }
+#hub[data-formato="celular"] .time-escolhido .fz-circulo { width: 62px; height: 80px; }
+#hub[data-formato="celular"] .time-escolhido .fz-circulo__anel { left: 2px; right: 2px; bottom: 14px; height: 22px; }
+#hub[data-formato="celular"] .time-escolhido .fz-circulo__nome { letter-spacing: 0.05em; font-size: 13px; }
+#hub[data-formato="celular"] .time-escolhido .fz-circulo__vazio { margin-bottom: 18px; font-size: 18px; }
+
+/* o rival da Luta livre: dois botões de rádio de costura */
+#hub .robo { gap: var(--e3); }
+#hub .robo legend { padding-right: var(--e2); font: 800 13px/44px var(--letra-texto); letter-spacing: 0.1em; color: var(--linho-apagado); }
+#hub .robo label { min-height: var(--toque); font: 800 15px/1 var(--letra-texto); color: var(--linho); }
+#hub .robo input { width: 22px; height: 22px; accent-color: var(--fio-da-maldicao); }
+#hub[data-formato="celular"] .robo { width: 100%; justify-content: center; }
+#hub .colar summary { min-height: var(--toque); display: flex; align-items: center; font: 800 14px/1.2 var(--letra-texto); color: var(--linho-apagado); }
+#hub .colar textarea { background-color: var(--noite-funda); border-color: var(--borda); }
+#hub .colar .btn { border: 0; border-radius: var(--canto-painel); background: var(--pano-claro); box-shadow: 0 0 0 2px var(--noite-funda), 0 3px 0 2px var(--noite-funda); font: 800 15px/1 var(--letra-texto); }
+#hub .msg { font: 800 14px/1.25 var(--letra-texto); color: var(--vida); }
+#hub .msg.erro { color: #FF8A8E; }
+
+/* ============================================================ 3. a prateleira (peça prateleira.js; tábuas de pecas.css) */
+.fz-prateleira { display: flex; flex-direction: column; gap: var(--e3); }
+.fz-prateleira[data-sub="1"][data-nomes="1"] .fz-time__tabua { --fz-etiqueta-a: 64px; }
+.fz-prateleira .fz-time__tabua { display: grid; grid-template-columns: repeat(var(--fz-por-tabua, 5), minmax(0, 1fr)); justify-items: center; align-items: end; padding: 0 var(--e2); }
+.fz-prateleira .fz-time__boneco { min-height: var(--toque); max-width: 100%; }
+/* os botões guardam as classes antigas (.ficha, .mini-cartao) só como gancho dos testes: nada do visual antigo */
+.fz-prateleira .fz-time__boneco:is(.ficha, .mini-cartao), .fz-prateleira .fz-time__boneco:is(.ficha, .mini-cartao).on { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 0 2px; border: 0; border-radius: var(--canto-painel); background: none; box-shadow: none; text-align: center; }
+.fz-prateleira .fz-time__boneco:is(.ficha, .mini-cartao)::after { display: none; }
+.fz-prateleira .fz-time__boneco.apagado { opacity: 0.5; filter: grayscale(0.6); cursor: default; }
+.fz-prateleira .fz-time__nome span { max-width: min(140px, 100%); }
+.fz-prateleira .fz-time__sub { display: block; margin-top: 2px; font: 800 13px/1.1 var(--letra-texto); color: #5A3C1F; }
+.fz-prateleira[data-nomes="0"] .fz-time__tabua { --fz-etiqueta-a: 16px; }
+.fz-prateleira[data-nomes="0"] .fz-time__tabua::after { height: 10px; bottom: 4px; }
+.fz-prateleira[data-nomes="0"] .fz-time__nome { padding: 0; }
+.fz-prateleira[data-nomes="0"] .fz-time__nome span { display: none; }
+.fz-prateleira[data-nomes="0"] .fz-time__boneco .fz-boneco { margin-bottom: 4px; }
+#hub .fz-prateleira[data-nomes="0"] .fz-time__boneco--aberto::after { content: ""; display: block; position: absolute; left: 50%; bottom: 17px; width: 52px; height: 0; margin-left: -26px; border-top: 3px dashed var(--fio-da-maldicao); }
+#hub[data-formato="celular"] .fz-time__ordem { left: calc(50% + 16px); top: 2px; min-width: 24px; height: 24px; font-size: 15px; }
+.fz-prateleira .fz-time__boneco.on .fz-time__ordem { display: grid; }
+.fz-prateleira .fz-time__boneco.on .fz-boneco { filter: drop-shadow(0 0 0 var(--ouro-de-vela)) drop-shadow(0 0 7px rgba(255, 200, 87, 0.75)) drop-shadow(0 4px 3px rgba(10, 4, 18, 0.5)); }
+/* a ordem só aparece onde há escolha (Luta livre, Aventura, Costura) */
+#colLista .fz-time__ordem { display: none !important; }
+
+/* ============================================================ 4. a ficha do escolhido (montarFicha das peças) */
+.hub-ficha { --fz-ponto: rgba(242, 230, 201, 0.3); position: relative; display: flex; flex-direction: column; gap: var(--e3); min-height: 0; padding: var(--e4);
+  border-radius: var(--canto-cartao); background-color: var(--pano-escuro); background-image: var(--trama); box-shadow: 0 0 0 2px var(--noite-funda), 0 5px 0 2px rgba(10, 4, 18, 0.5); }
+.hub-ficha:empty { display: none; }
+.hub-ficha .fz-time__por { align-self: stretch; margin-top: auto; }
+#hub[data-formato="celular"] .hub-ficha { padding: 10px var(--e3); gap: var(--e2); margin-top: var(--e2); }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha { gap: 6px; }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__nome { font-size: 17px; }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__numeros { display: flex; gap: var(--e3); }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__numero { flex-direction: row-reverse; align-items: baseline; gap: 4px; padding: 0; background: none; }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__numero b { font-size: 17px; }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__numero span { letter-spacing: 0; text-transform: none; }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__cartas { flex-direction: row; flex-wrap: wrap; gap: 4px var(--e3); }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__carta { grid-template-columns: 22px auto; gap: 5px; align-items: center; }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__custo { width: 22px; height: 26.4px; }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__custo b { font-size: 14px; }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__carta-nome { font: 800 13px/1.1 var(--letra-texto); }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__carta-nome .fz-icone-tipo, #hub[data-formato="celular"] .hub-ficha .fz-ficha__carta-desc { display: none; }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__bordado { padding: 0; border: 0; font-size: 13px; }
+#hub[data-formato="celular"] .hub-ficha .fz-time__por { position: absolute; right: var(--e3); top: 10px; min-height: var(--toque); padding: 4px 14px; font-size: 16px; margin: 0; }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__cabeca { padding-right: 104px; min-height: 52px; }
+#hub[data-formato="celular"] .hub-ficha .fz-ficha__titulo { gap: 4px; }
+
+/* ============================================================ 5. Luta livre: prateleira à esquerda, ficha à direita (PC) */
+.hub-livre .colar { margin-top: var(--e2); }
+#hub[data-formato="pc"] .hub-livre { display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "topo ficha" "prateleira ficha" "colar ficha"; gap: var(--e2) var(--e5); }
+#hub[data-formato="pc"] .hub-livre .hub-topo { grid-area: topo; }
+#hub[data-formato="pc"] .hub-livre .hub-prateleira { grid-area: prateleira; justify-content: space-evenly; }
+#hub[data-formato="pc"] .hub-livre .hub-ficha { grid-area: ficha; align-self: start; }
+#hub[data-formato="pc"] .hub-livre .colar { grid-area: colar; margin: 0; }
+#hub .hub-livre .grade { display: flex; max-width: none; margin: 0; }
+
+/* ============================================================ 6. Bonecos (coleção) e Mural */
+#colLista { gap: var(--e3); }
+#hub[data-formato="celular"] #colLista .fz-time__nome span { max-width: 104px; }
+.hub-mural { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--e4); }
+.hub-mural .mural-cartao { --fz-ponto: rgba(255, 200, 87, 0.55); position: relative; display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; gap: var(--e3); padding: var(--e3) var(--e4) var(--e3) var(--e3);
+  border: 0; border-radius: var(--canto-cartao); background-color: var(--pano-escuro); background-image: radial-gradient(90% 80% at 10% 10%, rgba(255, 200, 87, 0.16), transparent 70%), var(--trama);
+  box-shadow: 0 0 0 2px var(--noite-funda), 0 0 0 6px #6B4423, 0 0 0 8px var(--noite-funda), 0 8px 0 6px rgba(10, 4, 18, 0.5); margin: 8px; }
+.hub-mural .mural-cartao::after { display: none; }
+.mural-cartao .f-nome { font: 400 18px/1.1 var(--letra-titulo); color: var(--linho); }
+.mural-cartao .f-partes { font: 600 14px/1.3 var(--letra-texto); color: var(--linho-apagado); opacity: 1; }
+.mural-cartao .f-stats { font: 800 14px/1.3 var(--letra-texto); color: var(--linho); }
+.mural-cartao .mural-ret { justify-self: start; margin-top: 4px; padding: 3px 10px; border-radius: var(--canto-etiqueta); background: var(--ouro-de-vela); color: var(--noite-funda); font: 800 14px/1.2 var(--letra-texto); }
+.hub-vazio { margin: var(--e5) auto; max-width: 420px; padding: var(--e4); border-radius: var(--canto-cartao); border: 2px dashed var(--borda); color: var(--linho-apagado); text-align: center; font-size: 15px; line-height: 1.4; }
+
+/* ficha da coleção (janela): as peças do ateliê */
+#bonecoModal .folha, #fichaModal .folha { border: 0; border-radius: var(--canto-cartao); background-color: var(--pano-escuro); background-image: var(--trama); box-shadow: 0 0 0 2px var(--noite-funda), 0 6px 0 2px rgba(10, 4, 18, 0.55), 0 18px 40px rgba(0, 0, 0, 0.6); color: var(--linho); font: 600 14px/1.3 var(--letra-texto); }
+#bonecoModal .folha::after, #fichaModal .folha::after { border-color: rgba(242, 230, 201, 0.28); }
+#bonecoModal .fechar, #fichaModal .fechar { width: var(--toque); height: var(--toque); border: 0; background: var(--linho); color: var(--noite-funda); box-shadow: 0 0 0 2px var(--noite-funda), 0 3px 0 2px var(--noite-funda); }
+#bonecoCorpo .fc-tit h3, #fichaCorpo .fc-tit h3 { font: 400 22px/1.05 var(--letra-titulo); }
+#bonecoCorpo .f-stats, #fichaCorpo .f-stats { font-size: 14px; gap: 4px 14px; }
+#bonecoCorpo .f-stats b, #fichaCorpo .f-stats b { font: 400 18px/1 var(--letra-titulo); color: var(--ouro-de-vela); }
+#bonecoCorpo .f-stats small, #fichaCorpo .f-stats small { font-size: 13px; color: var(--linho-apagado); opacity: 1; }
+#bonecoCorpo .f-rar, #fichaCorpo .f-rar { font-size: 13px; }
+#bonecoCorpo .fc-medida, #bonecoCorpo .fc-partes li, #bonecoCorpo .arvore, #fichaCorpo .fc-partes li { background-color: rgba(20, 12, 31, 0.5); font-size: 14px; }
+#bonecoCorpo .fc-medida small, #bonecoCorpo .parte-txt { font-size: 13px; }
+#bonecoCorpo .fc-cab h4, #bonecoCorpo .fc-h4 { font: 400 17px/1.1 var(--letra-titulo); letter-spacing: 0; text-transform: none; color: var(--linho); }
+#bonecoCorpo .slot-nome { font-size: 13px; width: 60px; }
+#bonecoCorpo .chip-parte, #hub .chip-parte, #casulo .chip-parte { font-size: 13px; }
+#hub .rar, #bonecoCorpo .rar, #casulo .rar { font-size: 12px; padding: 1px 6px; }
+#bonecoCorpo .btn, #fichaCorpo .btn { border: 0; border-radius: var(--canto-painel); background: var(--pano-claro); box-shadow: 0 0 0 2px var(--noite-funda), 0 3px 0 2px var(--noite-funda); font: 800 15px/1.1 var(--letra-texto); color: var(--linho); }
+#bonecoCorpo .btn.grande { background: var(--fio-da-maldicao); color: var(--noite-funda); }
+#bonecoCorpo .btn:disabled { background: #2F2142; color: var(--linho-apagado); opacity: 1; filter: none; }
+#bonecoCorpo .fc-nota, #bonecoCorpo .fc-stat-linha, #bonecoCorpo .proto { font-size: 13px; color: var(--linho-apagado); }
+#bonecoCorpo .proto summary { min-height: var(--toque); }
+#bonecoCorpo .cerimonia h3 { font: 400 24px/1.1 var(--letra-titulo); }
+/* Carretel: 5 carretéis de linha (o usado fica vazio) */
+.carretel .voltas { gap: 2px; }
+.carretel small, .carretel b { font: 800 13px/1 var(--letra-texto); opacity: 1; }
+.carretel .voltas .fz-carretel { width: 15px; height: 18px; }
+.carretel .voltas i { display: none; }
+
+/* ============================================================ 7. Aventura: energia, o fio das 5 fases, o rival da fase */
+.hub-energia { --fz-ponto: rgba(20, 12, 31, 0.45); position: relative; display: inline-flex; align-items: center; gap: var(--e2); margin-left: auto; min-height: var(--toque); padding: 4px 14px 4px 10px; border-radius: 6px;
+  background-color: var(--linho); color: var(--noite-funda); font: 600 14px/1.15 var(--letra-texto); box-shadow: 0 0 0 2px var(--noite-funda), 0 3px 0 2px rgba(10, 4, 18, 0.5); transform: rotate(-1deg); }
+.hub-energia .fz-carretel { position: relative; width: 24px; height: 29px; flex: none; }
+.hub-energia b { font: 400 20px/1 var(--letra-titulo); font-variant-numeric: tabular-nums; }
+.hub-energia small { display: block; font: 800 13px/1.1 var(--letra-texto); color: #4A3466; opacity: 1; }
+.hub-energia--vazia { background-color: #F2D7C9; }
+.hub-energia--vazia b { color: #9A1F33; }
+#hub[data-formato="celular"] .hub-energia { margin-left: 0; }
+
+.av-mapa { list-style: none; position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin: var(--e2) 0 var(--e3); padding: 0; max-width: 820px; }
+#hub .av-mapa::before { content: ""; position: absolute; left: 10%; right: 10%; top: 25px; height: 0; border-top: 3px dashed var(--fio-da-maldicao); opacity: 0.75; z-index: 0; }
+.av-no { position: relative; z-index: 1; display: flex; justify-content: center; min-width: 0; }
+#hub .av-estacao { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; min-height: var(--toque); padding: 0 2px 4px; border: 0; border-radius: var(--canto-painel); background: none; color: inherit; cursor: pointer; }
+#hub .av-estacao:focus-visible { outline: 3px solid var(--ouro-de-vela); outline-offset: 2px; }
+/* cada fase é um botão de roupa com 4 furos e o número */
+#hub .av-num { position: relative; width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center; border: 0; color: var(--noite-funda); font: 400 22px/1 var(--letra-titulo);
+  background-color: var(--linho); background-image: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 46%), radial-gradient(circle, transparent 0 58%, rgba(120, 88, 36, 0.4) 60% 66%, transparent 68%);
+  box-shadow: 0 0 0 2px var(--noite-funda), 0 3px 0 2px var(--noite-funda); }
+#hub .av-nome { max-width: 100%; font: 800 13px/1.1 var(--letra-texto); color: var(--linho-apagado); text-align: center; text-wrap: balance; }
+#hub .av-estacao.atual .av-num { background-color: var(--ouro-de-vela); }
+#hub .av-estacao.vencida .av-num { background-color: var(--vida); }
+#hub .av-estacao.sel .av-num { box-shadow: 0 0 0 2px var(--noite-funda), 0 0 0 5px var(--fio-da-maldicao), 0 4px 0 5px var(--noite-funda); }
+#hub .av-estacao.sel .av-nome { color: var(--linho); }
+#hub .av-estacao.travada { opacity: 1; cursor: default; }
+#hub .av-estacao.travada .av-num { background-color: #3A2752; background-image: var(--trama); color: var(--linho-apagado); }
+#hub .av-estacao.travada .av-nome { color: #8F7F9F; }
+#hub[data-formato="celular"] .av-num { width: 44px; height: 44px; font-size: 20px; }
+#hub[data-formato="celular"] .av-mapa::before { top: 22px; }
+
+#hub .av-info { --fz-ponto: rgba(242, 230, 201, 0.3); position: relative; padding: var(--e3) var(--e4); border: 0; border-radius: var(--canto-cartao); background-color: var(--pano-escuro); background-image: radial-gradient(70% 90% at 100% 0%, rgba(110, 193, 255, 0.12), transparent 64%), var(--trama);
+  box-shadow: 0 0 0 2px var(--noite-funda), 0 5px 0 2px rgba(10, 4, 18, 0.5); }
+#hub .av-topo { font: 400 19px/1.1 var(--letra-titulo); }
+#hub .av-topo .chip { min-height: 30px; padding: 4px 12px; border: 0; background: var(--noite-funda); color: var(--linho); font: 800 14px/1 var(--letra-texto); box-shadow: 0 0 0 1.5px var(--borda); }
+#hub .av-inimigos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--e2); margin-top: var(--e2); max-width: 560px; }
+#hub .av-inimigo { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; text-align: center; }
+#hub .av-inimigo .fz-circulo { width: 100%; height: auto; }
+#hub .av-in-txt b { font: 400 15px/1.1 var(--letra-titulo); color: var(--linho); overflow-wrap: anywhere; }
+#hub .av-in-txt .mini-sub { font: 800 13px/1.15 var(--letra-texto); color: var(--linho-apagado); }
+#hub .av-dica { margin: var(--e2) 0 0; font-size: 14px; color: var(--linho-apagado); }
+#hub .av-dica b { color: var(--linho); }
+#hub[data-formato="pc"] .hub-aventura { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); grid-template-areas: "topo topo" "mapa mapa" "info seu"; gap: var(--e2) var(--e5); align-content: start; }
+#hub[data-formato="pc"] .hub-aventura .hub-topo { grid-area: topo; }
+#hub[data-formato="pc"] .hub-aventura .av-mapa { grid-area: mapa; justify-self: center; width: 100%; }
+#hub[data-formato="pc"] .hub-aventura .av-info { grid-area: info; align-self: start; }
+#hub[data-formato="pc"] .hub-aventura .av-seu { grid-area: seu; }
+#hub[data-formato="pc"] .hub-aventura .av-seu .hub-subtitulo { margin-top: 0; }
+#hub .av-base { justify-content: center; }
+
+/* ============================================================ 8. Costura: os dois pais em círculos bordados, as chances antes */
+#hub .cos-pais { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--e2); align-items: stretch; }
+#hub .cos-slot { min-height: 132px; padding: 22px 6px 6px; border: 0; border-radius: var(--canto-cartao); background-color: var(--pano-escuro); background-image: var(--trama); box-shadow: inset 0 0 0 2px var(--noite-funda); }
+#hub .cos-slot::before { content: ""; position: absolute; inset: 5px; border: 1.5px dashed rgba(242, 230, 201, 0.32); border-radius: 10px; pointer-events: none; }
+#hub .cos-slot.ativo { background-image: radial-gradient(70% 60% at 50% 90%, rgba(255, 200, 87, 0.22), transparent 70%), var(--trama); }
+#hub .cos-slot.ativo::before { border-color: var(--ouro-de-vela); }
+#hub .cos-slot:focus-visible { outline: 3px solid var(--ouro-de-vela); outline-offset: 2px; }
+#hub .cos-rot { left: 12px; top: 8px; font: 800 13px/1 var(--letra-texto); letter-spacing: 0.1em; color: var(--linho-apagado); }
+#hub .cos-vazio { font-size: 14px; color: var(--linho-apagado); }
+#hub .cos-nome { font-size: 14px; } #hub .cos-nome b { font: 400 15px/1.1 var(--letra-titulo); overflow-wrap: anywhere; }
+#hub .cos-x { right: 6px; top: 6px; width: var(--toque); height: var(--toque); background: var(--linho); color: var(--noite-funda); box-shadow: 0 0 0 2px var(--noite-funda); }
+#hub .cos-mais { font: 400 30px/1 var(--letra-titulo); color: var(--fio-da-maldicao); }
+#cosEscolha { margin-top: var(--e3); }
+#costura .hub-corpo .hub-topo { grid-column: 1 / -1; }
+#hub .cos-dica { font-size: 14px; color: var(--linho-apagado); }
+#hub .cos-info, #hub .cos-parte { --fz-ponto: rgba(242, 230, 201, 0.3); border: 0; border-radius: var(--canto-cartao); background-color: var(--pano-escuro); background-image: var(--trama); box-shadow: 0 0 0 2px var(--noite-funda); font-size: 14px; }
+#hub .cos-custo b { font: 400 18px/1.1 var(--letra-titulo); color: var(--ouro-de-vela); }
+#hub .cos-custo small, #hub .cos-carretel { font-size: 13px; color: var(--linho-apagado); opacity: 1; }
+#hub .cos-parte h4 { font: 400 17px/1.1 var(--letra-titulo); }
+#hub .cos-barra { height: 8px; border-radius: 4px; background-color: var(--noite-funda); }
+#hub .cos-barra i { background: linear-gradient(90deg, #C9965A, var(--ouro-de-vela)); }
+#hub .cos-pct { font: 400 16px/1 var(--letra-titulo); color: var(--ouro-de-vela); }
+#hub .cos-rar, #hub .cos-forro { font-size: 13px; color: var(--linho-apagado); }
+#hub .cos-forro summary { min-height: var(--toque); }
+#hub .cos-recusa { border-radius: var(--canto-cartao); border: 0; background-color: #5A1626; box-shadow: 0 0 0 2px var(--noite-funda), inset 0 0 0 2px var(--dano); font-size: 15px; }
+#hub .cos-pendente { border-radius: var(--canto-cartao); font-size: 14px; }
+#hub #cosMsg { font-size: 14px; }
+
+/* ============================================================ 9. Casulo: a revelação parte por parte (a caixinha sobe) e o filho em destaque */
+.casulo-modal { background-color: rgba(20, 12, 31, 0.86); }
+#casulo .casulo-folha { --fz-ponto: rgba(242, 230, 201, 0.3); width: min(720px, 100%); padding: var(--e5) var(--e5) var(--e4); border: 0; border-radius: var(--canto-cartao); color: var(--linho); font: 600 14px/1.3 var(--letra-texto);
+  background-color: var(--pano-escuro); background-image: radial-gradient(70% 50% at 50% 0%, rgba(255, 200, 87, 0.16), transparent 70%), var(--trama); box-shadow: 0 0 0 2px var(--noite-funda), 0 6px 0 2px rgba(10, 4, 18, 0.55), 0 18px 40px rgba(0, 0, 0, 0.6); }
+#casulo .casulo-folha::after { border-color: rgba(242, 230, 201, 0.28); }
+#casulo .cas-tit { font: 400 28px/1.05 var(--letra-titulo); font-style: normal; color: var(--linho); text-shadow: none; }
+#casulo .cas-sub { min-height: 0; margin: 4px 0 var(--e3); font-size: 14px; color: var(--linho-apagado); }
+#casulo .cas-partes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--e2); margin-bottom: var(--e3); }
+#casulo .cas-parte { position: relative; overflow: hidden; min-height: 124px; padding: 26px 4px 8px; border: 0; border-radius: var(--canto-painel); color: var(--linho); font: 800 13px/1.15 var(--letra-texto); cursor: pointer;
+  background-color: #241634; background-image: var(--trama); box-shadow: 0 0 0 2px var(--noite-funda), 0 4px 0 2px rgba(10, 4, 18, 0.5); opacity: 1; animation: none; }
+#casulo .cas-parte:focus-visible { outline: 3px solid var(--ouro-de-vela); outline-offset: 3px; }
+#casulo .cas-parte > em { position: absolute; left: 0; right: 0; top: 6px; font: 800 13px/1 var(--letra-texto); letter-spacing: 0.08em; text-transform: uppercase; color: var(--linho-apagado); }
+/* a caixinha (fechada): um embrulho de retalho amarrado com linha; ao abrir ela sobe e some */
+#casulo .cas-caixa { position: absolute; left: 8px; right: 8px; top: 24px; bottom: 8px; display: grid; place-items: center; border-radius: 8px; background-color: var(--pano-claro);
+  background-image: linear-gradient(90deg, transparent calc(50% - 2px), var(--fio-da-maldicao) calc(50% - 2px) calc(50% + 2px), transparent calc(50% + 2px)), linear-gradient(0deg, transparent calc(50% - 2px), var(--fio-da-maldicao) calc(50% - 2px) calc(50% + 2px), transparent calc(50% + 2px)), var(--trama);
+  background-size: 100% 100%, 100% 100%, auto; box-shadow: inset 0 0 0 2px var(--noite-funda), 0 3px 0 rgba(10, 4, 18, 0.5); }
+#casulo .cas-caixa::after { content: "?"; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background-color: var(--linho); color: var(--noite-funda); font: 400 20px/1 var(--letra-titulo); box-shadow: 0 0 0 2px var(--noite-funda); }
+#casulo .cas-parte.fechada { opacity: 0.72; }
+#casulo .cas-parte.proxima { opacity: 1; box-shadow: 0 0 0 2px var(--noite-funda), 0 0 0 5px var(--ouro-de-vela), 0 4px 0 5px rgba(10, 4, 18, 0.5); animation: none; }
+#casulo .cas-parte.proxima .cas-caixa { animation: cas-chama 1.6s ease-in-out infinite; }
+@keyframes cas-chama { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+#casulo .cas-parte.tremendo { animation: none; }
+#casulo .cas-parte.tremendo .cas-caixa { animation: cas-treme var(--tremer, 1s) ease-in-out infinite; }
+@keyframes cas-treme { 0%, 100% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-3px) rotate(-2.5deg); } 75% { transform: translateX(3px) rotate(2.5deg); } }
+#casulo .cas-caixa--sobe { animation: cas-sobe 520ms cubic-bezier(.3, 0, .7, 1) forwards !important; }
+@keyframes cas-sobe { 0% { transform: translateY(0); opacity: 1; } 35% { transform: translateY(6px) scale(1.04, 0.94); opacity: 1; } 100% { transform: translateY(-120%) rotate(-6deg); opacity: 0; } }
+#casulo .cas-parte.aberta { background-image: radial-gradient(90% 70% at 50% 100%, color-mix(in srgb, var(--rar) 30%, transparent), transparent 70%), var(--trama); box-shadow: 0 0 0 2px var(--noite-funda), inset 0 0 0 2px var(--rar), 0 4px 0 2px rgba(10, 4, 18, 0.5); animation: none; }
+#casulo .cas-parte.aberta .cas-dentro { animation: cas-aparece 360ms 120ms cubic-bezier(.2, 1.5, .4, 1) both; }
+@keyframes cas-aparece { from { transform: translateY(14px) scale(0.85); opacity: 0; } to { transform: none; opacity: 1; } }
+#casulo .cas-dentro { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#casulo .cas-apelido { font: 400 16px/1.05 var(--letra-titulo); color: var(--linho); overflow-wrap: anywhere; text-wrap: balance; }
+#casulo .cas-nome { font: 800 13px/1.15 var(--letra-texto); color: var(--linho-apagado); text-wrap: balance; }
+#casulo .cas-parte .rar { font-size: 12px; }
+#casulo .cas-parte.festa.rara { box-shadow: 0 0 0 2px var(--noite-funda), inset 0 0 0 2px var(--rar-rara), 0 0 18px rgba(91, 184, 255, 0.7); }
+#casulo .cas-parte.festa.lendaria { box-shadow: 0 0 0 2px var(--noite-funda), inset 0 0 0 2px var(--rar-lendaria), 0 0 26px rgba(255, 200, 87, 0.8); animation: none; }
+/* o filho, em destaque, no alto da folha */
+#casulo .cas-filho { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--e4); margin: 0 0 var(--e3); padding: var(--e3) var(--e4); border-radius: var(--canto-cartao); text-align: left;
+  background-color: #241634; background-image: radial-gradient(60% 90% at 18% 60%, rgba(255, 200, 87, 0.34), transparent 70%), var(--trama); box-shadow: 0 0 0 2px var(--noite-funda), inset 0 0 0 2px var(--ouro-de-vela); }
+#casulo .cas-filho h3 { margin: 0 0 4px; font: 400 26px/1.05 var(--letra-titulo); color: var(--ouro-de-vela); }
+#casulo .cas-filho .f-tipo { font-size: 14px; }
+#casulo .cas-filho .f-stats { font-size: 14px; gap: 4px 14px; }
+#casulo .cas-filho .f-stats b { font: 400 20px/1 var(--letra-titulo); color: var(--ouro-de-vela); }
+#casulo .cas-filho .f-stats small { color: var(--linho-apagado); opacity: 1; font-size: 13px; }
+#casulo .cas-filho small { font-size: 14px; color: var(--linho); }
+#casulo .cas-boneco { filter: drop-shadow(0 0 16px rgba(255, 200, 87, 0.6)) drop-shadow(0 6px 4px rgba(10, 4, 18, 0.6)); animation: cas-nasce 900ms cubic-bezier(.2, 1.3, .4, 1) both; }
+@keyframes cas-nasce { from { opacity: 0; transform: translateY(24px) scale(0.7); } to { opacity: 1; transform: none; } }
+#casulo .cas-botoes { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--e3); }
+#casulo .cas-botoes .fz-botao { min-width: 160px; }
+#casulo[data-formato="celular"] .casulo-folha { padding: var(--e4) var(--e3) var(--e3); }
+#casulo[data-formato="celular"] .cas-partes { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+#casulo[data-formato="celular"] .cas-parte { grid-column: span 2; min-height: 104px; }
+#casulo[data-formato="celular"] .cas-parte:nth-child(4) { grid-column: 2 / span 2; } /* 3 em cima, 2 embaixo, centralizadas */
+#casulo[data-formato="celular"] .cas-filho { grid-template-columns: auto minmax(0, 1fr); gap: var(--e2); padding: var(--e2) var(--e3); }
+#casulo[data-formato="celular"] .cas-filho h3 { font-size: 20px; }
+#casulo[data-formato="celular"] .cas-botoes .fz-botao { flex: 1 1 40%; min-width: 0; }
+#casulo[data-formato="celular"] .cas-tit { font-size: 23px; }
+
+/* ============================================================ 10. a mesa na luta do celular (pequena, no alto à direita) e o pico da derrota */
+#luta[data-formato="celular"] .fz-mesa { top: 50px; right: var(--e2); left: auto; max-width: 46%; gap: 4px; flex-direction: column; align-items: flex-end; flex-wrap: nowrap; }
+#luta[data-formato="celular"] .fz-mesa__titulo { display: none; }
+#luta[data-formato="celular"] .fz-mesa__carta { height: 24px; padding: 0 8px 0 3px; gap: 4px; font-size: 13px; }
+#luta[data-formato="celular"] .fz-mesa__carta b { width: 18px; height: 18px; font-size: 13px; }
+#luta[data-formato="celular"] .fz-mesa__carta span { max-width: 104px; overflow: hidden; }
+
+/* derrota: na entrada o pano cai com um baque (uma vez) e os fios desfiam; com "Menos animação" só aparece */
+#fim.fz-fim--derrota.fz-fim--entrou .fz-fim__folha { animation: fim-baque 560ms cubic-bezier(.3, 1.4, .5, 1) both; }
+@keyframes fim-baque { 0% { transform: translateY(-36px) scale(1.04); opacity: 0; } 55% { transform: translateY(5px) scale(1, 0.97); opacity: 1; } 100% { transform: none; } }
+#fim.fz-fim--derrota.fz-fim--entrou .fz-fim__fundo { animation: fim-sombra 900ms ease-out both; }
+@keyframes fim-sombra { 0% { box-shadow: inset 0 0 0 0 rgba(10, 4, 18, 0); } 30% { box-shadow: inset 0 0 160px 60px rgba(10, 4, 18, 0.85); } 100% { box-shadow: inset 0 0 90px 20px rgba(10, 4, 18, 0.5); } }
+#fim.fz-fim--derrota.fz-fim--entrou .fz-fim__letra { animation: fim-cai 620ms cubic-bezier(.3, 1.5, .5, 1) both; animation-delay: calc(140ms + var(--i) * 40ms); }
+@keyframes fim-cai { from { translate: 0 -60px; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+#fim.fz-fim--derrota.fz-fim--entrou .fz-fim__fios path { stroke-dasharray: 60; animation: fim-desfia 900ms 500ms ease-out both; }
+@keyframes fim-desfia { from { stroke-dashoffset: 60; } to { stroke-dashoffset: 0; } }
+
+/* ============================================================ 11. "Menos animação" no hub e no casulo */
+[data-menos="1"] #hub *, [data-menos="1"] #casulo *, [data-menos="1"] #bonecoModal * { animation: none !important; transition: none !important; }
+[data-menos="1"] #casulo .cas-caixa--sobe { display: none; }
+@media (prefers-reduced-motion: reduce) { #casulo .cas-caixa--sobe { display: none; } }
+
+/* ============================================================ 12. entrada (modo servidor): o apelido da conta, numa folha de pano */
+#entrada { color: var(--linho); font: 600 14px/1.3 var(--letra-texto); background-color: var(--noite);
+  background-image: radial-gradient(80% 60% at 8% 0%, rgba(255, 200, 87, 0.10), transparent 62%), radial-gradient(70% 60% at 100% 0%, rgba(110, 193, 255, 0.07), transparent 60%); }
+.ent-corpo { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--e4);
+  padding: max(var(--e5), env(safe-area-inset-top)) var(--e4) max(var(--e5), env(safe-area-inset-bottom)); }
+.ent-logo { margin: 0; font-size: 0; line-height: 0; }
+.ent-logo .fz-logo { display: block; }
+.ent-folha { position: relative; width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: var(--e3); margin: 0; padding: var(--e5) var(--e4) var(--e4);
+  border-radius: var(--canto-cartao); background-color: var(--pano-escuro); background-image: var(--trama); box-shadow: 0 0 0 2px var(--noite-funda), 0 6px 0 2px var(--noite-funda); }
+.ent-folha::after { content: ""; position: absolute; inset: 6px; border: 1.5px dashed rgba(242, 230, 201, 0.30); border-radius: 10px; pointer-events: none; }
+.ent-folha .hub-titulo { margin: 0; font: 400 24px/1.1 var(--letra-titulo); color: var(--linho); }
+.ent-folha .hub-dica { margin: 0; color: var(--linho-apagado); font-size: 14px; }
+.ent-rotulo { font: 800 14px/1 var(--letra-texto); }
+#entApelido { position: relative; z-index: 1; width: 100%; min-height: 48px; padding: 10px 12px; border: 0; border-radius: var(--canto-painel); background: var(--linho); color: var(--noite-funda);
+  font: 800 17px/1.2 var(--letra-texto); box-shadow: inset 0 0 0 2px var(--noite-funda); user-select: text; -webkit-user-select: text; }
+#entApelido:focus-visible { outline: 3px solid var(--ouro-de-vela, #FFC857); outline-offset: 2px; }
+.ent-folha .fz-botao, .ent-folha .btn { position: relative; z-index: 1; width: 100%; min-height: var(--toque); }
+#entMsg { position: relative; z-index: 1; min-height: 1.3em; margin: 0; color: #FF8A8E; font: 800 14px/1.3 var(--letra-texto); }
+.col-conta { display: flex; align-items: center; gap: var(--e2); flex-wrap: wrap; }
+.col-conta .btn { min-height: var(--toque); }

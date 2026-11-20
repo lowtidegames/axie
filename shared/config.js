@@ -43,14 +43,15 @@ export const REGRAS = {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 3. Raridade das partes: dá mais OPÇÕES, não números muito maiores. Teto: +10% de valor sobre a Comum.
+// 3. Raridade das partes: dá mais OPÇÕES, não números muito maiores. Teto: +4% de valor sobre a Comum
+//    (era +10%; decisão 15/11 03:18). Incomum e Rara ficam em 30% e 60% do teto.
 //    O fator multiplica Vida, Rapidez e Firmeza que a parte dá. Cartas são iguais em qualquer raridade.
 // ---------------------------------------------------------------------------------------------
 export const RARIDADES = {
   comum: { nome: 'Comum', fator: 1.00 },
-  incomum: { nome: 'Incomum', fator: 1.03 },
-  rara: { nome: 'Rara', fator: 1.06 },
-  lendaria: { nome: 'Lendária', fator: 1.10 },
+  incomum: { nome: 'Incomum', fator: 1.012 },
+  rara: { nome: 'Rara', fator: 1.024 },
+  lendaria: { nome: 'Lendária', fator: 1.04 },
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -206,4 +207,15 @@ export const BONECOS_PRONTOS = {
   cascudo: { partes: { tronco: 'tr_feltro_duro@rara', cabeca: 'cab_feltro@rara', bracos: 'br_cruz@rara', pernas: 'pe_remendo@rara', bordado: 'bo_remendo_vivo@rara' } },
   assombrado: { partes: { tronco: 'tr_tule_rasgado@comum', cabeca: 'cab_veu@comum', bracos: 'br_nevoa@comum', pernas: 'pe_ultimo@comum', bordado: 'bo_rancor@comum' } },
   mudo: { partes: { tronco: 'tr_tule_armado@comum', cabeca: 'cab_abafada@comum', bracos: 'br_cetim@comum', pernas: 'pe_rolo@comum', bordado: 'bo_bolso_de_linha@comum' } },
+}
+
+// ---------------------------------------------------------------------------------------------
+// 8. Economia do BETA SEM DINHEIRO — *** PROVISÓRIO ***
+//    Números da rodada 2 (docs/ideias/economia-do-pote.md), valendo só para o beta sem dinheiro (decisão 15/11 03:18).
+//    Nenhum número de dinheiro aqui. Energia: abrir luta na Aventura gasta energia; a energia recarrega INTEIRA na
+//    virada do dia em UTC (00:00 UTC = 21:00 BRT), pelo relógio do servidor. Desistir e abandonar contam como derrota.
+// ---------------------------------------------------------------------------------------------
+export const ECONOMIA_DO_BETA = {
+  energiaPorDia: 20, // teto de energia por conta por dia ("energia 20 lutas")
+  energiaPorLutaDaAventura: 1, // cada luta ABERTA na Aventura gasta isto (gasto na abertura, mesmo se desistir)
 }

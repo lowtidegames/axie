@@ -9,8 +9,8 @@ Revisor: agente `seguranca` (só leu e atacou; não editou). Alvo: ramo `frayz-s
 ## Achados
 | Nº | Gravidade hoje / com prêmio | O ataque | Conserto | Estado |
 |---|---|---|---|---|
-| A1 | alta / crítica | O sorteio guarda só 32 bits. Com as cartas que a tela mostra, testam-se todos os estados e descobre-se a mão do rival, a ordem dos baralhos e todo crítico futuro (provado em 2 lutas reais, ~3 min num computador comum). | Estado do sorteio com 128 bits | tarefa 12 |
-| A2 | alta / crítica | Ponto Cruz (custo 0, compra 1) volta à mão sem fim quando o baralho esvazia: turno sem fim, Linha sem fim, sorteio avançado à vontade. Em 27 de 86 lutas com o laço, o jogador venceu no mesmo turno. | Carta jogada só volta ao descarte no fim do turno + teto de comandos por turno | tarefa 12 |
+| A1 | alta / crítica | O sorteio guarda só 32 bits. Com as cartas que a tela mostra, testam-se todos os estados e descobre-se a mão do rival, a ordem dos baralhos e todo crítico futuro (provado em 2 lutas reais, ~3 min num computador comum). | Sorteio por SHA-256 em modo contador | FECHADO 15/11 (70f0bce) |
+| A2 | alta / crítica | Ponto Cruz (custo 0, compra 1) volta à mão sem fim quando o baralho esvazia: turno sem fim, Linha sem fim, sorteio avançado à vontade. Em 27 de 86 lutas com o laço, o jogador venceu no mesmo turno. | Carta jogada só volta ao descarte no fim do turno + teto de 40 comandos por turno | FECHADO 15/11 (70f0bce) |
 | A3 | alta | Costura sem custo e sem teto: 1 conta faz 247 bonecos por minuto, e depois o pedido de estado trava o servidor. | Teto de bonecos por conta, estado em páginas, custo/energia na costura | tarefa 13 (custo: com a economia) |
 | A4 | média / alta | Cada comando guarda a resposta inteira: o banco cresce ~159 MB por hora por conta. | Guardar só o necessário e limpar ao fim da luta | tarefa 13 |
 | A5 | média / alta | Atrás de proxy todos dividem o mesmo limite por endereço; reiniciar zera os limites. | Ler o endereço do proxy confiável; guardar limites no banco | tarefa 13 |
@@ -19,7 +19,7 @@ Revisor: agente `seguranca` (só leu e atacou; não editou). Alvo: ramo `frayz-s
 | A8 | baixa | O servidor migra por cima de um banco que não é do Frayz. | Recusar banco estranho; cópia sempre que houver dados | tarefa 13 |
 | A9 | baixa | Mapa de limites cresce com endereços IPv6 e cada pedido fica lento. | Limpar por idade; balde por bloco | tarefa 13 |
 | A10 | baixa / média | Apelido repetido ou com letra parecida de outro alfabeto. | Normalizar e exigir apelido único | tarefa 13 |
-| A11 | baixa | O número da carta do rival já diz qual carta é. | Embaralhar os números por luta (ou aceitar) | tarefa 12 |
+| A11 | baixa | O número da carta do rival já diz qual carta é. | Números das cartas sorteados por luta | FECHADO 15/11 (70f0bce) |
 
 Também abertos (listados pelo autor do servidor e confirmados): chaves de emergência não lidas; sessão sem validade e sem "sair"; fazenda de contas sem trava (5 contas por hora por endereço IPv4, mas até ~327 mil por hora com um bloco IPv6).
 
@@ -28,3 +28,9 @@ Energia diária gasta ao abrir a luta · prêmio só para conta com carteira ass
 
 ## Lição
 "Semente de 128 bits" não protege se o gerador guarda só 32 bits. Toda revisão de sorteio mede o tamanho do estado, não o da semente.
+
+## Rechecagem de 15/11/2026 02:00 BRT (ramo frayz-motor2) — GO
+A1, A2 e A11 fechados com prova: nenhum dado do sorteio em 10.004 visões; a busca antiga não tem mais onde se apoiar (o que resta é força bruta de 128 bits); máximo de 19 comandos por turno em 3.000 lutas e 32 no pior time possível (o teto de 40 não corta jogada legítima); nenhuma pista adivinha a carta escondida acima do acaso.
+Dois achados novos, baixos, abertos:
+- Quando o rival joga Ponto Cruz, o evento de Linha revela se a carta comprada é do tipo do boneco (um pedaço de informação sobre carta escondida). Decidir: é regra ou se esconde.
+- O robô planejador espia a carta do topo do próprio baralho ao avaliar o Ponto Cruz (só afeta o robô).

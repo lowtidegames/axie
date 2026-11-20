@@ -1,0 +1,27 @@
+data_brt,servico,chamada,o_que,segundos,creditos,resultado
+19/11/2026 18:20,ElevenLabs,POST /v1/sound-generation (corpo vazio),conferir se a chave é aceita sem gerar som,0,0,422 (chave aceita; com chave falsa o mesmo pedido dá 401)
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,muralha tomada 1,0.8,9,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,muralha tomada 2,0.8,9,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,muralha tomada 3,0.8,9,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,choque tomada 1,1.5,17,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,choque tomada 2,1.5,17,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,choque tomada 3,1.5,17,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,marcha tomada 1,1.2,13,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,marcha tomada 2,1.2,13,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,marcha tomada 3,1.2,13,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,casteloRacha tomada 1,1.5,17,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,casteloRacha tomada 2,1.5,17,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,casteloRacha tomada 3,1.5,17,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,chefeEntra tomada 1,1.5,17,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,chefeEntra tomada 2,1.5,17,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,chefeEntra tomada 3,1.5,17,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,flecha tomada 1,0.8,9,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,flecha tomada 2,0.8,9,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,flecha tomada 3,0.8,9,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,espolio tomada 1,1.0,11,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,espolio tomada 2,1.0,11,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,espolio tomada 3,1.0,11,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,recorde tomada 1,1.5,17,200 ok
+19/11/2026 19:00,ElevenLabs,POST /v1/sound-generation,recorde tomada 2,1.5,17,200 ok
+19/11/2026 19:01,ElevenLabs,POST /v1/sound-generation,recorde tomada 3,1.5,17,200 ok
+TOTAL,,,,29.4,330,24 tomadas de 8 efeitos (character-cost de cada resposta); teto da tarefa 400; saldo nao legivel pela chave (401)

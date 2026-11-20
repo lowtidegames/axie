@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pilot</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="piloto.css">
+</head>
+<body>
+<header class="topo">
+  <div class="marca"><b id="marcaNome"></b><small id="avisoRegras" role="note"></small></div>
+  <nav class="abas" id="abas" aria-label="Screens">
+    <button type="button" class="aba" data-cena="caca">Hunt</button>
+    <button type="button" class="aba" data-cena="time">Team</button>
+    <button type="button" class="aba" data-cena="colecao">Collection</button>
+  </nav>
+  <div class="energia" id="cEnergia" role="status" aria-label="Energy"><i class="raio" aria-hidden="true"></i><b id="cEnergiaNum">20</b><small id="cEnergiaMax">/20</small></div>
+</header>
+
+<main>
+  <!-- ======================================================= 1. EGG -->
+  <section class="cena" id="ovo" hidden>
+    <h1 id="oTitulo">Your eggs</h1>
+    <p class="o-resta" id="oResta"></p>
+    <div class="o-palco" id="oPalco">
+      <div class="o-raios" aria-hidden="true"></div>
+      <img class="px o-ovo" id="oOvo" alt="Egg">
+      <img class="px o-monstro" id="oMonstro" alt="" hidden>
+      <b class="o-grito" id="oGrito" hidden></b>
+    </div>
+    <div class="o-antes" id="oAntes">
+      <ul class="o-chances" id="oChances" aria-label="Rarity chances"></ul>
+      <button type="button" class="bt bt--grande" id="oAbrir">Hatch</button>
+    </div>
+    <div class="o-depois" id="oDepois" hidden>
+      <h2 id="oNome"></h2>
+      <p class="o-info" id="oInfo"></p>
+      <p class="o-ganhou" id="oGanhou" hidden></p>
+      <button type="button" class="bt bt--grande" id="oSeguir">Next egg</button>
+    </div>
+  </section>
+
+  <!-- ======================================================= 2. TEAM -->
+  <section class="cena" id="time" hidden>
+    <h1>Team</h1>
+    <div class="t-slots" id="tSlots"></div>
+    <p class="t-contra" id="tContra"></p>
+    <h2 class="t-h2">Your monsters <small>tap one, then a spot</small></h2>
+    <div class="t-banco" id="tBanco"></div>
+    <div class="barra-baixo"><button type="button" class="bt bt--grande" id="tCacar">Go hunt</button></div>
+  </section>
+
+  <!-- ======================================================= 3. HUNT -->
+  <section class="cena" id="caca" hidden>
+    <h1>Hunt</h1>
+    <ol class="c-lugares" id="cLugares"></ol>
+    <div class="c-time" id="cTime"></div>
+    <div class="barra-baixo">
+      <button type="button" class="bt bt--enorme" id="btCacar">Hunt</button>
+      <p class="c-porque" id="cPorque"></p>
+    </div>
+    <p class="aviso-1x" id="cDecidido" hidden></p>
+  </section>
+
+  <!-- ======================================================= a luta (dentro da caçada) -->
+  <section class="cena" id="luta" hidden>
+    <div class="b-barra">
+      <b id="bRotulo" class="b-rotulo"></b>
+      <div class="b-ctrl">
+        <div class="b-vels" role="group" aria-label="Speed">
+          <button type="button" class="bt bt--peq" data-vel="1">1×</button><button type="button" class="bt bt--peq" data-vel="2">2×</button><button type="button" class="bt bt--peq" data-vel="4">4×</button>
+        </div>
+        <button type="button" class="bt bt--peq bt--pare" id="bParar">Stop</button>
+      </div>
+    </div>
+    <div class="b-moldura">
+      <div class="b-palco" id="bPalco">
+        <canvas id="bCanvas" class="px"></canvas>
+        <div class="b-hud" id="bHud"></div>
+        <div class="b-carimbo" id="bCarimbo" hidden><b id="bCarimboTxt"></b><span id="bCarimboPts"></span></div>
+      </div>
+    </div>
+    <ol class="b-placar" id="bPlacar" aria-label="Fights of this hunt"></ol>
+  </section>
+
+  <!-- ======================================================= 4. RESULT -->
+  <section class="cena" id="resultado" hidden>
+    <h1>Result</h1>
+    <p class="r-onde" id="rOnde"></p>
+    <div class="r-nums">
+      <div class="r-num r-num--v"><b id="rV">0</b><small>Wins</small></div>
+      <div class="r-num r-num--d"><b id="rD">0</b><small>Losses</small></div>
+      <div class="r-num r-num--p"><b id="rP">0</b><small>Points</small></div>
+    </div>
+    <div class="r-novo" id="rNovo" hidden><img class="px" id="rNovoImg" alt=""><div><b>New place unlocked</b><span id="rNovoNome"></span></div></div>
+    <div class="r-bts">
+      <button type="button" class="bt bt--grande" id="rDeNovo">Hunt again</button>
+      <button type="button" class="bt bt--sec" id="rTime">Team</button>
+    </div>
+    <p class="c-porque" id="rPorque"></p>
+  </section>
+
+  <!-- ======================================================= 5. COLLECTION -->
+  <section class="cena" id="colecao" hidden>
+    <div id="gLista">
+      <div class="g-topo"><h1>Collection</h1><button type="button" class="bt" id="gCruzar">Breed</button></div>
+      <div class="g-grade" id="gGrade"></div>
+    </div>
+    <div id="xCruzar" hidden>
+      <div class="g-topo"><h1>Breed</h1><button type="button" class="bt bt--sec" id="xVoltar">Back</button></div>
+      <p class="x-dica" id="xDica">Pick two monsters.</p>
+      <div class="x-chances" id="xChances" hidden></div>
+      <div class="g-grade" id="xPais"></div>
+      <div class="barra-baixo"><button type="button" class="bt bt--grande" id="xFazer" disabled>Make the egg</button></div>
+    </div>
+  </section>
+</main>
+
+<footer class="rodape">
+  <button type="button" class="bt-discreto" id="btSom" aria-pressed="true">Sound: on</button>
+  <button type="button" class="bt-discreto" id="btMenos" aria-pressed="false">Reduced motion: off</button>
+  <button type="button" class="bt-discreto" id="btNovoDia">New day</button>
+  <button type="button" class="bt-discreto" id="btReset">Reset pilot</button>
+</footer>
+
+<!-- ======================================================= ficha do monstro (janela) -->
+<div class="g-fundo" id="gFundo" hidden>
+  <div class="g-ficha" id="gFicha" role="dialog" aria-modal="true" aria-labelledby="gNome">
+    <button type="button" class="g-x" id="gX" aria-label="Close">&#10005;</button>
+    <div id="gCorpo"></div>
+    <div class="g-bts">
+      <button type="button" class="bt" id="gBreed">Breed</button>
+      <button type="button" class="bt bt--sec" id="gRetire" hidden>Retire</button>
+    </div>
+  </div>
+</div>
+<div class="festa" id="festa" aria-hidden="true"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

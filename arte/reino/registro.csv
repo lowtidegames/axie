@@ -1,0 +1,78 @@
+hora_BRT,item,tentativa,ferramenta,custo_geracoes,saldo_depois,arquivo,nota
+19/11 18:35,lanceiro,1,/create-image-pixflux,1.0,1003.5098459895798,bruto/lanceiro-1.png,
+19/11 18:35,lanceiro24,1,/create-image-pixen,1.0,1002.5098459895798,bruto/lanceiro24-1.png,teste de tamanho 24 no pixen
+19/11 18:36,arqueiro,1,/create-image-pixflux,1.0,1001.5098459895798,bruto/arqueiro-1.png,
+19/11 18:36,cavaleiro,1,/create-image-pixflux,1.0,1000.5098459895798,bruto/cavaleiro-1.png,
+19/11 18:37,invasor,1,/create-image-pixflux,1.0,999.5098459895798,bruto/invasor-1.png,
+19/11 18:37,chefe,1,/create-image-pixflux,1.0,998.5098459895798,bruto/chefe-1.png,
+19/11 18:38,invasor-bruto,1,/create-image-pixflux,1.0,997.5098459895798,bruto/invasor-bruto-1.png,
+19/11 18:38,castelo,1,/create-image-pixflux,1.0,996.5098459895798,bruto/castelo-1.png,
+19/11 18:38,portao,1,/create-image-pixflux,1.0,995.5098459895798,bruto/portao-1.png,
+19/11 18:39,quartel,1,/create-image-pixflux,1.0,994.5098459895798,bruto/quartel-1.png,
+19/11 18:39,moinho,1,/create-image-pixflux,1.0,993.5098459895798,bruto/moinho-1.png,
+19/11 18:39,torre-mago,1,/create-image-pixflux,1.0,992.5098459895798,bruto/torre-mago-1.png,
+19/11 18:40,plano-longe,1,/create-image-pixflux,1.0,991.5098459895798,bruto/plano-longe-1.png,
+19/11 18:40,plano-meio,1,/create-image-pixflux,1.0,990.5098459895798,bruto/plano-meio-1.png,
+19/11 18:40,lanceiro-golpe,1,/edit-image-pixen,1.0,989.5098459895798,bruto/lanceiro-golpe-1.png,edit-image-pixen sobre lanceiro-1
+19/11 18:41,mago,1,/create-image-pixflux,1.0,988.5098459895798,bruto/mago-1.png,
+19/11 18:41,arqueiro-b,1,/edit-image-pixen,1.0,987.5098459895798,bruto/arqueiro-b-1.png,familia pelo mesmo boneco-base
+19/11 18:42,cavaleiro-b,1,/edit-image-pixen,1.0,986.5098459895798,bruto/cavaleiro-b-1.png,familia pelo mesmo boneco-base
+19/11 18:42,invasor-b,1,/edit-image-pixen,1.0,985.5098459895798,bruto/invasor-b-1.png,invasor pelo mesmo boneco-base
+19/11 18:43,lanceiro-passo,1,/edit-image-pixen,1.0,984.5098459895798,bruto/lanceiro-passo-1.png,
+19/11 18:45,invasor-golpe,1,/edit-image-pixen,1.0,983.5098459895798,bruto/invasor-golpe-1.png,
+19/11 18:46,arqueiro-tiro,1,/edit-image-pixen,1.0,982.5098459895798,bruto/arqueiro-tiro-1.png,
+19/11 18:46,lanceiro-apanhou,1,/edit-image-pixen,1.0,981.5098459895798,bruto/lanceiro-apanhou-1.png,
+19/11 18:47,ferraria,1,/create-image-pixflux,1.0,980.5098459895798,bruto/ferraria-1.png,
+19/11 18:47,tenda,1,/create-image-pixflux,1.0,979.5098459895798,bruto/tenda-1.png,
+19/11 19:04,porteiro,1,/edit-image-pixen,1.0,978.5098459895798,bruto/porteiro-1.png,R9 piloto
+19/11 19:05,cozinheiro,1,/edit-image-pixen,1.0,977.5098459895798,bruto/cozinheiro-1.png,R9 piloto
+19/11 19:05,fogueteiro,1,/edit-image-pixen,1.0,976.5098459895798,bruto/fogueteiro-1.png,R9 piloto
+19/11 19:06,cozinheiro-golpe,1,/edit-image-pixen,1.0,975.5098459895798,bruto/cozinheiro-golpe-1.png,R9 piloto
+19/11 19:07,pernalta,1,/edit-image-pixen,1.0,974.5098459895798,bruto/pernalta-1.png,R9 piloto
+19/11 19:07,atirador,1,/edit-image-pixen,1.0,973.5098459895798,bruto/atirador-1.png,R9 piloto
+19/11 19:08,tampa,1,/edit-image-pixen,1.0,972.5098459895798,bruto/tampa-1.png,R9 piloto
+19/11 19:08,gutbucket,1,/edit-image-pixen,1.0,971.5098459895798,bruto/gutbucket-1.png,R9 piloto
+19/11 19:09,atirador-tiro,1,/edit-image-pixen,1.0,970.5098459895798,bruto/atirador-tiro-1.png,R9 piloto
+19/11 19:10,tampa-golpe,1,/edit-image-pixen,1.0,969.5098459895798,bruto/tampa-golpe-1.png,R9 piloto
+19/11 19:10,gutbucket-golpe,1,/edit-image-pixen,1.0,968.5098459895798,bruto/gutbucket-golpe-1.png,R9 piloto
+19/11 19:11,gutbucket-passo,1,/edit-image-pixen,1.0,967.5098459895798,bruto/gutbucket-passo-1.png,R9 piloto
+19/11 19:11,smithy,1,/create-image-pixflux,1.0,966.5098459895798,bruto/smithy-1.png,R9 piloto
+19/11 19:11,watchtower,1,/create-image-pixflux,1.0,965.5098459895798,bruto/watchtower-1.png,R9 piloto
+19/11 19:11,cookhouse,1,/create-image-pixflux,1.0,964.5098459895798,bruto/cookhouse-1.png,R9 piloto
+19/11 19:12,smithy-b,1,/edit-image-pixen,1.0,963.5098459895798,bruto/smithy-b-1.png,R9 piloto
+19/11 19:13,watchtower-b,1,/edit-image-pixen,1.0,962.5098459895798,bruto/watchtower-b-1.png,R9 piloto
+19/11 19:14,arqueiro-passo,1,/edit-image-pixen,1.0,961.5098459895798,bruto/arqueiro-passo-1.png,R9 piloto
+19/11 19:14,cozinheiro-passo,1,/edit-image-pixen,1.0,960.5098459895798,bruto/cozinheiro-passo-1.png,R9 piloto
+19/11 19:15,fogueteiro-passo,1,/edit-image-pixen,1.0,959.5098459895798,bruto/fogueteiro-passo-1.png,R9 piloto
+19/11 19:15,invasor-passo,1,/edit-image-pixen,1.0,958.5098459895798,bruto/invasor-passo-1.png,R9 piloto
+19/11 19:16,atirador-passo,1,/edit-image-pixen,1.0,957.5098459895798,bruto/atirador-passo-1.png,R9 piloto
+19/11 19:16,tampa-passo,1,/edit-image-pixen,1.0,956.5098459895798,bruto/tampa-passo-1.png,R9 piloto
+19/11 19:31,lanceiro-passo2,1,/edit-image-pixen,1.0,955.5098459895798,bruto/lanceiro-passo2-1.png,R9: passo no tamanho do boneco-base (o de 18:43 veio menor)
+19/11 19:55,sirdent,1,/edit-image-pixen,1.0,954.5098459895798,bruto/sirdent-1.png,R11 tropa
+19/11 19:55,vovo,1,/edit-image-pixen,1.0,953.5098459895798,bruto/vovo-1.png,R11 tropa
+19/11 19:56,falcoeira,1,/edit-image-pixen,1.0,952.5098459895798,bruto/falcoeira-1.png,R11 tropa
+19/11 19:56,sopeiro,1,/edit-image-pixen,1.0,951.5098459895798,bruto/sopeiro-1.png,R11 tropa
+19/11 19:56,torteiro,1,/edit-image-pixen,1.0,950.5098459895798,bruto/torteiro-1.png,R11 tropa
+19/11 19:57,ganso,1,/edit-image-pixen,0.0,950.5098459895798,bruto/ganso-1.png,R11 tropa
+19/11 19:58,faisqueiro,1,/edit-image-pixen,2.0,948.5098459895798,bruto/faisqueiro-1.png,R11 tropa
+19/11 19:59,bloater,1,/edit-image-pixen,1.0,947.5098459895798,bruto/bloater-1.png,R11 invasor/chefe
+19/11 19:59,toupeira,1,/edit-image-pixen,1.0,946.5098459895798,bruto/toupeira-1.png,R11 invasor/chefe
+19/11 20:00,tambor,1,/edit-image-pixen,1.0,945.5098459895798,bruto/tambor-1.png,R11 invasor/chefe
+19/11 20:01,curandeiro,1,/edit-image-pixen,1.0,944.5098459895798,bruto/curandeiro-1.png,R11 invasor/chefe
+19/11 20:01,nip,1,/edit-image-pixen,1.0,943.5098459895798,bruto/nip-1.png,R11 invasor/chefe
+19/11 20:02,moleworth,1,/edit-image-pixen,1.0,942.5098459895798,bruto/moleworth-1.png,R11 invasor/chefe
+19/11 20:02,tuck,1,/edit-image-pixen,1.0,941.5098459895798,bruto/tuck-1.png,R11 pose
+19/11 20:03,gobble-golpe,1,/edit-image-pixen,1.0,940.5098459895798,bruto/gobble-golpe-1.png,R11 pose
+19/11 20:03,nip-golpe,1,/edit-image-pixen,1.0,939.5098459895798,bruto/nip-golpe-1.png,R11 pose
+19/11 20:04,moleworth-golpe,1,/edit-image-pixen,1.0,938.5098459895798,bruto/moleworth-golpe-1.png,R11 pose
+19/11 20:04,sirdent-golpe,1,/edit-image-pixen,1.0,937.5098459895798,bruto/sirdent-golpe-1.png,R11 pose
+19/11 20:05,torteiro-golpe,1,/edit-image-pixen,1.0,936.5098459895798,bruto/torteiro-golpe-1.png,R11 pose
+19/11 20:06,falcoeira-golpe,1,/edit-image-pixen,1.0,935.5098459895798,bruto/falcoeira-golpe-1.png,R11 pose
+19/11 20:06,fletcher,1,/edit-image-pixen,1.0,934.5098459895798,bruto/fletcher-1.png,R11 predio por edicao da cookhouse
+19/11 20:07,market,1,/edit-image-pixen,1.0,933.5098459895798,bruto/market-1.png,R11 predio por edicao da cookhouse
+19/11 20:07,feasthall,1,/edit-image-pixen,1.0,932.5098459895798,bruto/feasthall-1.png,R11 predio por edicao da cookhouse
+19/11 20:08,tinker,1,/edit-image-pixen,0.0,932.5098459895798,bruto/tinker-1.png,R11 predio por edicao da cookhouse
+19/11 20:08,fuse,1,/edit-image-pixen,2.0,930.5098459895798,bruto/fuse-1.png,R11 predio por edicao da cookhouse
+19/11 20:09,bunkhouse,1,/edit-image-pixen,1.0,929.5098459895798,bruto/bunkhouse-1.png,R11
+19/11 20:10,sirdent-golpe2,1,/edit-image-pixen,1.0,928.5098459895798,bruto/sirdent-golpe2-1.png,R11
+19/11 20:11,tampa-golpe2,1,/edit-image-pixen,1.0,927.5098459895798,bruto/tampa-golpe2-1.png,R11 golpe sem perder a panela

@@ -1,0 +1,21 @@
+[
+ {"nome":"botao","alvoMs":60,"seg":0.5,"inf":0.7,"texto":"Single small wooden button click, tiny dry tap, close-mic, no reverb"},
+ {"nome":"escolherCarta","alvoMs":90,"seg":0.5,"inf":0.6,"texto":"Short crisp flick of a stiff paper sewing pattern, dry close-mic foley, no reverb"},
+ {"nome":"semLinha","alvoMs":140,"seg":0.6,"inf":0.6,"texto":"Two dull muffled thuds on a soft pin cushion, low and soft, dry close-mic foley"},
+ {"nome":"cartaJogada","alvoMs":220,"seg":0.6,"inf":0.6,"texto":"Quick swish of sewing thread pulled through fabric ending with a tiny needle tick, sewing foley, dry, no reverb"},
+ {"nome":"golpe","alvoMs":180,"seg":0.6,"inf":0.6,"texto":"Muffled punch into a soft stuffed toy, pillow thump with slight cloth rustle, dry close-mic foley, no reverb"},
+ {"nome":"golpeForte","alvoMs":260,"seg":0.8,"inf":0.6,"texto":"Heavy muffled punch into a stuffed rag doll with a seam cracking, deep pillow thump, dry close-mic foley, no reverb"},
+ {"nome":"critico","alvoMs":520,"seg":1.0,"inf":0.6,"texto":"Thick fabric ripping violently, then a soft pop of stuffing bursting out, cloth tear foley, dry, close-mic, no reverb"},
+ {"nome":"escudo","alvoMs":300,"seg":1.0,"inf":0.7,"texto":"A metal sewing thimble flicked once with a fingernail, clear bright metallic ting that rings briefly, close-mic, dry"},
+ {"nome":"golpeNoEscudo","alvoMs":160,"seg":0.6,"inf":0.6,"texto":"A needle clinking off a small metal thimble followed by a dull soft cloth thud, short dry foley"},
+ {"nome":"erroDoVeu","alvoMs":300,"seg":0.8,"inf":0.6,"texto":"Soft airy swish of light tulle fabric whipping past, gentle whoosh, dry, no reverb"},
+ {"nome":"fioSolto","alvoMs":250,"seg":0.7,"inf":0.6,"texto":"A taut thread suddenly going slack with a soft descending twang, small, dry close-mic"},
+ {"nome":"trocarLugares","alvoMs":240,"seg":0.7,"inf":0.6,"texto":"Two quick soft cloth footsteps followed by a short fabric slide on a wooden table, dry close-mic foley"},
+ {"nome":"comprarCarta","alvoMs":80,"seg":0.5,"inf":0.7,"texto":"Single sheet of paper flipped over quickly, light crisp, dry close-mic foley"},
+ {"nome":"fiapo","alvoMs":110,"seg":0.5,"inf":0.7,"texto":"Small sewing scissors snipping a single thread, tiny crisp snip, dry close-mic foley"},
+ {"nome":"ultimoFio","alvoMs":700,"seg":1.2,"inf":0.5,"texto":"A taut thread stretching and creaking under tension, eerie string strain, then one deep muffled heartbeat thump, dry"},
+ {"nome":"queda","alvoMs":500,"seg":0.8,"inf":0.6,"texto":"Limp rag doll flopping down onto a wooden table, soft cloth thump followed by one tiny button clack, dry foley"},
+ {"nome":"tesouraDesce","alvoMs":300,"seg":0.7,"inf":0.6,"texto":"Old heavy metal scissors creaking as they slowly open, rusty hinge squeak, short, dry foley"},
+ {"nome":"tesoura","alvoMs":600,"seg":1.2,"inf":0.7,"texto":"Huge heavy tailor shears snapping shut once, loud sharp metallic snip with a short metal ring, dramatic, dry close-mic foley"},
+ {"nome":"remendo","alvoMs":300,"seg":0.8,"inf":0.6,"texto":"A needle and thread pulled through thick cloth three times quickly, three short swishes, sewing foley, dry close-mic"}
+]

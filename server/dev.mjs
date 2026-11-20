@@ -1,57 +1,26 @@
 // Frayz — servidor estático MÍNIMO só para o protótipo local (sem dinheiro, sem conta, sem banco).
-// Serve `public/` (na raiz do site) e `shared/` (em /shared/), só leitura, sem listar pasta e sem sair dessas raízes.
+// Serve a raiz do repositório com o MESMO desenho de pastas da página de teste (`/public/`, `/shared/`), só leitura, sem listar pasta.
+// `/` e endereços antigos (`/arte.html`) redirecionam para `/public/...`. Nada fora de public/, shared/ e do index da raiz.
 // Uso: `npm run dev` (porta da variável PORTA; padrão 4700) · ou importe { iniciar } nos testes.
 import { createServer } from 'node:http'
-import { readFile, realpath, stat } from 'node:fs/promises'
-import path from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { pathToFileURL } from 'node:url'
+import { lerArquivo, redirecionamento, resolverArquivo } from './estatico.mjs'
 
-const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const PUBLICO = path.join(RAIZ, 'public')
-const COMPARTILHADO = path.join(RAIZ, 'shared')
-
-const TIPOS = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.ico': 'image/x-icon',
-  '.txt': 'text/plain; charset=utf-8',
-}
-
-/** Caminho do pedido → arquivo dentro de uma das duas raízes (ou null). Nunca sai da raiz. */
-export async function resolver(urlPath) {
-  let p
-  try { p = decodeURIComponent(urlPath) } catch { return null }
-  if (p.includes('\0') || p.includes('\\')) return null
-  if (p === '/' || p === '') p = '/index.html'
-  let base = PUBLICO, rel = p
-  if (p === '/shared' || p.startsWith('/shared/')) { base = COMPARTILHADO; rel = p.slice('/shared'.length) }
-  const alvo = path.resolve(base, '.' + (rel.startsWith('/') ? rel : '/' + rel))
-  if (alvo !== base && !alvo.startsWith(base + path.sep)) return null
-  try {
-    const real = await realpath(alvo)
-    const baseReal = await realpath(base)
-    if (real !== baseReal && !real.startsWith(baseReal + path.sep)) return null // elo simbólico para fora
-    const s = await stat(real)
-    return s.isFile() ? real : null // pasta nunca é listada
-  } catch { return null }
-}
+/** Caminho do pedido → arquivo permitido (só `public/`, `shared/` e o `index.html` da raiz). Regra única em server/estatico.mjs. */
+export const resolver = (urlPath) => resolverArquivo(urlPath, { raiz: true })
 
 export function iniciar({ porta = Number(process.env.PORTA) || 4700, host = '127.0.0.1' } = {}) {
   const servidor = createServer(async (req, res) => {
     const cab = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405, { ...cab, Allow: 'GET, HEAD' }); return res.end() }
     const url = new URL(req.url, 'http://local')
-    const arq = await resolver(url.pathname)
-    if (!arq) { res.writeHead(404, { ...cab, 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Não encontrado') }
+    const destino = await redirecionamento(url.pathname, { raiz: true })
+    if (destino) { res.writeHead(302, { ...cab, Location: destino + url.search }); return res.end() }
     try {
-      const dados = await readFile(arq)
-      res.writeHead(200, { ...cab, 'Content-Type': TIPOS[path.extname(arq).toLowerCase()] || 'application/octet-stream', 'Content-Length': dados.length })
-      res.end(req.method === 'HEAD' ? undefined : dados)
+      const arq = await lerArquivo(url.pathname, { raiz: true })
+      if (!arq) { res.writeHead(404, { ...cab, 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Não encontrado') }
+      res.writeHead(200, { ...cab, 'Content-Type': arq.tipo, 'Content-Length': arq.dados.length })
+      res.end(req.method === 'HEAD' ? undefined : arq.dados)
     } catch { res.writeHead(500, cab); res.end('Erro') }
   })
   return new Promise((ok, falha) => {

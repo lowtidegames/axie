@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Frayz — folha de arte</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #1B1226; color: #F2E6C9; font: 600 14px/1.35 system-ui, "Segoe UI", sans-serif; padding: 12px 12px 72px; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  h2 { font-size: 15px; margin: 18px 0 6px; }
+  p.nota { color: #B9A98C; margin: 2px 0 8px; font-weight: 500; }
+  nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; position: sticky; top: 0; background: #1B1226; padding: 6px 0; z-index: 5; }
+  button { font: inherit; color: #F2E6C9; background: #2A1B3D; border: 1.5px dashed #B9A98C; border-radius: 10px; min-height: 36px; padding: 4px 12px; cursor: pointer; }
+  button.on { background: #3A2752; border-color: #FF4D8D; color: #fff; }
+  button:focus-visible { outline: 2px solid #FFC857; outline-offset: 2px; }
+  section { display: none; } section.on { display: block; }
+  body.todas section { display: block; } body.todas nav { display: none; }
+  .linha { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+  .cel { text-align: center; font-size: 11px; color: #B9A98C; font-weight: 600; }
+  .cel canvas { display: block; margin: 0 auto 2px; }
+  canvas { display: block; max-width: 100%; }
+  .papel { background: #E9DFC6; border-radius: 10px; padding: 8px; color: #3A2752; }
+  .papel .cel { color: #3A2752; }
+  .barra { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; align-items: center; }
+  .cena { border-radius: 10px; overflow: hidden; border: 1.5px solid #5A4378; display: inline-block; vertical-align: top; margin: 0 10px 10px 0; }
+  #hud { position: fixed; right: 10px; bottom: 10px; background: rgba(20,12,31,.92); border: 1.5px dashed #B9A98C; border-radius: 10px; padding: 6px 12px; font-variant-numeric: tabular-nums; z-index: 9; }
+  #hud b { color: #FFC857; }
+</style></head>
+<body>
+<h1>Frayz — folha de arte (bonecos, cena e efeitos)</h1>
+<p class="nota">Tudo desenhado por código. Parâmetros: <code>?esc=1.5</code> (tamanho) · <code>?sec=a..f</code> · <code>?todas=1</code> · <code>?menos=1</code> · <code>?t=1234</code> (congela o tempo) · <code>?lento=1</code></p>
+<nav id="abas"></nav>
+<div class="barra"><button id="btnMenos">Menos animação: não</button><button id="btnLento">Câmera lenta: não</button><button id="btnLadoB">Mostrar lado B (espelhado, luz da lua): não</button></div>
+
+<section id="sec-a"><h2>(a) Os 9 prontos nas 8 poses</h2><p class="nota">Cada pose roda do começo ao fim e segura um instante. Olhe o rosto, a sobra de movimento e os fios.</p><div id="a"></div>
+  <h2>Os 9 a 96 px de altura (o rosto tem de ser lido)</h2><div id="a96" class="linha"></div></section>
+<section id="sec-b"><h2>(b) Todas as partes, uma por vez sobre o mesmo boneco</h2><div id="b"></div></section>
+<section id="sec-c"><h2>(c) Silhuetas: dá para dizer qual cabeça, quais braços e quais pernas?</h2><div id="c" class="linha papel"></div>
+  <h2>Silhuetas das partes sozinhas</h2><div id="c2" class="papel"></div></section>
+<section id="sec-d"><h2>(d) Remendos 0 a 5, retalhos de troféu, Fio de Ouro e brilho da Linha</h2><div id="d"></div></section>
+<section id="sec-e"><h2>(e) Retratos, partes para a arte da carta e ícones</h2><div id="e"></div></section>
+<section id="sec-f"><h2>(f) A cena do ateliê nos dois formatos</h2>
+  <div class="barra" id="fBotoes"></div>
+  <div><div class="cena"><canvas id="cenaPc"></canvas></div><div class="cena"><canvas id="cenaCel"></canvas></div></div></section>
+<div id="hud">quadros/s <b id="fps">–</b> · quadro <b id="ms">–</b> ms · partículas <b id="np">0</b></div>
+
+<script type="module">
+import { idsProntos, ficha, PARTES, CARTAS, TIPOS, NOMES_DOS_TIPOS } from './js/ponte.js'
+import { criarRig, retrato, silhueta, desenharParte, iconeDoTipo, padraoDoTecido, iconeDoBordado, iconeDoLugar, POSES } from './js/boneco-rig.js'
+
+const q = new URLSearchParams(location.search)
+const ESC = Math.max(0.3, Number(q.get('esc') || 1))
+const DPR = Math.min(2, window.devicePixelRatio || 1)
+const tFixo = q.has('t') ? Number(q.get('t')) : null
+const S = { menos: q.get('menos') === '1', lento: q.get('lento') === '1', ladoB: q.get('lado') === 'B', sec: q.get('sec') || 'a' }
+if (q.get('todas') === '1') document.body.classList.add('todas')
+const agora = () => (tFixo != null ? tFixo : performance.now())
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e }
+function tela(w, h) { const cv = document.createElement('canvas'); cv.width = Math.round(w * DPR); cv.height = Math.round(h * DPR); cv.style.width = w + 'px'; cv.style.height = h + 'px'; const c = cv.getContext('2d'); c.setTransform(DPR, 0, 0, DPR, 0, 0); return [cv, c] }
+const partesDe = (id) => Object.fromEntries(Object.entries(ficha(id).partes).map(([k, v]) => [k, v.id + '@' + v.raridade]))
+const PRONTOS = idsProntos().map((id) => ({ id, nome: ficha(id).nome, partes: partesDe(id) }))
+const lado = () => (S.ladoB ? 'B' : 'A')
+const desenhos = [] // { sec, fn(t) } — cada quadro só roda os da seção aberta
+
+// ---------- abas
+const SECOES = [['a', 'Poses'], ['b', 'Partes'], ['c', 'Silhuetas'], ['d', 'Remendos e troféus'], ['e', 'Retratos e cartas'], ['f', 'Cena e efeitos']]
+const abas = document.getElementById('abas')
+function abrir(sec) { S.sec = sec; for (const [id] of SECOES) { document.getElementById('sec-' + id).classList.toggle('on', id === sec); document.getElementById('aba-' + id).classList.toggle('on', id === sec) } }
+for (const [id, nome] of SECOES) { const b = el('button', '', `(${id}) ${nome}`); b.id = 'aba-' + id; b.onclick = () => abrir(id); abas.append(b) }
+const alterna = (id, chave, rotulo) => { const b = document.getElementById(id); const pinta = () => { b.textContent = `${rotulo}: ${S[chave] ? 'sim' : 'não'}`; b.classList.toggle('on', S[chave]) }; b.onclick = () => { S[chave] = !S[chave]; pinta() }; pinta() }
+alterna('btnMenos', 'menos', 'Menos animação'); alterna('btnLento', 'lento', 'Câmera lenta'); alterna('btnLadoB', 'ladoB', 'Mostrar lado B (espelhado, luz da lua)')
+
+// ---------- (a) poses
+const DUR = { parado: 2400, preparo: 120, golpe: 420, golpeado: 420, escudo: 620, ultimoFio: 900, caido: 450, vitoria: 720 }
+const SEGURA = { parado: 0, preparo: 700, golpe: 500, golpeado: 500, escudo: 1300, ultimoFio: 3200, caido: 1500, vitoria: 1700 }
+const NOME_POSE = { parado: 'Parado', preparo: 'Antes do golpe', golpe: 'Golpe', golpeado: 'Apanhou', escudo: 'Escudo', ultimoFio: 'Último Fio', caido: 'Caiu', vitoria: 'Vitória' }
+const PICO = { parado: 1, preparo: 1, golpe: 0.4, golpeado: 0.22, escudo: 1, ultimoFio: 1, caido: 1, vitoria: 0.52 } // o instante mais expressivo de cada pose (para foto)
+function progressoDe(pose, t) {
+  if (q.has('p')) return Number(q.get('p'))
+  if (q.get('pico') === '1') return PICO[pose]
+  const k = S.lento ? 4 : 1, d = DUR[pose] * k, ciclo = d + SEGURA[pose] + 350
+  const f = t % ciclo
+  return Math.min(1, f / d)
+}
+{
+  const A = document.getElementById('a'), cw = Math.round(150 * ESC), ch = Math.round(196 * ESC), alt = 150 * ESC, esq = 92
+  const [cab, cc] = tela(esq + cw * POSES.length, 22)
+  cc.font = '700 12px system-ui'; cc.fillStyle = '#B9A98C'; cc.textAlign = 'center'
+  POSES.forEach((p, i) => cc.fillText(NOME_POSE[p], esq + cw * (i + 0.5), 15)); A.append(cab)
+  for (const b of PRONTOS) {
+    const rig = criarRig(b.partes, { semente: b.id })
+    const [cv, c] = tela(esq + cw * POSES.length, ch); A.append(cv)
+    desenhos.push({ sec: 'a', cv, fn(t) {
+      c.clearRect(0, 0, cv.width, cv.height)
+      c.fillStyle = '#231733'; c.fillRect(esq, ch - 30 * ESC, cw * POSES.length, 30 * ESC)
+      c.font = '700 12px system-ui'; c.fillStyle = '#F2E6C9'; c.textAlign = 'left'; c.fillText(b.nome.length > 13 ? b.id : b.nome, 2, ch / 2); c.fillStyle = '#B9A98C'; c.font = '600 10px system-ui'; c.fillText(b.id, 2, ch / 2 + 14)
+      POSES.forEach((pose, i) => rig.desenhar(c, esq + cw * (i + 0.5), ch - 18 * ESC, alt, t, { pose, progresso: progressoDe(pose, t), lado: lado(), menosAnimacao: S.menos, brilhoDaLinha: 0.25 }))
+    } })
+  }
+  const B96 = document.getElementById('a96')
+  for (const b of PRONTOS) {
+    const rig = criarRig(b.partes, { semente: b.id }), [cv, c] = tela(86, 112), d = el('div', 'cel'); d.append(cv, b.id); B96.append(d)
+    desenhos.push({ sec: 'a', cv, fn(t) { c.clearRect(0, 0, 86, 112); c.fillStyle = '#231733'; c.fillRect(0, 96, 86, 16); rig.desenhar(c, 43, 104, 96, t, { pose: 'parado', lado: lado(), menosAnimacao: S.menos }) } })
+  }
+}
+
+// ---------- (b) todas as partes sobre um boneco base
+{
+  const Bx = document.getElementById('b'), base = PRONTOS[0].partes, alt = 150 * ESC, cw = Math.round(132 * ESC), ch = Math.round(182 * ESC)
+  const grupos = { cabeca: 'Cabeças', bracos: 'Braços', pernas: 'Pernas', tronco: 'Troncos', bordado: 'Bordados' }
+  for (const [slot, nome] of Object.entries(grupos)) {
+    Bx.append(el('h2', '', nome))
+    const linha = el('div', 'linha'); Bx.append(linha)
+    for (const [id, p] of Object.entries(PARTES)) {
+      if (p.slot !== slot) continue
+      const partes = { ...base, [slot]: id + '@comum' }
+      if (slot === 'bordado') partes.tronco = 'tr_la_tricotada@comum'
+      const rig = criarRig(partes, { semente: 'base' }), [cv, c] = tela(cw, ch), d = el('div', 'cel'); d.append(cv, p.nome.replace(/^(Tronco de |Bordado de )/, '')); linha.append(d)
+      desenhos.push({ sec: 'b', cv, fn(t) { c.clearRect(0, 0, cw, ch); c.fillStyle = '#231733'; c.fillRect(0, ch - 26 * ESC, cw, 26 * ESC); rig.desenhar(c, cw / 2, ch - 14 * ESC, alt, t, { pose: 'parado', lado: lado(), menosAnimacao: S.menos }) } })
+    }
+  }
+}
+
+// ---------- (c) silhuetas
+{
+  const Cx = document.getElementById('c')
+  for (const b of PRONTOS) { const d = el('div', 'cel'); d.append(silhueta(b.partes, 170 * ESC, { semente: b.id }), b.id); Cx.append(d) }
+  const C2 = document.getElementById('c2'), base = PRONTOS[0].partes
+  for (const slot of ['cabeca', 'bracos', 'pernas']) {
+    const linha = el('div', 'linha'); C2.append(linha)
+    for (const [id, p] of Object.entries(PARTES)) {
+      if (p.slot !== slot) continue
+      const [cv, c] = tela(96 * ESC, 96 * ESC); desenharParte(c, id, 48 * ESC, 48 * ESC, 88 * ESC)
+      c.globalCompositeOperation = 'source-in'; c.fillStyle = '#140C1F'; c.fillRect(0, 0, 96 * ESC, 96 * ESC)
+      const d = el('div', 'cel'); d.append(cv, p.apelido || id); linha.append(d)
+    }
+  }
+}
+
+// ---------- (d) remendos, troféus, Fio de Ouro, brilho da Linha
+{
+  const Dx = document.getElementById('d'), alt = 170 * ESC, cw = Math.round(150 * ESC), ch = Math.round(206 * ESC)
+  const fila = (titulo, itens) => {
+    Dx.append(el('h2', '', titulo)); const linha = el('div', 'linha'); Dx.append(linha)
+    for (const [rotulo, partes, op, estado] of itens) {
+      const rig = criarRig(partes, op), [cv, c] = tela(cw, ch), d = el('div', 'cel'); d.append(cv, rotulo); linha.append(d)
+      desenhos.push({ sec: 'd', cv, fn(t) { c.clearRect(0, 0, cw, ch); c.fillStyle = '#231733'; c.fillRect(0, ch - 28 * ESC, cw, 28 * ESC); rig.desenhar(c, cw / 2, ch - 15 * ESC, alt, t, { pose: 'parado', lado: lado(), menosAnimacao: S.menos, ...(estado || {}) }) } })
+    }
+  }
+  const p1 = PRONTOS[0].partes, p2 = PRONTOS[5].partes, p3 = PRONTOS[4].partes
+  fila('Remendos (Pontos de Costura): nível 0 a 5, sempre nos mesmos lugares', [0, 1, 2, 3, 4, 5].map((n) => [`nível ${n}`, p1, { remendos: n, semente: 'r' }]))
+  fila('Os mesmos lugares em outro boneco', [0, 3, 5].map((n) => [`nível ${n}`, p2, { remendos: n, semente: 'e' }]))
+  fila('Retalhos de troféu na barra do tronco', [[' sem troféu', p3, { semente: 't' }], ['4 troféus', p3, { trofeus: ['jeans', 'couro', 'la', 'feltro'], semente: 't' }], ['12 troféus', p3, { trofeus: [...TIPOS, ...TIPOS], semente: 't' }], ['12 troféus (jeans)', p1, { trofeus: [...TIPOS, ...TIPOS], semente: 'r' }]])
+  fila('Fio de Ouro (o pesponto vira ouro, com um brilho que corre devagar)', [['normal', p1, { semente: 'r' }], ['Fio de Ouro', p1, { fioDeOuro: true, semente: 'r' }], ['Fio de Ouro', p2, { fioDeOuro: true, semente: 'e' }], ['Fio de Ouro + 5 remendos + 12 troféus', p3, { fioDeOuro: true, remendos: 5, trofeus: [...TIPOS, ...TIPOS], semente: 't' }]])
+  fila('Brilho da Linha guardada (costuras acendem)', [0, 0.35, 0.7, 1].map((v) => [`brilho ${v}`, PRONTOS[2].partes, { semente: 'm' }, { brilhoDaLinha: v }]))
+  fila('Raridades (só o pesponto muda de cor)', ['comum', 'incomum', 'rara', 'lendaria'].map((r) => [r, Object.fromEntries(Object.entries(PRONTOS[6].partes).map(([k, v]) => [k, v.split('@')[0] + '@' + r])), { semente: 'c' }]))
+}
+
+// ---------- (e) retratos, partes de carta, ícones
+{
+  const Ex = document.getElementById('e')
+  Ex.append(el('h2', '', 'Retratos (96 px e 44 px)'))
+  let linha = el('div', 'linha'); Ex.append(linha)
+  for (const b of PRONTOS) { const d = el('div', 'cel'); d.append(retrato(b.partes, 96, { semente: b.id }), retrato(b.partes, 44, { semente: b.id }), b.id); linha.append(d) }
+  Ex.append(el('h2', '', 'A parte sozinha no molde da carta (5:7), com a moldura no tecido do tipo'))
+  linha = el('div', 'linha'); Ex.append(linha)
+  for (const [id, p] of Object.entries(PARTES)) {
+    if (!p.carta) continue
+    const ct = CARTAS[p.carta], W = 132, H = 185, [cv, c] = tela(W, H)
+    c.fillStyle = padraoDoTecido(c, ct.tipo); c.beginPath(); c.roundRect(1, 1, W - 2, H - 2, 12); c.fill()
+    c.strokeStyle = '#140C1F'; c.lineWidth = 2; c.stroke()
+    c.strokeStyle = '#E8D9B5'; c.lineWidth = 1.5; c.setLineDash([4, 3]); c.beginPath(); c.roundRect(5, 5, W - 10, H - 10, 9); c.stroke(); c.setLineDash([])
+    const g = c.createRadialGradient(W * 0.35, 48, 6, W / 2, 72, 76); g.addColorStop(0, '#4A3466'); g.addColorStop(1, '#1B1226')
+    c.fillStyle = g; c.beginPath(); c.roundRect(10, 10, W - 20, 104, 8); c.fill(); c.strokeStyle = '#140C1F'; c.lineWidth = 1.5; c.stroke()
+    c.save(); c.beginPath(); c.roundRect(10, 10, W - 20, 104, 8); c.clip(); desenharParte(c, id + '@comum', W / 2, 63, 98); c.restore()
+    c.fillStyle = '#F2E6C9'; c.beginPath(); c.roundRect(8, 118, W - 16, 60, 6); c.fill()
+    c.fillStyle = '#140C1F'; c.font = '800 12px system-ui'; c.textAlign = 'center'; c.fillText(ct.nome, W / 2, 134)
+    c.drawImage(iconeDoLugar(ct.parte, 22), 12, 152, 22, 22); c.drawImage(iconeDoTipo(ct.tipo, 22), W - 34, 152, 22, 22)
+    c.font = '600 10px system-ui'; c.fillStyle = '#3A2752'; c.fillText(p.nome, W / 2, 148)
+    // custo num carretel
+    c.fillStyle = '#B07A45'; c.strokeStyle = '#140C1F'; c.lineWidth = 1.5; c.beginPath(); c.arc(20, 20, 13, 0, 7); c.fill(); c.stroke(); c.fillStyle = '#FF4D8D'; c.beginPath(); c.arc(20, 20, 9, 0, 7); c.fill(); c.stroke()
+    c.fillStyle = '#fff'; c.font = '800 13px system-ui'; c.fillText(String(ct.linha), 20, 24.5)
+    const d = el('div', 'cel'); d.append(cv, id); linha.append(d)
+  }
+  Ex.append(el('h2', '', 'Partes sem carta: troncos e bordados'))
+  linha = el('div', 'linha'); Ex.append(linha)
+  for (const [id, p] of Object.entries(PARTES)) {
+    if (p.carta) continue
+    const [cv, c] = tela(110, 110); c.fillStyle = '#231733'; c.beginPath(); c.roundRect(0, 0, 110, 110, 10); c.fill(); desenharParte(c, id, 55, 55, p.slot === 'bordado' ? 70 : 100)
+    const d = el('div', 'cel'); d.append(cv, id); linha.append(d)
+  }
+  Ex.append(el('h2', '', 'Ícones: tecidos (cor + padrão + forma), bordados e lugares — em 48, 28 e 18 px'))
+  for (const tam of [48, 28, 18]) {
+    linha = el('div', 'linha'); Ex.append(linha)
+    for (const t of TIPOS) { const d = el('div', 'cel'); d.append(iconeDoTipo(t, tam), tam > 20 ? NOMES_DOS_TIPOS[t] : ''); linha.append(d) }
+    for (const [id, p] of Object.entries(PARTES)) if (p.slot === 'bordado') { const d = el('div', 'cel'); d.append(iconeDoBordado(p.bordado, tam), tam > 40 ? p.bordado : ''); linha.append(d) }
+    for (const l of ['cabeca', 'bracos', 'pernas']) { const d = el('div', 'cel'); d.append(iconeDoLugar(l, tam), tam > 20 ? l : ''); linha.append(d) }
+  }
+}
+
+// ---------- (f) cena + efeitos (g) contadores
+const hud = { fps: document.getElementById('fps'), ms: document.getElementById('ms'), np: document.getElementById('np') }
+let fxGlobal = null
+try {
+  const { criarCenario } = await import('./js/cenario.js')
+  const { criarEfeitos } = await import('./js/efeitos.js')
+  const TIME_A = ['pisoteador', 'desfiado', 'assombrado'], TIME_B = ['rasgao', 'cascudo', 'mudo']
+  const rigs = { A: TIME_A.map((id) => criarRig(partesDe(id), { semente: id })), B: TIME_B.map((id) => criarRig(partesDe(id), { semente: id, remendos: id === 'cascudo' ? 3 : 0 })) }
+  const E = { degrau: Number(q.get('degrau') || 0), corte: null, vezDe: 'A', turno: 1, pose: q.get('pose') || 'parado', t0: performance.now(), brilho: 0.4 }
+  const F = document.getElementById('fBotoes')
+  const botao = (txt, fn) => { const b = el('button', '', txt); b.onclick = fn; F.append(b); return b }
+  const vistas = [['cenaPc', 'pc', Number(q.get('pcw') || 960), Number(q.get('pch') || 480)], ['cenaCel', 'celular', Number(q.get('celw') || 360), Number(q.get('celh') || 520)]].map(([id, formato, w, h]) => {
+    const cv = document.getElementById(id); cv.width = w * DPR; cv.height = h * DPR; cv.style.width = w + 'px'; cv.style.height = h + 'px'
+    return { cv, c: cv.getContext('2d'), formato, w, h, cenario: criarCenario({ semente: 'atelie' }), fx: criarEfeitos({ maxParticulas: 90 }) }
+  })
+  fxGlobal = vistas
+  for (let d = 0; d <= 3; d++) botao('Tesoura ' + d, () => { E.degrau = d })
+  botao('Cortar!', () => { E.corte = performance.now() })
+  botao('Vez: A/B', () => { E.vezDe = E.vezDe === 'A' ? 'B' : 'A' })
+  botao('Turno +1', () => { E.turno++ })
+  for (const p of POSES) botao(NOME_POSE[p], () => { E.pose = p; E.t0 = performance.now() })
+  const alvo = (v) => { const L = v.cenario.lugares(v.w, v.h, v.formato).B[0]; return { x: L.x, y: L.y - L.altura * 0.45, chao: L.y, alt: L.altura } }
+  const efeitos = {
+    'Enchimento': (v, a) => v.fx.enchimento(a.x, a.y, 16, { chao: a.chao }),
+    'Crítico (costura estoura)': (v, a) => v.fx.costuraEstourando(a.x, a.y, { chao: a.chao }),
+    'Fiapos': (v, a) => v.fx.fiapos(a.x, a.y, '#3F6FB5', 10),
+    'Impacto': (v, a) => v.fx.impacto(a.x, a.y, 1),
+    'Impacto forte': (v, a) => v.fx.impacto(a.x, a.y, 2),
+    'Brilho': (v, a) => v.fx.brilho(a.x, a.y - a.alt * 0.2, '#6FCF6B'),
+    'Poeira': (v, a) => v.fx.poeira(a.x, a.chao, 8),
+  }
+  for (const [nome, fn] of Object.entries(efeitos)) botao(nome, () => { for (const v of vistas) fn(v, alvo(v)) })
+  botao('Tudo de uma vez (teto de 90)', () => { for (const v of vistas) { const a = alvo(v); for (let i = 0; i < 6; i++) v.fx.costuraEstourando(a.x + i * 6, a.y, { chao: a.chao }) } })
+  let antes = performance.now()
+  /** Um quadro de uma vista: cena, 6 bonecos nos lugares, efeitos e a frente (tesoura e vinheta). */
+  function desenharVista(v, t, dt, pr, cp) {
+    const c = v.c
+    c.setTransform(DPR, 0, 0, DPR, 0, 0)
+    const est = { formato: v.formato, turno: E.turno, tesoura: { degrau: E.degrau, cortando: E.corte != null, progresso: Math.min(1, cp) }, vezDe: E.vezDe, menosAnimacao: S.menos }
+    v.cenario.desenhar(c, v.w, v.h, t, { ...est, semFrente: true })
+    const L = v.cenario.lugares(v.w, v.h, v.formato), lista = []
+    for (const time of ['A', 'B']) L[time].forEach((l, i) => lista.push({ l, rig: rigs[time][i], time }))
+    lista.sort((a, b) => a.l.y - b.l.y)
+    for (const o of lista) o.rig.desenhar(c, o.l.x, o.l.y, o.l.altura, t, { pose: E.pose, progresso: pr, lado: o.time, menosAnimacao: S.menos, brilhoDaLinha: o.time === E.vezDe ? E.brilho : 0.1, fioAteY: -20 })
+    v.fx.modoCalmo(S.menos); v.fx.atualizar(dt); v.fx.desenhar(c)
+    v.cenario.desenharFrente(c, v.w, v.h, t, est)
+  }
+  const progressoDaCena = (real) => (q.has('p') ? Number(q.get('p')) : q.get('pico') === '1' ? PICO[E.pose] : Math.min(1, (real - E.t0) / ((DUR[E.pose] || 400) * (S.lento ? 4 : 1))))
+  desenhos.push({ sec: 'f', fn(t) {
+    if (E.medindo) return
+    const real = performance.now(), dt = Math.min(50, real - antes); antes = real
+    const cp = q.has('corte') ? Number(q.get('corte')) : E.corte != null ? (real - E.corte) / (S.lento ? 4400 : 1100) : 0
+    if (q.has('corte')) E.corte = 0; else if (cp >= 1) E.corte = null
+    let n = 0
+    for (const v of vistas) { desenharVista(v, t, q.has('t') && !E.soltou ? 0 : dt, progressoDaCena(real), cp); n += v.fx.contagem() }
+    hud.np.textContent = n
+  } })
+  /** Medição para o teste: n quadros de UMA vista (cena + 6 bonecos + efeitos disparando), tempo médio de desenho por quadro. */
+  async function medir(n = 300, { vista = 0, forcar = false } = {}) {
+    const v = vistas[vista], poses = ['parado', 'golpe', 'golpeado', 'parado', 'ultimoFio', 'vitoria', 'parado', 'caido']
+    E.medindo = true
+    let soma = 0, maior = 0, pico = 0, t0 = performance.now(), ultimo = t0, intervalos = 0
+    for (let i = 0; i < n; i++) {
+      await new Promise((ok) => requestAnimationFrame(ok))
+      const real = performance.now(), dt = Math.min(50, real - ultimo); intervalos += real - ultimo; ultimo = real
+      if (i % 40 === 0) { E.pose = poses[(i / 40) % poses.length]; E.t0 = real }
+      if (i % 45 === 10) { const a = alvo(v); v.fx.costuraEstourando(a.x, a.y, { chao: a.chao }); v.fx.impacto(a.x, a.y, 2) }
+      if (i % 45 === 30) { const a = alvo(v); v.fx.fiapos(a.x, a.y, '#3F6FB5', 12); v.fx.poeira(a.x, a.chao, 8); v.fx.brilho(a.x, a.y, '#6FCF6B') }
+      const ini = performance.now()
+      desenharVista(v, real, dt, Math.min(1, (real - E.t0) / (DUR[E.pose] || 400)), 0)
+      if (forcar) v.c.getImageData(0, 0, 1, 1) // obriga o navegador a pintar de verdade antes de parar o relógio (só na medição)
+      const d = performance.now() - ini; soma += d; if (d > maior && i > 5) maior = d; pico = Math.max(pico, v.fx.contagem())
+    }
+    E.medindo = false; E.pose = 'parado'
+    return { quadros: n, mediaMs: soma / n, maiorMs: maior, intervaloMedioMs: intervalos / n, picoDeParticulas: pico, largura: v.w, altura: v.h, densidade: DPR, forcar }
+  }
+  window.__arte = { E, S, vistas, rigs, efeitos, alvo, medir, soltarEfeito(nome) { E.soltou = true; for (const v of vistas) efeitos[nome](v, alvo(v)) } }
+} catch (e) { console.error('cena/efeitos: ' + (e && e.stack || e)); document.getElementById('sec-f').append(el('p', 'nota', 'A cena ainda não carregou: ' + e.message)) }
+
+// ---------- laço de desenho + contador de quadros
+abrir(S.sec)
+let quadros = 0, t0 = performance.now(), soma = 0
+function quadro() {
+  const ini = performance.now(), t = agora()
+  const todas = document.body.classList.contains('todas')
+  for (const d of desenhos) if (todas || d.sec === S.sec) d.fn(t)
+  soma += performance.now() - ini; quadros++
+  if (ini - t0 > 500) { hud.fps.textContent = Math.round((quadros * 1000) / (ini - t0)); hud.ms.textContent = (soma / quadros).toFixed(1); quadros = 0; soma = 0; t0 = ini }
+  requestAnimationFrame(quadro)
+}
+requestAnimationFrame(quadro)
+window.__pronto = true
+</script></body></html>

@@ -1,0 +1,692 @@
+/* Frayz — PEÇAS da interface. Régua: docs/guia-de-estilo.md (o ateliê da costureira-bruxa).
+   Cada peça é um objeto do ateliê. Todas as classes começam com "fz-" (não esbarram no frayz.css).
+   Formato: o antepassado com data-formato="pc" | "celular" decide o tamanho das peças (sem ele, vale o do PC).
+   "Menos animação": body.menos-animacao, html[data-menos="1"] ou a preferência do aparelho (fim do arquivo). */
+
+/* ============================================================ 1. LETRAS (OFL-1.1; créditos em CREDITOS.md) */
+@font-face { font-family: "Lilita One"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("../fontes/lilita-one-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Lilita One"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("../fontes/lilita-one-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Nunito"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("../fontes/nunito-latin-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Nunito"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("../fontes/nunito-latin-600-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Nunito"; font-style: normal; font-weight: 800; font-display: swap;
+  src: url("../fontes/nunito-latin-ext-800-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Nunito"; font-style: normal; font-weight: 800; font-display: swap;
+  src: url("../fontes/nunito-latin-800-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+/* ============================================================ 2. VARIÁVEIS DO GUIA (cor, letra, espaço, canto) */
+:root {
+  /* guia §2: fundo escuro e quente */
+  --noite-funda: #140C1F; --noite: #1B1226; --pano-escuro: #2A1B3D; --pano-claro: #3A2752; --borda: #5A4378;
+  --linho: #F2E6C9; --linho-apagado: #B9A98C;
+  --ouro-de-vela: #FFC857; --chama: #FF9F1C; --fio-da-maldicao: #FF4D8D; --vida: #6FCF6B; --dano: #FF5A5F; --escudo: #6EC1FF;
+  /* tecidos */
+  --tec-jeans: #3F6FB5; --tec-seda: #D65DB1; --tec-la: #D9C9A3; --tec-feltro: #5E9C76; --tec-tule: #B9A7E8; --tec-couro: #8B5A2B;
+  /* raridade: só no pesponto e na etiqueta */
+  --rar-comum: #E8D9B5; --rar-incomum: #7BD88F; --rar-rara: #5BB8FF; --rar-lendaria: #FFC857;
+  /* materiais do ateliê que o guia cita mas não numera (carretel, bastidor, prateleira, dedal, alfinete) */
+  --madeira-clara: #E3B77A; --madeira: #C9965A; --madeira-escura: #6B4423; --metal: #C9CED6; --metal-escuro: #6F7785;
+  /* guia §3: letras */
+  --letra-titulo: "Lilita One", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --letra-texto: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* guia §4: grade de 4 px */
+  --e1: 4px; --e2: 8px; --e3: 12px; --e4: 16px; --e5: 24px; --e6: 32px;
+  --canto-painel: 10px; --canto-cartao: 14px; --canto-etiqueta: 999px;
+  --toque: 44px;
+  /* trama fina de pano para fundo de painel */
+  --trama: repeating-linear-gradient(0deg, rgba(242, 230, 201, 0.035) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(20, 12, 31, 0.10) 0 1px, transparent 1px 3px);
+}
+
+:where([class^="fz-"], [class*=" fz-"]) { box-sizing: border-box; }
+:where([class^="fz-"], [class*=" fz-"])[hidden] { display: none !important; }
+
+/* pesponto: a costura tracejada por dentro da borda (SVG criado por base.js) */
+.fz-pesponto { position: absolute; overflow: visible; pointer-events: none; }
+.fz-pesponto rect { fill: none; stroke: var(--fz-ponto, rgba(242, 230, 201, 0.55)); stroke-width: 1.6; stroke-dasharray: 5 4; stroke-linecap: round; }
+
+/* ============================================================ 3. CARRETEL (custo da carta e Linha) */
+.fz-carretel__svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.fz-carretel__aba { fill: var(--madeira); stroke: var(--noite-funda); stroke-width: 1.8; }
+.fz-carretel__veio { fill: none; stroke: rgba(255, 240, 205, 0.6); stroke-width: 1.2; stroke-linecap: round; }
+.fz-carretel__miolo { fill: var(--madeira-escura); stroke: var(--noite-funda); stroke-width: 1.4; }
+.fz-carretel__oco { fill: rgba(20, 12, 31, 0.86); }
+.fz-carretel__barriga { fill: var(--fio-da-maldicao); stroke: var(--noite-funda); stroke-width: 1.8; stroke-linejoin: round; }
+.fz-carretel__voltas { fill: none; stroke: #FFA9C8; stroke-width: 1.1; stroke-linecap: round; opacity: 0.9; }
+.fz-carta__carretel .fz-carretel__voltas, .fz-ficha__custo .fz-carretel__voltas { opacity: 0.38; }
+.fz-carretel__brilho { fill: none; stroke: rgba(255, 255, 255, 0.8); stroke-width: 1.6; stroke-linecap: round; }
+.fz-carretel__linha { transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(0.08); opacity: 0;
+  transition: transform 260ms cubic-bezier(0.2, 1.5, 0.4, 1) var(--atraso, 0ms), opacity 120ms linear var(--atraso, 0ms); }
+.fz-carretel--cheio .fz-carretel__linha { transform: scaleY(1); opacity: 1; }
+.fz-carretel--cheio .fz-carretel__oco { opacity: 0; }
+
+/* ============================================================ 4. CARTA (molde de costura com moldura do tecido do tipo) */
+.fz-carta {
+  --fz-carta-l: 132px; --u: calc(var(--fz-carta-l) / 132);
+  --fz-tec: var(--borda); --fz-tec-luz: #8C76AE; --fz-tec-sombra: var(--pano-escuro); --fz-ponto: var(--rar-comum); --fz-nome-k: 1;
+  position: relative; display: block; flex: none; width: var(--fz-carta-l); height: calc(var(--fz-carta-l) * 1.4);
+  padding: 0; margin: 0; border: 0; background: none; color: var(--linho); text-align: left; cursor: pointer;
+  font: 600 calc(13 * var(--u)) / 1.18 var(--letra-texto); border-radius: calc(14 * var(--u));
+  appearance: none; -webkit-appearance: none; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+}
+div.fz-carta { cursor: default; }
+.fz-carta:focus-visible { outline: 3px solid var(--ouro-de-vela); outline-offset: 3px; }
+.fz-carta__moldura { position: absolute; inset: 0; border-radius: inherit; background-color: var(--fz-tec);
+  background-image: linear-gradient(140deg, rgba(255, 238, 196, 0.30), rgba(255, 238, 196, 0) 36%, rgba(20, 12, 31, 0) 60%, rgba(20, 12, 31, 0.45)), var(--fz-tecido-img, none);
+  background-size: auto, 48px 48px;
+  box-shadow: inset 0 0 0 calc(2 * var(--u)) var(--noite-funda), 0 calc(3 * var(--u)) 0 var(--noite-funda), 0 calc(8 * var(--u)) calc(12 * var(--u)) rgba(10, 4, 18, 0.5); }
+.fz-carta__costura, .fz-carta__fios { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.fz-carta__ponto, .fz-carta__ponto-maldicao { fill: none; stroke-width: 1.5; stroke-dasharray: 3.8 3.2; stroke-linecap: round; }
+.fz-carta__ponto { stroke: var(--fz-ponto); }
+.fz-carta__ponto-maldicao { stroke: var(--fio-da-maldicao); opacity: 0; filter: drop-shadow(0 0 1.6px var(--fio-da-maldicao)); }
+/* Lendária: um brilho corre devagar pela costura (só a costura tem cor de raridade) */
+.fz-carta__ponto-brilho { display: none; fill: none; stroke: #FFF6D0; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 5 95; filter: drop-shadow(0 0 2px var(--rar-lendaria)); }
+.fz-carta[data-raridade="lendaria"] .fz-carta__ponto-brilho { display: inline; animation: fz-corre 5s linear infinite; }
+@keyframes fz-corre { to { stroke-dashoffset: -100; } }
+.fz-carta__fios { opacity: 0; }
+.fz-carta__fio-borda { fill: none; stroke: var(--noite-funda); stroke-width: 3.2; stroke-linecap: round; }
+.fz-carta__fio { fill: none; stroke: var(--fz-tec-luz); stroke-width: 1.5; stroke-linecap: round; }
+
+.fz-carta__miolo { position: absolute; inset: calc(7 * var(--u)) calc(7 * var(--u)) calc(26 * var(--u)); border-radius: calc(8 * var(--u)); display: flex; flex-direction: column;
+  background-color: var(--pano-escuro); background-image: var(--trama); box-shadow: 0 0 0 calc(1.5 * var(--u)) var(--noite-funda); }
+/* o desenho da parte, sobre um retalho escuro com a luz da vela (esquerda) e da lua (direita) */
+.fz-carta__arte { position: relative; flex: none; height: calc(70 * var(--u)); overflow: hidden; border-radius: calc(7.5 * var(--u)) calc(7.5 * var(--u)) 0 0;
+  background-color: #1E1430; background-color: color-mix(in srgb, var(--fz-tec) 20%, #1A1029);
+  background-image: radial-gradient(95% 110% at 14% 0%, rgba(255, 200, 87, 0.46), rgba(255, 159, 28, 0.12) 46%, transparent 72%), radial-gradient(70% 90% at 104% 24%, rgba(110, 193, 255, 0.24), transparent 64%), var(--trama); }
+.fz-carta__arte canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: contain; }
+/* o nome numa fita de cetim que dá a volta na carta */
+.fz-carta__fita { position: relative; z-index: 2; flex: none; margin: calc(-9 * var(--u)) calc(-7 * var(--u)) 0; height: calc(22 * var(--u)); padding: 0 calc(9 * var(--u));
+  display: flex; align-items: center; justify-content: center; background-color: var(--linho);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 34%, rgba(120, 88, 36, 0) 58%, rgba(120, 88, 36, 0.34));
+  box-shadow: 0 calc(-1.5 * var(--u)) 0 var(--noite-funda), 0 calc(1.5 * var(--u)) 0 var(--noite-funda), 0 calc(4 * var(--u)) calc(3 * var(--u)) rgba(10, 4, 18, 0.35); }
+.fz-carta__fita::before, .fz-carta__fita::after { content: ""; position: absolute; top: calc(4 * var(--u)); bottom: calc(4 * var(--u)); width: 0; border-left: calc(1.4 * var(--u)) dashed rgba(20, 12, 31, 0.5); }
+.fz-carta__fita::before { left: calc(4 * var(--u)); } .fz-carta__fita::after { right: calc(4 * var(--u)); }
+.fz-carta__nome { font: 400 calc(14.5 * var(--u) * var(--fz-nome-k)) / 1 var(--letra-titulo); color: var(--noite-funda); white-space: nowrap; letter-spacing: 0.01em; }
+/* texto em linho: palavra-chave em negrito, número em ouro */
+.fz-carta__texto { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; padding: calc(3 * var(--u)) calc(6 * var(--u)) calc(2 * var(--u)); font: 600 calc(13 * var(--u)) / 1.18 var(--letra-texto); color: var(--linho); }
+.fz-carta__frase { display: block; width: 100%; text-wrap: balance; }
+.fz-chave { font-weight: 800; color: #FFF7E3; }
+.fz-num { font-weight: 800; color: var(--ouro-de-vela); font-variant-numeric: tabular-nums; }
+.fz-carta__fiapo { display: none; }
+/* rodapé: uma faixa do próprio tecido, com o ícone do lugar da parte e a carinha do dono */
+.fz-carta__rodape { position: absolute; z-index: 1; left: calc(9 * var(--u)); right: calc(9 * var(--u)); bottom: calc(5.5 * var(--u)); height: calc(18 * var(--u)); display: flex; align-items: center; justify-content: space-between; gap: calc(4 * var(--u)); }
+.fz-carta__lugar { flex: none; display: inline-flex; align-items: center; gap: calc(4 * var(--u)); }
+.fz-carta__dono { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: calc(4 * var(--u)); }
+.fz-carta__lugar canvas { flex: none; width: calc(18 * var(--u)); height: calc(18 * var(--u)); display: block; filter: drop-shadow(0 calc(1 * var(--u)) 0 rgba(10, 4, 18, 0.55)); }
+.fz-carta__dono canvas { flex: none; width: calc(18 * var(--u)); height: calc(18 * var(--u)); display: block; border-radius: 50%; background-color: var(--pano-claro);
+  box-shadow: 0 0 0 calc(1.5 * var(--u)) var(--noite-funda), 0 calc(1.5 * var(--u)) 0 calc(1.5 * var(--u)) rgba(10, 4, 18, 0.55); }
+.fz-carta__lugar-nome, .fz-carta__dono-nome { display: none; }
+/* custo num carretel */
+.fz-carta__carretel { position: absolute; z-index: 3; left: calc(-6 * var(--u)); top: calc(-7 * var(--u)); width: calc(32 * var(--u)); height: calc(38.4 * var(--u)); filter: drop-shadow(0 calc(2 * var(--u)) 0 rgba(10, 4, 18, 0.65)); }
+.fz-carta__custo { --fz-fundo: #140C1F; position: absolute; left: 0; right: 0; top: calc(9 * var(--u)); height: calc(20.4 * var(--u)); display: grid; place-items: center;
+  font: 400 calc(19 * var(--u)) / 1 var(--letra-titulo); color: var(--linho); font-variant-numeric: tabular-nums; }
+.fz-carretel--cheio > .fz-carta__custo { --fz-fundo: #FF4D8D; color: var(--noite-funda); }
+/* retalho redondo do tipo */
+.fz-carta__tipo { position: absolute; z-index: 3; right: calc(-4 * var(--u)); top: calc(-4 * var(--u)); width: calc(23 * var(--u)); height: calc(23 * var(--u)); filter: drop-shadow(0 calc(2 * var(--u)) 0 rgba(10, 4, 18, 0.65)); }
+.fz-carta__tipo canvas { display: block; width: 100%; height: 100%; }
+.fz-carta__marca { position: absolute; z-index: 5; right: calc(-7 * var(--u)); top: calc(20 * var(--u)); }
+/* alfinete da carta selecionada */
+.fz-carta__alfinete { display: none; position: absolute; z-index: 6; left: 50%; top: calc(-18 * var(--u)); width: calc(18 * var(--u)); height: calc(30 * var(--u)); margin-left: calc(-9 * var(--u)); overflow: visible; transform: rotate(13deg); transform-origin: 50% 90%; filter: drop-shadow(0 calc(2 * var(--u)) 0 rgba(10, 4, 18, 0.6)); }
+.fz-carta__alfinete .fz-alfinete__cabeca { fill: var(--ouro-de-vela); }
+/* costas (animação de comprar) */
+.fz-carta__verso { display: none; position: absolute; inset: 0; z-index: 7; border-radius: inherit; background-color: var(--pano-claro); background-image: var(--trama); box-shadow: inset 0 0 0 calc(2 * var(--u)) var(--noite-funda); }
+.fz-carta__verso svg { width: 100%; height: 100%; display: block; }
+.fz-verso__ponto { fill: none; stroke: var(--linho-apagado); stroke-width: 1.7; stroke-dasharray: 4.2 3.2; stroke-linecap: round; }
+.fz-verso__x { fill: none; stroke: var(--fio-da-maldicao); stroke-width: 6; stroke-linecap: round; }
+.fz-verso__botao { fill: none; stroke: var(--borda); stroke-width: 3; stroke-dasharray: 6 5; stroke-linecap: round; }
+.fz-carta--de-costas .fz-carta__verso { display: block; }
+
+/* ---- estados */
+/* jogável: o fio da maldição corre no pesponto e pulsa devagar (1,6 s) */
+.fz-carta[data-estado~="jogavel"] .fz-carta__ponto-maldicao { opacity: 1; animation: fz-pulsa-ponto 1.6s ease-in-out infinite; }
+@keyframes fz-pulsa-ponto { 0%, 100% { opacity: 0.28; } 50% { opacity: 1; } }
+/* selecionada: costura acesa e parada, contorno do fio e um alfinete dourado */
+.fz-carta[data-estado~="selecionada"] .fz-carta__ponto-maldicao { opacity: 1; animation: none; stroke-width: 2.3; }
+.fz-carta[data-estado~="selecionada"] .fz-carta__moldura { box-shadow: inset 0 0 0 calc(2 * var(--u)) var(--noite-funda), 0 0 0 calc(2.5 * var(--u)) var(--fio-da-maldicao), 0 0 calc(16 * var(--u)) calc(2 * var(--u)) rgba(255, 77, 141, 0.6), 0 calc(8 * var(--u)) calc(12 * var(--u)) rgba(10, 4, 18, 0.5); }
+.fz-carta[data-estado~="selecionada"] .fz-carta__alfinete { display: block; }
+/* sem Linha: 40% menos cor e carretel vazio (nunca cinza chapado) */
+.fz-carta[data-estado~="sem-linha"] :is(.fz-carta__moldura, .fz-carta__arte, .fz-carta__tipo, .fz-carta__dono canvas) { filter: saturate(0.6) brightness(0.86); }
+.fz-carta[data-estado~="sem-linha"] .fz-carta__texto { color: var(--linho-apagado); }
+.fz-carta[data-estado~="sem-linha"] .fz-chave { color: var(--linho); }
+/* fiapo: bordas desfiadas, fios soltos e a frase */
+.fz-carta[data-estado~="fiapo"] .fz-carta__moldura { filter: url(#fz-desfiado) saturate(0.5) brightness(0.9); }
+.fz-carta[data-estado~="fiapo"] .fz-carta__fios { opacity: 1; }
+.fz-carta[data-estado~="fiapo"] .fz-carta__ponto { stroke-dasharray: 3 7 6 5 2 9; opacity: 0.75; }
+.fz-carta[data-estado~="fiapo"] :is(.fz-carta__arte, .fz-carta__tipo) { filter: saturate(0.35) brightness(0.78); }
+.fz-carta[data-estado~="fiapo"] .fz-carta__texto { display: none; }
+.fz-carta[data-estado~="fiapo"] .fz-carta__fiapo { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; margin: calc(7 * var(--u)) calc(6 * var(--u)) calc(6 * var(--u)); padding: calc(3 * var(--u)) calc(5 * var(--u));
+  font: 800 calc(13 * var(--u)) / 1.15 var(--letra-texto); text-align: center; text-wrap: balance; color: var(--noite-funda); background-color: var(--linho);
+  border-radius: calc(4 * var(--u)); transform: rotate(-2.5deg); box-shadow: 0 0 0 calc(1.5 * var(--u)) var(--noite-funda), 0 calc(3 * var(--u)) 0 rgba(10, 4, 18, 0.5); outline: calc(1.2 * var(--u)) dashed rgba(20, 12, 31, 0.45); outline-offset: calc(-4 * var(--u)); }
+
+/* ---- variante MINI (mão do celular): só custo, desenho e nome */
+.fz-carta[data-variante="mini"] { --u: calc(var(--fz-carta-l) / 88); border-radius: calc(11 * var(--u)); }
+.fz-carta[data-variante="mini"] .fz-carta__miolo { inset: calc(5 * var(--u)); border-radius: calc(7 * var(--u)); }
+.fz-carta[data-variante="mini"] .fz-carta__costura rect { stroke-width: 1.9; }
+.fz-carta[data-variante="mini"] .fz-carta__arte { flex: 1 1 auto; height: auto; border-radius: calc(6.5 * var(--u)) calc(6.5 * var(--u)) 0 0; }
+.fz-carta[data-variante="mini"] .fz-carta__fita { margin: 0 calc(-5 * var(--u)) calc(2 * var(--u)); height: auto; min-height: 32px; padding: 2px calc(7 * var(--u)) 3px; }
+.fz-carta[data-variante="mini"] .fz-carta__fita::before, .fz-carta[data-variante="mini"] .fz-carta__fita::after { display: none; }
+.fz-carta[data-variante="mini"] .fz-carta__fita { justify-content: flex-start; }
+.fz-carta[data-variante="mini"] .fz-carta__nome { max-width: 100%; font-size: max(13px, calc(13.5 * var(--u))); line-height: 1.02; white-space: normal; text-align: left; }
+/* carta coberta pela vizinha (leque do celular): nome abreviado limpo, do tamanho da faixa à vista (mao.js mede) */
+.fz-carta--coberta .fz-carta__nome { font-size: 0 !important; white-space: nowrap; padding-left: var(--fz-nome-recuo, 0px); }
+.fz-carta--coberta .fz-carta__nome::before { content: attr(data-curto); font: 400 max(13px, calc(13.5 * var(--u))) / 1.02 var(--letra-titulo); }
+.fz-carta[data-variante="mini"] :is(.fz-carta__texto, .fz-carta__rodape) { display: none; }
+.fz-carta[data-variante="mini"] .fz-carta__carretel { left: calc(-4 * var(--u)); top: calc(-5 * var(--u)); width: calc(29 * var(--u)); height: calc(34.8 * var(--u)); }
+.fz-carta[data-variante="mini"] .fz-carta__custo { top: calc(8.2 * var(--u)); height: calc(18.4 * var(--u)); font-size: max(14px, calc(17.5 * var(--u))); }
+.fz-carta[data-variante="mini"] .fz-carta__tipo { right: calc(-3 * var(--u)); top: calc(-3 * var(--u)); width: calc(22 * var(--u)); height: calc(22 * var(--u)); }
+.fz-carta[data-variante="mini"][data-estado~="fiapo"] .fz-carta__fiapo { position: absolute; left: 50%; top: 34%; flex: none; margin: 0; padding: 3px 8px; font-size: 0; transform: translate(-50%, -50%) rotate(-8deg); white-space: nowrap; outline: none; z-index: 3; }
+.fz-carta[data-variante="mini"][data-estado~="fiapo"] .fz-carta__fiapo::before { content: attr(data-curto); font: 800 13px/1.1 var(--letra-texto); }
+
+/* ---- variante AMPLIADA: o texto inteiro, o nome do lugar e o nome do dono */
+.fz-carta[data-variante="ampliada"] .fz-carta__miolo { bottom: calc(28 * var(--u)); }
+.fz-carta[data-variante="ampliada"] .fz-carta__arte { height: calc(82 * var(--u)); }
+.fz-carta[data-variante="ampliada"] .fz-carta__texto { padding: calc(4 * var(--u)) calc(8 * var(--u)); font-size: max(14px, calc(8.4 * var(--u))); line-height: 1.3; }
+/* na ampliada o rodapé vira uma etiqueta de linho costurada sobre o tecido: lugar da parte e nome do dono */
+.fz-carta[data-variante="ampliada"] .fz-carta__rodape { left: calc(8 * var(--u)); right: calc(8 * var(--u)); bottom: calc(6 * var(--u)); height: calc(19 * var(--u)); gap: calc(4 * var(--u)); }
+.fz-carta[data-variante="ampliada"] .fz-carta__lugar, .fz-carta[data-variante="ampliada"] .fz-carta__dono { height: 100%; padding: 0 calc(4 * var(--u)); border-radius: calc(3 * var(--u)); background-color: var(--linho); box-shadow: 0 0 0 calc(1 * var(--u)) var(--noite-funda), 0 calc(1.5 * var(--u)) 0 rgba(10, 4, 18, 0.5); }
+.fz-carta[data-variante="ampliada"] .fz-carta__dono { padding-right: calc(1.5 * var(--u)); }
+.fz-carta[data-variante="ampliada"] .fz-carta__lugar canvas { width: calc(12 * var(--u)); height: calc(12 * var(--u)); filter: none; }
+.fz-carta[data-variante="ampliada"] .fz-carta__dono canvas { width: calc(15 * var(--u)); height: calc(15 * var(--u)); box-shadow: 0 0 0 calc(1 * var(--u)) var(--noite-funda); }
+.fz-carta[data-variante="ampliada"] .fz-carta__lugar-nome { display: inline; font: 800 max(13px, calc(6.6 * var(--u))) / 1 var(--letra-texto); color: var(--noite-funda); }
+.fz-carta[data-variante="ampliada"] .fz-carta__dono-nome { display: inline; min-width: 0; font: 800 max(13px, calc(6.2 * var(--u))) / 1.02 var(--letra-texto); color: var(--noite-funda); text-align: right; text-wrap: balance; }
+.fz-carta[data-variante="ampliada"][data-estado~="fiapo"] .fz-carta__fiapo { font-size: max(14px, calc(9 * var(--u))); margin: calc(8 * var(--u)) calc(10 * var(--u)) calc(7 * var(--u)); }
+
+/* ============================================================ 5. MÃO (leque) e carta ampliada */
+.fz-mao { position: relative; width: 100%; height: 205px; pointer-events: none; touch-action: manipulation; isolation: isolate; } /* isolada: a ordem das cartas não passa por cima de legendas e avisos de fora */
+.fz-mao__ancora { position: absolute; left: 50%; bottom: 8px; width: 0; height: 0; }
+.fz-mao .fz-carta { position: absolute; left: calc(var(--fz-carta-l) / -2); bottom: 0; z-index: var(--z, 1); pointer-events: auto; transform-origin: 50% 100%;
+  transform: translate(calc(var(--x, 0px) + var(--abre, 0px)), calc(var(--y, 0px) + var(--desce, 0px) - var(--sobe, 0px))) rotate(calc(var(--r, 0deg) * var(--torto, 1))) scale(var(--s, 1));
+  transition: transform 170ms cubic-bezier(0.25, 0.9, 0.35, 1.15); }
+.fz-mao .fz-carta.fz-foco { --s: 1.25; --torto: 0; --sobe: 20px; z-index: 60; }
+.fz-mao[data-variante="mini"] .fz-carta.fz-foco { --s: 1.1; --sobe: 8px; }
+.fz-mao .fz-carta[data-estado~="selecionada"] { --torto: 0; --sobe: 26px; z-index: 55; }
+.fz-mao[data-variante="mini"] .fz-carta[data-estado~="selecionada"] { --sobe: 12px; }
+.fz-mao .fz-carta[data-estado~="selecionada"].fz-foco { z-index: 61; }
+/* vez do rival: a mão abaixa 30%, com cor (a carta sob o mouse ainda sobe para ser lida) */
+.fz-mao[data-rival="1"] .fz-carta { --desce: calc(var(--fz-carta-l) * 0.42); }
+.fz-mao[data-rival="1"] .fz-carta.fz-foco { --desce: 0px; }
+.fz-carta--voando { position: fixed; z-index: 300; pointer-events: none; }
+.fz-fiapo { position: fixed; z-index: 301; height: 3px; border-radius: 2px; pointer-events: none; box-shadow: 0 0 0 1px rgba(20, 12, 31, 0.7); }
+
+.fz-lupa { position: absolute; inset: 0; z-index: 90; display: grid; place-items: center; padding: var(--e4); background-color: rgba(20, 12, 31, 0.84); overflow: auto; }
+.fz-lupa--tela { position: fixed; }
+.fz-lupa__caixa { display: flex; flex-direction: column; align-items: center; gap: var(--e4); max-width: 100%; }
+.fz-lupa__acoes { display: flex; gap: var(--e3); width: 100%; justify-content: center; }
+.fz-lupa__acoes .fz-botao { flex: 1 1 0; max-width: 168px; }
+.fz-lupa__motivo { margin: 0; max-width: 300px; padding: var(--e2) var(--e3); border-radius: var(--canto-painel); background-color: var(--pano-claro); color: var(--linho); font: 800 14px/1.25 var(--letra-texto); text-align: center; box-shadow: 0 0 0 2px var(--noite-funda); }
+
+/* ============================================================ 6. BOTÃO-RETALHO */
+.fz-botao { --fz-b: var(--pano-claro); --fz-b-tinta: var(--linho); --fz-ponto: rgba(242, 230, 201, 0.6);
+  position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: var(--toque); min-height: 48px; padding: var(--e2) 20px; margin: 0; border: 0;
+  border-radius: 14px 11px 15px 10px / 11px 15px 10px 14px; background-color: var(--fz-b);
+  background-image: linear-gradient(172deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 46%, rgba(20, 12, 31, 0.24)), var(--trama);
+  color: var(--fz-b-tinta); font: 400 18px/1 var(--letra-titulo); letter-spacing: 0.01em; cursor: pointer; white-space: nowrap;
+  box-shadow: 0 0 0 2px var(--noite-funda), 0 4px 0 2px var(--noite-funda), 0 9px 12px rgba(10, 4, 18, 0.45);
+  transition: transform 90ms ease-out, box-shadow 90ms ease-out, filter 120ms linear; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; appearance: none; -webkit-appearance: none; }
+.fz-botao:hover:not(:disabled) { filter: brightness(1.09); }
+.fz-botao:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 2px var(--noite-funda), 0 1px 0 2px var(--noite-funda); }
+.fz-botao:focus-visible { outline: 3px solid var(--ouro-de-vela); outline-offset: 4px; }
+.fz-botao--principal { --fz-b: var(--fio-da-maldicao); --fz-b-tinta: var(--noite-funda); --fz-ponto: rgba(20, 12, 31, 0.6); }
+.fz-botao--perigo { --fz-b: var(--dano); --fz-b-tinta: var(--noite-funda); --fz-ponto: rgba(20, 12, 31, 0.6); }
+/* desligado: retalho chato (sem sombra de volume) e costura frouxa */
+.fz-botao:disabled { --fz-b: #2F2142; --fz-b-tinta: var(--linho-apagado); --fz-ponto: rgba(185, 169, 140, 0.45); cursor: default; box-shadow: 0 0 0 2px var(--noite-funda); background-image: var(--trama); }
+.fz-botao:disabled .fz-pesponto rect { stroke-dasharray: 3 10; }
+.fz-botao--aceso { box-shadow: 0 0 0 2px var(--noite-funda), 0 0 0 5px var(--ouro-de-vela), 0 4px 0 5px var(--noite-funda), 0 9px 12px rgba(10, 4, 18, 0.45); }
+.fz-botao__miolo { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--e3); }
+.fz-botao__icone { flex: none; width: 22px; height: 22px; }
+.fz-botao__textos { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; }
+.fz-botao__detalhe { font: 800 13px/1 var(--letra-texto); letter-spacing: 0.01em; }
+.fz-botao__tecla { display: none; min-width: 24px; padding: 4px 7px; border-radius: 6px; text-align: center; font: 800 14px/1 var(--letra-texto); background-color: rgba(20, 12, 31, 0.82); color: var(--linho); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(242, 230, 201, 0.28); }
+@media (hover: hover) and (pointer: fine) { .fz-botao__tecla { display: inline-block; } }
+[data-formato="pc"] .fz-botao__tecla { display: inline-block; }
+[data-formato="celular"] .fz-botao__tecla { display: none; }
+[data-formato="pc"] .fz-botao__detalhe { font-size: 14px; }
+
+/* ============================================================ 7. VIDA: fita métrica, dedal, alfinetes, placa */
+.fz-fita { --v: 1; --f: 1; position: relative; display: inline-flex; align-items: center; width: var(--fz-fita-l, 148px); height: 24px; }
+.fz-fita__caixa { position: relative; z-index: 2; flex: none; min-width: 36px; height: 24px; padding: 0 6px; display: grid; place-items: center; border-radius: 9px 5px 5px 9px;
+  background-color: var(--linho); background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 40%, rgba(120, 88, 36, 0.3)); box-shadow: 0 0 0 2px var(--noite-funda), 0 2px 0 2px rgba(10, 4, 18, 0.5); }
+.fz-fita__numero { font: 400 15px/1 var(--letra-titulo); color: var(--noite-funda); font-variant-numeric: tabular-nums; }
+.fz-fita__trilho { position: relative; flex: 1 1 auto; height: 14px; margin-left: 2px; border-radius: 0 3px 3px 0; background-color: var(--noite-funda);
+  background-image: repeating-linear-gradient(90deg, rgba(242, 230, 201, 0.22) 0 1.5px, transparent 1.5px 20px); background-size: 100% 50%; background-position: 3px 100%; background-repeat: no-repeat;
+  box-shadow: 0 0 0 2px var(--noite-funda), inset 0 0 0 1px rgba(242, 230, 201, 0.16); }
+.fz-fita__tira, .fz-fita__fantasma, .fz-fita__pedaco { position: absolute; left: 0; top: 0; bottom: 0; }
+/* a fita amarela com marcas de centímetro; a ponta é o corte da tesoura */
+.fz-fita__tira, .fz-fita__pedaco { background-color: var(--ouro-de-vela);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 42%), repeating-linear-gradient(90deg, rgba(20, 12, 31, 0.85) 0 1.5px, transparent 1.5px 20px), repeating-linear-gradient(90deg, rgba(20, 12, 31, 0.6) 0 1px, transparent 1px 4px);
+  background-size: 100% 100%, 100% 64%, 100% 36%; background-position: 0 0, 3px 100%, 3px 100%; background-repeat: no-repeat; }
+.fz-fita__tira { width: calc(var(--v) * 100%); transition: width 260ms cubic-bezier(0.3, 0.9, 0.4, 1); clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 25%, calc(100% - 3px) 50%, 100% 75%, calc(100% - 3px) 100%, 0 100%); }
+.fz-fita__fantasma { width: calc(var(--f) * 100%); background-color: var(--dano); transition: width 420ms ease-in; clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 25%, calc(100% - 3px) 50%, 100% 75%, calc(100% - 3px) 100%, 0 100%); }
+.fz-fita__pedaco { z-index: 3; transform-origin: 0 50%; clip-path: polygon(3px 0, 100% 0, 100% 100%, 3px 100%, 0 75%, 3px 50%, 0 25%); }
+.fz-fita--cura .fz-fita__tira { animation: fz-cura 700ms ease-out; }
+@keyframes fz-cura { 0% { background-color: var(--vida); filter: brightness(1.25); } 100% { background-color: var(--ouro-de-vela); filter: none; } }
+.fz-fita--alerta .fz-fita__tira { background-color: var(--dano); }
+.fz-fita--caida { opacity: 0.6; }
+[data-formato="celular"] .fz-fita { --fz-fita-l: 104px; }
+[data-formato="celular"] .fz-fita__numero { font-size: 14px; }
+[data-formato="celular"] .fz-fita__caixa { min-width: 34px; padding: 0 5px; }
+
+.fz-dedal { display: inline-flex; align-items: center; gap: 2px; height: 24px; }
+.fz-dedal svg { flex: none; width: 20px; height: 22px; overflow: visible; }
+.fz-dedal__corpo { fill: #B5DCF7; stroke: var(--noite-funda); stroke-width: 1.8; stroke-linejoin: round; }
+.fz-dedal__aro { fill: var(--escudo); stroke: var(--noite-funda); stroke-width: 1.8; }
+.fz-dedal__furos { fill: none; stroke: rgba(20, 12, 31, 0.5); stroke-width: 1.7; stroke-linecap: round; }
+.fz-dedal__luz { fill: none; stroke: rgba(255, 255, 255, 0.95); stroke-width: 1.6; stroke-linecap: round; }
+.fz-dedal__numero { font: 400 16px/1 var(--letra-titulo); color: var(--escudo); font-variant-numeric: tabular-nums; -webkit-text-stroke: 3px var(--noite-funda); paint-order: stroke fill; }
+
+.fz-alfinete { flex: none; width: 18px; height: 27px; overflow: visible; filter: drop-shadow(0 1.5px 0 rgba(10, 4, 18, 0.8)); }
+.fz-alfinete__haste { fill: none; stroke: var(--metal); stroke-width: 2; stroke-linecap: round; }
+.fz-alfinete__cabeca { fill: var(--linho); stroke: var(--noite-funda); stroke-width: 1.8; }
+.fz-alfinete__sinal { fill: none; stroke: var(--noite-funda); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.fz-alfinete__luz { fill: none; stroke: rgba(255, 255, 255, 0.85); stroke-width: 1.6; stroke-linecap: round; }
+.fz-alfinete[data-tipo="fio-solto"] .fz-alfinete__cabeca { fill: var(--dano); }
+.fz-alfinete[data-tipo="veu"] .fz-alfinete__cabeca { fill: var(--escudo); }
+.fz-alfinete[data-tipo="ultimo-fio"] .fz-alfinete__cabeca { fill: var(--chama); }
+.fz-alfinetes { position: relative; display: inline-flex; }
+.fz-alfinetes__botao { display: inline-flex; align-items: flex-end; justify-content: center; gap: 6px; min-width: var(--toque); min-height: var(--toque); padding: 8px 6px 2px; margin: -18px -6px 0; border: 0; border-radius: var(--canto-painel); background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.fz-alfinetes__botao:focus-visible { outline: 3px solid var(--ouro-de-vela); outline-offset: -2px; }
+.fz-alfinetes__botao .fz-alfinete:nth-child(odd) { transform: rotate(-9deg); } .fz-alfinetes__botao .fz-alfinete:nth-child(even) { transform: rotate(7deg); }
+.fz-alfinetes__legenda { position: absolute; z-index: 40; left: 50%; bottom: calc(100% + 4px); width: max-content; max-width: 236px; transform: translateX(calc(-50% + var(--desvio, 0px))); padding: var(--e2) 10px;
+  display: flex; flex-direction: column; gap: 6px; text-align: left; border-radius: 6px; background-color: var(--linho); color: var(--noite-funda); font: 600 13px/1.25 var(--letra-texto); box-shadow: 0 0 0 2px var(--noite-funda), 0 6px 14px rgba(10, 4, 18, 0.6); }
+.fz-alfinetes__linha { display: flex; align-items: flex-start; gap: var(--e2); }
+.fz-alfinetes__linha b { font-weight: 800; }
+.fz-alfinetes__linha .fz-alfinete { width: 14px; height: 21px; filter: none; }
+[data-formato="pc"] .fz-alfinetes__legenda { font-size: 14px; max-width: 264px; }
+
+.fz-placa { display: inline-flex; flex-direction: column; align-items: stretch; gap: 2px; width: var(--fz-fita-l, 148px); }
+.fz-placa__cima { display: flex; align-items: flex-end; justify-content: space-between; min-height: 26px; padding: 0 2px; }
+.fz-placa .fz-fita { width: 100%; }
+[data-formato="celular"] .fz-placa { --fz-fita-l: 104px; }
+
+/* ============================================================ 8. LINHA em carretéis e contadores */
+.fz-carreteis { display: inline-flex; align-items: center; gap: var(--e2); }
+.fz-carreteis__rotulo { font: 800 13px/1 var(--letra-texto); letter-spacing: 0.1em; text-transform: uppercase; color: var(--linho-apagado); }
+.fz-carreteis__fila { display: inline-flex; align-items: center; gap: 3px; }
+.fz-carreteis .fz-carretel { position: relative; flex: none; width: var(--fz-carretel-l, 26px); height: calc(var(--fz-carretel-l, 26px) * 1.2); }
+.fz-carreteis .fz-carretel--cheio { filter: drop-shadow(0 0 4px rgba(255, 77, 141, 0.8)); }
+.fz-carreteis__numero { min-width: 16px; text-align: center; font: 400 24px/1 var(--letra-titulo); color: var(--linho); font-variant-numeric: tabular-nums; }
+.fz-carreteis--compacto { --fz-carretel-l: 15px; gap: 6px; }
+.fz-carreteis--compacto .fz-carreteis__rotulo { display: none; }
+.fz-carreteis--compacto .fz-carreteis__fila { gap: 2px; }
+.fz-carreteis--compacto .fz-carreteis__numero { font-size: 18px; min-width: 12px; }
+.fz-carreteis--compacto .fz-carretel--cheio { filter: drop-shadow(0 0 2.5px rgba(255, 77, 141, 0.8)); }
+.fz-carretel__fio-solto { position: absolute; left: 50%; top: 42%; width: 14px; height: 2.5px; border-radius: 2px; background-color: var(--fio-da-maldicao); box-shadow: 0 0 4px var(--fio-da-maldicao); pointer-events: none; opacity: 0; }
+[data-formato="celular"] .fz-carreteis:not(.fz-carreteis--compacto) { --fz-carretel-l: 21px; }
+[data-formato="celular"] .fz-carreteis--compacto { --fz-carretel-l: 13px; }
+
+.fz-contador { display: inline-flex; align-items: center; gap: 4px; }
+.fz-contador svg { flex: none; width: 28px; height: 22px; overflow: visible; }
+.fz-contador__carta { fill: var(--pano-claro); stroke: var(--noite-funda); stroke-width: 1.6; }
+.fz-contador__x { fill: none; stroke: var(--fio-da-maldicao); stroke-width: 1.9; stroke-linecap: round; }
+.fz-contador__numero { font: 400 18px/1 var(--letra-titulo); color: var(--linho); font-variant-numeric: tabular-nums; }
+
+/* ============================================================ 9. BASTIDOR (roda dos tecidos) */
+.fz-bastidor { position: relative; display: inline-block; flex: none; width: var(--fz-bastidor-l, 96px); height: var(--fz-bastidor-l, 96px); }
+[data-formato="celular"] .fz-bastidor { --fz-bastidor-l: 72px; }
+.fz-bastidor__botao { position: relative; display: block; width: 100%; height: 100%; padding: 0; margin: 0; border: 0; border-radius: 50%; background: none; cursor: pointer;
+  filter: drop-shadow(0 3px 0 rgba(10, 4, 18, 0.75)) drop-shadow(0 7px 8px rgba(10, 4, 18, 0.4)); -webkit-tap-highlight-color: transparent; }
+.fz-bastidor__botao:focus-visible { outline: 3px solid var(--ouro-de-vela); outline-offset: 3px; }
+.fz-bastidor__pano, .fz-bastidor__setas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.fz-bastidor__setas { overflow: visible; pointer-events: none; }
+.fz-bastidor__seta { transform-box: fill-box; transform-origin: 50% 50%; }
+.fz-bastidor__seta-borda { fill: none; stroke: var(--noite-funda); stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
+.fz-bastidor__seta-fio { fill: none; stroke: var(--linho); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.fz-bastidor:not([data-aceso=""]) .fz-bastidor__seta:not(.fz-bastidor__seta--acesa) { opacity: 0.3; }
+.fz-bastidor__seta--acesa .fz-bastidor__seta-borda { stroke-width: 5; }
+.fz-bastidor__seta--acesa .fz-bastidor__seta-fio { stroke: var(--ouro-de-vela); stroke-width: 2.8; }
+.fz-bastidor__seta--acesa { animation: fz-seta 1.1s ease-in-out infinite; }
+@keyframes fz-seta { 0%, 100% { transform: scale(1.2); } 50% { transform: scale(1.55); } }
+.fz-bastidor__legenda { position: absolute; z-index: 45; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: max-content; max-width: 264px; padding: var(--e3);
+  border-radius: var(--canto-painel); background-color: var(--pano-escuro); background-image: var(--trama); color: var(--linho); font: 600 14px/1.3 var(--letra-texto); text-align: left;
+  box-shadow: 0 0 0 2px var(--noite-funda), 0 0 0 3.5px var(--borda), 0 12px 24px rgba(10, 4, 18, 0.7); }
+.fz-bastidor[data-lado="esquerda"] .fz-bastidor__legenda { top: 0; left: auto; right: calc(100% + 10px); transform: none; }
+.fz-bastidor[data-lado="direita"] .fz-bastidor__legenda { top: 0; left: calc(100% + 10px); transform: none; }
+.fz-bastidor[data-lado="cima"] .fz-bastidor__legenda { top: auto; bottom: 0; left: auto; right: calc(100% + 10px); transform: none; }
+.fz-bastidor__titulo { display: block; margin-bottom: var(--e2); font: 400 18px/1 var(--letra-titulo); color: var(--linho); }
+.fz-bastidor__lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.fz-bastidor__par { display: grid; grid-template-columns: minmax(84px, 1fr) 16px minmax(84px, 1fr); align-items: center; gap: var(--e2); padding: 3px 6px; border-radius: 8px; }
+.fz-bastidor__par--aceso { background-color: rgba(255, 200, 87, 0.16); box-shadow: inset 0 0 0 1.5px var(--ouro-de-vela); }
+.fz-bastidor__tecido { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; }
+.fz-bastidor__tecido canvas { flex: none; width: 22px; height: 22px; }
+.fz-bastidor__bate { font: 400 22px/0.8 var(--letra-titulo); color: var(--ouro-de-vela); text-align: center; }
+.fz-bastidor__texto { margin: var(--e2) 0 0; color: var(--linho-apagado); font-size: 14px; }
+[data-formato="celular"] .fz-bastidor__legenda { font-size: 13px; max-width: 244px; }
+[data-formato="celular"] .fz-bastidor__texto { font-size: 13px; }
+
+/* ============================================================ 10. FAIXA DE VEZ (fita bordada que atravessa a cena) */
+.fz-faixa { position: absolute; z-index: 30; left: 0; right: 0; top: 38%; height: 72px; transform: translateY(-50%); overflow: hidden; pointer-events: none; }
+.fz-faixa__pano { position: absolute; left: -12px; right: -12px; top: 6px; bottom: 8px; display: flex; align-items: center; justify-content: center; gap: var(--e4); color: var(--noite-funda);
+  background-color: var(--ouro-de-vela);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 30%, rgba(120, 60, 0, 0) 60%, rgba(120, 60, 0, 0.36)), repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 5px);
+  box-shadow: 0 0 0 2px var(--noite-funda), 0 6px 0 rgba(10, 4, 18, 0.5); }
+.fz-faixa__pano::before, .fz-faixa__pano::after { content: ""; position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed rgba(20, 12, 31, 0.5); }
+.fz-faixa__pano::before { top: 5px; } .fz-faixa__pano::after { bottom: 5px; }
+.fz-faixa--rival .fz-faixa__pano { background-color: var(--tec-tule); }
+.fz-faixa--aviso .fz-faixa__pano { background-color: var(--linho); }
+/* letra "bordada": ponto cheio em diagonal dentro da letra */
+.fz-faixa__texto { font: 400 36px/1 var(--letra-titulo); letter-spacing: 0.02em; color: var(--noite-funda); white-space: nowrap;
+  background-image: repeating-linear-gradient(118deg, #140C1F 0 2px, #45305F 2px 3.2px); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1.5px 0 rgba(255, 255, 255, 0.5)); }
+.fz-faixa__bordado { flex: none; width: 28px; height: 28px; fill: var(--noite-funda); filter: drop-shadow(0 1.5px 0 rgba(255, 255, 255, 0.45)); }
+.fz-faixa__bordado-fio { fill: none; stroke: var(--noite-funda); stroke-width: 2.4; stroke-linecap: round; }
+[data-formato="celular"] .fz-faixa { height: 60px; }
+[data-formato="celular"] .fz-faixa__texto { font-size: 30px; }
+[data-formato="celular"] .fz-faixa__bordado { width: 24px; height: 24px; }
+
+/* ============================================================ 11. FIO DO TEMPO (queima da ponta até o nó) */
+.fz-fio-tempo { --resta: 1; display: flex; align-items: center; gap: 4px; min-width: 120px; height: 32px; }
+.fz-fio-tempo__seg { flex: none; min-width: 28px; text-align: right; font: 400 22px/1 var(--letra-titulo); color: var(--linho); font-variant-numeric: tabular-nums; }
+.fz-fio-tempo__no { flex: none; width: 22px; height: 22px; overflow: visible; }
+.fz-fio-tempo__no-borda { fill: none; stroke: var(--noite-funda); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+.fz-fio-tempo__no-fio { fill: none; stroke: var(--linho); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.fz-fio-tempo__no-bola { fill: var(--linho); stroke: var(--noite-funda); stroke-width: 1.6; }
+.fz-fio-tempo__no-volta { fill: none; stroke: rgba(120, 88, 36, 0.75); stroke-width: 1.3; stroke-linecap: round; }
+.fz-fio-tempo__pista { position: relative; flex: 1 1 auto; height: 20px; margin: 0 8px 0 -6px; }
+.fz-fio-tempo__cinza { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+.fz-fio-tempo__cinza path { fill: none; stroke: rgba(185, 169, 140, 0.34); stroke-width: 2; stroke-dasharray: 1 6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.fz-fio-tempo__corte { position: absolute; left: 0; top: -8px; bottom: -8px; width: calc(var(--resta) * 100%); overflow: hidden; }
+.fz-fio-tempo__fio { position: absolute; left: 0; top: 8px; height: 20px; width: calc(100% / max(var(--resta), 0.001)); display: block; overflow: visible; }
+.fz-fio-tempo__fio path { fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.fz-fio-tempo__fio-borda { stroke: var(--noite-funda); stroke-width: 6; }
+.fz-fio-tempo__fio-linha { stroke: var(--linho); stroke-width: 3; }
+.fz-fio-tempo__fio-torcido { stroke: rgba(120, 88, 36, 0.6); stroke-width: 3; stroke-dasharray: 1.5 4; stroke-linecap: butt !important; }
+.fz-fio-tempo__brasa { position: absolute; left: calc(var(--resta) * 100%); top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%;
+  background: radial-gradient(circle, #FFF6D0 0 22%, var(--ouro-de-vela) 40%, var(--chama) 62%, rgba(255, 159, 28, 0) 74%); box-shadow: 0 0 8px 2px rgba(255, 159, 28, 0.55); animation: fz-brasa 0.9s ease-in-out infinite; }
+@keyframes fz-brasa { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+.fz-fio-tempo--alerta .fz-fio-tempo__seg { color: var(--chama); }
+.fz-fio-tempo--alerta .fz-fio-tempo__brasa { width: 16px; height: 16px; margin: -8px 0 0 -8px; }
+.fz-fio-tempo--acabou .fz-fio-tempo__seg { color: var(--dano); }
+.fz-fio-tempo--acabou .fz-fio-tempo__brasa { animation: none; background: radial-gradient(circle, var(--linho-apagado) 0 30%, rgba(185, 169, 140, 0) 60%); box-shadow: none; }
+.fz-fio-tempo__faisca { position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px; border-radius: 50%; background-color: var(--ouro-de-vela); box-shadow: 0 0 3px var(--chama); pointer-events: none; }
+
+/* ============================================================ 12. ETIQUETA (aviso preso com alfinete) */
+.fz-etiquetas { position: absolute; z-index: 60; left: var(--e3); right: var(--e3); top: var(--e3); display: flex; flex-direction: column; align-items: center; gap: var(--e3); pointer-events: none; }
+.fz-etiqueta { --fz-ponto: rgba(20, 12, 31, 0.42); position: relative; pointer-events: auto; max-width: min(100%, 420px); min-height: var(--toque); padding: 10px var(--e4) 10px 36px; margin: 0; border: 0; text-align: left; cursor: pointer;
+  background-color: var(--linho); background-image: repeating-linear-gradient(0deg, rgba(120, 88, 36, 0.12) 0 1px, transparent 1px 3px); color: var(--noite-funda); font: 800 14px/1.25 var(--letra-texto);
+  border-radius: 5px; transform-origin: 22px 0; box-shadow: 0 0 0 2px var(--noite-funda), 0 4px 0 2px rgba(10, 4, 18, 0.55), 0 12px 18px rgba(10, 4, 18, 0.45); appearance: none; -webkit-appearance: none; -webkit-tap-highlight-color: transparent; }
+.fz-etiqueta__alfinete { position: absolute; left: 9px; top: -8px; width: 19px; height: 28px; overflow: visible; transform: rotate(-14deg); filter: drop-shadow(0 1.5px 0 rgba(10, 4, 18, 0.7)); }
+.fz-etiqueta .fz-alfinete__cabeca { fill: var(--ouro-de-vela); }
+.fz-etiqueta--recusa .fz-alfinete__cabeca { fill: var(--dano); }
+.fz-etiqueta--bom .fz-alfinete__cabeca { fill: var(--vida); }
+.fz-etiqueta--alerta .fz-alfinete__cabeca { fill: var(--chama); }
+.fz-etiqueta__texto { position: relative; display: block; }
+.fz-etiqueta:nth-child(odd) { rotate: -1.2deg; } .fz-etiqueta:nth-child(even) { rotate: 0.9deg; }
+[data-formato="celular"] .fz-etiqueta { font-size: 13px; }
+
+/* ============================================================ 13. LOGOTIPO, NÚMERO DE DANO, MARCA DE VANTAGEM */
+.fz-logo { position: relative; display: inline-block; line-height: 0; vertical-align: middle; }
+.fz-logo__letras { display: block; width: 100%; height: 100%; }
+.fz-logo__solto { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.fz-logo__fio-borda { fill: none; stroke: var(--noite-funda); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+.fz-logo__fio { fill: none; stroke: var(--fio-da-maldicao); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgba(255, 77, 141, 0.85)); }
+
+.fz-numero { position: absolute; z-index: 35; transform: translate(-50%, -50%); pointer-events: none; white-space: nowrap; font: 400 32px/1 var(--letra-titulo); font-variant-numeric: tabular-nums;
+  color: var(--dano); -webkit-text-stroke: 0.2em var(--noite-funda); paint-order: stroke fill; text-shadow: 0 0.07em 0 var(--noite-funda); }
+.fz-numero--critico { color: var(--chama); }
+.fz-numero--cura { color: var(--vida); }
+.fz-numero--escudo { color: var(--escudo); }
+.fz-numero--texto { color: var(--linho); }
+.fz-numero__texto { position: relative; }
+.fz-numero__estouro { position: absolute; left: 50%; top: 50%; width: 2.9em; height: 2.9em; transform: translate(-50%, -50%); overflow: visible; }
+.fz-numero__estouro path { fill: none; stroke: var(--linho); stroke-width: 5; stroke-linecap: round; filter: drop-shadow(0 0 0.5px var(--noite-funda)) drop-shadow(0 2px 0 var(--noite-funda)); }
+
+.fz-vantagem { position: relative; display: inline-flex; flex-direction: column; align-items: center; transform: rotate(6deg); transform-origin: 50% 0;
+  filter: drop-shadow(1.5px 0 0 #140C1F) drop-shadow(-1.5px 0 0 #140C1F) drop-shadow(0 1.5px 0 #140C1F) drop-shadow(0 -1.5px 0 #140C1F) drop-shadow(0 3px 0 rgba(10, 4, 18, 0.55)); }
+.fz-vantagem__fio { width: 14px; height: 12px; margin-bottom: -5px; overflow: visible; position: relative; z-index: 1; }
+.fz-vantagem__fio path { fill: none; stroke: var(--fio-da-maldicao); stroke-width: 2; stroke-linecap: round; }
+.fz-vantagem__papel { position: relative; min-width: 48px; padding: 11px 8px 5px; text-align: center; font: 400 18px/1 var(--letra-titulo); font-variant-numeric: tabular-nums; color: var(--noite-funda);
+  background-color: var(--ouro-de-vela); background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 46%, rgba(160, 90, 0, 0.32)); clip-path: polygon(20% 0, 80% 0, 100% 26%, 100% 100%, 0 100%, 0 26%); }
+.fz-vantagem__papel::before { content: ""; position: absolute; left: 50%; top: 4px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background-color: var(--noite-funda); }
+.fz-vantagem--pequena .fz-vantagem__papel { min-width: 40px; padding: 10px 5px 4px; font-size: 14px; }
+
+/* ============================================================ 15. TELAS (layout das montagens: luta, escolher time, fim da luta) */
+.fz-tela { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; color: var(--linho); font: 600 14px/1.3 var(--letra-texto); background-color: var(--noite);
+  background-image: radial-gradient(80% 60% at 8% 0%, rgba(255, 200, 87, 0.12), transparent 62%), radial-gradient(70% 60% at 100% 0%, rgba(110, 193, 255, 0.09), transparent 60%); }
+.fz-tela[data-formato="celular"] { font-size: 13px; }
+.fz-boneco, .fz-retrato, .fz-icone-tipo { display: block; flex: none; }
+.fz-retrato { border-radius: 50%; background-color: var(--pano-claro); box-shadow: 0 0 0 2px var(--noite-funda); }
+.fz-icone { flex: none; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+.fz-botao-de-roupa { flex: none; width: var(--toque); height: var(--toque); padding: 0; border: 0; border-radius: 50%; cursor: pointer; color: var(--noite-funda);
+  background-color: var(--linho); background-image: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 46%), radial-gradient(circle, transparent 0 58%, rgba(120, 88, 36, 0.4) 60% 66%, transparent 68%);
+  box-shadow: 0 0 0 2px var(--noite-funda), 0 3px 0 2px var(--noite-funda); -webkit-tap-highlight-color: transparent; }
+.fz-botao-de-roupa:focus-visible { outline: 3px solid var(--ouro-de-vela); outline-offset: 4px; }
+.fz-botao-de-roupa svg { width: 100%; height: 100%; fill: none; stroke: var(--noite-funda); stroke-width: 3.2; stroke-linecap: round; }
+.fz-botao-de-roupa__fio { stroke: var(--fio-da-maldicao) !important; stroke-width: 1.5 !important; }
+
+/* ---------------- LUTA */
+.fz-luta { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.fz-luta__topo { position: relative; z-index: 5; display: flex; align-items: center; gap: var(--e4); min-height: 56px; padding: 6px var(--e4); padding-top: max(6px, env(safe-area-inset-top));
+  background-color: var(--noite-funda); box-shadow: 0 2px 0 rgba(90, 67, 120, 0.5); }
+/* o turno numa etiqueta de roupa */
+.fz-luta__turno { --fz-ponto: rgba(20, 12, 31, 0.4); position: relative; flex: none; display: inline-flex; align-items: baseline; gap: 5px; padding: 7px 12px 6px; border-radius: 5px; transform: rotate(-1.5deg);
+  background-color: var(--linho); background-image: repeating-linear-gradient(0deg, rgba(120, 88, 36, 0.12) 0 1px, transparent 1px 3px); color: var(--noite-funda); box-shadow: 0 0 0 2px var(--noite-funda), 0 3px 0 2px rgba(10, 4, 18, 0.6); }
+.fz-luta__turno-rotulo { font: 800 14px/1 var(--letra-texto); }
+.fz-luta__turno-numero { font: 400 22px/0.9 var(--letra-titulo); font-variant-numeric: tabular-nums; }
+.fz-luta__tesoura { flex: none; display: inline-flex; align-items: center; gap: 6px; color: var(--linho-apagado); font: 800 14px/1 var(--letra-texto); }
+.fz-luta__tempo { flex: 1 1 auto; min-width: 0; max-width: 460px; margin: 0 auto; }
+.fz-luta__cena { position: relative; min-height: 0; overflow: hidden; }
+.fz-luta__reserva { position: absolute; inset: var(--e2) var(--e2) 0; border-radius: var(--canto-cartao) var(--canto-cartao) 0 0; display: grid; place-items: center; color: rgba(185, 169, 140, 0.5); font: 800 13px/1 var(--letra-texto); letter-spacing: 0.14em; text-transform: uppercase;
+  border: 2px dashed rgba(90, 67, 120, 0.8); border-bottom: 0; background-color: #21152F; background-image: radial-gradient(60% 70% at 22% 20%, rgba(255, 200, 87, 0.13), transparent 70%), radial-gradient(50% 70% at 84% 18%, rgba(110, 193, 255, 0.11), transparent 70%), var(--trama); }
+.fz-luta__reserva span { position: absolute; left: var(--e3); bottom: var(--e2); }
+.fz-luta__rival { position: absolute; z-index: 4; right: var(--e5); top: var(--e4); display: flex; align-items: center; gap: var(--e3); min-height: 40px; padding: 4px 14px 4px 12px; border-radius: 12px 9px 13px 8px / 9px 13px 8px 12px;
+  background-color: rgba(20, 12, 31, 0.9); box-shadow: 0 0 0 1.5px var(--borda), 0 4px 0 rgba(10, 4, 18, 0.5); }
+.fz-luta__nome { font: 400 17px/1 var(--letra-titulo); color: var(--linho); }
+.fz-luta__bastidor { position: absolute; z-index: 8; left: 50%; top: var(--e3); transform: translateX(-50%); } /* acima da mão: a legenda aberta não fica atrás das cartas */
+.fz-luta__boneco { position: absolute; z-index: 2; bottom: 52px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.fz-luta__vulto { position: relative; }
+.fz-luta__marca { position: absolute; z-index: 3; right: -30px; top: 2px; }
+.fz-luta__lugar { font: 800 13px/1 var(--letra-texto); letter-spacing: 0.14em; text-transform: uppercase; color: var(--linho-apagado); padding: 3px 0 5px; }
+.fz-luta__boneco[data-lado="eu"][data-lugar="0"] { left: 39%; bottom: 44px; } .fz-luta__boneco[data-lado="eu"][data-lugar="1"] { left: 25%; } .fz-luta__boneco[data-lado="eu"][data-lugar="2"] { left: 11%; }
+.fz-luta__boneco[data-lado="rival"][data-lugar="0"] { left: 61%; bottom: 44px; } .fz-luta__boneco[data-lado="rival"][data-lugar="1"] { left: 75%; } .fz-luta__boneco[data-lado="rival"][data-lugar="2"] { left: 89%; }
+.fz-luta__base { position: relative; z-index: 6; display: grid; grid-template-columns: 190px minmax(0, 1fr) 190px; align-items: end; gap: var(--e2); padding: var(--e2) max(var(--e4), calc((100% - 1320px) / 2)) max(var(--e3), env(safe-area-inset-bottom));
+  background-color: var(--noite-funda); box-shadow: 0 -2px 0 rgba(90, 67, 120, 0.5); }
+.fz-luta__meu { display: flex; flex-direction: column; align-items: flex-start; gap: var(--e3); padding-bottom: var(--e2); }
+.fz-luta[data-formato="pc"] .fz-luta__meu .fz-carreteis { --fz-carretel-l: 23px; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: var(--e2) var(--e2); width: 100%; }
+.fz-luta[data-formato="pc"] .fz-luta__meu .fz-carreteis__rotulo { grid-row: 1; grid-column: 1; font-size: 14px; align-self: center; }
+.fz-luta[data-formato="pc"] .fz-luta__meu .fz-carreteis__numero { grid-row: 1; grid-column: 2; font-size: 30px; }
+.fz-luta[data-formato="pc"] .fz-luta__meu .fz-carreteis__fila { grid-row: 2; grid-column: 1 / -1; justify-content: space-between; }
+.fz-luta[data-formato="pc"] .fz-luta__botoes .fz-botao { padding: var(--e2) var(--e3); }
+.fz-luta[data-formato="pc"] .fz-luta__botoes .fz-botao__miolo { gap: var(--e2); }
+.fz-luta__mao { min-width: 0; margin-top: -16px; }
+.fz-luta__botoes { display: flex; flex-direction: column; gap: var(--e4); padding-bottom: var(--e2); }
+.fz-luta .fz-etiquetas { top: auto; bottom: var(--e3); }
+
+.fz-luta[data-formato="celular"] .fz-luta__topo { min-height: 52px; gap: var(--e2); padding: 4px var(--e3); padding-top: max(4px, env(safe-area-inset-top)); }
+.fz-luta[data-formato="celular"] .fz-luta__turno { padding: 6px 8px 5px; gap: 4px; }
+.fz-luta[data-formato="celular"] .fz-luta__turno-rotulo { font-size: 13px; }
+.fz-luta[data-formato="celular"] .fz-luta__turno-numero { font-size: 20px; }
+.fz-luta[data-formato="celular"] .fz-luta__tesoura { font-size: 13px; gap: 3px; }
+.fz-luta[data-formato="celular"] .fz-luta__tesoura .fz-icone { width: 18px; height: 18px; }
+.fz-luta[data-formato="celular"] .fz-fio-tempo { min-width: 0; }
+.fz-luta[data-formato="celular"] .fz-fio-tempo__seg { min-width: 24px; font-size: 20px; }
+.fz-luta[data-formato="celular"] .fz-luta__reserva { inset: 4px 4px 0; }
+.fz-luta[data-formato="celular"] .fz-luta__rival { left: var(--e3); right: auto; top: var(--e2); gap: var(--e2); padding: 2px 10px 2px 8px; min-height: 36px; }
+.fz-luta[data-formato="celular"] .fz-luta__nome { font-size: 15px; }
+.fz-luta[data-formato="celular"] .fz-luta__bastidor { position: relative; left: auto; top: auto; transform: none; flex: none; height: 44px; display: flex; align-items: flex-end; }
+.fz-luta[data-formato="celular"] .fz-luta__marca { right: -22px; top: 10px; }
+.fz-luta[data-formato="celular"] .fz-luta__meu .fz-carreteis__rotulo { display: none; }
+.fz-luta[data-formato="celular"] .fz-luta__boneco { bottom: auto; }
+.fz-luta[data-formato="celular"] .fz-luta__boneco[data-lado="rival"] { top: 48px; }
+.fz-luta[data-formato="celular"] .fz-luta__boneco[data-lado="eu"] { bottom: 34px; }
+.fz-luta[data-formato="celular"] .fz-luta__boneco[data-lugar="0"] { left: 18%; } .fz-luta[data-formato="celular"] .fz-luta__boneco[data-lugar="1"] { left: 50%; } .fz-luta[data-formato="celular"] .fz-luta__boneco[data-lugar="2"] { left: 82%; }
+.fz-luta[data-formato="celular"] .fz-luta__lugar { padding: 1px 0 3px; }
+.fz-luta[data-formato="celular"] .fz-luta__base { grid-template-columns: 1fr 1fr; grid-template-areas: "meu meu" "mao mao" "botoes botoes"; gap: 0; padding: 6px var(--e3) max(var(--e3), env(safe-area-inset-bottom)); }
+.fz-luta[data-formato="celular"] .fz-luta__meu { grid-area: meu; flex-direction: row; align-items: center; justify-content: space-between; gap: var(--e2); height: 44px; padding: 0 0 2px; }
+.fz-luta[data-formato="celular"] .fz-luta__meu .fz-carreteis { margin-right: auto; }
+.fz-luta[data-formato="celular"] .fz-luta__mao { grid-area: mao; margin: 0 calc(-1 * var(--e3)); }
+.fz-luta[data-formato="celular"] .fz-luta__botoes { grid-area: botoes; display: grid; grid-template-columns: 1fr 1fr; gap: var(--e3); padding: 6px 0 0; }
+.fz-luta[data-formato="celular"] .fz-luta__botoes .fz-botao { padding: 6px 8px; font-size: 17px; }
+
+/* ---------------- ESCOLHER TIME */
+.fz-time { display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "topo topo" "prateleira ficha" "mesa mesa"; }
+.fz-time__topo { grid-area: topo; display: flex; align-items: center; gap: var(--e4); padding: var(--e3) var(--e5) 0; }
+.fz-time__titulo { margin: 0; font: 400 26px/1 var(--letra-titulo); color: var(--linho); }
+.fz-time__dica { margin: 4px 0 0; color: var(--linho-apagado); font-size: 14px; }
+.fz-time__prateleira { grid-area: prateleira; display: flex; flex-direction: column; justify-content: space-evenly; gap: var(--e2); min-height: 0; padding: var(--e2) var(--e5); overflow: hidden; }
+/* cada tábua da prateleira: os bonecos de pé em cima, o nome numa etiqueta pendurada embaixo */
+.fz-time__tabua { --fz-etiqueta-a: 44px; position: relative; display: flex; justify-content: space-around; align-items: flex-end; padding: 0 var(--e3); }
+.fz-time__tabua::after { content: ""; position: absolute; left: 0; right: 0; bottom: calc(var(--fz-etiqueta-a) - 5px); height: 14px; border-radius: 4px; background-color: var(--madeira);
+  background-image: linear-gradient(180deg, rgba(255, 240, 205, 0.5), rgba(255, 240, 205, 0) 34%, rgba(60, 30, 5, 0.4)), repeating-linear-gradient(90deg, rgba(60, 30, 5, 0.16) 0 2px, transparent 2px 46px, rgba(60, 30, 5, 0.1) 46px 47px, transparent 47px 110px);
+  box-shadow: 0 0 0 2px var(--noite-funda), 0 7px 0 rgba(10, 4, 18, 0.5); }
+.fz-time__boneco { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; min-width: var(--toque); padding: 0 2px; margin: 0; border: 0; border-radius: var(--canto-painel); background: none; color: inherit; font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.fz-time__boneco:focus-visible { outline: 3px solid var(--ouro-de-vela); outline-offset: 2px; }
+.fz-time__boneco .fz-boneco { position: relative; margin-bottom: 7px; transition: transform 140ms ease-out; filter: drop-shadow(0 4px 3px rgba(10, 4, 18, 0.5)); }
+.fz-time__boneco:hover .fz-boneco { transform: translateY(-4px); }
+.fz-time__nome { position: relative; z-index: 2; height: var(--fz-etiqueta-a); display: flex; align-items: flex-start; justify-content: center; padding-top: 12px; }
+.fz-time__nome span { display: block; max-width: 132px; padding: 3px 8px; border-radius: 4px; background-color: var(--linho); color: var(--noite-funda); font: 800 13px/1.05 var(--letra-texto); text-align: center; text-wrap: balance; box-shadow: 0 0 0 1.5px var(--noite-funda), 0 2px 0 rgba(10, 4, 18, 0.5); transform: rotate(-1.5deg); }
+.fz-time__boneco:nth-child(even) .fz-time__nome span { transform: rotate(1.5deg); }
+.fz-time__ordem { position: absolute; z-index: 3; left: calc(50% + 26px); top: 4px; min-width: 26px; height: 26px; display: none; place-items: center; border-radius: 50%; background-color: var(--ouro-de-vela); color: var(--noite-funda); font: 400 17px/1 var(--letra-titulo); box-shadow: 0 0 0 2px var(--noite-funda), 0 2px 0 2px rgba(10, 4, 18, 0.5); }
+.fz-time__boneco[aria-pressed="true"] .fz-time__ordem { display: grid; }
+.fz-time__boneco[aria-pressed="true"] .fz-boneco { filter: drop-shadow(0 0 0 var(--ouro-de-vela)) drop-shadow(0 0 7px rgba(255, 200, 87, 0.75)) drop-shadow(0 4px 3px rgba(10, 4, 18, 0.5)); }
+.fz-time__boneco--aberto .fz-time__nome span { background-color: var(--fio-da-maldicao); }
+.fz-time__ficha { --fz-ponto: rgba(242, 230, 201, 0.3); grid-area: ficha; position: relative; display: flex; flex-direction: column; gap: var(--e3); min-height: 0; margin: var(--e2) var(--e5) var(--e3) 0; padding: var(--e4); overflow: hidden;
+  border-radius: var(--canto-cartao); background-color: var(--pano-escuro); background-image: var(--trama); box-shadow: 0 0 0 2px var(--noite-funda), 0 5px 0 2px rgba(10, 4, 18, 0.5); }
+.fz-ficha { position: relative; display: flex; flex-direction: column; gap: var(--e3); min-height: 0; }
+.fz-ficha__cabeca { display: flex; align-items: center; gap: var(--e3); }
+.fz-ficha__nome { margin: 0 0 6px; font: 400 21px/1.05 var(--letra-titulo); color: var(--linho); }
+.fz-ficha__linha { display: flex; align-items: center; flex-wrap: wrap; gap: var(--e2); }
+.fz-ficha__tipo { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; }
+/* raridade: só a costura e a etiqueta têm a cor */
+.fz-ficha__raridade { --fz-rar: var(--rar-comum); padding: 2px 10px 3px; border-radius: var(--canto-etiqueta); border: 1.5px dashed var(--fz-rar); color: var(--fz-rar); font: 800 13px/1.1 var(--letra-texto); }
+.fz-ficha__raridade[data-raridade="incomum"] { --fz-rar: var(--rar-incomum); } .fz-ficha__raridade[data-raridade="rara"] { --fz-rar: var(--rar-rara); } .fz-ficha__raridade[data-raridade="lendaria"] { --fz-rar: var(--rar-lendaria); }
+.fz-ficha__numeros { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--e2); }
+.fz-ficha__numero { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px 7px; border-radius: var(--canto-painel); background-color: rgba(20, 12, 31, 0.5); }
+.fz-ficha__numero b { font: 400 22px/1 var(--letra-titulo); color: var(--ouro-de-vela); font-variant-numeric: tabular-nums; }
+.fz-ficha__numero span { font: 800 13px/1 var(--letra-texto); letter-spacing: 0.06em; text-transform: uppercase; color: var(--linho-apagado); }
+.fz-ficha__cartas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--e2); }
+.fz-ficha__carta { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: start; }
+.fz-ficha__custo { position: relative; width: 30px; height: 36px; }
+.fz-ficha__custo b { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: grid; place-items: center; font: 400 17px/1 var(--letra-titulo); color: var(--noite-funda); --fz-fundo: #FF4D8D; font-variant-numeric: tabular-nums; }
+.fz-ficha__vulto { position: relative; flex: none; display: grid; place-items: end center; width: 112px; height: 148px; border-radius: var(--canto-painel); background-color: #1E1430; background-image: radial-gradient(90% 80% at 30% 10%, rgba(255, 200, 87, 0.34), transparent 70%), var(--trama); box-shadow: inset 0 0 0 1.5px var(--noite-funda); }
+.fz-ficha__vulto .fz-boneco { margin-bottom: 4px; filter: drop-shadow(0 3px 2px rgba(10, 4, 18, 0.6)); }
+.fz-ficha__titulo { min-width: 0; display: flex; flex-direction: column; gap: var(--e2); }
+.fz-ficha__titulo .fz-ficha__nome { margin: 0; }
+.fz-ficha__carta-nome { display: flex; align-items: center; gap: 6px; font: 400 16px/1.1 var(--letra-titulo); color: var(--linho); }
+.fz-ficha__carta-desc { display: block; margin-top: 2px; font: 600 14px/1.25 var(--letra-texto); color: var(--linho); }
+.fz-ficha__bordado { margin: 0; padding: var(--e2) 10px; border-radius: var(--canto-painel); border: 1.5px dashed rgba(242, 230, 201, 0.35); font-size: 14px; line-height: 1.25; }
+.fz-ficha__bordado b { font-weight: 800; color: var(--ouro-de-vela); }
+.fz-time__por { align-self: stretch; margin-top: auto; }
+/* a mesa: 3 círculos bordados no pano */
+.fz-time__mesa { grid-area: mesa; display: flex; align-items: center; justify-content: center; gap: var(--e6); padding: var(--e2) var(--e5) max(var(--e3), env(safe-area-inset-bottom)); background-color: #241634;
+  background-image: radial-gradient(60% 120% at 50% 0%, rgba(255, 200, 87, 0.10), transparent 70%), var(--trama); box-shadow: 0 -2px 0 var(--noite-funda), inset 0 10px 14px rgba(10, 4, 18, 0.35); }
+.fz-time__circulos { display: flex; gap: var(--e5); }
+.fz-circulo { position: relative; width: 112px; height: 112px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; }
+.fz-circulo__anel { position: absolute; left: 4px; right: 4px; bottom: 16px; height: 38px; border-radius: 50%; border: 2px dashed rgba(242, 230, 201, 0.5); background-image: radial-gradient(ellipse, rgba(20, 12, 31, 0.5), transparent 72%); }
+.fz-circulo--cheio .fz-circulo__anel { border-color: var(--ouro-de-vela); background-image: radial-gradient(ellipse, rgba(255, 200, 87, 0.2), transparent 72%); }
+.fz-circulo .fz-boneco { position: relative; margin-bottom: 8px; filter: drop-shadow(0 3px 2px rgba(10, 4, 18, 0.6)); }
+.fz-circulo__vazio { position: relative; margin-bottom: 22px; font: 400 22px/1 var(--letra-titulo); color: var(--linho-apagado); }
+.fz-circulo__nome { position: relative; font: 800 13px/1 var(--letra-texto); letter-spacing: 0.14em; text-transform: uppercase; color: var(--linho-apagado); }
+.fz-circulo--cheio .fz-circulo__nome { color: var(--linho); }
+
+.fz-time[data-formato="celular"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: "topo" "prateleira" "ficha" "mesa"; }
+.fz-time[data-formato="celular"] .fz-time__topo { gap: var(--e2); padding: var(--e2) var(--e3) 0; padding-top: max(var(--e2), env(safe-area-inset-top)); }
+.fz-time[data-formato="celular"] .fz-time__titulo { font-size: 20px; }
+.fz-time[data-formato="celular"] .fz-time__dica { display: none; }
+.fz-time[data-formato="celular"] .fz-time__prateleira { padding: 2px var(--e3) 0; gap: 0; justify-content: flex-start; }
+/* no celular a prateleira não tem etiqueta de nome (o nome aparece na ficha, ao tocar): sobra espaço para o boneco */
+.fz-time[data-formato="celular"] .fz-time__tabua { --fz-etiqueta-a: 16px; padding: 0 4px; }
+.fz-time[data-formato="celular"] .fz-time__tabua::after { height: 10px; bottom: 4px; }
+.fz-time[data-formato="celular"] .fz-time__boneco .fz-boneco { margin-bottom: 4px; }
+.fz-time[data-formato="celular"] .fz-time__nome { padding: 0; }
+.fz-time[data-formato="celular"] .fz-time__nome span { display: none; }
+.fz-time[data-formato="celular"] .fz-time__boneco--aberto::after { content: ""; position: absolute; left: 50%; bottom: 17px; width: 56px; height: 0; margin-left: -28px; border-top: 3px dashed var(--fio-da-maldicao); }
+.fz-time[data-formato="celular"] .fz-time__ordem { left: calc(50% + 18px); top: 2px; min-width: 24px; height: 24px; font-size: 15px; }
+.fz-time[data-formato="celular"] .fz-time__ficha { margin: 4px var(--e3) var(--e2); padding: 10px var(--e3); gap: var(--e2); }
+.fz-time[data-formato="celular"] .fz-ficha { gap: 6px; }
+.fz-time[data-formato="celular"] .fz-ficha__nome { font-size: 17px; }
+.fz-time[data-formato="celular"] .fz-ficha__numeros { display: flex; gap: var(--e3); }
+.fz-time[data-formato="celular"] .fz-ficha__numero { flex-direction: row-reverse; align-items: baseline; gap: 4px; padding: 0; background: none; }
+.fz-time[data-formato="celular"] .fz-ficha__numero b { font-size: 17px; }
+.fz-time[data-formato="celular"] .fz-ficha__numero span { letter-spacing: 0; text-transform: none; }
+.fz-time[data-formato="celular"] .fz-ficha__cartas { flex-direction: row; flex-wrap: wrap; gap: 4px var(--e3); }
+.fz-time[data-formato="celular"] .fz-ficha__carta { grid-template-columns: 22px auto; gap: 5px; align-items: center; }
+.fz-time[data-formato="celular"] .fz-ficha__custo { width: 22px; height: 26.4px; }
+.fz-time[data-formato="celular"] .fz-ficha__custo b { font-size: 14px; }
+.fz-time[data-formato="celular"] .fz-ficha__carta-nome { font: 800 13px/1.1 var(--letra-texto); }
+.fz-time[data-formato="celular"] .fz-ficha__carta-nome .fz-icone-tipo, .fz-time[data-formato="celular"] .fz-ficha__carta-desc { display: none; }
+.fz-time[data-formato="celular"] .fz-ficha__bordado { padding: 0; border: 0; font-size: 13px; }
+.fz-time[data-formato="celular"] .fz-time__por { position: absolute; right: var(--e3); top: 10px; min-height: var(--toque); padding: 4px 14px; font-size: 16px; margin: 0; }
+.fz-time[data-formato="celular"] .fz-ficha__cabeca { padding-right: 104px; min-height: 52px; }
+.fz-time[data-formato="celular"] .fz-ficha__titulo { gap: 4px; }
+.fz-time[data-formato="celular"] .fz-time__mesa { gap: var(--e3); padding: 4px var(--e3) max(var(--e3), env(safe-area-inset-bottom)); }
+.fz-time[data-formato="celular"] .fz-time__circulos { gap: 4px; }
+.fz-time[data-formato="celular"] .fz-circulo { width: 68px; height: 88px; gap: 4px; }
+.fz-time[data-formato="celular"] .fz-circulo__anel { left: 2px; right: 2px; bottom: 14px; height: 26px; }
+.fz-time[data-formato="celular"] .fz-circulo .fz-boneco { margin-bottom: 4px; }
+.fz-time[data-formato="celular"] .fz-circulo__nome { letter-spacing: 0.08em; }
+.fz-time[data-formato="celular"] .fz-time__mesa .fz-botao { flex: 1 1 auto; min-height: 56px; padding: 6px 12px; }
+
+/* ---------------- FIM DA LUTA */
+.fz-fim { display: grid; place-items: center; padding: var(--e4); }
+.fz-fim__fundo { position: absolute; inset: 0; background-color: #1B1226; background-image: radial-gradient(70% 80% at 30% 30%, rgba(255, 200, 87, 0.18), transparent 70%), var(--trama); }
+.fz-fim--derrota .fz-fim__fundo { background-image: radial-gradient(70% 80% at 70% 26%, rgba(110, 193, 255, 0.15), transparent 70%), var(--trama); }
+.fz-fim__folha { --fz-ponto: rgba(242, 230, 201, 0.32); position: relative; display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: center; gap: var(--e5); width: min(840px, 100%); max-height: 100%; padding: var(--e6) var(--e6) var(--e5);
+  border-radius: 18px 14px 19px 13px / 14px 19px 13px 18px; background-color: var(--pano-escuro); background-image: var(--trama); box-shadow: 0 0 0 2.5px var(--noite-funda), 0 7px 0 2.5px var(--noite-funda), 0 22px 44px rgba(10, 4, 18, 0.65); }
+.fz-fim__palco { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-height: 0; }
+.fz-fim__luz { position: absolute; left: 50%; bottom: 30px; width: 280px; height: 280px; margin-left: -140px; border-radius: 50%; background-image: radial-gradient(circle, rgba(255, 200, 87, 0.42), rgba(255, 159, 28, 0.12) 46%, transparent 68%); }
+.fz-fim--derrota .fz-fim__luz { background-image: radial-gradient(circle, rgba(110, 193, 255, 0.3), rgba(185, 167, 232, 0.1) 46%, transparent 68%); }
+.fz-fim__palco .fz-boneco { position: relative; filter: drop-shadow(0 8px 6px rgba(10, 4, 18, 0.6)); }
+.fz-fim__heroi { position: relative; margin: 6px 0 0; padding: 4px 12px 5px; border-radius: 5px; background-color: var(--linho); color: var(--noite-funda); font: 600 14px/1.15 var(--letra-texto); text-align: center; transform: rotate(-1.5deg); box-shadow: 0 0 0 2px var(--noite-funda), 0 3px 0 2px rgba(10, 4, 18, 0.5); }
+.fz-fim__heroi b { font-weight: 800; }
+.fz-fim__lado { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--e4); min-width: 0; }
+/* "Vitória!" bordado em ponto cheio dourado; "Derrota" desfiando */
+.fz-fim__titulo { position: relative; margin: 0; display: flex; justify-content: center; font: 400 76px/1 var(--letra-titulo); letter-spacing: 0.01em; color: var(--ouro-de-vela); }
+.fz-fim__letra { --fz-ponto-cheio: repeating-linear-gradient(118deg, #FFD783 0 2.5px, #F0A92E 2.5px 4.5px); position: relative; display: inline-block; color: var(--noite-funda); -webkit-text-stroke: 9px var(--noite-funda); text-shadow: 0 5px 0 var(--noite-funda);
+  transform: rotate(calc((var(--i) - 3.5) * 1.6deg)) translateY(calc((var(--i) - 3.5) * (var(--i) - 3.5) * 0.9px)); }
+.fz-fim__letra::after { content: attr(data-l); position: absolute; left: 0; top: 0; -webkit-text-stroke: 0; text-shadow: none; background-image: var(--fz-ponto-cheio); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.fz-fim--vitoria .fz-fim__letra { animation: fz-borda 520ms cubic-bezier(0.2, 1.5, 0.4, 1) both; animation-delay: calc(var(--i) * 45ms); }
+@keyframes fz-borda { from { opacity: 0; transform: translateY(18px) scale(0.6) rotate(-10deg); } }
+.fz-fim--derrota .fz-fim__titulo { color: var(--tec-tule); }
+.fz-fim--derrota .fz-fim__letra { --fz-ponto-cheio: repeating-linear-gradient(118deg, #CBBDF0 0 2.5px, #9C8AD6 2.5px 4.5px); transform: rotate(calc((var(--i) - 3) * 2.4deg)) translateY(calc(var(--i) * var(--i) * 0.75px)); }
+.fz-fim__fios { position: absolute; left: 4%; right: 2%; top: 84%; width: 94%; height: 44px; overflow: visible; }
+.fz-fim__fios path { fill: none; stroke: var(--tec-tule); stroke-width: 2.4; stroke-linecap: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 0 var(--noite-funda)) drop-shadow(0 1.5px 0 var(--noite-funda)); }
+.fz-fim__motivo { margin: 0; color: var(--linho-apagado); font-size: 15px; text-align: center; }
+/* varal de retalhos (bandeirinhas dos 6 tecidos) no alto da folha da vitória */
+.fz-fim__varal { position: absolute; left: 8%; right: 8%; top: -3px; height: 34px; display: flex; justify-content: space-between; pointer-events: none; }
+.fz-fim__varal::before { content: ""; position: absolute; left: -3%; right: -3%; top: 3px; height: 0; border-top: 2.5px solid var(--linho); filter: drop-shadow(0 1.5px 0 var(--noite-funda)); }
+.fz-fim__varal i { position: relative; width: 26px; height: 30px; margin-top: 4px; background-size: 48px 48px; clip-path: polygon(0 0, 100% 0, 100% 62%, 50% 100%, 0 62%); transform: rotate(var(--giro, 0deg)); transform-origin: 50% 0; filter: drop-shadow(0 2px 0 rgba(10, 4, 18, 0.6)); }
+.fz-fim--derrota .fz-fim__motivo { margin-top: var(--e3); }
+.fz-fim__numeros { display: flex; justify-content: center; gap: var(--e4); }
+/* cada número num retalho redondo costurado */
+.fz-fim__numero { position: relative; width: 112px; height: 112px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border-radius: 50%; color: var(--linho-apagado); background-color: var(--pano-claro); background-image: var(--trama); box-shadow: 0 0 0 2px var(--noite-funda), 0 4px 0 2px var(--noite-funda); }
+.fz-fim__numero .fz-pesponto rect { rx: 50%; ry: 50%; }
+.fz-fim__numero b { font: 400 30px/1 var(--letra-titulo); color: var(--ouro-de-vela); font-variant-numeric: tabular-nums; }
+.fz-fim__numero span { font: 800 13px/1 var(--letra-texto); color: var(--linho); }
+.fz-fim__botoes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e4) var(--e3); width: 100%; max-width: 420px; }
+.fz-fim__botoes .fz-botao:first-child { grid-column: 1 / -1; min-height: 56px; font-size: 22px; }
+.fz-fim__botoes .fz-botao:last-child { grid-column: 1 / -1; }
+.fz-fim__aviso { margin: -8px 0 0; min-height: 18px; color: var(--vida); font-weight: 800; font-size: 14px; }
+
+.fz-fim[data-formato="celular"] { padding: var(--e3); align-items: stretch; }
+.fz-fim[data-formato="celular"] .fz-fim__folha { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--e3); height: 100%; padding: var(--e6) var(--e4) var(--e3); }
+.fz-fim[data-formato="celular"] .fz-fim__aviso { margin: 0; min-height: 0; }
+.fz-fim[data-formato="celular"] .fz-fim__aviso:empty { display: none; }
+.fz-fim[data-formato="celular"] .fz-fim__luz { width: 220px; height: 220px; margin-left: -110px; bottom: 24px; }
+.fz-fim[data-formato="celular"] .fz-fim__lado { display: contents; }
+.fz-fim[data-formato="celular"] .fz-fim__titulo { font-size: 56px; order: -1; }
+.fz-fim[data-formato="celular"] .fz-fim__letra { -webkit-text-stroke-width: 7px; text-shadow: 0 4px 0 var(--noite-funda); }
+.fz-fim[data-formato="celular"] .fz-fim__motivo { font-size: 14px; }
+.fz-fim[data-formato="celular"] .fz-fim__numeros { gap: var(--e2); }
+.fz-fim[data-formato="celular"] .fz-fim__numero { width: 96px; height: 96px; gap: 2px; }
+.fz-fim[data-formato="celular"] .fz-fim__numero b { font-size: 26px; }
+.fz-fim[data-formato="celular"] .fz-fim__numero .fz-icone { width: 18px; height: 18px; }
+.fz-fim[data-formato="celular"] .fz-fim__botoes { gap: var(--e3); }
+.fz-fim[data-formato="celular"] .fz-fim__botoes .fz-botao { padding: 6px 10px; }
+
+/* ============================================================ 14. "MENOS ANIMAÇÃO": nada treme, pisca ou desliza; trocas por esmaecer */
+:is(body.menos-animacao, html[data-menos="1"]) :is([class^="fz-"], [class*=" fz-"]),
+:is(body.menos-animacao, html[data-menos="1"]) :is([class^="fz-"], [class*=" fz-"])::before,
+:is(body.menos-animacao, html[data-menos="1"]) :is([class^="fz-"], [class*=" fz-"])::after { animation: none !important; transition: opacity 120ms linear !important; }
+:is(body.menos-animacao, html[data-menos="1"]) .fz-carta[data-estado~="jogavel"] .fz-carta__ponto-maldicao { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  :is([class^="fz-"], [class*=" fz-"]), :is([class^="fz-"], [class*=" fz-"])::before, :is([class^="fz-"], [class*=" fz-"])::after { animation: none !important; transition: opacity 120ms linear !important; }
+  .fz-carta[data-estado~="jogavel"] .fz-carta__ponto-maldicao { opacity: 1; }
+}

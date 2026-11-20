@@ -37,6 +37,7 @@ Agentes marcados **(só com a rede decidida)** esperam o dono escolher a rede do
 | Agente | Para quê | Modelo | Quando chamar |
 |---|---|---|---|
 | `designer-de-jogo` | Ideias de mecânica | Opus médio | Quando o dono pedir ideias |
+| `designer-de-criaturas` | Inventa e redesenha as criaturas (conceito, silhueta, identidade, nome), escreve a bíblia das criaturas e julga a arte gerada | Fable alto | Antes de qualquer geração de imagem de criatura; criado em 15/11 a pedido do dono |
 | `guardiao` | Nota de regras com vetos (`docs/regua-do-guardiao.md`) | Opus médio | Regra, prêmio, preço, sorteio ou tela nova — junto com o conselheiro, uma rodada por pacote (máx. 2) |
 | `conselheiro-de-diversao` | Nota de diversão (`docs/kit-diversao.md`) | Sonnet médio | Junto com o guardião, no desenho, antes do código |
 | `qa-jogador` | Tabela de pagamento × parte do jogo e conforto do jogador | Sonnet médio | Antes de chamar uma parte de "verde" e antes do site de teste |

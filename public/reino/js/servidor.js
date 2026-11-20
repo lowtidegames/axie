@@ -9,7 +9,7 @@ export class ErroS extends Error {
   constructor(codigo, status = 0, extra = {}) { super(codigo); this.codigo = codigo; this.status = status; this.extra = extra }
 }
 const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms))
-let criando = null
+let criando = null, trocou = false
 
 export const Srv = {
   on: false, api: '', token: null, apelido: null,
@@ -17,6 +17,8 @@ export const Srv = {
   relogio: 0,
   /** (caiu: boolean) → a tela mostra ou tira o "Reconnecting..." */
   aoRede: () => {},
+  /** () → a sessão guardada no aparelho não valia mais (401) e a tela passou a usar uma conta NOVA: a tela avisa uma vez. */
+  aoTrocarConta: () => {},
   agora: () => Date.now() + Srv.relogio,
 
   /** Pergunta o modo. Só caminhos relativos: a API fica na mesma raiz da página (funciona atrás de subpasta). */
@@ -75,8 +77,9 @@ export const Srv = {
     try { return await Srv.bruto(metodo, caminho, corpo) } catch (e) {
       if (e.status !== 401) throw e
       // dois pedidos juntos levando 401: só o 1º joga o token fora; o 2º já encontra o token novo e só repete (uma conta só)
-      if (Srv.token === usado) { Srv.token = null; try { localStorage.removeItem(CHAVE) } catch { /* ok */ } }
+      if (Srv.token === usado) { Srv.token = null; trocou = true; try { localStorage.removeItem(CHAVE) } catch { /* ok */ } }
       await Srv.entrar()
+      if (trocou) { trocou = false; Srv.aoTrocarConta() }
       return Srv.bruto(metodo, caminho, corpo)
     }
   },

@@ -51,6 +51,10 @@ export const T = {
   tipo: { tropa: 'Troop', construcao: 'Building', magia: 'Magic' },
   // MODO SERVIDOR (docs/reino/servidor.md): avisos curtos, modos de partida, temporada, placar do dia, perfil e replay. Todo número vem do servidor.
   srv: {
+    // (R30) a conta mora só neste aparelho: o perfil diz isso, e quando a sessão guardada não vale mais a tela avisa uma vez (sem prometer recuperar)
+    aparelho: 'Your keep is saved on this device. Clearing browser data starts a new one.', sessao: { titulo: 'YOUR SESSION EXPIRED', texto: 'A NEW KEEP WAS STARTED' },
+    // (R30) fim de uma partida de ranking: os pontos da partida e a conta da temporada (números do servidor)
+    fimRanking: { partida: (n) => `RUN SCORE ${n}`, temporada: (n, k) => `SEASON SCORE ${n} (AVG OF YOUR BEST ${k})` },
     rede: 'RECONNECTING...', voltou: 'BACK ONLINE', sincronizado: 'SYNCED WITH SERVER', carregando: 'Loading...', deNovo: 'Try again', acabou: 'THAT RUN ENDED ON THE SERVER',
     erro: {
       MUITOS_PEDIDOS: 'Too many requests. Wait a moment.', MUITAS_PARTIDAS: 'Too many new runs. Wait a little.', MUITAS_CONTAS: 'Too many new accounts from here. Wait a little.',
@@ -76,7 +80,7 @@ export const T = {
     ranking: {
       titulo: 'Season', menu: 'Season ranking', temporada: (n, quando) => `Season ${n} - ends in ${quando}`, fechada: (n) => `Season ${n} - closed`, regra: (n) => `Score: average of your best ${n} ranked runs`,
       voce: (pos, pts) => `Rank ${pos} - ${pts} points`, semVoce: 'No ranked run this season yet', proxima: (nome, n) => `${n} more for ${nome}`, topo: 'Top keepers', vazio: 'No ranked runs yet this season', passar: (n, nome) => `${n} point${n === 1 ? '' : 's'} to pass ${nome}`,
-      mais: 'More', ligas: 'Titles', faixa: (de) => `${de} or more`, lenda: (n) => `Top ${n} of the season`, beta: 'Beta: titles only.', partidas: (n) => `${n} run${n === 1 ? '' : 's'}`,
+      mais: 'More', ligas: 'Titles', faixa: (de) => `${de} or more`, lenda: (n) => `Top ${n} of the season`, topoN: (n) => `Top ${n} this season`, beta: 'Beta: titles only.', partidas: (n) => `${n} run${n === 1 ? '' : 's'}`,
     },
     placar: {
       titulo: "Today's road", menu: "Today's road", dia: (d, quando) => (quando ? `${d} - new road in ${quando}` : `${d} - new road tomorrow`), voce: (pos, pts) => `You: rank ${pos} - ${pts} points`, aberta: 'Your road is in progress', naoJogou: 'You have not played today',

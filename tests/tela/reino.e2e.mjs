@@ -14,7 +14,9 @@
 // e é a MESMA ESTRADA (só o álbum inicial), relíquias no HUD, duas abas na mesma partida, foco depois de mudar de fase, fim em
 // sequência (com e sem recorde, e com Reduced motion), horda legível, conquista só depois do espólio, telas na letra do jogo, cartão
 // de compartilhar, guia do ouro parado, volume; fotos de cada festa em dupla (antes e pico) e o registro da fila em fotos/reino/festas.txt.
-// Só uma parte: REINO_SO=celular|pc|r17celular|r17pc|desenho (a bateria completa é sem a variável).
+// R30 (função `r30`): o brilho da carta RARA antes de virar, com uma mão que TEM rara (álbum cheio pelo gancho de teste + semente
+// achada com o motor): a moldura na cor da raridade pulsa em volta do verso, some quando a carta abre, e não existe com Reduced motion.
+// Só uma parte: REINO_SO=celular|pc|r17celular|r17pc|desenho|r30 (a bateria completa é sem a variável).
 // Fotos em tests/tela/fotos/reino/.
 // Rode pela trava:  node tools/trava-robos.mjs rodar "timeout 800 node tests/tela/reino.e2e.mjs"
 import { createRequire } from 'node:module'
@@ -23,6 +25,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as CFG from '../../shared/reino/config.js'
+import { criarPartida, visao as visaoDoMotor } from '../../shared/reino/partida.js'
 import { LIGAS, ligaDe, mediaDasMelhores } from '../../public/reino/js/ligas.js'
 import { T } from '../../public/reino/js/textos.js'
 
@@ -38,7 +41,8 @@ const GUARDAR = new Set(['mao-revelacao-1-celular', 'mao-revelacao-2-celular', '
   'festa-nivel-antes-celular', 'festa-nivel-pico-celular', 'festa-vitoria-antes-celular', 'festa-vitoria-pico-celular', 'festa-chefe-antes-celular', 'festa-chefe-pico-celular',
   'festa-fim-recorde-antes-celular', 'festa-fim-recorde-pico-celular', 'festa-fim-sem-recorde-antes-celular', 'festa-fim-sem-recorde-pico-celular',
   'horda-legivel-celular', 'horda-legivel-pc', 'album-pixel-celular', 'menu-pixel-celular', 'link-amigo-celular', 'link-amigo-pergunta-celular', 'primeira-partida-celular', '320x568-espolio',
-  'replace-celular', 'reliquias-hud-celular', 'guia-ouro-celular', 'conquistas-pixel-celular'])
+  'replace-celular', 'reliquias-hud-celular', 'guia-ouro-celular', 'conquistas-pixel-celular',
+  'mao-rara-brilho-celular']) // R30
 const SEM = 'e2e-keepmile-1' // semente fixa: as mesmas cartas, hordas e espólios sempre
 
 const falhas = []
@@ -1137,6 +1141,72 @@ async function soLayout(w, h, toque) {
   await ctx.close()
 }
 
+/** R30 (N7): a conferência que faltou na R27 — o brilho da carta RARA antes de virar. O álbum inicial não tem carta rara, então o teste
+ *  enche o álbum pelo gancho de teste (`?teste=1`: guardaSet) e acha, com o motor, uma semente cuja 1ª mão tem UMA rara na 1ª posição. */
+async function r30() {
+  console.log('\n=== R30: brilho da carta rara antes de virar (celular 360×740) ===')
+  const erros = [], ruins = []
+  const iRar = (c) => CFG.RARIDADES.findIndex((r) => r.id === CFG.CARTAS[c].raridade)
+  const ctx = await browser.newContext({ viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1, reducedMotion: 'no-preference' })
+  const page = await ctx.newPage(); vigiar(page, erros, ruins)
+  await page.goto(base + `?teste=1&nova=1&semente=${SEM}`)
+  await page.waitForFunction(() => window.__keepmile?.pronto, null, { timeout: 20000 })
+  confere((await K(page, (k) => k.liberadas())).every((c) => iRar(c) < 2), 'R30 N7: o álbum inicial não tem carta rara (por isso a R27 não conferia o brilho com a semente fixa)')
+  await K(page, (k, n) => k.guardaSet('rodadas', n), 100000) // todas as cartas liberadas (só neste aparelho de teste)
+  await page.goto(base + `?teste=1&nova=1&semente=${SEM}`)
+  await page.waitForFunction(() => window.__keepmile?.pronto, null, { timeout: 20000 })
+  const liberadas = await K(page, (k) => k.liberadas())
+  confere(liberadas.length === CFG.ALBUM.inicial.length + CFG.ALBUM.ordem.length && liberadas.some((c) => iRar(c) >= 2), `R30 N7: álbum cheio pelo gancho de teste (${liberadas.length} cartas)`)
+  let semente = null, oferta = null
+  for (let i = 1; i < 2000 && !semente; i++) { const sm = 'e2e-keepmile-rara-' + i, of = visaoDoMotor(criarPartida({ semente: sm, cartasLiberadas: liberadas })).oferta.map((o) => o.carta); if (iRar(of[0]) >= 2 && iRar(of[1]) < 2 && iRar(of[2]) < 2) { semente = sm; oferta = of } }
+  if (!semente) { falha('R30 N7: nenhuma semente com carta rara na 1ª posição da mão'); await ctx.close(); return }
+  await page.goto(base + `?teste=1&nova=1&semente=${semente}`)
+  await page.waitForFunction(() => window.__keepmile?.pronto, null, { timeout: 20000 })
+  let m = await modelo(page)
+  const rar = CFG.CARTAS[oferta[0]].raridade, cor = m.chances.find((c) => c.id === rar)
+  confere(JSON.stringify(m.mao.map((c) => c.carta)) === JSON.stringify(oferta), `R30 N7: semente ${semente}: a mão da tela é a do motor (${oferta.map((c) => CFG.CARTAS[c].nome + ' ' + CFG.CARTAS[c].raridade).join(', ')})`)
+  // a cor de um ponto da tela (coordenada lógica da interface), lida de uma cópia pequena do canvas
+  const ponto = (x, y) => page.evaluate(([px, py]) => {
+    const c = document.getElementById('cena'), e = window.__keepmile.css().e, t = document.createElement('canvas'); t.width = 1; t.height = 1
+    const g = t.getContext('2d', { willReadFrequently: true }); g.drawImage(c, Math.round(px * e), Math.round(py * e), 1, 1, 0, 0, 1, 1)
+    const d = g.getImageData(0, 0, 1, 1).data; return '#' + [d[0], d[1], d[2]].map((n) => n.toString(16).padStart(2, '0')).join('').toUpperCase()
+  }, [x, y])
+  const R = await K(page, (k) => k.revela()), lay = await K(page, (k) => k.layout()), c0 = lay.cartas[0], c2 = lay.cartas[2]
+  // relógio da mão parado logo antes de a 1ª carta virar: ela já pousou, ainda está de costas
+  await K(page, (k, ms) => k.maoFixar(ms), R.espera - 10); await page.waitForTimeout(150)
+  m = await modelo(page)
+  confere(m.maoViradas === 3 && (await viuJa(page, 'maoRara')), `R30 N7: a carta ${CFG.CARTAS[oferta[0]].nome} (${cor.nome}) está de costas e a interface desenhou o brilho da raridade`)
+  // a moldura do brilho (2 px na cor da raridade, com o filete claro por fora) abraça o verso e PULSA 1 px: a linha logo acima do
+  // verso é sempre dela (o filete claro, ou a cor quando a moldura abre); a linha seguinte só acende quando a moldura abre
+  const RC = [cor.cor.toUpperCase(), cor.claro.toUpperCase()], dentro = [], fora = []
+  for (let i = 0; i < 14; i++) { dentro.push(await ponto(c0.x + 20, c0.y - 1)); fora.push(await ponto(c0.x + 20, c0.y - 2)); await page.waitForTimeout(45) }
+  confere(dentro.every((p) => RC.includes(p)), `R30 N7: em volta do verso da rara há a moldura na cor da raridade (${cor.nome} ${RC.join('/')}; lido ${[...new Set(dentro)].join(' ')})`)
+  confere(RC.every((c) => dentro.includes(c)) && fora.includes(RC[1]) && fora.some((p) => !RC.includes(p)), `R30 N7: e ela PULSA (a moldura abre e fecha 1 px: a linha de fora acende e apaga — ${[...new Set(fora)].join(' ')})`)
+  { const base2 = R.espera - 10 - 2 * 90, sobe = Math.round(Math.max(0, 1 - base2 / 220) * 60), cores = new Set(m.chances.map((c) => c.cor.toUpperCase()))
+    for (const c of m.chances) cores.add(c.claro.toUpperCase())
+    confere(!cores.has(await ponto(c2.x + 20, c2.y + sobe - 1)) && !cores.has(await ponto(c2.x + 20, c2.y + sobe - 2)), 'R30 N7: a carta comum da mesma mão chega de costas SEM moldura de raridade') }
+  await foto(page, 'mao-rara-brilho-celular')
+  // a rara abre: o brilho some (a moldura era só do verso)
+  await K(page, (k, ms) => k.maoFixar(ms), R.espera + R.vira + 20); await page.waitForTimeout(150)
+  confere((await modelo(page)).maoViradas === 2 && !(await viu(page)).includes('maoRara'), 'R30 N7: quando a rara vira para a frente o brilho some (as outras duas ainda de costas, sem brilho)')
+  await K(page, (k) => k.maoFixar(null)); await page.waitForTimeout(80)
+  confere((await modelo(page)).maoRevelada && !(await viu(page)).includes('maoVirada'), 'R30 N7: solta a revelação: as três abertas')
+  // Reduced motion: a mão já chega aberta — sem verso, sem brilho piscando
+  const ctxR = await browser.newContext({ viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1, reducedMotion: 'reduce' })
+  const pr = await ctxR.newPage(); vigiar(pr, erros, ruins)
+  await pr.goto(base + `?teste=1&nova=1&semente=${SEM}`)
+  await pr.waitForFunction(() => window.__keepmile?.pronto, null, { timeout: 20000 })
+  await K(pr, (k, n) => k.guardaSet('rodadas', n), 100000)
+  await pr.goto(base + `?teste=1&nova=1&semente=${semente}`)
+  await pr.waitForFunction(() => window.__keepmile?.pronto, null, { timeout: 20000 })
+  await pr.waitForTimeout(200)
+  { const mr = await modelo(pr), d = await viu(pr)
+    confere(JSON.stringify(mr.mao.map((c) => c.carta)) === JSON.stringify(oferta) && mr.maoViradas === 0 && !d.includes('maoRara') && !d.includes('maoVirada'), 'R30 N7: Reduced motion: a mesma mão com rara chega aberta, sem verso e sem brilho piscando') }
+  await ctxR.close()
+  confere(erros.length === 0 && ruins.length === 0, 'R30: zero erro e zero 404' + (erros.length + ruins.length ? ' → ' + [...erros, ...ruins].slice(0, 4).join(' | ') : ''))
+  await ctx.close()
+}
+
 const SO = process.env.REINO_SO || '' // para rodar só uma parte enquanto se trabalha nela (a bateria completa é sem isto)
 try {
   if (!SO || SO === 'base' || SO === 'celular') await rodar({ nome: 'celular', w: 360, h: 740, toque: true })
@@ -1150,6 +1220,7 @@ try {
     await soLayout(320, 568, true)
     await soLayout(1920, 1080, false)
   }
+  if (!SO || SO === 'r30') await r30()
 } catch (e) { falha('exceção: ' + (e?.stack || e)) }
 await browser.close()
 servidor.close()

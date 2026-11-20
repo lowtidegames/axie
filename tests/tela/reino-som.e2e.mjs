@@ -686,6 +686,39 @@ cabecalho('R35 — eventos do modo servidor: a chamada do som está no lugar')
   confere(semUso.every((n) => ['espada', 'flecha'].includes(n)), `todo som do motor é disparado por algum evento da tela (só da folha/fundo: ${semUso.join(', ') || 'nenhum'})`)
 }
 
+// ================================================================== R43 — a contagem que o jogador vê sempre tem o seu tique
+cabecalho('R43 — tique de contagem: soa em todo passo (mesmo com o teto cheio) e sobe de nota; som grande não empilha')
+{
+  const p = await ctxPc.newPage(); vigiar(p); await p.goto(FOLHA); await p.click('h1'); await instalarMedidor(p)
+  const r = await p.evaluate(async () => {
+    const { Som, Musica } = window.__reino, espera = (ms) => new Promise((ok) => setTimeout(ok, ms)), o = {}
+    Som.mudo(false); Som.volume('efeitos', 0.8); Som.menosAnimacao(false); Musica.parar()
+    // 7 fanfarras iguais coladas (o robô que joga a partida inteira num instante): antes ficavam as 7 vivas e enchiam o teto
+    for (let i = 0; i < 7; i++) { Som.tocar('vitoria'); await espera(45) }
+    o.copias = Som.estado().vivos.split(' ').filter((x) => x.startsWith('vitoria:')).length; o.cortados = Som.estado().cortados
+    // teto cheio só de sons de prioridade 1 (os mais importantes): antes o tique (prioridade 2) era recusado em todo passo
+    const pri1 = Som.tabela().filter((t) => t.pri === 1 && t.ms >= 700).map((t) => t.nome)
+    for (let k = 0; k < 2; k++) for (const n of pri1) { Som.tocar(n); await espera(k ? 40 : 0) }
+    const cheio = Som.estado(); o.cheio = cheio.vozes; o.soPri1 = cheio.vivos.split(' ').every((x) => x.endsWith(':1')); o.max = 0; o.tiques = []; o.vozesNoTique = []
+    for (let i = 1; i <= 13; i++) { o.vozesNoTique.push(Som.estado().vozes); o.tiques.push(Som.tocar('rankingSobe', { tom: i })); o.max = Math.max(o.max, Som.estado().vozes); await espera(70) }
+    const fim = Som.estado(); o.tocou = (fim.porNome.rankingSobe || 0) - (cheio.porNome.rankingSobe || 0); o.recusados = fim.recusados - cheio.recusados
+    o.juntos = [Som.tocar('rankingSobe', { tom: 1 }), Som.tocar('rankingSobe', { tom: 2 }), Som.tocar('ouroTique', { tom: 1 }), Som.tocar('ouroTique', { tom: 2 })] // dois passos no mesmo quadro (relógio atrasado): os dois soam
+    o.comum = [Som.tocar('toque'), Som.tocar('toque')] // som comum continua virando um só no mesmo instante
+    o.certos = Som.tabela().filter((t) => t.certo).map((t) => t.nome)
+    await espera(3200); o.sobrou = Som.estado().vozes
+    // a nota sobe com o degrau: sol (392 Hz) sem tom, ré (587 Hz) no degrau 7
+    const { fora, forca, SR, PRE } = window.__m, nota = async (tom) => { const { L } = await fora(0.5, (ctx, no, t) => Som.fabricar(ctx, no.fx, 'rankingSobe', t, 0, { tom })); const i0 = Math.floor(PRE * SR); return { sol: forca(L, i0, i0 + SR * 0.2, 392), re: forca(L, i0, i0 + SR * 0.2, 587.33) } }
+    o.nota0 = await nota(0); o.nota7 = await nota(7)
+    return o
+  })
+  confere(r.copias <= 2 && r.cortados >= 5, `7 fanfarras iguais coladas não empilham: ficam ${r.copias} vivas (teto 2), ${r.cortados} antigas cortadas`)
+  confere(r.cheio === 12 && r.soPri1 && r.vozesNoTique.slice(0, 5).every((v) => v === 12), `teto cheio com 12 vozes de prioridade 1 quando a contagem começa (${r.vozesNoTique.join(' ')})`)
+  confere(r.tiques.length === 13 && r.tiques.every(Boolean) && r.tocou === 13 && r.recusados === 0 && r.max <= 12, `os 13 tiques da contagem soam, um por passo de 70 ms, sem passar do teto (${r.tocou} de 13, ${r.recusados} recusados, no máximo ${r.max} vozes)`)
+  confere(r.juntos.every(Boolean) && r.comum[0] === true && r.comum[1] === false && JSON.stringify(r.certos) === '["ouroTique","rankingSobe"]', 'dois passos de contagem no mesmo instante soam os dois (rankingSobe e ouroTique); som comum repetido no mesmo instante continua virando um só')
+  confere(r.nota0.sol > r.nota0.re + 10 && r.nota7.re > r.nota7.sol + 10 && r.sobrou === 0, `a contagem sobe de nota: sem degrau toca sol (${n1(r.nota0.sol)} dB contra ${n1(r.nota0.re)} do ré), no degrau 7 toca ré (${n1(r.nota7.re)} dB contra ${n1(r.nota7.sol)} do sol)`)
+  await p.close()
+}
+
 // ================================================================== fim
 cabecalho('Geral')
 confere(erros.length === 0, 'zero erro de console ou de página' + (erros.length ? ': ' + erros.slice(0, 4).join(' | ') : ''))

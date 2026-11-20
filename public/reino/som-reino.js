@@ -255,7 +255,7 @@ const EFEITOS = {
     K.trompa({ m: 79, dur: 0.75, vol: 0.4, em: 0.48 }); K.trompa({ m: 83, dur: 0.75, vol: 0.3, em: 0.48 }); K.tambor({ f: 80, dur: 0.3, vol: 0.7, em: 0.48 })
     ;[91, 95, 98, 103, 98, 95].forEach((m, i) => K.sino({ f: N(m), dur: 0.3, vol: 0.1, em: 0.55 + i * 0.1 }))
   } },
-  rankingSobe: { ms: 140, pri: 2, alvo: -14, camada: 'fim', vars: 3, fn(K, v) { const m = [67, 69, 71][v.i]; K.corda({ m, dur: 0.18, vol: 0.45 }); K.tom({ f: N(m + 12), f2: N(m + 19), dur: 0.09, tipo: 'triangle', vol: 0.2 }); K.ruido({ dur: 0.012, f: 4000, vol: 0.2 }) } },
+  rankingSobe: { ms: 140, pri: 2, alvo: -14, camada: 'fim', vars: 3, certo: true, cauda: 0.12, fn(K, v) { const m = v.tom ? 67 + Math.max(-12, Math.min(19, Math.round(v.tom))) : [67, 69, 71][v.i] /* com `tom` a corda sobe um semitom por degrau: contagem subindo */; K.corda({ m, dur: 0.18, vol: 0.45 }); K.tom({ f: N(m + 12), f2: N(m + 19), dur: 0.09, tipo: 'triangle', vol: 0.2 }); K.ruido({ dur: 0.012, f: 4000, vol: 0.2 }) } },
   cartaNova: { ms: 990, pri: 2, alvo: -9, camada: 'álbum', vars: 1, grande: true, fn(K) {
     K.ruido({ dur: 0.13, f: 1800, f2: 4200, q: 1.5, vol: 0.4, ataque: 0.006 }); PENTA.slice(0, 6).forEach((m, i) => K.corda({ m, dur: 0.18, vol: 0.35, em: 0.1 + i * 0.06 }))
     ;[79, 83, 86].forEach((m) => K.sino({ f: N(m), dur: 0.5, vol: 0.2, em: 0.52 })); K.flauta({ m: 79, dur: 0.45, vol: 0.3, em: 0.52 }); K.ruido({ dur: 0.4, f: 7500, tipo: 'highpass', vol: 0.06, em: 0.5, ataque: 0.05 })
@@ -268,7 +268,7 @@ const EFEITOS = {
   // ---- interface nova (carta que vira, ouro contando, menu, replay, rede, apelido, ranking)
   cartaVira: { ms: 128, pri: 2, alvo: -15, camada: 'interface', vars: 3, fn(K, v) { K.ruido({ dur: 0.09, f: 1400 * v.p, f2: 5200, q: 1.2, vol: 0.45, ataque: 0.012 }); K.ruido({ dur: 0.018, f: 2800, vol: 0.5, em: 0.075, ataque: 0.001 }); K.tom({ f: 420 * v.p, f2: 300, dur: 0.035, tipo: 'triangle', vol: 0.35, em: 0.075 }) } },
   cartaRara: { ms: 350, pri: 2, alvo: -12, camada: 'interface', vars: 1, fn(K) { [83, 86, 91, 95].forEach((m, i) => K.sino({ f: N(m), dur: 0.36, vol: 0.3, em: i * 0.055 })); K.ruido({ dur: 0.4, f: 7500, tipo: 'highpass', vol: 0.07, ataque: 0.08 }); K.corda({ m: 79, dur: 0.3, vol: 0.3 }) } },
-  ouroTique: { ms: 37, pri: 3, alvo: -19, camada: 'interface', vars: 3, fn(K, v) { K.sino({ f: 3100 * v.p, dur: 0.06, vol: 0.4, parciais: [1, 2.42] }); K.ruido({ dur: 0.008, f: 6000, vol: 0.2 }) } },
+  ouroTique: { ms: 37, pri: 3, certo: true, alvo: -19, camada: 'interface', vars: 3, fn(K, v) { K.sino({ f: 3100 * v.p, dur: 0.06, vol: 0.4, parciais: [1, 2.42] }); K.ruido({ dur: 0.008, f: 6000, vol: 0.2 }) } },
   menuAbre: { ms: 340, pri: 2, alvo: -15, camada: 'interface', vars: 1, fn(K) { K.ruido({ dur: 0.14, f: 500, f2: 1600, tipo: 'lowpass', vol: 0.4, ataque: 0.02 }); K.corda({ m: 67, dur: 0.2, vol: 0.4, em: 0.05 }); K.corda({ m: 74, dur: 0.24, vol: 0.4, em: 0.1 }) } },
   menuFecha: { ms: 280, pri: 2, alvo: -16, camada: 'interface', vars: 1, fn(K) { K.corda({ m: 74, dur: 0.16, vol: 0.4 }); K.corda({ m: 67, dur: 0.22, vol: 0.4, em: 0.05 }); K.ruido({ dur: 0.12, f: 1600, f2: 450, tipo: 'lowpass', vol: 0.4, ataque: 0.01, em: 0.03 }) } },
   velocidade: { ms: 160, pri: 2, alvo: -15, camada: 'interface', vars: 1, fn(K, v) { K.ruido({ dur: 0.07, f: 1500 * v.p, f2: 4500 * v.p, q: 2, vol: 0.4, ataque: 0.01 }); K.tom({ f: N(74) * v.p, dur: 0.12, tipo: 'triangle', vol: 0.5, em: 0.05 }); K.tom({ f: N(81) * v.p, dur: 0.09, tipo: 'triangle', vol: 0.3, em: 0.09 }) } },
@@ -462,7 +462,7 @@ function fabricar(c, destino, nome, t, i = 0, { tom = 0, forca = 1, pan = 0, cru
   let fim = voz
   if (pan && c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); voz.connect(p); fim = p }
   fim.connect(destino)
-  e.fn(kit(c, voz, t, sorteio(hash(nome) + i * 7919)), { i, p: (e.vars > 1 ? AFINA[i % 3] : 1) * 2 ** (tom / 12) })
+  e.fn(kit(c, voz, t, sorteio(hash(nome) + i * 7919)), { i, tom, p: (e.vars > 1 ? AFINA[i % 3] : 1) * 2 ** (tom / 12) })
   return { voz, fim, ms: e.ms, alvo: e.alvo }
 }
 
@@ -576,7 +576,7 @@ function ambientar(c, destino, nome, t, dur, semente = 1) {
 }
 
 // ------------------------------------------------------------------ ao vivo
-const S = { ctx: null, no: null, analisador: null, destravado: false, pref: { ...PADRAO }, menos: false, vozes: [], tocados: 0, porNome: {}, ultimo: null, ultimoEm: {}, ultimaVar: {}, recusados: 0, roubados: 0, amostras: {}, historico: [], fundo: null, densidade: 0, soMassa: false, grupos: {}, golpes: 0, agrupados: 0, golpesEm: [], cortes: 0, ultimoCorte: null, duck: null, amb: null, ambSaindo: null, ambPedido: null, ambN: 0, ambTrocas: 0, ambRelogio: null }
+const S = { ctx: null, no: null, analisador: null, destravado: false, pref: { ...PADRAO }, menos: false, vozes: [], tocados: 0, porNome: {}, ultimo: null, ultimoEm: {}, ultimaVar: {}, recusados: 0, roubados: 0, amostras: {}, historico: [], fundo: null, densidade: 0, soMassa: false, cortados: 0, grupos: {}, golpes: 0, agrupados: 0, golpesEm: [], cortes: 0, ultimoCorte: null, duck: null, amb: null, ambSaindo: null, ambPedido: null, ambN: 0, ambTrocas: 0, ambRelogio: null }
 const M = { momento: null, pendente: null, n: 0, total: 0, prox: 0, rodada: 1, tocando: false, relogio: null, trocas: [], linhas: [], pedidoEm: 0 }
 const CHAVE = 'reino_som'
 try { const p = JSON.parse(globalThis.localStorage?.getItem(CHAVE) || 'null'); if (p) for (const k of Object.keys(PADRAO)) if (typeof p[k] === typeof PADRAO[k]) S.pref[k] = p[k] } catch { /* sem armazenamento: fica o padrão */ }
@@ -629,13 +629,18 @@ function tocarVoz(nome, opc = {}) {
   const e = EFEITOS[nome]
   if (!e || !S.destravado || !S.ctx) return null
   const agora = S.ctx.currentTime, relogio = performance.now()
-  if (relogio - (S.ultimoEm[nome] ?? -1e9) < 35) return null // o mesmo som duas vezes no mesmo instante vira um só
+  // `certo` (R43): o tique de uma CONTAGEM que o jogador vê (rodadas do fim, ranking, ouro) tem de soar em todo passo — não cai no
+  // "repetido no mesmo instante" (o relógio da tela pode atrasar e juntar dois passos) nem perde a vez para o teto de vozes
+  if (!e.certo && relogio - (S.ultimoEm[nome] ?? -1e9) < 35) return null // o mesmo som duas vezes no mesmo instante vira um só
   limpar(agora)
   if (e.max && S.vozes.filter((v) => v.nome === nome).length >= e.max) { S.recusados++; return null }
   if (e.tropa && S.vozes.filter((v) => v.tropa).length >= TETO_TROPA) { S.recusados++; return null }
+  // som grande não empilha (R43): no máximo 2 cópias do mesmo som de prioridade 1 ou `grande`; a 3ª corta a mais antiga (7 fanfarras iguais
+  // seguidas enchiam o teto inteiro e calavam o que vinha depois)
+  if (e.pri === 1 || e.grande) { const iguais = S.vozes.filter((v) => v.nome === nome); if (iguais.length >= 2) { calar(iguais.reduce((a, v) => (v.t0 < a.t0 ? v : a)), agora); S.cortados++; limpar(agora) } }
   if (S.vozes.length >= TETO_VOZES) { // cheio: sai a voz menos importante e mais antiga; se a nova é a menos importante, é ela que não entra
-    const vitima = S.vozes.reduce((a, v) => (v.pri > a.pri || (v.pri === a.pri && v.t0 < a.t0) ? v : a))
-    if (vitima.pri < e.pri) { S.recusados++; return null }
+    let vitima = S.vozes.reduce((a, v) => (v.pri > a.pri || (v.pri === a.pri && v.t0 < a.t0) ? v : a))
+    if (vitima.pri < e.pri) { if (!e.certo) { S.recusados++; return null } vitima = S.vozes.reduce((a, v) => (v.fim < a.fim ? v : a)) } // som `certo`: sai a voz que está mais perto de acabar
     calar(vitima, agora); S.roubados++; limpar(agora)
   }
   S.ultimoEm[nome] = relogio
@@ -773,11 +778,11 @@ const Som = {
   /** "Menos animação": o som continua; só os estouros grandes ficam 6 dB mais baixos. */
   menosAnimacao(v) { if (v !== undefined) S.menos = !!v; return S.menos },
   nomes: () => Object.keys(EFEITOS),
-  tabela: () => Object.entries(EFEITOS).map(([nome, e]) => ({ nome, ms: e.ms, pri: e.pri, alvo: e.alvo, camada: e.camada, vars: e.vars, grande: !!e.grande, tropa: !!e.tropa, max: e.max || 0, somar: !!e.somar, varia: e.varia || 0, duck: DUCK[nome] || null })),
+  tabela: () => Object.entries(EFEITOS).map(([nome, e]) => ({ nome, ms: e.ms, pri: e.pri, alvo: e.alvo, camada: e.camada, vars: e.vars, grande: !!e.grande, tropa: !!e.tropa, max: e.max || 0, somar: !!e.somar, varia: e.varia || 0, certo: !!e.certo, duck: DUCK[nome] || null })),
   estado() {
     if (S.ctx) limpar(S.ctx.currentTime)
-    return { destravado: S.destravado, ligado: !!S.ctx, contexto: S.ctx?.state ?? null, mudo: S.pref.mudo, efeitos: S.pref.efeitos, musica: S.pref.musica, menos: S.menos, vozes: S.vozes.length, tropa: S.vozes.filter((v) => v.tropa).length,
-      tocados: S.tocados, ultimo: S.ultimo, porNome: { ...S.porNome }, recusados: S.recusados, roubados: S.roubados, saida: S.no ? S.no.saida.gain.value : null, ultimaForca: S.ultimaForca ?? null, amostras: Object.keys(S.amostras), somados: S.somados ?? 0, historico: S.historico.slice(), atrasoMs: S.ctx ? Math.round(((S.ctx.baseLatency || 0) + 0.004) * 1000) : null,
+    return { destravado: S.destravado, ligado: !!S.ctx, contexto: S.ctx?.state ?? null, mudo: S.pref.mudo, efeitos: S.pref.efeitos, musica: S.pref.musica, menos: S.menos, vozes: S.vozes.length, vivos: S.vozes.map((v) => v.nome + ':' + v.pri).join(' '), tropa: S.vozes.filter((v) => v.tropa).length,
+      tocados: S.tocados, ultimo: S.ultimo, porNome: { ...S.porNome }, recusados: S.recusados, roubados: S.roubados, cortados: S.cortados, saida: S.no ? S.no.saida.gain.value : null, ultimaForca: S.ultimaForca ?? null, amostras: Object.keys(S.amostras), somados: S.somados ?? 0, historico: S.historico.slice(), atrasoMs: S.ctx ? Math.round(((S.ctx.baseLatency || 0) + 0.004) * 1000) : null,
       golpes: S.golpes, agrupados: S.agrupados, ultimoGolpe: S.ultimoGolpe ?? null, golpesEm: S.golpesEm.slice(), cortes: S.cortes, ultimoCorte: S.ultimoCorte, corteHz: S.no ? S.no.corte.frequency.value : null, duck: S.duck, duckAgora: S.no ? S.no.musDuck.gain.value : null, fxAgora: S.no ? S.no.fx.gain.value : null, ultimoTom: S.ultimoTom ?? null, ultimoPan: S.ultimoPan ?? null,
       ambiente: S.amb?.nome ?? null, ambientePedido: S.ambPedido, ambienteGanho: S.amb ? S.amb.no.gain.value : 0, ambienteSaindo: S.ambSaindo ? { nome: S.ambSaindo.nome, ganho: S.ambSaindo.no.gain.value } : null, ambienteTrocas: S.ambTrocas }
   },

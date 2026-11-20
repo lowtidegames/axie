@@ -490,8 +490,9 @@ const FESTA_REINO = 2200, REINO_BATE = 560, REINO_SAI = 1500, REINO_DEPOIS_DO_CH
 function festejarReino(R) {
   depois(R.bate || 420, () => { if (R.fim) return; Som.tocar('recorde'); C.tremer(4, 120) }) // a batida: fanfarra + tremida leve (a cena recusa a tremida com Reduced motion)
   if (C.menos) return
-  // o número da rodada conta rolando até a rodada da vitória, com um tique por passo (no máximo 8 tiques)
-  for (let i = 1; i <= 8; i++) depois(200 + Math.round(((REINO_BATE - 200) * i) / 9), () => { if (!R.fim) Som.tocar('rankingSobe', { tom: i }) })
+  // o número da rodada conta rolando até a rodada da vitória; os passos são de 40 ms, então o tique sai a cada 2 passos, de propósito (R43:
+  // 4 notas subindo, uma a cada 80 ms, até a batida — 8 em 320 ms virava metralhadora e o motor engolia as coladas)
+  for (let i = 2; i <= 8; i += 2) depois(200 + Math.round(((REINO_BATE - 200) * i) / 9), () => { if (!R.fim) Som.tocar('rankingSobe', { tom: i }) })
   const onda = (ms, nome, xs, y) => depois(ms, () => { if (R.fim || M.vitoria?.reino !== R) return; for (const dx of xs) C.efeito(nome, C.VW * (0.5 + dx) + C.cam.x, C.VH * y) })
   for (const dx of [-0.3, 0, 0.3]) C.efeito('confetti', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.3)
   for (const dx of [-0.24, 0.24]) C.efeito('fireworks', C.VW * (0.5 + dx) + C.cam.x, C.VH * 0.2)

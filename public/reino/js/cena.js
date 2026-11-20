@@ -188,7 +188,7 @@ export function criarCena(canvas, CONFIG) {
     C.lado[i] = lado; C.peca[i] = p; C.idTipo[i] = tipo; C.vari[i] = p.variantes ? (i * 7 + 3) % p.variantes.length : 0
     // formação com profundidade: ninguém exatamente em cima do outro nem na mesma pose (desvio fixo por boneco; só desenho)
     const h = (i * 2654435761) >>> 0
-    C.x0[i] = x; C.v[i] = 0; C.t0[i] = C.tb; C.lane[i] = lane + (p.w > 60 ? 0 : (((h >>> 4) % 7) - 3) * 0.022); C.dxe[i] = dxe + (p.w > 60 ? 0 : ((h >>> 9) % 5) - 2); C.hp[i] = hp; C.hpMax[i] = hp; C.est[i] = 1
+    C.x0[i] = x; C.v[i] = 0; C.t0[i] = C.tb; C.lane[i] = lane + (p.w > 60 ? 0 : (((h >>> 4) % 7) - 3) * 0.03); C.dxe[i] = dxe + (p.w > 60 ? 0 : ((h >>> 9) % 7) - 3); C.hp[i] = hp; C.hpMax[i] = hp; C.est[i] = 1
     C.anim[i] = 0; C.animT[i] = C.relogio - (h >>> 12) % 1040; C.dir[i] = lado ? 1 : -1; C.dirV[i] = C.dir[i]; C.k[i] = grande; C.barra[i] = p.barra ? 1 : 0; C.preso[i] = -1; C.nv[i] = nivel; C.lider[i] = lider ? 1 : 0
     if (lado === 0 && lider) grupoAtual++
     C.grupo[i] = lado === 0 ? grupoAtual : 0
@@ -264,7 +264,7 @@ export function criarCena(canvas, CONFIG) {
     const t = C.relogio
     let livre = null, velho = C.num[0]
     for (const n of C.num) {
-      if (n.tipo === tipo && t - n.nasc < 420 && t - n.t0 < DUR_NUM && Math.abs(n.x - x) < 26 && Math.abs(n.y - y) < 20) { n.v += valor; n.grande = n.grande || grande; textoDoDano(n); n.t0 = Math.max(n.t0, t - 150); C.med.somados++; return } // soma e dá um repique
+      if (n.tipo === tipo && t - n.nasc < 420 && t - n.t0 < DUR_NUM && Math.abs(n.x - x) < 26 && Math.abs(n.y - y) < 20) { n.v += valor; n.grande = n.grande || grande; textoDoDano(n); n.t0 = Math.max(n.t0, t - 90); C.med.somados++; return } // soma e dá um repique
       if (t - n.t0 >= DUR_NUM) livre = livre || n
       if (n.t0 < velho.t0) velho = n
     }
@@ -427,7 +427,7 @@ export function criarCena(canvas, CONFIG) {
     for (let o = 0; o < C.n; o++) {
       const i = C.ordem[o]; if (C.tier[i] !== tier || C.est[i] !== 1 || C.oculto[i]) continue
       const p = C.peca[i], m = F.marca[C.lado[i] ? (p.w > 100 ? 3 : p.w > 60 ? 2 : 1) : 0]
-      g.globalAlpha = C.lado[i] ? 0.5 : 0.42; g.drawImage(m, Math.round(C.sx[i]) - cx - (m.width >> 1), Math.round(C.sy[i]) + ty - (m.height >> 1))
+      g.globalAlpha = C.lado[i] ? 0.62 : 0.5; g.drawImage(m, Math.round(C.sx[i]) - cx - (m.width >> 1), Math.round(C.sy[i]) + ty - (m.height >> 1))
     }
     for (let o = 0; o < C.n; o++) {
       const i = C.ordem[o]; if (C.tier[i] !== tier || C.est[i] === 0 || C.est[i] >= 3 || C.oculto[i]) continue
@@ -453,7 +453,7 @@ export function criarCena(canvas, CONFIG) {
       sprite(Arte.folhaVar(p.img, tin, flip), p, qs[C.qi[i]], Xp, Yp, flip, C.pLarg[i], C.pAlt[i], C.pIncl[i] * fc, C.k[i])
       if (e !== 1) continue
       // rastro do golpe: meia-lua clara que varre na frente de quem dá o bote (corpo a corpo)
-      if (C.fase[i] === Mov.FASE.bote && !C.atqTiro[i]) { const v = F.varrida, ms = t - C.atqT[i] - C.atqAnt[i], q = v.quadros[Math.min(2, Math.floor(ms / 45))], kk = grandao ? 2 : 1, alt = Math.round(p.ay * 0.45); g.globalAlpha = 0.9; if (fc > 0) g.drawImage(v.img, q[0], q[1], q[2], q[3], Xp + 3 * kk, Yp - alt - 13 * kk, q[2] * kk, q[3] * kk); else { g.save(); g.translate(Xp - 3 * kk, Yp - alt - 13 * kk); g.scale(-1, 1); g.drawImage(v.img, q[0], q[1], q[2], q[3], 0, 0, q[2] * kk, q[3] * kk); g.restore() } g.globalAlpha = 1 }
+      if (C.fase[i] === Mov.FASE.bote && !C.atqTiro[i]) { const v = F.varrida, ms = t - C.atqT[i] - C.atqAnt[i], q = v.quadros[Math.min(2, Math.floor(ms / 45))], kk = grandao ? 2 : 1, alt = Math.round(p.ay * 0.45); g.globalAlpha = 0.8; if (fc > 0) g.drawImage(v.img, q[0], q[1], q[2], q[3], Xp + 3 * kk, Yp - alt - 13 * kk, q[2] * kk, q[3] * kk); else { g.save(); g.translate(Xp - 3 * kk, Yp - alt - 13 * kk); g.scale(-1, 1); g.drawImage(v.img, q[0], q[1], q[2], q[3], 0, 0, q[2] * kk, q[3] * kk); g.restore() } g.globalAlpha = 1 }
       if (C.nv[i] >= 3 && C.lado[i] === 0) marcaDeNivel(i, p, Xp, Yp)
       if (C.barra[i] && C.hp[i] < C.hpMax[i]) barrinha(X, Y - p.ay + Arte.topoDe(p) - 5, p.w > 100 ? 40 : 22, C.hp[i] / C.hpMax[i], '#E0503C')
       if (C.preso[i] > C.tb) { g.fillStyle = '#286840'; g.fillRect(X - 6, Y - 4, 12, 2); g.fillStyle = '#469C48'; g.fillRect(X - 4, Y - 7, 2, 4); g.fillRect(X + 2, Y - 8, 2, 5) }
@@ -527,7 +527,7 @@ export function criarCena(canvas, CONFIG) {
         fase = Mov.golpe(PO, msA, C.atqAnt[i], peso, !!C.atqTiro[i])
         if (C.atqSolta[i] && msA >= C.atqAnt[i]) { // fim da antecipação: solta o tiro para ele chegar junto com o dano
           C.atqSolta[i] = 0; const j = C.atqAlvo[i]
-          if (j >= 0 && j < C.n) { const tp = C.projetilDe(i); if (tp !== 'nada') { C.projetil(p.x + fc * 8, p.y - p0.ay * 0.5, C.sx[j], C.sy[j] - C.peca[j].ay * 0.45, tp); if (C.gatilho) C.gatilho('tiro', p.x - cxp, p.y) } }
+          if (j >= 0 && j < C.n) { const tp = C.projetilDe(i); if (tp !== 'nada') { C.projetil(p.x + fc * 8, p.y - p0.ay * 0.5, C.sx[j], C.sy[j] - C.peca[j].ay * 0.45, tp); if (C.gatilho) C.gatilho(tp, p.x - cxp, p.y) } }
         }
       }
       if (fase !== C.fase[i]) {
@@ -614,8 +614,8 @@ export function criarCena(canvas, CONFIG) {
 
   // gravador de TIRAS (prova de movimento): copia N quadros seguidos de um recorte do mundo, lado a lado. Só com ?teste=1.
   C.gravador = null
-  C.gravar = ({ gatilho = '', n = 8, cada = 3, w = 120, h = 90, x = null, y = null, atraso = 0 } = {}) => { const c = Px.tela(w * C.e * n, h * C.e); C.gravador = { gatilho, n, cada, w, h, x, y, atraso, tela: c, i: 0, cont: 0, armado: !gatilho, pronta: false } }
-  C.gatilho = (nome, x, y) => { const G = C.gravador; if (!G || G.armado || G.pronta || G.gatilho !== nome) return; G.armado = true; if (G.x == null) { G.x = x; G.y = y - G.h * 0.22 } }
+  C.gravar = ({ gatilho = '', n = 8, cada = 3, w = 120, h = 90, x = null, y = null, atraso = 0, dx = 0, dy = 0 } = {}) => { const c = Px.tela(w * C.e * n, h * C.e); C.gravador = { gatilho, n, cada, w, h, x, y, dx, dy, atraso, tela: c, i: 0, cont: 0, armado: !gatilho, pronta: false } }
+  C.gatilho = (nome, x, y) => { const G = C.gravador; if (!G || G.armado || G.pronta || G.gatilho !== nome) return; G.armado = true; if (G.x == null) { G.x = x + G.dx; G.y = y - G.h * 0.22 + G.dy } }
   C.tira = () => (C.gravador?.pronta ? C.gravador.tela.toDataURL('image/png') : null)
   function gravarQuadro() {
     const G = C.gravador; if (!G || !G.armado || G.pronta) return

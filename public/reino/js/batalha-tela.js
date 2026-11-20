@@ -76,12 +76,12 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       const pa = tela(a)
       let empurra = 0
       if (o >= 0) {
-        const xa = C.xDe(a), xo = C.xDe(o), longe = Math.abs(xa - xo) > 60
+        const xa = C.xDe(a), xo = C.xDe(o), longe = Math.abs(xa - xo) > 60 && atira(o)
         if (xa !== xo) C.dir[o] = xa > xo ? 1 : -1
         const po = tela(o)
         empurra = pa.x === po.x ? 0 : pa.x > po.x ? 1 : -1
         // o golpe já vem ANTECIPADO (antever): aqui é o instante do impacto. Sem antecipação marcada (nasceu agora, luta pulada), entra direto no bote.
-        if (!C.emGolpe(o)) { C.atacar(o, a, false, true); if (longe && C.projetilDe(o) !== 'nada') C.projetil(po.x + C.cam.x, po.y - 16, pa.x + C.cam.x, pa.y - 14, C.projetilDe(o), 110) }
+        if (!C.emGolpe(o)) { C.atacar(o, a, false, true); if (longe) C.projetil(po.x + C.cam.x, po.y - 16, pa.x + C.cam.x, pa.y - 14, C.projetilDe(o), 110) }
         if (longe) { if (C.lado[o] === 0 && (t & 3) === 0) Som.tocar('flecha', { pan: pan(o), forca: 0.7 }) } else if (forte || (e[3] + t) % 3 === 0) C.efeito('spark', pa.x + C.cam.x + empurra * 3, pa.y - 14)
         if (chefao) { pausa(agora, 60, 6); Som.tocar('critico', { pan: pan(a) }) } else if (forte) { pausa(agora, 45, 3); Som.tocar('critico', { pan: pan(a), forca: 0.7 }) }
       }
@@ -159,11 +159,14 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       if (quem != null && quem >= 0 && B.mapa[quem] >= 0) tipo = B.tipoDe(quem)
       if (!tipo) { let m = -1; for (const [id, v] of Object.entries(dano)) if (v > m) { m = v; tipo = B.tipoDe(Number(id)) } }
       B.resultado = { vitoria: e[2] === 1, porTempo: e[3] === 1, quem: tipo, tocouCastelo: quem != null && quem >= 0, quedasDeSoldado: B.quedasDeSoldado, aliados: B.aliados }
-      B.fimEm = agora + (quieto ? 0 : 1000) // fecho: 1 s para ver o último cair
+      // fecho: 1 s para ver o último cair; se o chefe acabou de cair, espera a queda em etapas dele terminar (até 2,6 s desde o golpe final)
+      B.fimEm = agora + (quieto ? 0 : B.chefeCaiuEm && agora - B.chefeCaiuEm < 2600 ? Math.max(1000, 2600 - (agora - B.chefeCaiuEm)) : 1000)
       Som.fundoBatalha(0)
     }
   }
   const tipos = {}
+  /** Só atira quem tem alcance de tiro no config (o resto bate de perto, mesmo quando o alvo ainda parece longe). */
+  const atira = (i) => { const id = C.idTipo[i], c = CONFIG.CARTAS[id] || CONFIG.INVASORES[id] || CONFIG.CHEFES.find((x) => x.id === id); return !!c && c.alcance > 60 && C.projetilDe(i) !== 'nada' }
   /** ANTECIPAÇÃO: a lista de eventos já está pronta, então a tela olha um pouco à frente e começa o golpe ANTES do dano — o boneco
    *  encolhe, dá o bote e o impacto cai no instante exato em que o motor tira a vida. Quem atira solta o projétil antes, para ele chegar junto. */
   function antever() {
@@ -172,7 +175,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
       const e = ev[k]; if (e[0] > C.tb + 6 * esc) break
       if (e[1] !== 'd' || e[2] < 0 || armado[k]) continue
       const o = B.mapa[e[2]]; if (o < 0 || C.est[o] !== 1) continue
-      const a = B.mapa[e[3]], tp = C.projetilDe(o), longe = a >= 0 && Math.abs(C.xDe(a) - C.xDe(o)) > 60 && tp !== 'nada'
+      const a = B.mapa[e[3]], tp = C.projetilDe(o), longe = a >= 0 && Math.abs(C.xDe(a) - C.xDe(o)) > 60 && atira(o)
       if (C.tb < e[0] - (C.antecipaDe(o) + (longe && tp !== 'raio' ? VOO_MS : 0)) / 100 * esc) continue
       armado[k] = 1
       if (a >= 0) { const xa = C.xDe(a), xo = C.xDe(o); if (xa !== xo) C.dir[o] = xa > xo ? 1 : -1 }

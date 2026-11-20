@@ -53,12 +53,12 @@ export function anel(cor, cor2) {
 export function varrida(cor = '#FFF6E0', cor2 = '#FFD248') {
   const W = 22, H = 26, N = 3, c = tela(W * N, H), g = c.getContext('2d')
   for (let f = 0; f < N; f++) {
-    const a0 = [-1.35, -0.75, 0.05][f], a1 = [0.2, 0.95, 1.3][f], R = 16, gro = [3, 3, 2][f]
+    const a0 = [-1.1, -0.5, 0.2][f], a1 = [0.1, 0.8, 1.05][f], R = 11, gro = [2, 2, 1][f]
     for (let y = -R; y <= R; y++) for (let x = -2; x <= R; x++) {
       const d = Math.sqrt(x * x + y * y), a = Math.atan2(y, x)
       if (a < a0 || a > a1 || d > R || d < R - Math.max(1, gro * 1.7 * (a - a0) / (a1 - a0))) continue
       if (f === 2 && ((x + y) & 1)) continue
-      g.fillStyle = d > R - 1.5 ? cor : cor2; g.fillRect(f * W + 3 + x, 13 + y, 1, 1)
+      g.fillStyle = f === 0 && d < R - 1.5 ? cor2 : cor; g.fillRect(f * W + 3 + x, 13 + y, 1, 1)
     }
   }
   return peca(c, W, H, N, 45, 2, 13)

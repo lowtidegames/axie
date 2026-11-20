@@ -21,7 +21,7 @@ export const T = {
   resumo: { dano: 'DAMAGE BY PLOT', mvp: 'MVP', magia: 'MAGIC' },
   fim: 'RUN OVER', aguentou: 'ROUNDS HELD', recorde: 'NEW RECORD!', melhor: 'BEST SCORE', pontos: 'SCORE', ouroGanho: 'GOLD', deNovo: 'PLAY AGAIN', postar: 'SHARE',
   media: 'AVG BEST 3', recordeMais: (d) => `NEW BEST SCORE: +${d} OVER YOUR OLD BEST`, recordeFalta: (d) => `${d} SHORT OF YOUR BEST SCORE`, primeira: 'YOUR FIRST SCORE ON THE BOARD', recordeIgual: 'TIED WITH YOUR BEST SCORE',
-  ligaProxima: (nome, n) => `${nome} IN ${n}`, ligaTopo: 'TOP TITLE OF THE BETA', proximaCarta: (n) => (n === 1 ? 'NEXT CARD IN 1 ROUND' : `NEXT CARD IN ${n} ROUNDS`), todasCartas: 'EVERY CARD UNLOCKED',
+  ligaProxima: (nome, n) => `${nome} IN ${n}`, ligaTopo: 'TOP TITLE OF THE BETA', provisorio: 'PROVISIONAL', beta: 'BETA', proximaCarta: (n) => (n === 1 ? 'NEXT CARD IN 1 ROUND' : `NEXT CARD IN ${n} ROUNDS`), todasCartas: 'EVERY CARD UNLOCKED',
   desafio: (n) => (n === 1 ? 'BEAT MY 1 ROUND' : `BEAT MY ${n} ROUNDS`), desafioA: 'BEAT MY', desafioB: (n) => (n === 1 ? '1 ROUND' : `${n} ROUNDS`), copiado: 'LINK COPIED: SAME ROAD',
   postarTexto: (n, url) => `Keepmile: beat my ${n} round${n === 1 ? '' : 's'} on the same road ${url}`,
   cartaNova: 'NEW CARD', conquista: 'ACHIEVEMENT', limpo: 'CLEAN PLATE', maisNivel: '+1 LEVEL', pegue: 'PICK 1 REWARD', continua: (r) => `RUN RESUMED: ROUND ${r}`,

@@ -1,5 +1,5 @@
 // Keepmile (jogo de reino) — teste de tela de public/reino/, servida como arquivos parados numa SUBPASTA. Celular 360×740 (toque)
-// e PC 1280×720; o desenho também é conferido em 390×844 e 740×360 deitado. Confere: abre direto no jogo com 3 cartas em < 5 s;
+// e PC 1280×720; o desenho também é conferido em 390×844, 740×360 deitado, 320×640 e 320×568. Confere: abre direto no jogo com 3 cartas em < 5 s;
 // pôr carta por toque e por arrasto; a batalha roda até o fim e o resultado da tela = o do motor (`reproduzir` com os comandos dá o
 // mesmo); mesma semente = mesma partida; subir de nível mostra a festa; perder vida; chefe na rodada 5 com anúncio e noite; fim com
 // recorde guardado, Play again e Share (PNG); partida inteira pelo robô ganancioso do motor sem erro; álbum e conquistas; som nos
@@ -200,6 +200,8 @@ async function rodar(fmt) {
   let fe = await K(page, (k) => k.festas())
   confere(fe.atual !== null && fe.fila.length + fe.log.length >= 2, `fila de festas: "${fe.atual}" na tela e ${fe.fila.length} esperando a vez`)
   if (fmt.toque) await foto(page, 'fila-festas-celular')
+  { const mb = (await modelo(page)).brindeRet, le = (await K(page, (k) => k.layout())).espolio // a placa da festa nunca cobre um dos 3 espólios
+    confere(!!mb && le.every((r) => mb.x + mb.w <= r.x || mb.x >= r.x + r.w || mb.y + mb.h <= r.y || mb.y >= r.y + r.h), `a placa da festa não fica por cima dos espólios (placa em ${mb?.x},${mb?.y})`) }
   // R13 itens 1, 5 e 7: antes de escolher, o texto da carta, o efeito de cada espólio e a chance da bolsa virar relíquia (config)
   mm = await modelo(page)
   { const vv = await K(page, (k) => k.visao()), ic = vv.espolios.findIndex((e) => e.tipo === 'carta'), ib = vv.espolios.findIndex((e) => e.tipo === 'bolsa')
@@ -319,7 +321,7 @@ async function rodar(fmt) {
   // R13 item 13: FIM COMO FESTA de tela cheia — reino iluminado, recorde de PONTOS rotulado, média das 3 melhores, liga provisória, álbum
   { const media = mediaDasMelhores(g.melhores), lg = ligaDe(media), d = await viu(page), cn = await K(page, (k) => k.cena()), lay = await K(page, (k) => k.layout())
     confere(['fim', 'fimNumeros', 'fimLiga', 'fimAlbum', 'fimRecorde'].every((x) => d.includes(x)), 'fim de tela cheia: número grande, faixa NEW RECORD, pontos/recorde/média, liga e barra do álbum desenhados')
-    confere(m.fim.media === media && m.fim.liga.nome === lg.liga.nome && m.fim.liga.falta === lg.falta && LIGAS.length === 5 && m.fim.recordeAntes === 0, `fim: média das 3 melhores ${media} → liga provisória "${lg.liga.nome}"` + (lg.proxima ? ` (faltam ${lg.falta} para ${lg.proxima.nome})` : ''))
+    confere(m.fim.media === media && m.fim.liga.nome === lg.liga.nome && m.fim.liga.falta === lg.falta && LIGAS.length === 5 && m.fim.recordeAntes === 0 && ['PROVISIONAL', 'BETA'].includes(m.fim.ligaMarca), `fim: média das 3 melhores ${media} → liga "${lg.liga.nome}" marcada ${m.fim.ligaMarca}` + (lg.proxima ? ` (faltam ${lg.falta} para ${lg.proxima.nome})` : ''))
     confere(m.fim.album === null || (m.fim.album.falta > 0 && m.fim.album.pct >= 0 && m.fim.album.pct <= 100), `fim: próxima meta do álbum ("next card in ${m.fim.album?.falta} rounds")`)
     confere(cn.hora !== 'boss-night' && cn.filtro === '' && cn.fimDeJogo && lay.fimPainel.y + lay.fimPainel.h >= lay.VH - 2 && lay.fimPainel.w >= Math.min(lay.VW, 420) - 8, `fim: reino final iluminado (${cn.hora}, sem dessaturar) e a placa ocupa a base inteira`) }
   s = await sons(page)
@@ -439,6 +441,7 @@ async function rodar(fmt) {
   await K(p4, (k) => k.avancarBatalha())
   await fase(p4, 'carta')
   // R13 item 9: com Reduced motion a queda do chefe vira pausa + som (sem zoom, tremida nem flash)
+  await p4.keyboard.press('Shift') // o som só existe depois do primeiro toque ou tecla (até aqui esta aba só usou ganchos)
   await K(p4, (k) => k.chefeCai()); await K(p4, (k) => k.zerarMedidas())
   await p4.waitForFunction(() => window.__keepmile.batalha().chefeCaiuEm > 0, null, { timeout: 60000, polling: 30 })
   { const b = await K(p4, (k) => ({ ...k.batalha(), ...k.cena() }))
@@ -601,6 +604,9 @@ async function soLayout(w, h, toque) {
   await K(page, (k) => k.avancarBatalha())
   await page.waitForFunction(() => window.__keepmile.modelo().vitoria?.pronto, null, { timeout: 15000 })
   await conferirLayout(page, `${w}×${h} espólio`)
+  await page.waitForFunction(() => window.__keepmile.festas().atual !== null && window.__keepmile.modelo().brindeRet, null, { timeout: 4000 }).catch(() => {})
+  { const mb = (await modelo(page)).brindeRet, le = (await K(page, (k) => k.layout())).espolio
+    confere(!!mb && le.every((r) => mb.x + mb.w <= r.x || mb.x >= r.x + r.w || mb.y + mb.h <= r.y || mb.y >= r.y + r.h), `${w}×${h} espólio: a placa da festa não cobre nenhum dos 3 espólios`) }
   await foto(page, `espolio-${w}x${h}`)
   await K(page, (k) => k.jogarSozinho())
   await page.waitForFunction(() => window.__keepmile.modelo().fim?.contou, null, { timeout: 15000 })
@@ -616,6 +622,7 @@ try {
   await soLayout(390, 844, true)
   await soLayout(740, 360, true)
   await soLayout(320, 640, true)
+  await soLayout(320, 568, true)
 } catch (e) { falha('exceção: ' + (e?.stack || e)) }
 await browser.close()
 servidor.close()

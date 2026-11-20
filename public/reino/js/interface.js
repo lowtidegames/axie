@@ -387,6 +387,8 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const liga = (x, y, w) => {
       if (!Arte.liga(g, f.liga.nome, x, y)) { g.fillStyle = COR.ameixa; g.fillRect(x + 3, y + 3, 21, 24); Arte.icone(g, 'shield', x + 8, y + 9) }
       Arte.texto(g, f.liga.nome, x + 31, y + 1, { fonte: 'reino-contorno' })
+      { const sobra = w - 33 - Arte.largura(f.liga.nome, 'reino-contorno'), marca = Arte.largura(T.provisorio, 'mini') <= sobra ? T.provisorio : T.beta // a liga do beta é PROVISÓRIA: está escrito ao lado do nome
+        Arte.texto(g, marca, x + w, y + 3, { fonte: 'mini', cor: COR.ouro, alinhar: 'direita' }); f.ligaMarca = marca }
       barra(x + 32, y + 13, w - 34, 4, f.liga.pct, COR.ouro)
       Arte.texto(g, f.liga.proxima ? T.ligaProxima(f.liga.proxima, f.liga.falta) : T.ligaTopo, x + 31, y + 21, { fonte: 'mini', cor: COR.creme })
       viu('fimLiga')
@@ -441,9 +443,12 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   /** Aviso pequeno em placa (conquista, carta nova, relíquia): sempre abaixo do HUD, nunca por cima dele. */
   function brinde(agora) {
     const b = M.brinde; if (!b || agora > b.t0 + b.ms || agora < b.t0) return
-    const L = UI.L, dt = agora - b.t0, w = Math.min(C.VW - 8, 150), cel = L.cel, hudFim = Math.ceil((L.pinos.y + L.pinos.h) / 1) + 2
-    const x = cel || M.fase === 'fim' ? (C.VW - w) >> 1 : 4
-    const y = M.fase === 'fim' ? L.fimPainel.y - 34 : cel ? (M.fase === 'carta' || M.fase === 'terreno' ? L.odds.y + 10 : M.fase === 'luta' ? Math.max(48, hudFim) : L.mesa.y - 34) : Math.max(32, hudFim)
+    const L = UI.L, dt = agora - b.t0, cel = L.cel, hudFim = Math.ceil((L.pinos.y + L.pinos.h) / 1) + 2
+    const canto = !cel && M.fase === 'vitoria' // PC na escolha do espólio: a placa vai para o canto livre de baixo (nunca por cima dos 3 espólios)
+    const w = canto ? L.premios.w : Math.min(C.VW - 8, 150)
+    const x = canto ? L.premios.x : cel || M.fase === 'fim' ? (C.VW - w) >> 1 : 4
+    const y = canto ? L.premios.y + 15 : M.fase === 'fim' ? L.fimPainel.y - 34 : cel ? (M.fase === 'carta' || M.fase === 'terreno' ? L.odds.y + 10 : M.fase === 'luta' ? Math.max(48, hudFim) : L.mesa.y - 34) : Math.max(32, hudFim)
+    M.brindeRet = { x, y, w, h: 30 }
     const desce = C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 200) * 20)
     Arte.painel(g, x, y - desce, w, 30)
     const ic = b.icone

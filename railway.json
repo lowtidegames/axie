@@ -1,0 +1,8 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "deploy": {
+    "startCommand": "sh -c 'PORTA=${PORT:-8080} HOST=0.0.0.0 node server/index.mjs'",
+    "healthcheckPath": "/public/reino/",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}

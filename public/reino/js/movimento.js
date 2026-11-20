@@ -30,7 +30,8 @@ export function golpe(P, ms, ant, peso = 1, gesto = 0, alcance = 6) {
   const av = tiro ? -Math.round(2 * peso) : bic ? Math.max(2, Math.round(alcance * 0.45)) : gesto === G.estocada ? alcance + 1 : gesto === G.investida ? alcance + 2 : gesto === G.portada ? Math.max(3, Math.round(alcance * 0.7)) : gesto === G.barrigada ? Math.max(3, Math.round(alcance * 0.8)) : alcance
   if (ms < ant) {
     const f = sai(ms / ant); P.dx -= Math.round(rec * f)
-    if (cima) { P.alt += Math.round(3 * peso * f); P.larg -= Math.round(1 * f); P.incl -= Math.round(1 * f) } // levanta a frigideira: cresce
+    if (cima) { P.alt += Math.round(3 * peso * f); P.larg -= Math.round(1 * f); P.incl -= Math.round(1 * f); if (gesto === GESTO.esmaga) P.dy -= Math.round(2 * f) } // levanta a frigideira: cresce (o bruto sai do chão)
+    else if (tiro) { P.incl -= Math.round(2 * f); P.larg -= Math.round(1 * f) } // puxa a corda: o corpo vai para trás, sem agachar
     else if (bic) { P.incl -= Math.round(3 * f); P.alt += Math.round(1 * f) } // pescoço para trás
     else if (gesto === GESTO.estocada) { P.larg -= Math.round(1 * f); P.incl -= Math.round(1 * f); P.alt -= Math.round(1 * f) }
     else if (gesto === G.mordida) { P.alt += Math.round(3 * f); P.larg -= Math.round(1 * f); P.incl -= Math.round(1 * f) } // abre a boca: estica para cima
@@ -45,7 +46,7 @@ export function golpe(P, ms, ant, peso = 1, gesto = 0, alcance = 6) {
     const f = ms < BOTE_MS ? sai(ms / BOTE_MS) : 1
     P.dx += Math.round(-rec + (av + rec) * f)
     if (tiro) P.incl -= Math.round(peso)
-    else if (cima) { P.alt -= Math.round(4 * peso * f); P.larg += Math.round(3 * peso * f); P.incl += Math.round(2 * f) } // desce com tudo: esmaga
+    else if (cima) { P.alt -= Math.round(4 * peso * f); P.larg += Math.round(3 * peso * f); P.incl += Math.round(2 * f); if (gesto === GESTO.esmaga) { P.larg += Math.round(1 * f); P.dy += Math.round(1 * f) } } // desce com tudo: esmaga (o bruto afunda 1 px no chão)
     else if (bic) { P.incl += Math.round(5 * f); P.alt -= Math.round(2 * f); P.larg += 1 } // o pescoço estica até o alvo
     else if (gesto === GESTO.estocada) { P.larg += Math.round(4 * f); P.alt -= 1; P.incl += 1 } // comprido e reto
     else if (gesto === G.mordida) { P.dy -= ms < BOTE_MS ? Math.round(Math.sin(ms / BOTE_MS * Math.PI) * 4) : 0; P.alt -= Math.round(3 * f); P.larg += Math.round(3 * f); P.incl += Math.round(1 * f) } // pula e fecha a boca: achata

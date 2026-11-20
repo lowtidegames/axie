@@ -200,6 +200,8 @@ export function criarCena(canvas, CONFIG) {
   C.xeDes = (i) => C.xDe(i) + C.dxe[i]
   /** Limites de desenho de `i` neste quadro: [depois de, antes de] (a linha de frente dele, já com o vão). */
   C.limites = (i) => { if (C.lado[i] === 1) { const s = C.sec[i], m = C.peca[i].w > 100 ? 26 : C.peca[i].w > 60 ? 12 : 0; return [sLo[s], sHi[s] - m] } const k = C.grupo[i] % NG; return [gLo[k], gHi[k]] }
+  /** Em que posição da estrada (0 = o mais perto do portão) está o grupo vivo `k` do reino; −1 se não há. */
+  C.ordemDoGrupo = (k) => { for (let q = 0; q < nViv; q++) if (ordG[q] === k % NG) return q; return -1 }
   const hashDe = (i) => (i * 2654435761) >>> 0
   /** Lugar do representante `r` de um pelotão INVASOR `k`: fileiras em profundidade, colunas para trás. Perto da linha de frente ele
    *  entra na FILA do trecho (o pelotão que luta na frente, os que chegam atrás dele): ninguém atravessa. Devolve em LUG. */

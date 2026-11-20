@@ -29,6 +29,12 @@ body { font: 14px/1.3 ui-monospace, Menlo, Consolas, monospace; color: var(--cre
 /* topo (título + X) e pé (Close) sempre à vista: só o meio rola */
 .km-caixa > .km-corpo { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 6px; }
 .km-corpo > * { flex: none; }
+/* o meio rola: barra sempre visível (também no celular) e, enquanto há mais embaixo, uma faixa de ouro (parada, sem animação) */
+.km-corpo { scrollbar-width: auto; scrollbar-color: var(--ouro) var(--ameixa); }
+.km-corpo::-webkit-scrollbar { width: 10px; }
+.km-corpo::-webkit-scrollbar-track { background: var(--ameixa); }
+.km-corpo::-webkit-scrollbar-thumb { background: var(--ouro); border: 2px solid var(--ameixa); }
+.km-caixa:has(> .km-corpo[data-mais]) > footer { box-shadow: 0 -4px 0 var(--ouro); } /* faixa em cima do pé: não mexe no tamanho de nada */
 .km-tela-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .km-caixa h2, .km-caixa h3 { margin: 0; font: inherit; }
 .km-caixa h3 { margin-top: 6px; }

@@ -65,6 +65,8 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     L.voltar = cel ? { x: 64, y: VH - 30, w: VW - 68, h: 26 } : L.lutar2
     L.premios = cel ? { x: 2, y: VH - 87, w: VW - 4, h: 55 } : { x: VW - 124, y: VH - 66, w: 120, h: 60 }
     L.ganhe = cel ? { x: 0, y: VH - 78 - hmin, w: VW, h: hmin } : L.premios
+    // seta do "TAP A CARD": no celular fica inteira ACIMA da linha WIN (seta termina 1 px antes dela); no PC segue 30 px acima das cartas
+    L.setaDy = cel ? Math.max(34, Math.ceil(hmin) + 25) : 30
     L.resumo = cel ? L.mesa : { x: 4, y: VH - 66, w: VW - 132, h: 60 }
     // escolha do espólio: 3 cartões no meio (PC: mais afastados, com o texto embaixo de cada um)
     if (cel) { const ey = Math.floor(VH * 0.36), ex = Math.floor((VW - (56 * 3 + 8)) / 2); L.espolio = [0, 1, 2].map((i) => ({ x: ex + i * 60, y: ey, w: 56, h: 78 })); L.passo = 60 } else {
@@ -480,7 +482,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const L = UI.L
     // primeira partida: uma seta "TAP A CARD" em cima da mão (some depois do 1º toque numa carta)
     if (M.setaCarta && M.sel < 0 && !M.cartaPosta && agora - M.maoT0 > 500 && !M.maoViradas) {
-      const r = L.cartas[1], cx = r.x + 28, b = C.menos ? 0 : Math.round(Math.abs(Math.sin(agora / 260)) * 4), y = r.y - (L.cel ? 34 : 30) - b, w = Arte.largura(T.toqueCarta, 'reino-ouro') + 10
+      const r = L.cartas[1], cx = r.x + 28, b = C.menos ? 0 : Math.round(Math.abs(Math.sin(agora / 260)) * 4), y = r.y - L.setaDy - b, w = Arte.largura(T.toqueCarta, 'reino-ouro') + 10
       g.fillStyle = COR.ameixa; g.globalAlpha = 0.85; g.fillRect(cx - (w >> 1), y - 2, w, 13); g.globalAlpha = 1; g.fillStyle = COR.ouro; g.fillRect(cx - (w >> 1), y - 2, w, 1); g.fillRect(cx - (w >> 1), y + 10, w, 1)
       Arte.texto(g, T.toqueCarta, cx, y, { fonte: 'reino-ouro', alinhar: 'centro' })
       g.save(); g.translate(cx, y + 19); g.scale(1, -1); Arte.icone(g, 'up', -5, -5); g.restore()

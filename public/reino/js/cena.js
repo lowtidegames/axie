@@ -86,7 +86,7 @@ export function criarCena(canvas, CONFIG) {
     C.limite = (C.tipo === 'celular' ? 40 : 60) >> (C.menos ? 1 : 0)
     // R25 — POUCAS FIGURAS GRANDES: até 5 representantes por pelotão no PC e 4 no celular, um degrau inteiro de pixel de TELA maiores
     // (PC ×3 → ×4, celular ×2 → ×3: continua pixel inteiro, sem borrar)
-    C.repMax = C.tipo === 'celular' ? 3 : 5; // R26: 3 no celular (a estrada tem 18 px: 4 não cabem com folga) C.kRep = (C.e + 1) / C.e
+    C.repMax = C.tipo === 'celular' ? 3 : 5; C.kRep = (C.e + 1) / C.e // R26: 3 no celular (a estrada tem 18 px: 4 não cabem com folga)
     for (let i = 0; i < C.n; i++) if (C.peca[i] && C.peca[i].w <= 60) C.k[i] = C.kRep
     caminho(); vinheta = null; moldura = null
   }

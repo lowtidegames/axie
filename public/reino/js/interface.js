@@ -11,6 +11,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     sortear: { custo: 0, pode: false }, consertar: { custo: 0, pode: false, visivel: false, destaque: false }, armado: null, trocar: 0,
     espolios: [], espolioPode: [], espolioDesc: [], info: null, infoSel: null, forca: null, vel: 1, mudo: false, aviso: null, vitoria: null, derrota: null, chefe: null, fim: null, arrasto: null,
     apertado: null, selo: null, brinde: null, hordaN: 0, hordaChefe: null, pulsaLutar: false, chances: [], reliquias: [], resumo: null, familias: [],
+    status: null, replay: null, modoRot: null, // modo servidor: aviso curto (rede, erro do contrato), replay em curso e o rótulo do modo
   }
   const UI = { M, L: {}, botoes: [], desenhou: new Set(), letra: {} }
   const el = new Map()
@@ -90,6 +91,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   function lista() {
     const L = UI.L, b = [], f = M.fase
     const add = (id, r, rotulo, dados = {}, extra = {}) => b.push({ id, r, rotulo, dados, ...extra })
+    if (M.replay) { add('sair-replay', L.menu, T.srv.replay.sair); add('som', L.som, T.aria.som); add('vel', L.lutar, T.aria.vel(M.vel)); return b } // assistindo: só sair, som e velocidade
     if (f === 'fim') { if (!M.fim?.contou) { add('seguir', { x: 0, y: 0, w: C.VW, h: C.VH }, T.aria.pular); return b } add('denovo', L.fimBotoes[0], T.deNovo); add('postar', L.fimBotoes[1], T.postar); add('menu', L.menu, T.aria.menu); return b }
     if (f === 'chefe' || f === 'derrota') { add('seguir', { x: 0, y: 0, w: C.VW, h: C.VH }, T.aria.seguir); return b }
     add('menu', L.menu, T.aria.menu); add('som', L.som, T.aria.som)
@@ -151,6 +153,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   /** O controle principal de cada fase (para onde o foco do teclado vai). */
   function principal() {
     const f = M.fase
+    if (M.replay) return 'sair-replay'
     if (f === 'carta') return M.cartaPosta ? 'lutar2' : 'carta0'
     if (f === 'luta') return 'vel'
     if (f === 'vitoria') { const i = M.espolioPode.findIndex(Boolean); return M.vitoria?.pronto && i >= 0 ? 'espolio' + i : '' }
@@ -211,7 +214,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       const s = `${T.rodada} ${M.rodada}`, w = Arte.largura(s, 'reino-contorno'), rx = L.cel ? 3 : Math.floor(HW / 2) - (w >> 1), ry = L.cel ? 17 : 4
       Arte.texto(g, s, rx, ry, { fonte: 'reino-contorno' })
       // estrada de um amigo: a meta a bater fica à vista ao lado da rodada
-      if (M.desafio && M.desafio.rodadas != null) { Arte.texto(g, T.bater(M.desafio.rodadas), rx + w + 5, ry + 1, { fonte: Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno' }); viu('desafio') }
+      if (M.desafio && M.desafio.rodadas != null) { Arte.texto(g, T.bater(M.desafio.rodadas), rx + w + 5, ry + 1, { fonte: Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno' }); viu('desafio') } else if (M.modoRot) { Arte.texto(g, M.modoRot, rx + w + 5, ry + 1, { fonte: Arte.temFonte('mini-ouro') ? 'mini-ouro' : 'mini-contorno' }); viu('modo') } // modo servidor: TRAINING / RANKED / DAILY ROAD / REPLAY
     }
     // pinos até o chefe (ciclo de 5 rodadas) + a cara dele, que pisca quando está avisado
     if (M.proximoChefe) {
@@ -252,9 +255,10 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     }
     g.restore()
     if (M.fase === 'chefe' || M.fase === 'derrota') return
-    hudBt('plum', L.menu, 'menu', (x0, y0, w) => { g.fillStyle = COR.creme; for (let i = 0; i < 3; i++) g.fillRect(x0 + 6, y0 + 7 + i * 4, w - 12, 2) })
+    if (M.replay) hudBt('red', L.menu, 'sair-replay', (x0, y0, w) => Arte.texto(g, 'X', x0 + (w >> 1), y0 + 7, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }))
+    else hudBt('plum', L.menu, 'menu', (x0, y0, w) => { g.fillStyle = COR.creme; for (let i = 0; i < 3; i++) g.fillRect(x0 + 6, y0 + 7 + i * 4, w - 12, 2) })
     hudBt('plum', L.som, 'som', (x0, y0, w) => Arte.icone(g, M.mudo ? 'sound-off' : 'sound-on', x0 + ((w - 11) >> 1), y0 + 6))
-    if (M.fase === 'luta') hudBt('green', L.lutar, 'vel', (x0, y0, w) => { Arte.icone(g, 'speed', x0 + (w >> 1) - 12, y0 + 6); Arte.texto(g, 'x' + M.vel, x0 + (w >> 1) + 1, y0 + 7, { fonte: 'reino', cor: COR.creme }) })
+    if (M.fase === 'luta' || M.fase === 'replay') hudBt('green', L.lutar, 'vel', (x0, y0, w) => { Arte.icone(g, 'speed', x0 + (w >> 1) - 12, y0 + 6); Arte.texto(g, 'x' + M.vel, x0 + (w >> 1) + 1, y0 + 7, { fonte: 'reino', cor: COR.creme }) })
     else if (M.fase === 'carta') {
       const pulsa = M.pulsaLutar && !C.menos ? Math.round(Math.abs(Math.sin(agora / 240)) * 2) : 0
       hudBt('green', { ...L.lutar, y: L.lutar.y - pulsa }, 'lutar', (x0, y0, w) => Arte.texto(g, T.lutar, x0 + (w >> 1), y0 + 7, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }))
@@ -576,10 +580,10 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const liga = (x, y0, w) => {
       if (!Arte.liga(g, f.liga.nome, x, y0)) { g.fillStyle = COR.ameixa; g.fillRect(x + 3, y0 + 3, 21, 24); Arte.icone(g, 'shield', x + 8, y0 + 9) }
       Arte.texto(g, f.liga.nome, x + 31, y0 + 1, { fonte: 'reino-contorno' })
-      { const sobra = w - 33 - Arte.largura(f.liga.nome, 'reino-contorno'), marca = Arte.largura(T.provisorio, 'mini') <= sobra ? T.provisorio : T.beta // a liga do beta é PROVISÓRIA: está escrito ao lado do nome
+      { const sobra = w - 33 - Arte.largura(f.liga.nome, 'reino-contorno'), marca = f.liga.marca ?? (Arte.largura(T.provisorio, 'mini') <= sobra ? T.provisorio : T.beta) // a liga do beta é PROVISÓRIA: está escrito ao lado do nome
         Arte.texto(g, marca, x + w, y0 + 3, { fonte: 'mini', cor: COR.ouro, alinhar: 'direita' }); f.ligaMarca = marca }
       barra(x + 32, y0 + 13, w - 34, 4, f.liga.pct, COR.ouro)
-      Arte.texto(g, f.liga.proxima ? T.ligaProxima(f.liga.proxima, f.liga.falta) : T.ligaTopo, x + 31, y0 + 21, { fonte: 'mini', cor: COR.creme })
+      Arte.texto(g, f.liga.linha ?? (f.liga.proxima ? T.ligaProxima(f.liga.proxima, f.liga.falta) : T.ligaTopo), x + 31, y0 + 21, { fonte: 'mini', cor: COR.creme })
       viu('fimLiga')
     }
     const album = (x, y0, w) => {
@@ -646,6 +650,29 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     viu('brinde')
   }
 
+  /** MODO SERVIDOR — aviso curto por cima de tudo: "RECONNECTING..." enquanto a rede não volta, ou o erro do contrato (429, manutenção…). */
+  function status(agora) {
+    const s = M.status; if (!s) return
+    if (agora > s.ate) { M.status = null; return }
+    const lin = quebrar(s.texto, C.VW - 16, 'reino-contorno'), w = Math.max(...lin.map((q) => Arte.largura(q, 'reino-contorno'))) + 12, h = lin.length * 11 + 7
+    const x = (C.VW - w) >> 1, y = Math.ceil(UI.L.menu.y + 26 * UI.L.bs + Math.max(0, (44 / C.css - 26 * UI.L.bs) / 2)) + 3
+    g.fillStyle = COR.ameixa; g.fillRect(x, y, w, h); g.fillStyle = COR.ouro; g.fillRect(x, y, w, 1); g.fillRect(x, y + h - 1, w, 1)
+    lin.forEach((q, i) => Arte.texto(g, q, C.VW >> 1, y + 4 + i * 11, { fonte: 'reino-contorno', alinhar: 'centro' }))
+    if (s.rede && !C.menos) { const n = (agora / 300 | 0) % 3; g.fillStyle = COR.ouro; for (let i = 0; i <= n; i++) g.fillRect((C.VW >> 1) - 5 + i * 4, y + h - 4, 2, 2) } // três pontinhos andando (parados com Reduced motion)
+    M.statusRet = { x, y, w, h }
+    viu('status')
+  }
+  /** MODO SERVIDOR — a faixa do replay: de quem é, em que passo está, o que foi jogado e, no fim, o resultado gravado. */
+  function faixaReplay() {
+    const r = M.replay, L = UI.L, R = L.cel ? L.mesa : { x: (C.VW - 250) >> 1, y: C.VH - 64, w: 250, h: 60 }, cx = R.x + (R.w >> 1)
+    if (!L.cel) Arte.painel(g, R.x, R.y, R.w, R.h)
+    const lin = [[quebrar(T.srv.replay.de(r.nome), R.w - 12, 'reino-ouro')[0], 'reino-ouro'], [T.srv.replay.passo(r.i, r.n), 'reino-contorno']]
+    if (r.fim) { for (const q of quebrar(r.fim, R.w - 12, 'reino')) lin.push([q, 'reino']); lin.push([T.srv.replay.saia, 'mini']) } else if (r.linha) lin.push([quebrar(r.linha, R.w - 12, 'reino')[0], 'reino'])
+    let y = R.y + (L.cel ? 12 : 8)
+    for (const [t, fo] of lin) { Arte.texto(g, t, cx, y, { fonte: fo, cor: COR.creme, alinhar: 'centro' }); y += fo === 'mini' ? 9 : 12 }
+    viu('replay')
+  }
+
   /** Por cima do mundo, ainda com a câmera: selo de LEVEL UP com "antes > depois", contagem da horda no portão, "REPLACE?". */
   C.depoisDoMundo = (gg, t) => {
     const agora = performance.now()
@@ -675,7 +702,8 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     const L = UI.L, f = M.fase
     g.setTransform(C.e, 0, 0, C.e, 0, 0); g.imageSmoothingEnabled = false
     C.zonaTitulo = null
-    if (f === 'fim') { fim(agora); aviso(agora); brinde(agora); return }
+    if (f === 'fim') { fim(agora); aviso(agora); brinde(agora); status(agora); return }
+    if (f === 'replay') { mesa(); faixaReplay(); hud(agora); aviso(agora); brinde(agora); status(agora); return }
     if (f === 'carta') {
       mesa()
       const sel = M.sel >= 0 && M.mao[M.sel] && M.infoSel
@@ -705,7 +733,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       }
       const r = L.voltar, d = bt('plum', r, 'voltar'); Arte.texto(g, T.voltar, r.x + (r.w >> 1), r.y + 7 + d, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }); g.globalAlpha = 1
     } else if (f === 'vitoria') { mesa(); if (!L.cel || !M.vitoria.pronto) resumo(L.resumo, false); vitoria(agora) } else if (f === 'derrota') { mesa(); derrota(agora); resumo(L.resumo, false) } else if (f === 'chefe') { mesa(); chefe(agora) }
-    hud(agora); aviso(agora); brinde(agora)
+    hud(agora); aviso(agora); brinde(agora); status(agora)
     if (M.arrasto?.moveu) { const c = M.mao[M.arrasto.indice]; if (c) Arte.carta(g, c.carta, c.nivel, Math.round(M.arrasto.x - 28), Math.round(M.arrasto.y - 50)) }
   }
   medir()

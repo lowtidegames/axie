@@ -15,7 +15,7 @@ export async function ligarGanchos(X) {
     estado: () => structuredClone(J.e), visao: () => structuredClone(J.v), opcoes: () => structuredClone(J.op), comandos: () => structuredClone(J.comandos),
     semente: () => J.semente, liberadas: () => J.liberadas.slice(), erros: () => J.erros.slice(), lutas: () => structuredClone(J.lutas), ultimaLuta: () => (J.ultimaLuta ? { ...J.ultimaLuta } : null),
     fase: () => X.M().fase,
-    modelo: () => { const M = X.M(); return { fase: M.fase, vidas: M.vidas, ouro: M.ouro, rodada: M.rodada, sel: M.sel, cartaPosta: M.cartaPosta, mao: M.mao, selo: !!(M.selo && performance.now() < M.selo.ate), aviso: M.aviso && performance.now() < M.aviso.t0 + M.aviso.ms ? M.aviso.texto : null, chefe: M.chefe?.id ?? null, chefeTexto: M.chefe?.texto ?? null, setaCarta: !!M.setaCarta, derrota: M.derrota?.linha ?? null, derrotaPct: M.derrota?.pct ?? null, derrotaTexto: M.derrota?.pct != null ? T.quase(M.derrota.pct) : null, derrotaDeNovo: M.derrota?.deNovo ?? null, chefeCurto: !!M.chefe?.curto, info: M.info ? M.info.slice() : null, infoSel: M.infoSel ? M.infoSel.slice() : null, chances: M.chances, espolioDesc: M.espolioDesc, resumo: M.resumo ? structuredClone(M.resumo) : null, seloLinha: M.selo?.linha ?? null, consertar: { ...M.consertar }, reliquias: M.reliquias, fim: M.fim ? { ...M.fim } : null, vitoria: M.vitoria ? { ...M.vitoria } : null, brinde: M.brinde?.texto ?? null, brindeRet: M.brindeRet ? { ...M.brindeRet } : null, vel: M.vel, armado: M.armado, trocar: M.trocar, trocarLinhas: M.trocarLinhas ? M.trocarLinhas.slice() : null, desafio: M.desafio ? { ...M.desafio } : null, relSel: M.relSel, hordaN: M.hordaN } },
+    modelo: () => { const M = X.M(); return { fase: M.fase, vidas: M.vidas, ouro: M.ouro, rodada: M.rodada, sel: M.sel, cartaPosta: M.cartaPosta, mao: M.mao, selo: !!(M.selo && performance.now() < M.selo.ate), aviso: M.aviso && performance.now() < M.aviso.t0 + M.aviso.ms ? M.aviso.texto : null, chefe: M.chefe?.id ?? null, chefeTexto: M.chefe?.texto ?? null, setaCarta: !!M.setaCarta, derrota: M.derrota?.linha ?? null, derrotaPct: M.derrota?.pct ?? null, derrotaTexto: M.derrota?.pct != null ? T.quase(M.derrota.pct) : null, derrotaDeNovo: M.derrota?.deNovo ?? null, chefeCurto: !!M.chefe?.curto, info: M.info ? M.info.slice() : null, infoSel: M.infoSel ? M.infoSel.slice() : null, chances: M.chances, espolioDesc: M.espolioDesc, resumo: M.resumo ? structuredClone(M.resumo) : null, seloLinha: M.selo?.linha ?? null, consertar: { ...M.consertar }, reliquias: M.reliquias, fim: M.fim ? { ...M.fim } : null, vitoria: M.vitoria ? { ...M.vitoria } : null, brinde: M.brinde?.texto ?? null, brindeRet: M.brindeRet ? { ...M.brindeRet } : null, vel: M.vel, armado: M.armado, trocar: M.trocar, trocarLinhas: M.trocarLinhas ? M.trocarLinhas.slice() : null, desafio: M.desafio ? { ...M.desafio } : null, relSel: M.relSel, hordaN: M.hordaN, status: M.status ? { texto: M.status.texto, codigo: M.status.codigo ?? null, rede: !!M.status.rede } : null, statusRet: M.statusRet ? { ...M.statusRet } : null, replay: M.replay ? { ...M.replay } : null, modoRot: M.modoRot ?? null } },
     modeloAviso: () => { const a = X.M().aviso; return a ? { texto: a.texto, sub: a.sub ?? null } : null },
     lutando: () => X.Bat().ativa,
     /** Leva a luta que está na tela até o fim, agora. */
@@ -114,5 +114,30 @@ export async function ligarGanchos(X) {
     nomeDoChefe: (id) => { const nome = X.CONFIG.CHEFES.find((c) => c.id === id).nome, lin = X.UI().quebrar(nome, (C.VW - 12) / 2, 'reino-contorno'); return { linhas: lin, maior: Math.max(...lin.map((l) => Arte.largura(l, 'reino-contorno') * 2)), VW: C.VW } },
     partidaSalva: () => Guarda.partidaSalva(),
     css: () => ({ e: C.e, css: C.css }),
+    // ---- MODO SERVIDOR: o que a tela guarda do servidor e um jogador simples que só manda o que está em `opcoes.comandos`
+    servidor: () => { const S = X.S; return { on: S.on, id: S.id, modo: S.modo, seq: S.seq, ocupado: S.ocupado, energia: S.energia ? { ...S.energia } : null, fora: S.fora ? { ...S.fora } : null, resultado: S.resultado ? { ...S.resultado } : null, apelido: X.Srv.apelido, api: X.Srv.api, temToken: !!X.Srv.token, replay: !!J.replay } },
+    /** Espera o servidor responder ao último comando mandado. */
+    async livre() { await X.S.ultimo; return X.S.seq },
+    /** Joga pela tela contra o servidor: põe uma carta (terreno vazio ou a mesma carta), luta, pega o 1º espólio. `semCarta`: só luta
+     *  (perde depressa). Para em `ateRodada` ou no fim. Cada luta passa pela reprodução de eventos da tela, sem esperar. */
+    async jogarNoServidor({ ateRodada = 0, semCarta = false, maxComandos = 600 } = {}) {
+      const S = X.S; let n = 0
+      await S.ultimo
+      while (J.e.fase !== 'fim' && n++ < maxComandos) {
+        const v = J.v, op = J.op
+        if (ateRodada && v.rodada >= ateRodada && v.fase === 'carta' && !v.cartaPosta) break
+        let cmd
+        if (v.fase === 'espolio') cmd = op.comandos.find((c) => c.tipo === 'espolio')
+        else if (!v.cartaPosta && !semCarta) { const por = op.comandos.filter((c) => c.tipo === 'por'); cmd = por.find((c) => !v.terrenos[c.terreno - 1]) || por.find((c) => v.terrenos[c.terreno - 1]?.carta === c.carta) || por[0] }
+        if (!cmd) cmd = { tipo: 'batalhar' }
+        const antes = S.seq
+        if (cmd.tipo === 'batalhar') { X.M().fase = 'carta'; X.lutar(true); await S.ultimo; fimDaLutaJa(); X.semTimers(); X.limparFestas() } else { X.mandar(cmd, () => {}); await S.ultimo }
+        if (S.seq === antes && J.e.fase !== 'fim') throw new Error('o servidor não aceitou: ' + JSON.stringify(cmd))
+      }
+      X.semTimers(); X.limparFestas()
+      if (J.e.fase === 'fim') X.fimDaPartida(); else if (J.v.fase === 'espolio') { X.M().fase = 'vitoria' } else { X.abrirRodada(); if (X.M().fase === 'chefe') X.seguir() }
+      return { comandos: n, rodada: J.v.rodada, fim: J.e.fase === 'fim', seq: S.seq }
+    },
+    avisarServidor: (c) => X.avisarServidor(c),
   }
 }

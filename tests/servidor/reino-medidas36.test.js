@@ -2,7 +2,7 @@
 // Rodar: node --test tests/servidor/reino-medidas36.test.js
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
-import { ALBUM, CARTAS, CHEFES, PARTIDA } from '../../shared/reino/config.js'
+import { ALBUM, CARTAS, CHEFES, CONQUISTAS, PARTIDA } from '../../shared/reino/config.js'
 import { jogarPartida } from '../../shared/reino/robos.js'
 import { criarRng } from '../../shared/rng.js'
 import { ROBOS36, VARIANTES, classificar, emParalelo, jogar, liberadasPorRodadas, medirA, medirB, rankingSemanal, RODADAS_ALBUM_CHEIO, segundosDeTela } from '../../tools/medir-reino.mjs'
@@ -114,6 +114,12 @@ describe('R40 — medida E com as 30 conquistas da regra única (shared/reino/co
     const jogs = [{ conq: { supper: 3, road: 3 } }, { conq: { supper: 5, road: 5 } }, { conq: { supper: 1, road: 1 } }, { conq: { supper: 2 } }]
     assert.deepEqual(paresJuntos(jogs, 60).map((x) => [x.par, x.contas]), [['road+supper', 3]]) // a conta com as duas na 1ª fica fora
     assert.equal(paresJuntos(jogs, 90).length, 0) // 2 de 3 contas fora da 1ª = 66,7%
+  })
+
+  test('variantes das conquistas só valem dentro da tarefa: CONQUISTAS volta igual', async () => {
+    const antes = JSON.stringify(CONQUISTAS)
+    for (const variante of ['tally300', 'bis22', 'bis21']) await medirE({ n: 1, nBom: 0, partidas: 1, aleatorio: false, semente: 'm40v', variante, trabalhos: 1 })
+    assert.equal(JSON.stringify(CONQUISTAS), antes)
   })
 
   test('E: mesma semente → mesmos números com 1 e 2 trabalhos; as 30 conquistas e a vitória no resumo', async () => {

@@ -14,7 +14,7 @@ import { Worker, isMainThread, parentPort } from 'node:worker_threads'
 import { availableParallelism } from 'node:os'
 import { writeFileSync } from 'node:fs'
 import { criarRng, estadoDaSemente } from '../shared/rng.js'
-import { ALBUM, CARTAS, CHEFES, FAMILIAS, PARTIDA as P, RELIQUIAS } from '../shared/reino/config.js'
+import { ALBUM, CARTAS, CHEFES, CONQUISTAS, FAMILIAS, PARTIDA as P, RELIQUIAS } from '../shared/reino/config.js'
 import { montarExercito, simularBatalha } from '../shared/reino/batalha.js'
 import { aplicar, criarPartida, opcoes, resistiu, visao } from '../shared/reino/partida.js'
 import { PLANOS, escolher, forcaEstatica, hordaDeReferencia, notaDaLuta } from '../shared/reino/robos.js'
@@ -52,6 +52,10 @@ export const VARIANTES = {
   },
   // pacote: as três que mexem no novato e na decisão — o chefe 320 JÁ ESTÁ no config (R37); hoje só soma ouroGuardar 3
   pacote: { cfg: () => { por(CHEFES[0], 'vida', 320) }, regras: { ouroGuardar: 3 } },
+  // R40 — degraus e condições das conquistas (medida E). Só números de CONQUISTAS; a regra é a de shared/reino/conquistas.js.
+  tally300: { cfg: () => por(CONQUISTAS.rodadasSomadas, 'tally400', 300) }, // último degrau longe do álbum cheio (398)
+  bis22: { cfg: () => por(CONQUISTAS, 'rodadaDoBis', 22) }, // Encore! mais perto da vitória (20)
+  bis21: { cfg: () => por(CONQUISTAS, 'rodadaDoBis', 21) },
 }
 
 function aplicarVariante(nome) {

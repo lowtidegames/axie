@@ -59,3 +59,5 @@ Sempre possíveis: 401 SEM_SESSAO/SESSAO_VENCIDA · 429 MUITOS_PEDIDOS · 503 MA
 **R33.** Perfil: `conta: { diasSemUsoAtePerder }` (só leitura; dias inteiros = validade da sessão sem uso ÷ 24, arredondado para baixo; hoje 30). Sessão sem uso por esse tempo vence e a conta se perde.
 
 **R31.** `Partida` (da `visao` do motor) traz `chances` (chance real por raridade para as cartas de onde sai a mão agora) e `chanceReliquia` (bolsa; null na rodada do chefe, 0 sem relíquia livre). A tela mostra só esses números.
+
+**R34.** `chances` da `Partida` é a chance exata por raridade na MÃO inteira (sem repetir carta, contando a carta que sobe); os números somam 100.

@@ -32,6 +32,10 @@ export const PARTIDA = {
   bolsa: { ouro: 8, chanceReliquia: 15 }, // espólio Purse: 8 de ouro; 15% das vezes uma relíquia
   pontosPorRodada: 100,
   rodadaDaVitoria: 15, // 20/11 R42 (era 20): vencer a rodada 15 = "o reino resistiu" (a partida segue para quem quer pontuar)
+  // 20/11 R46 (decisão 14:45 e 15:00): REVANCHE — perdeu e a partida segue → a MESMA horda volta, com troca grátis de 2 terrenos e dica.
+  // A regra fica gravada em cada partida; partida sem regra gravada (as de antes) segue a 1 (horda nova depois da derrota).
+  regra: 2, // regra das partidas NOVAS
+  trocasNaRevanche: 1, // trocas grátis de 2 terrenos depois de cada derrota (0 desliga; o motor só sabe dar 1)
 }
 
 // ---------------------------------------------------------------- conquistas (R39, 20/11) — só título, sem prêmio

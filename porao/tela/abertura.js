@@ -16,19 +16,12 @@ function frasesCarregando() {
   return lista.length ? lista : ['carregando.1'];
 }
 
-// ---------- STUB tarefa 6 ----------
-// STUB tarefa 6: api.js vai trazer sessao() (GET /api/sessao → {conta|null}) e convidado() (POST /api/sessao/convidado).
-// Aqui só para a abertura andar. ?sessao=1 na página finge que já existe sessão (para ver o Continuar).
-const busca = () => new URLSearchParams(globalThis.location?.search || '');
-const stubApi = {
-  sessao: async () => ({ ok: true, conta: busca().get('sessao') === '1' ? { tipo: 'convidado', apelido: null } : null }), // STUB tarefa 6
-  convidado: async () => ({ ok: true, conta: { tipo: 'convidado', apelido: null } }), // STUB tarefa 6
-};
-// STUB tarefa 6: porao/tela/carteira-navegador.js vai exportar listarCarteiras() → [{ nome, icone, conectar() }].
-// conectar() pede a assinatura e entra; devolve { ok:true, conta } ou { ok:false, erro }.
-function stubListarCarteiras() { // STUB tarefa 6
-  const ainda = () => new Promise((ok) => setTimeout(() => ok({ ok: false, erro: 'A ligação com a carteira chega na próxima parte. Por enquanto, jogue sem carteira.' }), 1800));
-  return ['Phantom', 'Solflare', 'Backpack', 'MetaMask'].map((nome) => ({ nome, icone: null, conectar: ainda }));
+// Recusa da carteira em texto simples (as mensagens das carteiras vêm em inglês).
+function motivoDaCarteira(e) {
+  const m = String(e?.message || e || '');
+  if (/reject|denied|declin|cancel|recus/i.test(m)) return 'Você recusou na carteira. Nada foi gasto. Tente de novo quando quiser.';
+  if (/^(A carteira|Esta carteira|Endereço|Falta o)/.test(m)) return m;
+  return 'A carteira não assinou. Nada foi gasto. Tente de novo.';
 }
 
 // ---------- ferramentas ----------
@@ -57,11 +50,16 @@ function escalaInteira(cv, larguraMax, alturaMax) {
 
 /**
  * Roda a abertura dentro de `raiz` e resolve com { conta, como } quando o jogador chega ao porão.
- * opcoes: { api?: {sessao, convidado}, listarCarteiras?, menosAnimacao?: () => boolean }
+ * opcoes: { api: {sessao, convidado, desafio, entrar}, listarCarteiras?: () => [{nome, icone, conectar}],
+ *           aoMudarCarteiras?: (f) => parar, menosAnimacao?: () => boolean,
+ *           inicio?: 'titulo' (pula logo e carregando; ex.: a sessão acabou no meio do jogo), aviso?: texto no título }
+ * conectar() → { carteira, assinar(mensagem) }; aqui: desafio(carteira) → assinar → entrar({carteira, nonce, assinatura}).
+ * Evento `sem-sessao` na janela (401 do servidor) → volta ao TÍTULO (menos enquanto assina: aí a recusa volta à escolha).
  */
 export function rodarAbertura(raiz, opcoes = {}) {
-  const api = opcoes.api || stubApi;
-  const listarCarteiras = opcoes.listarCarteiras || stubListarCarteiras;
+  const api = opcoes.api;
+  const listarCarteiras = opcoes.listarCarteiras || (() => []);
+  const aoMudarCarteiras = opcoes.aoMudarCarteiras || (() => () => {});
   const media = window.matchMedia('(prefers-reduced-motion: reduce)');
   const menos = opcoes.menosAnimacao || (() => media.matches || localStorage.getItem('menos_animacao') === '1');
 
@@ -78,7 +76,8 @@ export function rodarAbertura(raiz, opcoes = {}) {
   let timers = [];
   let repintar = () => {};
   let teclaVoltar = null;
-  const limpar = () => { timers.forEach((t) => clearInterval(t)); timers = []; repintar = () => {}; teclaVoltar = null; };
+  let pararVigia = () => {};
+  const limpar = () => { timers.forEach((t) => clearInterval(t)); timers = []; repintar = () => {}; teclaVoltar = null; pararVigia(); pararVigia = () => {}; };
   const aplicarMenos = () => { caixa.classList.toggle('ab--menos', menos()); menosBtn.setAttribute('aria-pressed', String(menos())); };
   menosBtn.addEventListener('click', () => {
     try { localStorage.setItem('menos_animacao', menos() ? '0' : '1'); } catch { /* sem armazenamento */ }
@@ -108,8 +107,13 @@ export function rodarAbertura(raiz, opcoes = {}) {
     let sessao = null;
     const sessaoPedida = Promise.resolve().then(() => api.sessao()).catch(() => ({ ok: false, conta: null }));
 
+    // 401 do servidor em qualquer tela (menos enquanto assina) → TÍTULO, sem sessão
+    const semSessao = () => { if (caixa.dataset.tela === 'assinando') return; sessao = null; telaTitulo('Sua sessão acabou. Entre de novo.'); };
+    window.addEventListener('sem-sessao', semSessao);
+
     function entrar(conta, como) {
       limpar();
+      window.removeEventListener('sem-sessao', semSessao);
       document.removeEventListener('keydown', onTecla);
       caixa.remove();
       resolver({ conta, como });
@@ -150,7 +154,8 @@ export function rodarAbertura(raiz, opcoes = {}) {
     }
 
     // TÍTULO: casa da vó à noite, logo, nome, slogan e os botões.
-    function telaTitulo() {
+    function telaTitulo(avisoInicial = '') {
+      if (typeof avisoInicial !== 'string') avisoInicial = '';
       mostrar('titulo', () => {
         const topo = el('div', 'ab__marca');
         const logo = el('canvas', 'ab__logo-jogo'); logo.dataset.pm = 'logo-jogo';
@@ -171,13 +176,13 @@ export function rodarAbertura(raiz, opcoes = {}) {
         convidado.addEventListener('click', async () => {
           convidado.disabled = true;
           const r = await Promise.resolve().then(() => api.convidado()).catch(() => ({ ok: false }));
-          if (r?.ok) entrar(r.conta || null, 'convidado');
-          else { convidado.disabled = false; aviso.textContent = 'Não deu para entrar agora. Tente de novo.'; }
+          if (r?.ok) entrar(r.conta || { tipo: 'convidado', apelido: null }, 'convidado');
+          else { convidado.disabled = false; aviso.textContent = r?.erro || 'Não deu para entrar agora. Tente de novo.'; }
         });
         const hall = botao(T('titulo.botoes.hall'), { pm: 'hall' });
         hall.addEventListener('click', telaHall);
         botoes.append(conectar, convidado, hall);
-        const aviso = el('p', 'ab__erro'); aviso.setAttribute('role', 'status');
+        const aviso = el('p', 'ab__erro', avisoInicial); aviso.setAttribute('role', 'status'); aviso.dataset.pm = 'erro-titulo';
         palco.append(topo, botoes, aviso);
       });
     }
@@ -219,9 +224,12 @@ export function rodarAbertura(raiz, opcoes = {}) {
         if (!carteiras.length) lista.append(el('li', 'ab__texto', T('carteira.nenhuma', 'Nenhuma carteira encontrada neste navegador.')));
         const msg = el('p', 'ab__erro', erro); msg.setAttribute('role', 'status'); msg.dataset.pm = 'erro-carteira';
         const voltar = botao(T('aviso.botoes.voltar', 'Voltar'), { pm: 'voltar' });
-        voltar.addEventListener('click', telaTitulo);
+        voltar.addEventListener('click', () => telaTitulo());
         j.append(h, lista, msg, voltar); palco.append(j);
         teclaVoltar = telaTitulo;
+        // carteira que chega depois (extensão carregando) aparece sem precisar voltar
+        const n = carteiras.length;
+        pararVigia = aoMudarCarteiras(() => { let agora = []; try { agora = listarCarteiras() || []; } catch { /* nada */ } if (agora.length !== n && caixa.dataset.tela === 'escolher') telaEscolher(msg.textContent); });
       });
     }
 
@@ -235,9 +243,19 @@ export function rodarAbertura(raiz, opcoes = {}) {
         const pontos = el('p', 'ab__espera', 'Esperando a carteira'); pontos.setAttribute('aria-hidden', 'true');
         j.append(h, p, pontos); palco.append(j);
       });
-      Promise.resolve().then(() => carteira.conectar()).catch((e) => ({ ok: false, erro: String(e?.message || e) })).then((r) => {
+      (async () => {
+        let ligada;
+        try { ligada = await carteira.conectar(); } catch (e) { return { ok: false, erro: motivoDaCarteira(e) }; }
+        const d = await Promise.resolve().then(() => api.desafio(ligada.carteira)).catch(() => ({ ok: false }));
+        if (!d?.ok) return { ok: false, erro: d?.erro || 'O servidor não respondeu. Tente de novo.' };
+        let assinatura;
+        try { assinatura = await ligada.assinar(d.mensagem); } catch (e) { return { ok: false, erro: motivoDaCarteira(e) }; }
+        const r = await Promise.resolve().then(() => api.entrar({ carteira: ligada.carteira, nonce: d.nonce, assinatura })).catch(() => ({ ok: false }));
+        if (!r?.ok) return { ok: false, erro: r?.codigo === 'sem_sessao' || r?.semSessao ? 'A assinatura não valeu (venceu ou foi recusada). Tente de novo.' : (r?.erro || 'A assinatura não valeu. Tente de novo.') };
+        return r;
+      })().then((r) => {
         if (caixa.dataset.tela !== 'assinando') return;
-        if (r?.ok) entrar(r.conta || null, 'carteira');
+        if (r?.ok) entrar(r.conta || { tipo: 'carteira', apelido: null }, 'carteira');
         else telaEscolher(r?.erro || 'A carteira não assinou. Tente de novo.');
       });
     }
@@ -260,6 +278,11 @@ export function rodarAbertura(raiz, opcoes = {}) {
 
     // Quem já tem sessão pula o logo e cai no título com o Continuar.
     let decidido = false;
+    if (opcoes.inicio === 'titulo') {
+      decidido = true;
+      Promise.all([arte, sessaoPedida]).then(([, s]) => { sessao = s?.conta || null; telaTitulo(opcoes.aviso || ''); });
+      return;
+    }
     const prazo = setTimeout(() => { if (!decidido) { decidido = true; telaLogo(); } }, 400);
     sessaoPedida.then((s) => {
       if (decidido) return;

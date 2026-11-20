@@ -11,7 +11,7 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
   const bt = (texto, clique, cls = '') => h('button', { type: 'button', class: 'km-bt ' + cls, texto, clique: () => { Som.tocar('toque'); clique() } })
   function abrir(nome, titulo, corpo, cabeca = null) {
     aberta = nome
-    caixa.replaceChildren(h('header', { class: 'km-tela-topo' }, [cabeca || h('h2', { texto: titulo, id: 'telaTitulo' }), h('button', { type: 'button', class: 'km-x', 'aria-label': T.menu.fechar, texto: '×', clique: fechar })]), ...corpo, h('footer', {}, [bt(nome === 'menu' || nome === 'sair' ? T.menu.fechar : '‹ ' + T.menu.titulo, nome === 'menu' || nome === 'sair' ? fechar : () => menu(true), 'km-bt--fraco')]))
+    caixa.replaceChildren(h('header', { class: 'km-tela-topo' }, [cabeca || h('h2', { texto: titulo, id: 'telaTitulo' }), h('button', { type: 'button', class: 'km-x', 'aria-label': T.menu.fechar, texto: '×', clique: fechar })]), ...corpo, h('footer', {}, [bt(nome === 'amigo' ? T.amigo.nao : nome === 'menu' || nome === 'sair' ? T.menu.fechar : '‹ ' + T.menu.titulo, nome === 'menu' || nome === 'sair' || nome === 'amigo' ? fechar : () => menu(true), 'km-bt--fraco')]))
     fundo.hidden = false; fundo.dataset.tela = nome
     caixa.querySelector('.km-x').focus()
   }
@@ -96,5 +96,13 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
   function sair(aoSair) {
     abrir('sair', T.menu.sair, [h('p', { class: 'km-linha', texto: T.menu.sairTexto }), bt(T.menu.nao, fechar), bt(T.menu.sairSim, aoSair, 'km-bt--perigo')])
   }
-  return { menu, album, conquistas, ranking, sair, fechar, aberta: () => aberta }
+  /** Link de amigo com partida em curso: pergunta antes de trocar. Fechar de qualquer jeito = ficar na partida. */
+  function amigo(link, eDesafio, aoAceitar) {
+    abrir('amigo', T.amigo.titulo, [
+      h('p', { class: 'km-linha', id: 'amigoTexto', texto: T.amigo.texto(link.rodadas) }),
+      h('p', { class: 'km-linha', id: 'amigoGuarda', texto: eDesafio ? T.amigo.troca : T.amigo.guarda }),
+      Object.assign(bt(T.amigo.sim, () => { fechar(); aoAceitar() }), { id: 'amigoSim' }),
+    ])
+  }
+  return { menu, album, conquistas, ranking, sair, amigo, fechar, aberta: () => aberta }
 }

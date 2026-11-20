@@ -2,7 +2,7 @@
 // e a PARTIDA EM CURSO (semente + cartas liberadas + comandos: o motor refaz tudo com `reproduzir`).
 // Duas abas não se apagam: cada gravação MESCLA com o que está no armazenamento naquela hora (maior recorde, união das conquistas e
 // das melhores partidas, rodadas somadas pela diferença) e a aba ouve o evento `storage`.
-const CHAVE = 'keepmile_v1', CHAVE_PARTIDA = 'keepmile_partida_v1'
+const CHAVE = 'keepmile_v1', CHAVE_PARTIDA = 'keepmile_partida_v1', CHAVE_FIM = 'keepmile_fim_v1', CHAVE_OUTRA = 'keepmile_partida2_v1'
 const PADRAO = { recorde: 0, melhores: [], rodadas: 0, conquistas: [], vel: 1, menos: null, partidas: 0, dica: false }
 const copia = (o) => JSON.parse(JSON.stringify(o))
 function doDisco() {
@@ -32,8 +32,12 @@ function gravar() {
   D = mesclar(D, base, doDisco()); base = copia(D)
   try { localStorage.setItem(CHAVE, JSON.stringify(D)) } catch { /* ok */ }
 }
+const ouvintesPartida = new Set()
+const gravarPartida = (chave, p) => { try { if (p) localStorage.setItem(chave, JSON.stringify(p)); else localStorage.removeItem(chave) } catch { /* ok */ } }
+const lerPartida = (chave) => { try { const p = JSON.parse(localStorage.getItem(chave) || 'null'); return p && typeof p.semente === 'string' && Array.isArray(p.comandos) && Array.isArray(p.liberadas) ? p : null } catch { return null } }
 if (typeof addEventListener === 'function') {
   addEventListener('storage', (ev) => {
+    if (ev.key === CHAVE_PARTIDA || ev.key === CHAVE_FIM) { for (const f of ouvintesPartida) f(); return }
     if (ev.key !== CHAVE) return
     const disco = doDisco(); D = mesclar(D, base, disco); base = { ...copia(D), rodadas: disco.rodadas, partidas: disco.partidas }
     for (const f of ouvintes) f()
@@ -70,7 +74,15 @@ export const Guarda = {
   /** Marca a conquista; devolve true só na primeira vez. */
   conquista(id) { if (D.conquistas.includes(id)) return false; D.conquistas.push(id); gravar(); return true },
   /** Partida em curso: grava a cada passo; `null` apaga. */
-  salvarPartida(p) { try { if (p) localStorage.setItem(CHAVE_PARTIDA, JSON.stringify(p)); else localStorage.removeItem(CHAVE_PARTIDA) } catch { /* ok */ } },
-  partidaSalva() { try { const p = JSON.parse(localStorage.getItem(CHAVE_PARTIDA) || 'null'); return p && typeof p.semente === 'string' && Array.isArray(p.comandos) && Array.isArray(p.liberadas) ? p : null } catch { return null } },
+  salvarPartida: (p) => gravarPartida(CHAVE_PARTIDA, p),
+  partidaSalva: () => lerPartida(CHAVE_PARTIDA),
+  /** Partida TERMINADA (gravada na hora em que o motor decide o fim): a tela de fim volta depois de recarregar, até o Play again. */
+  salvarFim: (p) => gravarPartida(CHAVE_FIM, p),
+  fimSalvo: () => lerPartida(CHAVE_FIM),
+  /** Segundo espaço: a partida em curso de quem aceitou a estrada de um amigo (volta a ela depois). */
+  guardarOutra: (p) => gravarPartida(CHAVE_OUTRA, p),
+  outraPartida: () => lerPartida(CHAVE_OUTRA),
+  /** Avisa quando OUTRA aba mexe na partida em curso ou no fim guardado. */
+  aoMudarPartida(f) { ouvintesPartida.add(f) },
   tudo: () => copia(D),
 }

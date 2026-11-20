@@ -34,8 +34,8 @@ export function baixarCartao(b, nome = 'keepmile-kingdom.png') {
   a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 4000)
 }
-/** Link da mesma estrada: a página atual só com `?semente=`. */
-export function linkDaEstrada(semente) { const u = new URL(location.href); u.search = ''; u.hash = ''; u.searchParams.set('semente', semente); return u.href }
+/** Link da mesma estrada: a página atual só com `?semente=` e, se houver, `&rodadas=` (quantas o amigo tem de bater). */
+export function linkDaEstrada(semente, rodadas = null) { const u = new URL(location.href); u.search = ''; u.hash = ''; u.searchParams.set('semente', semente); if (rodadas != null) u.searchParams.set('rodadas', String(rodadas)); return u.href }
 
 /** Compartilha o cartão. Devolve 'sistema' (folha do aparelho), 'baixou+link' (PNG baixado e link copiado) ou 'baixou' (só o PNG). */
 export async function compartilhar(c, { texto, url, nome = 'keepmile-kingdom.png' }) {

@@ -1,5 +1,6 @@
 // Keepmile — ganchos de teste (só com ?teste=1). Não mudam regra nenhuma: leem o estado e apertam os mesmos comandos do motor.
 import { simularBatalha } from '../../../shared/reino/batalha.js'
+import { aplicar } from '../../../shared/reino/partida.js'
 import { escolher } from '../../../shared/reino/robos.js'
 
 export async function ligarGanchos(X) {
@@ -12,7 +13,7 @@ export async function ligarGanchos(X) {
     estado: () => structuredClone(J.e), visao: () => structuredClone(J.v), opcoes: () => structuredClone(J.op), comandos: () => structuredClone(J.comandos),
     semente: () => J.semente, liberadas: () => J.liberadas.slice(), erros: () => J.erros.slice(), lutas: () => structuredClone(J.lutas), ultimaLuta: () => (J.ultimaLuta ? { ...J.ultimaLuta } : null),
     fase: () => X.M().fase,
-    modelo: () => { const M = X.M(); return { fase: M.fase, vidas: M.vidas, ouro: M.ouro, rodada: M.rodada, sel: M.sel, cartaPosta: M.cartaPosta, mao: M.mao, selo: !!(M.selo && performance.now() < M.selo.ate), aviso: M.aviso && performance.now() < M.aviso.t0 + M.aviso.ms ? M.aviso.texto : null, chefe: M.chefe?.id ?? null, derrota: M.derrota?.linha ?? null, derrotaPct: M.derrota?.pct ?? null, derrotaDeNovo: M.derrota?.deNovo ?? null, chefeCurto: !!M.chefe?.curto, info: M.info ? M.info.slice() : null, infoSel: M.infoSel ? M.infoSel.slice() : null, chances: M.chances, espolioDesc: M.espolioDesc, resumo: M.resumo ? structuredClone(M.resumo) : null, seloLinha: M.selo?.linha ?? null, consertar: { ...M.consertar }, reliquias: M.reliquias, fim: M.fim ? { ...M.fim } : null, vitoria: M.vitoria ? { ...M.vitoria } : null, brinde: M.brinde?.texto ?? null, brindeRet: M.brindeRet ? { ...M.brindeRet } : null, vel: M.vel, armado: M.armado, trocar: M.trocar, hordaN: M.hordaN } },
+    modelo: () => { const M = X.M(); return { fase: M.fase, vidas: M.vidas, ouro: M.ouro, rodada: M.rodada, sel: M.sel, cartaPosta: M.cartaPosta, mao: M.mao, selo: !!(M.selo && performance.now() < M.selo.ate), aviso: M.aviso && performance.now() < M.aviso.t0 + M.aviso.ms ? M.aviso.texto : null, chefe: M.chefe?.id ?? null, derrota: M.derrota?.linha ?? null, derrotaPct: M.derrota?.pct ?? null, derrotaDeNovo: M.derrota?.deNovo ?? null, chefeCurto: !!M.chefe?.curto, info: M.info ? M.info.slice() : null, infoSel: M.infoSel ? M.infoSel.slice() : null, chances: M.chances, espolioDesc: M.espolioDesc, resumo: M.resumo ? structuredClone(M.resumo) : null, seloLinha: M.selo?.linha ?? null, consertar: { ...M.consertar }, reliquias: M.reliquias, fim: M.fim ? { ...M.fim } : null, vitoria: M.vitoria ? { ...M.vitoria } : null, brinde: M.brinde?.texto ?? null, brindeRet: M.brindeRet ? { ...M.brindeRet } : null, vel: M.vel, armado: M.armado, trocar: M.trocar, trocarLinhas: M.trocarLinhas ? M.trocarLinhas.slice() : null, desafio: M.desafio ? { ...M.desafio } : null, relSel: M.relSel, hordaN: M.hordaN } },
     modeloAviso: () => { const a = X.M().aviso; return a ? { texto: a.texto, sub: a.sub ?? null } : null },
     lutando: () => X.Bat().ativa,
     /** Leva a luta que está na tela até o fim, agora. */
@@ -29,6 +30,22 @@ export async function ligarGanchos(X) {
       X.semTimers(); X.limparFestas()
       if (J.e.fase === 'fim') X.fimDaPartida(); else X.abrirRodada()
       return { comandos: J.comandos.length, rodada: J.e.rodada, fim: J.e.fase === 'fim' }
+    },
+    /** O robô joga até a luta que ACABA a partida e para ANTES dela (o próximo "batalhar" decide o fim). Só olha: `aplicar` não mexe no estado. */
+    jogarAteALutaFinal({ robo = 'ganancioso', maxComandos = 3000 } = {}) {
+      let n = 0, s = 12345, parou = false
+      const inteiro = (k) => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s % k }
+      while (J.e.fase !== 'fim' && n++ < maxComandos) {
+        const cmd = escolher(robo, J.e, inteiro)
+        if (cmd.tipo === 'batalhar') {
+          const r = aplicar(J.e, cmd, { eventos: false })
+          if (r.ok && r.estado.fase === 'fim') { parou = true; break }
+          X.M().fase = 'carta'; X.lutar(true); fimDaLutaJa(); X.semTimers(); X.limparFestas()
+        } else if (!X.mandar(cmd)) throw new Error('comando recusado: ' + JSON.stringify(cmd))
+      }
+      X.semTimers(); X.limparFestas()
+      if (J.e.fase === 'fim') X.fimDaPartida(); else { X.abrirRodada(); if (X.M().fase === 'chefe') X.seguir() }
+      return { parou, rodada: J.e.rodada, comandos: J.comandos.length }
     },
     /** O robô põe a carta (e o que mais quiser) até a hora de lutar; a luta fica para a tela. */
     roboAteLutar() { let n = 0, s = 999; const inteiro = (k) => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s % k }; while (n++ < 50) { const cmd = escolher('ganancioso', J.e, inteiro); if (cmd.tipo === 'batalhar') break; if (!X.mandar(cmd)) throw new Error('comando recusado') } X.abrirRodada(); if (X.M().fase === 'chefe') X.seguir(); return { rodada: J.e.rodada, posta: J.e.cartaPosta } },
@@ -77,7 +94,9 @@ export async function ligarGanchos(X) {
       for (const id of Object.keys(X.CONFIG.RELIQUIAS)) { const c = document.createElement('canvas'); c.width = 13; c.height = 13; const g = c.getContext('2d'); const de = Arte.reliquia(g, id, 0, 0); const d = g.getImageData(0, 0, 13, 13).data; let h = 0, cheios = 0; for (let i = 0; i < d.length; i++) { h = (h * 31 + d[i]) >>> 0; if (i % 4 === 3 && d[i] > 40) cheios++ } out[id] = { de, h, cheios } }
       return out
     },
-    link: () => ({ url: J.link, como: J.postou }),
+    link: () => ({ url: J.link, como: J.postou, vezes: J.postagens || 0 }),
+    fimSalvo: () => Guarda.fimSalvo(), outraPartida: () => Guarda.outraPartida(), melhor: () => (J.melhor ? { ...J.melhor } : null),
+    limparFestas: () => X.limparFestas(),
     pctHorda: () => J.pos?.bat.pctHorda ?? null,
     guardaSet: (k, v) => Guarda.set(k, v),
     forca: (id, n) => ({ numero: Arte.forcaDaCarta(id, n), legenda: Arte.legendaDaCarta(id) }),

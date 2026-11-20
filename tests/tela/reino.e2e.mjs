@@ -197,11 +197,10 @@ async function rodar(fmt) {
   confere(mus[0] === 'construir' && mus.includes('batalha'), `a música troca de momento (${mus.join(' → ')})`)
   confere((await K(page, (k) => k.guarda().conquistas)).includes('supper'), 'conquista "First Supper" ganha na 1ª vitória')
   // R13 item 6: FILA DE FESTAS — duas conquistas na mesma vitória aparecem uma por vez (antes a 2ª apagava a 1ª)
+  // R17 D3 (a regra mudou: "conquista só depois do espólio", decisão de 19/11 21:54): na escolha do espólio NADA cai junto — as duas
+  // conquistas desta vitória esperam na fila e só aparecem depois da escolha, uma por vez
   let fe = await K(page, (k) => k.festas())
-  confere(fe.atual !== null && fe.fila.length + fe.log.length >= 2, `fila de festas: "${fe.atual}" na tela e ${fe.fila.length} esperando a vez`)
-  if (fmt.toque) await foto(page, 'fila-festas-celular')
-  { const mb = (await modelo(page)).brindeRet, le = (await K(page, (k) => k.layout())).espolio // a placa da festa nunca cobre um dos 3 espólios
-    confere(!!mb && le.every((r) => mb.x + mb.w <= r.x || mb.x >= r.x + r.w || mb.y + mb.h <= r.y || mb.y >= r.y + r.h), `a placa da festa não fica por cima dos espólios (placa em ${mb?.x},${mb?.y})`) }
+  confere(fe.atual === null && fe.fila.length >= 2 && fe.log.length === 0 && (await modelo(page)).brinde === null, `ordem das festas: na escolha do espólio nenhuma placa na tela; ${fe.fila.length} conquistas esperam a escolha`)
   // R13 itens 1, 5 e 7: antes de escolher, o texto da carta, o efeito de cada espólio e a chance da bolsa virar relíquia (config)
   mm = await modelo(page)
   { const vv = await K(page, (k) => k.visao()), ic = vv.espolios.findIndex((e) => e.tipo === 'carta'), ib = vv.espolios.findIndex((e) => e.tipo === 'bolsa')
@@ -210,10 +209,8 @@ async function rodar(fmt) {
   await page.waitForTimeout(700)
   await foto(page, nome('espolio'))
   await conferirLayout(page, 'espólio')
-  await page.waitForFunction(() => { const f = window.__keepmile.festas(); return f.log.length >= 2 && f.log.every((l) => l.fim > 0) && !f.fila.length }, null, { timeout: 15000 })
-  fe = await K(page, (k) => k.festas())
-  { const l = fe.log, nomesF = l.map((x) => x.texto)
-    confere(nomesF.includes('First Supper') && nomesF.includes('Clean Plate') && l.every((x, i) => i === 0 || x.ini - l[i - 1].fim >= 399), `as festas não se sobrescrevem: ${nomesF.join(' → ')}, com ${Math.round(l[1].ini - l[0].fim)} ms entre elas (≥ 400)`) }
+  await page.waitForTimeout(1200)
+  confere((await K(page, (k) => k.festas())).log.length === 0, 'ordem das festas: 1,2 s depois as conquistas continuam esperando a escolha')
   await K(page, (k) => k.festejar([{ tam: 3, texto: 'GRANDE' }, { tam: 1, texto: 'PEQUENA' }, { tam: 2, texto: 'MEDIA' }]))
   await page.waitForFunction(() => { const f = window.__keepmile.festas(); return f.log.at(-1)?.texto === 'GRANDE' && f.log.at(-1).fim > 0 }, null, { timeout: 15000 })
   fe = await K(page, (k) => k.festas())
@@ -225,6 +222,18 @@ async function rodar(fmt) {
   const ouroAntes = v.ouro, bolsa = v.espolios.findIndex((e) => e.tipo === 'bolsa')
   await toca(page, 'espolio' + bolsa)
   await fase(page, 'carta')
+  // R13 item 6 + R17 D3: FILA DE FESTAS — depois da escolha, as duas conquistas da vitória aparecem uma por vez (antes a 2ª apagava a 1ª)
+  await page.waitForFunction(() => window.__keepmile.festas().atual !== null && window.__keepmile.modelo().brindeRet, null, { timeout: 6000 }).catch(() => {})
+  fe = await K(page, (k) => k.festas())
+  confere(fe.atual !== null && fe.fila.length + fe.log.length >= 5, `fila de festas: "${fe.atual}" na tela depois da escolha e ${fe.fila.length} esperando a vez`)
+  await page.waitForTimeout(250)
+  if (fmt.toque) await foto(page, 'fila-festas-celular')
+  { const mb = (await modelo(page)).brindeRet, le = (await K(page, (k) => k.layout())).cartas // a placa da festa nunca cobre uma das 3 cartas da mão
+    confere(!!mb && le.every((r) => mb.x + mb.w <= r.x || mb.x >= r.x + r.w || mb.y + mb.h <= r.y || mb.y >= r.y + r.h), `a placa da festa não fica por cima das cartas da mão (placa em ${mb?.x},${mb?.y})`) }
+  await page.waitForFunction(() => { const f = window.__keepmile.festas(); return f.log.length >= 5 && f.log.every((l) => l.fim > 0) && !f.fila.length }, null, { timeout: 15000 })
+  fe = await K(page, (k) => k.festas())
+  { const l = fe.log, nomesF = l.map((x) => x.texto), iS = nomesF.indexOf('First Supper'), iC = nomesF.indexOf('Clean Plate')
+    confere(iS >= 3 && iC >= 3 && l[iS].fase !== 'vitoria' && l[iC].fase !== 'vitoria' && l.every((x, i) => i === 0 || x.ini - l[i - 1].fim >= 399), `as festas não se sobrescrevem e a conquista vem DEPOIS do espólio: ${nomesF.join(' → ')}, com ${Math.round(l[Math.max(iS, iC)].ini - l[Math.max(iS, iC) - 1].fim)} ms entre elas (≥ 400)`) }
   v = await K(page, (k) => k.visao())
   confere(v.rodada === 2 && (v.espolios && (v.ouro > ouroAntes || v.reliquias.length === 1)), `espólio pego: rodada 2 (ouro ${ouroAntes} → ${v.ouro}, relíquias ${v.reliquias.length})`)
   m = await modelo(page)
@@ -268,6 +277,7 @@ async function rodar(fmt) {
   const ofertaAntes = JSON.stringify((await K(p2, (k) => k.visao())).oferta), ouroS = (await K(p2, (k) => k.visao())).ouro
   await toca(p2, 'sortear')
   confere((await modelo(p2)).armado === 'sortear' && JSON.stringify((await K(p2, (k) => k.visao())).oferta) === ofertaAntes, 'sortear de novo pede confirmação (1º toque só arma)')
+  await p2.waitForTimeout(450) // R17 B1: a regra mudou — o 2º toque só confirma 400 ms depois do 1º (toque repetido não confirma)
   await toca(p2, 'sortear')
   v = await K(p2, (k) => k.visao())
   confere(v.ouro === ouroS - 2 && (await sons(p2)).includes('sortear'), `2º toque sorteia e cobra o preço do motor (ouro ${ouroS} → ${v.ouro})`)
@@ -348,7 +358,7 @@ async function rodar(fmt) {
   // R13 item 13: o Share leva o link da MESMA estrada (?semente=) para a área de transferência, com "beat my N rounds"
   await page.waitForFunction(() => window.__keepmile.link().como !== '', null, { timeout: 8000 })
   { const lk = await K(page, (k) => k.link()), area = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '')
-    confere(lk.url.endsWith(`?semente=${SEM}`) && lk.url.startsWith(base) && lk.como === 'baixou+link' && area.includes(lk.url) && area.includes(`beat my ${m.fim.vencidas} round`), `Share copia o link da mesma estrada: "${area.slice(0, 90)}"`) }
+    confere(lk.url.endsWith(`?semente=${SEM}&rodadas=${m.fim.vencidas}`) && lk.url.startsWith(base) && lk.como === 'baixou+link' && area.includes(lk.url) && area.includes(`beat my ${m.fim.vencidas} round`), `Share copia o link da mesma estrada, com a semente e as rodadas a bater (R17 B2): "${area.slice(0, 110)}"`) }
   // recorde continua depois de recarregar; Play again em 1 toque
   await toca(page, 'denovo')
   await fase(page, 'carta')
@@ -519,10 +529,12 @@ async function rodar(fmt) {
     if (vr.espolios[ic].carta !== mao0) {
       await toca(pr, 'espolio' + ic); await fase(pr, 'terreno')
       confere((await K(pr, (k) => k.cena().vivos)) >= 1, 'escolher o terreno do espólio: os soldados do terreno ocupado continuam à vista')
+      await pr.waitForTimeout(450) // R17 B1: os terrenos ignoram toque por 400 ms depois de abrir a escolha
       await toca(pr, 'terreno1')
       let mr = await modelo(pr)
       confere(mr.trocar === 1 && mr.fase === 'terreno' && (await K(pr, (k) => k.visao().terrenos[0].carta)) === mao0 && (await viuJa(pr, 'trocar')), 'espólio em terreno ocupado: o 1º toque só pede "REPLACE?" (nada é trocado)')
       await conferirLayout(pr, 'terreno do espólio')
+      await pr.waitForTimeout(450) // R17 B1: o 2º toque só confirma 400 ms depois do 1º
       await toca(pr, 'terreno1'); await fase(pr, 'carta')
       vr = await K(pr, (k) => k.visao())
       confere(vr.rodada === 2 && vr.terrenos[0].carta !== mao0, 'o 2º toque confirma a troca')
@@ -581,6 +593,163 @@ async function rodar(fmt) {
   confere(erros.length === 0, 'zero erro no console' + (erros.length ? ' → ' + erros.slice(0, 5).join(' | ') : ''))
 }
 
+/** R17 (polimento 2): bugs do jogador desconfiado (B1–B7), "mesma estrada" de verdade e os itens de diversão. */
+async function r17(fmt) {
+  console.log(`\n=== R17 ${fmt.nome} ${fmt.w}×${fmt.h} ===`)
+  const erros = [], ruins = []
+  const novoCtx = (extra = {}) => browser.newContext({ viewport: { width: fmt.w, height: fmt.h }, hasTouch: fmt.toque, isMobile: fmt.toque, deviceScaleFactor: 1, reducedMotion: 'no-preference', acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'], ...extra })
+  const bate = (page, x, y) => (fmt.toque ? page.touchscreen.tap(x, y) : page.mouse.click(x, y))
+  const meio = async (page, id) => { const q = await page.locator('#bt-' + id).boundingBox(); return [q.x + q.width / 2, q.y + q.height / 2] }
+  const toca = async (page, id) => { const [x, y] = await meio(page, id); await bate(page, x, y) }
+  const pronto = (page) => page.waitForFunction(() => window.__keepmile?.pronto, null, { timeout: 20000 })
+  const abrir = async (ctx, q) => { const page = await ctx.newPage(); vigiar(page, erros, ruins); await page.goto(base + q); await pronto(page); return page }
+  const recarregar = async (page) => { await page.reload(); await pronto(page) }
+  const nome = (s) => `${s}-${fmt.nome}`
+  const espolioPronto = (page) => page.waitForFunction(() => window.__keepmile.modelo().vitoria?.pronto, null, { timeout: 20000 })
+  const fimPronto = (page) => page.waitForFunction(() => window.__keepmile.modelo().fim?.contou, null, { timeout: 20000 })
+  const cartasDe = async (page) => JSON.stringify((await K(page, (k) => k.visao())).terrenos.map((t) => t && t.carta))
+  const focoEm = (page) => page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)
+
+  // ---------------------------------------------------------------- B1: toque repetido não confirma nada
+  {
+    const ctx = await novoCtx(), p = await abrir(ctx, '?teste=1&nova=1&semente=e2e-volta-1')
+    const mao0 = (await modelo(p)).mao[0].carta
+    await toca(p, 'carta0'); await toca(p, 'terreno1'); await toca(p, 'lutar2'); await fase(p, 'luta')
+    await K(p, (k) => k.avancarBatalha()); await espolioPronto(p); await p.waitForTimeout(500)
+    let v = await K(p, (k) => k.visao())
+    const ic = v.espolios.findIndex((e) => e.tipo === 'carta' && e.carta !== mao0), nCmd = (await K(p, (k) => k.comandos())).length, antes = await cartasDe(p)
+    if (ic < 0) falha('B1: a semente não deu carta diferente no espólio (troque a semente)')
+    else {
+      // o jogador bate 4 vezes seguidas: o 1º toque escolhe o espólio; os outros caem no terreno ocupado que aparece (antes: armava e CONFIRMAVA o "REPLACE?")
+      const [ex, ey] = await meio(p, 'espolio' + ic), t1 = await K(p, (k) => k.areaDoTerreno(1)), tx = t1.x + t1.w / 2, ty = t1.y + t1.h / 2
+      await bate(p, ex, ey); await p.waitForTimeout(40)
+      for (let i = 0; i < 3; i++) { await bate(p, tx, ty); await p.waitForTimeout(50) }
+      let m = await modelo(p)
+      confere(m.fase === 'terreno' && m.trocar === 0 && (await K(p, (k) => k.comandos())).length === nCmd && (await cartasDe(p)) === antes, 'B1: 4 toques seguidos no espólio não trocam a construção nem armam o "REPLACE?" (terrenos ignoram toque por 400 ms)')
+      await p.waitForTimeout(450)
+      await bate(p, tx, ty); await p.waitForTimeout(40); await bate(p, tx, ty); await p.waitForTimeout(40)
+      m = await modelo(p)
+      confere(m.trocar === 1 && m.fase === 'terreno' && (await cartasDe(p)) === antes, 'B1: o "REPLACE?" armado não se confirma com um toque repetido (menos de 400 ms)')
+      confere((m.trocarLinhas || []).join(' ') === `REPLACE ${CFG.CARTAS[mao0].nome} LV1?` && (await viuJa(p, 'trocar')), `B1: o aviso diz o que se perde: "${(m.trocarLinhas || []).join(' ')}"`)
+      if (fmt.toque) await foto(p, 'replace-celular')
+      await p.waitForTimeout(450)
+      await bate(p, tx, ty); await fase(p, 'carta')
+      v = await K(p, (k) => k.visao())
+      confere(v.rodada === 2 && (await cartasDe(p)) !== antes, 'B1: o 2º toque, com calma, confirma a troca')
+    }
+    // sortear: dois toques seguidos só armam; trocar carta da mão: idem
+    const oferta = JSON.stringify((await K(p, (k) => k.visao())).oferta), [sx, sy] = await meio(p, 'sortear')
+    await bate(p, sx, sy); await p.waitForTimeout(40); await bate(p, sx, sy); await p.waitForTimeout(60)
+    confere((await modelo(p)).armado === 'sortear' && JSON.stringify((await K(p, (k) => k.visao())).oferta) === oferta, 'B1: dois toques seguidos no sorteio só armam (não gastam o ouro)')
+    await p.waitForTimeout(450); await bate(p, sx, sy); await p.waitForTimeout(80)
+    confere(JSON.stringify((await K(p, (k) => k.visao())).oferta) !== oferta, 'B1: o 2º toque, com calma, sorteia')
+    { const m = await modelo(p), vv = await K(p, (k) => k.visao()), i = m.mao.findIndex((c) => c.carta !== vv.terrenos[0].carta), antes2 = await cartasDe(p), t1 = await K(p, (k) => k.areaDoTerreno(1))
+      await toca(p, 'carta' + i)
+      await bate(p, t1.x + t1.w / 2, t1.y + t1.h / 2); await p.waitForTimeout(40); await bate(p, t1.x + t1.w / 2, t1.y + t1.h / 2); await p.waitForTimeout(60)
+      confere((await modelo(p)).trocar === 1 && (await cartasDe(p)) === antes2, 'B1: trocar carta da mão — dois toques seguidos no terreno ocupado só armam o "REPLACE?"')
+      await p.waitForTimeout(450); await bate(p, t1.x + t1.w / 2, t1.y + t1.h / 2); await p.waitForTimeout(80)
+      confere((await cartasDe(p)) !== antes2, 'B1: o 2º toque, com calma, troca a carta da mão') }
+    // B7: o foco do teclado, depois de mudar de fase, vai para o controle principal (não para o BODY)
+    await p.locator('#bt-lutar2').focus(); await p.keyboard.press('Enter'); await fase(p, 'luta')
+    confere((await focoEm(p)) === 'bt-vel', `B7: depois do Enter no FIGHT o foco vai para o controle da luta (${await focoEm(p)})`)
+    await K(p, (k) => k.avancarBatalha()); await p.waitForFunction(() => window.__keepmile.fase() === 'derrota' || window.__keepmile.modelo().vitoria?.pronto, null, { timeout: 20000 }); await p.waitForTimeout(100)
+    confere((await K(p, (k) => k.fase())) === 'derrota' ? (await focoEm(p)) === 'bt-seguir' : /^bt-espolio/.test(await focoEm(p)), `B7: no fim da luta o foco vai para o controle principal da fase (${await focoEm(p)})`)
+    await p.close(); await ctx.close()
+  }
+
+  // ---------------------------------------------------------------- B3: o fim fica guardado na hora em que o motor decide
+  {
+    const ctx = await novoCtx(), p = await abrir(ctx, '?teste=1&nova=1&semente=e2e-keepmile-1')
+    await p.goto(base + '?teste=1'); await pronto(p) // sem `nova=1`: recarregar retoma o que está guardado
+    const ate = await K(p, (k) => k.jogarAteALutaFinal())
+    confere(ate.parou && (await K(p, (k) => k.visao())).vidas === 1, `B3: o robô joga até a luta que acaba a partida (rodada ${ate.rodada}, última vida)`)
+    await toca(p, (await p.locator('#bt-lutar2').count()) ? 'lutar2' : 'lutar'); await fase(p, 'luta')
+    const res = await K(p, (k) => k.resultado()), gAntes = await K(p, (k) => k.guarda())
+    confere(res.fim && (await K(p, (k) => k.lutando())) && gAntes.partidas === 1 && gAntes.melhores.length === 1 && gAntes.melhores[0].pontos === res.pontos && gAntes.recorde === res.pontos && !!(await K(p, (k) => k.fimSalvo())), `B3: o resultado (${res.pontos} pontos, recorde e melhores partidas) fica guardado quando o motor decide o fim, ainda durante a luta`)
+    await recarregar(p)
+    await fimPronto(p)
+    let m = await modelo(p), g = await K(p, (k) => k.guarda())
+    confere(m.fase === 'fim' && m.fim.pontos === res.pontos && m.fim.vencidas === res.vencidas && m.fim.novoRecorde === true && g.partidas === 1 && g.melhores.length === 1 && g.recorde === res.pontos && g.rodadas === gAntes.rodadas, `B3: recarregar durante a luta final volta para a tela de fim daquela partida (${m.fim?.vencidas} rodadas, ${m.fim?.pontos} pontos), sem registrar duas vezes`)
+    await recarregar(p)
+    await fimPronto(p)
+    m = await modelo(p); g = await K(p, (k) => k.guarda())
+    confere(m.fase === 'fim' && m.fim.parado === true && (await p.locator('#bt-postar').count()) === 1 && g.partidas === 1 && m.fim.novoRecorde === true, 'B3: recarregar na tela de fim volta para a tela de fim (com Share), com tudo já no lugar')
+    await conferirLayout(p, 'fim depois de recarregar')
+    // B7: Share ignora toques repetidos
+    const [px, py] = await meio(p, 'postar')
+    const baixou = p.waitForEvent('download', { timeout: 15000 })
+    for (let i = 0; i < 4; i++) { await bate(p, px, py); await p.waitForTimeout(40) }
+    await baixou; await p.waitForFunction(() => window.__keepmile.link().como !== '', null, { timeout: 8000 })
+    await p.waitForTimeout(300)
+    confere((await K(p, (k) => k.link().vezes)) === 1, 'B7: 4 toques seguidos no Share compartilham uma vez só')
+    await toca(p, 'denovo'); await fase(p, 'carta')
+    await recarregar(p)
+    confere((await K(p, (k) => k.fase())) === 'carta' && (await K(p, (k) => k.fimSalvo())) === null && (await K(p, (k) => k.guarda().partidas)) === 1, 'B3: depois do Play again a tela de fim não volta mais')
+    await p.close(); await ctx.close()
+  }
+
+  // ---------------------------------------------------------------- B4 + B2: link de amigo — pergunta, guarda a partida e é a MESMA ESTRADA
+  {
+    const LINK = '?teste=1&semente=e2e-amigo-1&rodadas=7'
+    // dois álbuns diferentes abrem o mesmo link: as mesmas 3 cartas na rodada 1 (só as cartas do álbum inicial do config)
+    const ctxA = await novoCtx(), ctxB = await novoCtx()
+    await ctxB.addInitScript(() => { try { if (!localStorage.getItem('keepmile_v1')) localStorage.setItem('keepmile_v1', JSON.stringify({ rodadas: 400, recorde: 0, melhores: [], conquistas: [], partidas: 9, dica: true })) } catch { /* ok */ } })
+    const pA = await abrir(ctxA, LINK), pB = await abrir(ctxB, LINK)
+    const vA = await K(pA, (k) => k.visao()), vB = await K(pB, (k) => k.visao()), lA = await K(pA, (k) => k.liberadas()), lB = await K(pB, (k) => k.liberadas())
+    confere((await K(pB, (k) => k.guarda().rodadas)) === 400 && JSON.stringify(lB) === JSON.stringify(CFG.ALBUM.inicial) && JSON.stringify(lA) === JSON.stringify(lB), `B2: partida aberta por link usa só as ${CFG.ALBUM.inicial.length} cartas do álbum inicial, com qualquer álbum (um aparelho com 0 rodadas e outro com 400)`)
+    confere(JSON.stringify(vA.oferta) === JSON.stringify(vB.oferta) && JSON.stringify(vA.horda) === JSON.stringify(vB.horda) && JSON.stringify(vA.espolios) === JSON.stringify(vB.espolios), `B2: MESMA ESTRADA — dois álbuns diferentes veem as mesmas 3 cartas na rodada 1 (${vA.oferta.map((o) => o.carta).join(' ')})`)
+    confere(!/semente|rodadas/.test(pB.url()) && /teste=1/.test(pB.url()), 'B2: o link vale uma partida — depois de lido, some do endereço')
+    await pB.waitForFunction(() => window.__keepmile.modeloAviso()?.texto === 'BEAT MY 7 ROUNDS' && window.__keepmile.modelo().aviso, null, { timeout: 6000 }).catch(() => {})
+    { const a = await K(pB, (k) => k.modeloAviso()), m = await modelo(pB)
+      confere(a?.texto === 'BEAT MY 7 ROUNDS' && m.desafio?.rodadas === 7 && (await viuJa(pB, 'desafio')), `B2: quem chega vê a faixa de desafio "${a?.texto}" e a meta fica no HUD`) }
+    await pB.waitForTimeout(350)
+    if (fmt.toque) await foto(pB, 'link-amigo-celular')
+    await conferirLayout(pB, 'estrada do amigo')
+    // recarregar não recomeça a estrada do amigo; o Play again volta à partida normal (o álbum do aparelho)
+    await toca(pB, 'carta0'); await toca(pB, 'terreno1')
+    await recarregar(pB)
+    confere((await K(pB, (k) => k.semente())) === 'e2e-amigo-1' && (await K(pB, (k) => k.comandos())).length === 1 && (await modelo(pB)).desafio?.rodadas === 7, 'B2: recarregar continua a estrada do amigo onde estava')
+    await K(pB, (k) => k.jogarSozinho())
+    await fimPronto(pB)
+    { const m = await modelo(pB)
+      confere(/FRIEND/.test(m.fim.amigo?.texto || '') && m.fim.amigo.texto.includes(String(m.fim.vencidas)) && m.fim.amigo.texto.includes('7') && (await viuJa(pB, 'fimFecho')), `B2: o fim diz quem levou a estrada: "${m.fim.amigo?.texto}"`) }
+    await toca(pB, 'denovo'); await fase(pB, 'carta')
+    confere((await K(pB, (k) => k.semente())) !== 'e2e-amigo-1' && (await K(pB, (k) => k.liberadas())).length === 30 && (await modelo(pB)).desafio === null, 'B2: o Play again volta à partida normal (semente nova, álbum do aparelho)')
+    await pA.close(); await ctxA.close(); await pB.close()
+    // B4: link de amigo com partida em curso — pergunta e guarda a partida num segundo espaço
+    const p1 = await abrir(ctxB, '?teste=1&nova=1&semente=e2e-minha-1')
+    await toca(p1, 'carta0'); await toca(p1, 'terreno2')
+    const minha = JSON.stringify(await K(p1, (k) => k.comandos()))
+    await p1.goto(base + LINK); await pronto(p1)
+    await p1.waitForSelector('#tela:not([hidden])', { timeout: 5000 }).catch(() => {})
+    confere((await p1.locator('#tela').getAttribute('data-tela')) === 'amigo' && (await K(p1, (k) => k.semente())) === 'e2e-minha-1' && JSON.stringify(await K(p1, (k) => k.comandos())) === minha && /saved/.test(await p1.locator('#amigoGuarda').textContent().catch(() => '')), 'B4: link de amigo com partida em curso PERGUNTA antes ("Start your friend\'s road? Your current run will be saved") e a partida continua lá')
+    if (fmt.toque) { await p1.waitForTimeout(200); await foto(p1, 'link-amigo-pergunta-celular') }
+    await p1.keyboard.press('Escape')
+    confere((await p1.locator('#tela').isHidden()) && (await K(p1, (k) => k.semente())) === 'e2e-minha-1' && !/semente/.test(p1.url()), 'B4: fechar a pergunta fica na partida em curso')
+    await p1.goto(base + LINK); await pronto(p1)
+    await p1.locator('#amigoSim').click()
+    await p1.waitForFunction(() => window.__keepmile.semente() === 'e2e-amigo-1', null, { timeout: 5000 }).catch(() => {})
+    confere((await K(p1, (k) => k.semente())) === 'e2e-amigo-1' && JSON.stringify((await K(p1, (k) => k.outraPartida()))?.comandos) === minha && (await K(p1, (k) => k.comandos())).length === 0, 'B4: aceitar começa a estrada do amigo e GUARDA a partida em curso no segundo espaço')
+    await K(p1, (k) => k.jogarSozinho())
+    await fimPronto(p1)
+    await toca(p1, 'denovo'); await fase(p1, 'carta')
+    confere((await K(p1, (k) => k.semente())) === 'e2e-minha-1' && JSON.stringify(await K(p1, (k) => k.comandos())) === minha && (await K(p1, (k) => k.outraPartida())) === null, 'B4: depois da estrada do amigo, o Play again volta à partida que estava guardada')
+    // B6: duas abas na MESMA partida — a aba velha percebe e recarrega o estado antes de aceitar jogada
+    const p2 = await abrir(ctxB, '?teste=1')
+    confere(JSON.stringify(await K(p2, (k) => k.comandos())) === minha, 'B6: a 2ª aba abre a mesma partida em curso')
+    await toca(p2, 'lutar2'); await fase(p2, 'luta'); await K(p2, (k) => k.avancarBatalha()); await espolioPronto(p2)
+    const cmds2 = JSON.stringify(await K(p2, (k) => k.comandos()))
+    await p1.bringToFront()
+    await toca(p1, 'lutar2') // a aba velha ainda mostra "carta posta, falta lutar"
+    await p1.waitForTimeout(400)
+    confere(JSON.stringify(await K(p1, (k) => k.comandos())) === cmds2 && (await K(p1, (k) => k.fase())) === 'vitoria' && JSON.stringify(await K(p1, (k) => k.estado())) === JSON.stringify(await K(p2, (k) => k.estado())), 'B6: a aba velha recarrega o estado da outra aba em vez de jogar por cima (as duas ficam iguais)')
+    await p1.close(); await p2.close(); await ctxB.close()
+  }
+  //R17-MAIS
+  confere(ruins.length === 0, 'R17: zero pedido com 404 ou falha' + (ruins.length ? ' → ' + ruins.slice(0, 5).join(' | ') : ''))
+  confere(erros.length === 0, 'R17: zero erro no console' + (erros.length ? ' → ' + erros.slice(0, 5).join(' | ') : ''))
+}
+
 /** Só o desenho: nada cortado nem sobreposto em outro tamanho de tela. */
 async function soLayout(w, h, toque) {
   console.log(`\n=== desenho ${w}×${h} ===`)
@@ -604,9 +773,10 @@ async function soLayout(w, h, toque) {
   await K(page, (k) => k.avancarBatalha())
   await page.waitForFunction(() => window.__keepmile.modelo().vitoria?.pronto, null, { timeout: 15000 })
   await conferirLayout(page, `${w}×${h} espólio`)
-  await page.waitForFunction(() => window.__keepmile.festas().atual !== null && window.__keepmile.modelo().brindeRet, null, { timeout: 4000 }).catch(() => {})
-  { const mb = (await modelo(page)).brindeRet, le = (await K(page, (k) => k.layout())).espolio
-    confere(!!mb && le.every((r) => mb.x + mb.w <= r.x || mb.x >= r.x + r.w || mb.y + mb.h <= r.y || mb.y >= r.y + r.h), `${w}×${h} espólio: a placa da festa não cobre nenhum dos 3 espólios`) }
+  await page.waitForTimeout(900)
+  // R17 D3 (a regra mudou): nenhuma placa de festa cai junto com a escolha — as conquistas esperam na fila
+  { const fe = await K(page, (k) => k.festas())
+    confere(fe.atual === null && fe.fila.length >= 1 && (await modelo(page)).brinde === null, `${w}×${h} espólio: nenhuma placa de festa por cima dos 3 espólios (${fe.fila.length} esperando a escolha)`) }
   await foto(page, `espolio-${w}x${h}`)
   await K(page, (k) => k.jogarSozinho())
   await page.waitForFunction(() => window.__keepmile.modelo().fim?.contou, null, { timeout: 15000 })
@@ -616,15 +786,20 @@ async function soLayout(w, h, toque) {
   await ctx.close()
 }
 
+const SO = process.env.REINO_SO || '' // para rodar só uma parte enquanto se trabalha nela (a bateria completa é sem isto)
 try {
-  await rodar({ nome: 'celular', w: 360, h: 740, toque: true })
-  await rodar({ nome: 'pc', w: 1280, h: 720, toque: false })
-  await soLayout(390, 844, true)
-  await soLayout(740, 360, true)
-  await soLayout(320, 640, true)
-  await soLayout(320, 568, true)
+  if (!SO || SO === 'base' || SO === 'celular') await rodar({ nome: 'celular', w: 360, h: 740, toque: true })
+  if (!SO || SO === 'base' || SO === 'pc') await rodar({ nome: 'pc', w: 1280, h: 720, toque: false })
+  if (!SO || SO === 'r17' || SO === 'r17celular') await r17({ nome: 'celular', w: 360, h: 740, toque: true })
+  if (!SO || SO === 'r17' || SO === 'r17pc') await r17({ nome: 'pc', w: 1280, h: 720, toque: false })
+  if (!SO || SO === 'desenho') {
+    await soLayout(390, 844, true)
+    await soLayout(740, 360, true)
+    await soLayout(320, 640, true)
+    await soLayout(320, 568, true)
+  }
 } catch (e) { falha('exceção: ' + (e?.stack || e)) }
 await browser.close()
 servidor.close()
-console.log(falhas.length ? `\n${falhas.length} FALHA(S)` : '\nREINO: tudo verde')
+console.log(falhas.length ? `\n${falhas.length} FALHA(S)` : SO ? `\nREINO (${SO}): verde` : '\nREINO: tudo verde')
 process.exit(falhas.length ? 1 : 0)

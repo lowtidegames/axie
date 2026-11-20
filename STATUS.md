@@ -12,7 +12,10 @@ Projeto atual: Keepmile (nome provisório), jogo original de montar reino com ca
 - Chefe destacado e números grandes no celular (R38).
 - Vitória e 30 conquistas, regra única em `shared/reino/conquistas.js`, segurança GO (R39).
 - Aviso de conquista, festa, gancho do degrau, textos do guardião (R41).
-- Baterias verdes no `main` (20/11 13:13 BRT): `npm test` 424; reino.e2e 1168; reino-servidor 377; reino-movimento 189; reino-som 154.
+- Baterias verdes no `main` (20/11 16:56 BRT): `npm test` 446; reino.e2e tudo verde; reino-servidor 377; reino-movimento 189; reino-som tudo verde.
+- Revanche completa no `main` (R47–R52): mesma horda + 1 troca de 2 terrenos + dica sempre verdadeira com "SHOW ME" + festa REVENGE!; banco v9; segurança GO.
+- Site de teste: Railway escolhido pelo dono; conta, projeto e chave prontos; falta publicar (precisa de sessão nova para a chave aparecer).
+- Idiomas: 12 pedidos pelo dono; desenho e glossário prontos; letras em pixel em andamento.
 - Notas: diversão 89 (conferência 5); guardião 80, aprovado sem veto (rodada 4).
 - R42 (vitória na rodada 15, Encore! na 17, último degrau 300), R43 (tiques da contagem) e R44 (18 medalhas, fogos, meta do HUD) no `main`, enviados.
 - R45: medidor de 3 regras novas no `main`; revanche com troca aprovada pelo diretor (20/11 14:30); parte 2 (troca de família, treino) medindo. R46: desenho da revanche com o arquiteto.

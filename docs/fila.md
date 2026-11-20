@@ -115,3 +115,6 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | A2 | Objetos e gente: Rugrigo em poses, luxos, trouxas, influenciadores, molduras de carta | artista-pixel | arte/porao/objetos/, porao/tela/arte/ (só os seus nomes) | A1 | PRONTO (f622fce; 31 de 70 gerações; 33 peças + 11 retratos) |
 | A3 | Kit de interface: botões, abas, janelas, barras, papéis de parede, ícones, barra de status | artista-pixel | arte/porao/interface/, porao/tela/arte/ui/ | A1 | PRONTO (0f0458f; 20 gerações; papéis de parede a clarear no A4) |
 | A4 | Aplicar o kit em todas as telas e aumentar a grade do porão | dev-tela (Opus) | porao/tela/*.js, estilo.css, tela.e2e.mjs | A2, A3 | PRONTO (cffbb1a juntado; e2e 94 conferências; trindade ≥ 85 em todas as fotos) |
+| P12 | Desenho da abertura + login por assinatura + progresso por conta | arquiteto (Opus) | — (só desenho) | — | RODANDO |
+| P13 | Textos da abertura: vó tutora, aviso da assinatura, sugestões de apelido, historinha | humorista (Fable) | porao/comum/nomes.js, porao/tests/nomes.test.js | — | RODANDO |
+| A5 | Arte da abertura: casa da vó à noite, logo do jogo, logo do estúdio, retrato da vó | artista-pixel | arte/porao/abertura/, porao/tela/arte/ (só nomes novos) | — | RODANDO (teto 15) |

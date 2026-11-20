@@ -1,13 +1,16 @@
 // Keepmile — R36: MEDIR A PROFUNDIDADE do jogo (sem mudar número nem regra). Só lê o motor; variantes entram por injeção, aqui.
 // Uso: node tools/medir-reino.mjs <medida> [--n 2000] [--semente keepmile36] [--variante base] [--trabalhos 4] [--json]
 //   medidas: A (novato no 1º chefe) · B (qualidade da decisão) · C (posição) · D (cartas e planos) · E (longo prazo) · F (tempo) · todas
-//   --n      partidas (A, D, F), jogadores (E: --n vale para o atento; o bom usa n/10) ou ofertas (B, C)
+//   --n      partidas (A, D, F; padrão 2000) ou ofertas (B 400, C 300); E usa n/10 jogadores atentos e n/50 bons (padrão 200 e 40)
+//   --planos partidas por robô de plano no D (padrão 300; 0 = sem planos)
 //   --k      continuações por opção (B, C; padrão 8)
+//   --saida arquivo.json  guarda os números crus (para comparar variantes com as mesmas sementes)
 //   --variante base|<nome> (VARIANTES abaixo): muda números/regras SÓ dentro deste processo, nunca no config
 // Mesma semente → mesmos números, com 1 ou com 4 trabalhos.
 import { pathToFileURL } from 'node:url'
 import { Worker, isMainThread, parentPort } from 'node:worker_threads'
 import { availableParallelism } from 'node:os'
+import { writeFileSync } from 'node:fs'
 import { criarRng, estadoDaSemente } from '../shared/rng.js'
 import { ALBUM, CARTAS, CHEFES, FAMILIAS, PARTIDA as P, RELIQUIAS } from '../shared/reino/config.js'
 import { montarExercito, simularBatalha } from '../shared/reino/batalha.js'
@@ -746,7 +749,7 @@ export function resumoF(porRobo) {
 
 // ================================================================ linha de comando
 function argumentos(argv) {
-  const a = { medida: argv[0] || 'todas', n: null, K: 8, semente: 'keepmile36', variante: 'base', trabalhos: availableParallelism(), json: false }
+  const a = { medida: argv[0] || 'todas', n: null, K: 8, semente: 'keepmile36', variante: 'base', trabalhos: availableParallelism(), json: false, saida: null, planos: 300 }
   for (let i = 1; i < argv.length; i++) {
     if (argv[i] === '--n') a.n = Number(argv[++i])
     else if (argv[i] === '--k') a.K = Number(argv[++i])
@@ -754,6 +757,8 @@ function argumentos(argv) {
     else if (argv[i] === '--variante') a.variante = argv[++i]
     else if (argv[i] === '--trabalhos') a.trabalhos = Number(argv[++i])
     else if (argv[i] === '--json') a.json = true
+    else if (argv[i] === '--saida') a.saida = argv[++i]
+    else if (argv[i] === '--planos') a.planos = Number(argv[++i])
   }
   if (!VARIANTES[a.variante]) throw new Error(`variante desconhecida: ${a.variante} (há: ${Object.keys(VARIANTES).join(', ')})`)
   return a
@@ -765,14 +770,20 @@ if (!isMainThread && parentPort) {
   const a = argumentos(process.argv.slice(2))
   const t0 = performance.now()
   const base = { semente: a.semente, variante: a.variante, trabalhos: a.trabalhos }
-  const mostrar = (titulo, r) => { console.log(`\n## ${titulo}\n`); for (const l of r.linhas) console.log(l); if (a.json) console.log('\n```json\n' + JSON.stringify(r.res) + '\n```') }
+  const guardado = {}
+  const mostrar = (titulo, r) => {
+    console.log(`\n## ${titulo}\n`); for (const l of r.linhas) console.log(l)
+    if (a.json) console.log('\n```json\n' + JSON.stringify(r.res) + '\n```')
+    guardado[titulo.split(' ')[0]] = { res: r.res, cru: r.cru }
+    if (a.saida) writeFileSync(a.saida, JSON.stringify(guardado))
+  }
   const quer = (m) => a.medida === 'todas' || a.medida.split(',').includes(m)
   console.log(`Keepmile — medidas R36 (semente "${a.semente}", variante ${a.variante}) — números PROVISÓRIOS; nada no config muda`)
   let A = null, D = null
   if (quer('A') || quer('E') || quer('F')) { A = await medirA({ ...base, n: a.n ?? 2000 }); if (quer('A')) mostrar('A — novato no 1º chefe (álbum inicial; o álbum cresce entre as partidas)', A) }
   if (quer('B')) mostrar(`B — qualidade da decisão (valor esperado com ${a.K} continuações do planejador)`, await medirB({ ...base, n: a.n ?? 400, K: a.K }))
   if (quer('C')) mostrar(`C — posição importa? (${a.K} continuações)`, await medirC({ ...base, n: a.n ?? 300, K: a.K }))
-  if (quer('D') || quer('E') || quer('F')) { D = await medirD({ ...base, n: a.n ?? 2000, planos: quer('D') ? 300 : 0 }); if (quer('D')) mostrar('D — cartas, planos e ouro (planejador, álbum completo)', D) }
+  if (quer('D') || quer('E') || quer('F')) { D = await medirD({ ...base, n: a.n ?? 2000, planos: quer('D') ? a.planos : 0 }); if (quer('D')) mostrar('D — cartas, planos e ouro (planejador, álbum completo)', D) }
   if (quer('E')) {
     // ranking: os 4 robôs com o álbum completo (quem disputa ranking já jogou bastante); o planejador vem do D
     const pontos = { planejador: D.cru.map((r) => r.pontos) }

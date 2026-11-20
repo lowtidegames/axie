@@ -80,6 +80,9 @@ export function festa(P, ms) { if (ms < 0 || ms >= 640) return; grito(P, ms % 32
 /** RECUO na derrota: um passo para trás, encolhido. */
 export function recuo(P, ms) { if (ms < 0) return; const f = sai(Math.min(1, ms / 320)); P.dx -= Math.round(5 * f); P.alt -= Math.round(1 * f); P.incl -= Math.round(1 * f) }
 
+/** PISÃO de entrada do chefe (R29): levanta 9 px em 260 ms, desce com tudo e amassa 5 px, assentando em 180 ms. */
+export function pisao(P, ms) { if (ms < 0 || ms >= 440) return; if (ms < 260) { const f = ms / 260; P.dy -= Math.round(Math.sin(f * Math.PI) * 9); P.incl -= f < 0.5 ? 1 : 0 } else { const f = 1 - (ms - 260) / 180; P.alt -= Math.round(5 * f); P.larg += Math.round(5 * f) } }
+
 /** PASSO de marcha: pulinho de até 2 px a cada pisada (meio ciclo do andar) e 1 px amassado ao pousar. Devolve true no instante da pisada. */
 export function passo(P, ms, meioCiclo = 300, alto = 2) {
   const f = (ms % meioCiclo) / meioCiclo

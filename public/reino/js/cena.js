@@ -45,7 +45,7 @@ export function criarCena(canvas, CONFIG) {
     animT: new Float64Array(MAXU), dir: new Int8Array(MAXU), k: new Float32Array(MAXU), barra: new Uint8Array(MAXU), preso: new Float32Array(MAXU), sx: new Float32Array(MAXU), sy: new Float32Array(MAXU), tier: new Uint8Array(MAXU),
     ordem: new Uint16Array(MAXU), tb: 0, nv: new Uint8Array(MAXU), lider: new Uint8Array(MAXU), marcha: false, marchaT0: 0, gritoT: -1e9,
     // movimento (R21): golpe, apanhou, virada, queda — tempos em ms do relógio visual
-    idTipo: new Array(MAXU), nuvem: new Uint8Array(MAXU), brilhoQ: new Int32Array(MAXU), atirador: new Uint8Array(MAXU), lutaT: new Float64Array(MAXU), gesto: new Uint8Array(MAXU), atqDist: new Float32Array(MAXU), fimT: -1e9, fimVitoria: false, laneT: new Float32Array(MAXU), dxeT: new Float32Array(MAXU), ocultoAnt: new Uint8Array(MAXU), balde: new Int16Array(MAXU), altV: new Int8Array(MAXU), repMax: 6, kRep: 1, grupo: new Uint8Array(MAXU), atqT: new Float64Array(MAXU), atqAnt: new Float32Array(MAXU), atqTiro: new Uint8Array(MAXU), atqAlvo: new Int16Array(MAXU), atqSolta: new Uint8Array(MAXU),
+    idTipo: new Array(MAXU), chega: new Uint8Array(MAXU), entraT: new Float64Array(MAXU), nuvem: new Uint8Array(MAXU), brilhoQ: new Int32Array(MAXU), atirador: new Uint8Array(MAXU), lutaT: new Float64Array(MAXU), gesto: new Uint8Array(MAXU), atqDist: new Float32Array(MAXU), fimT: -1e9, fimVitoria: false, laneT: new Float32Array(MAXU), dxeT: new Float32Array(MAXU), ocultoAnt: new Uint8Array(MAXU), balde: new Int16Array(MAXU), altV: new Int8Array(MAXU), repMax: 6, kRep: 1, grupo: new Uint8Array(MAXU), atqT: new Float64Array(MAXU), atqAnt: new Float32Array(MAXU), atqTiro: new Uint8Array(MAXU), atqAlvo: new Int16Array(MAXU), atqSolta: new Uint8Array(MAXU),
     hitT: new Float64Array(MAXU), hitDir: new Int8Array(MAXU), hitF: new Float32Array(MAXU), viraT: new Float64Array(MAXU), dirV: new Int8Array(MAXU), morteT: new Float64Array(MAXU), morteTipo: new Uint8Array(MAXU), etapa: new Uint8Array(MAXU),
     fase: new Uint8Array(MAXU), passoN: new Int32Array(MAXU), qi: new Uint16Array(MAXU), pDx: new Int8Array(MAXU), pDy: new Int8Array(MAXU), pLarg: new Int8Array(MAXU), pAlt: new Int8Array(MAXU), pIncl: new Int8Array(MAXU),
     // partículas, efeitos animados, números
@@ -57,7 +57,7 @@ export function criarCena(canvas, CONFIG) {
     // medidas do movimento (para o teste e o relato): quantas vezes cada etapa aconteceu
     med: null,
   }
-  C.zerarMedidas = () => { C.med = { antecipa: 0, bote: 0, volta: 0, seq: [], seqDe: -1, fumacas: 0, quadrosLuta: 0, abracos: 0, plaquetas: 0, gestos: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], cascata: 0, poBote: 0, festas: 0, recuos: 0, numPorGrupo: 0, vaoMin: 99, ladoErrado: 0, caixas: 0, quadrosPortao: 0, vaoRepouso: 999, foraDoPortao: 0, cortados: 0, fumacinhas: 0, fumacasJuntas: 0, fumacasSeguradas: 0, nuvens: 0, fumacaMs: 0, fumacaLado: 0, numAlternados: 0, numEsperas: 0, numColados: 0, quadrosNum: 0, brilhos: 0, sombrasNoPulo: 0, bandeirolas: 0, gruposCaidos: 0, pausaGrupoMs: 0, lentoMs: 0, repsCaidos: 0, repsMax: 0, estrelas: 0, varridas: 0, tombos: 0, estouros: 0, chefeEtapas: [], passos: 0, poeiras: 0, viradas: 0, flechas: 0, fincadas: 0, explosoes: 0, aneis: 0, somados: 0, numeros: 0, zoomMax: 1, empurrao: 0, brancosLog: [], meioPixel: 0, trechos: [] }; C.tremidaMax = 0; C.picoParticulas = 0; C.flashes.length = 0 }
+  C.zerarMedidas = () => { C.med = { antecipa: 0, bote: 0, volta: 0, seq: [], seqDe: -1, fumacas: 0, quadrosLuta: 0, abracos: 0, plaquetas: 0, gestos: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], cascata: 0, poBote: 0, festas: 0, recuos: 0, numPorGrupo: 0, vaoMin: 99, riscos: 0, silhuetas: 0, vagas: 0, vagaPassos: 0, pisoes: 0, enquadre: 0, duelo: 0, ladoErrado: 0, caixas: 0, quadrosPortao: 0, vaoRepouso: 999, foraDoPortao: 0, cortados: 0, fumacinhas: 0, fumacasJuntas: 0, fumacasSeguradas: 0, nuvens: 0, fumacaMs: 0, fumacaLado: 0, numAlternados: 0, numEsperas: 0, numColados: 0, quadrosNum: 0, brilhos: 0, sombrasNoPulo: 0, bandeirolas: 0, gruposCaidos: 0, pausaGrupoMs: 0, lentoMs: 0, repsCaidos: 0, repsMax: 0, estrelas: 0, varridas: 0, tombos: 0, estouros: 0, chefeEtapas: [], passos: 0, poeiras: 0, viradas: 0, flechas: 0, fincadas: 0, explosoes: 0, aneis: 0, somados: 0, numeros: 0, zoomMax: 1, empurrao: 0, brancosLog: [], meioPixel: 0, trechos: [] }; C.tremidaMax = 0; C.picoParticulas = 0; C.flashes.length = 0 }
   C.zerarMedidas()
   const CORES_P = ['#FFF6E0', '#E8C48A', '#FFD248', '#CC3C3E', '#4884E8', '#9248C8', '#7CC950', '#E0489B', '#CECAD8', '#B6F03C', '#E87E2E', '#704C3E']
   const BRASA = ['#704C3E', '#CC3C3E', '#E87E2E', '#FFD248', '#FFF6E0']
@@ -66,7 +66,7 @@ export function criarCena(canvas, CONFIG) {
   let vinheta = null, moldura = null
   // folhas feitas por código, uma vez (particulas.js)
   let FX = null
-  const fx = () => FX || (FX = { fumaca: [Px.fumaca('#FFFFFF', '#C9C4DA', null, 1), Px.fumaca('#DDBEF4', '#8E59C2', '#B6F03C', 4), Px.fumaca('#F4ECE0', '#9E98B4', '#FFD248', 7), Px.fumaca('#E8E2D4', '#8C8498', null, 11)], fumacinha: [Px.fumacinha('#FFFFFF', '#C9C4DA'), Px.fumacinha('#DDBEF4', '#8E59C2', '#B6F03C')], anel: Px.anel('#FFF6E0', '#FFD248'), anelPo: Px.anel('#E8C48A', '#CDA068'), varrida: Px.varrida(), marca: [Px.marca(CONTORNO.aliado), Px.marca(CONTORNO.invasor), Px.marca(CONTORNO.invasor, 30, 10), Px.marca(CONTORNO.invasor, 54, 14)] })
+  const fx = () => FX || (FX = { fumaca: [Px.fumaca('#FFFFFF', '#C9C4DA', null, 1), Px.fumaca('#DDBEF4', '#8E59C2', '#B6F03C', 4), Px.fumaca('#F4ECE0', '#9E98B4', '#FFD248', 7), Px.fumaca('#E8E2D4', '#8C8498', null, 11)], fumacinha: [Px.fumacinha('#FFFFFF', '#C9C4DA'), Px.fumacinha('#DDBEF4', '#8E59C2', '#B6F03C')], gesto: { mordida: Px.mordida(), lasca: Px.lasca(), risco: Px.risco(), rastro: Px.rastro(), onda: Px.onda() }, anel: Px.anel('#FFF6E0', '#FFD248'), anelPo: Px.anel('#E8C48A', '#CDA068'), varrida: Px.varrida(), marca: [Px.marca(CONTORNO.aliado), Px.marca(CONTORNO.invasor), Px.marca(CONTORNO.invasor, 30, 10), Px.marca(CONTORNO.invasor, 54, 14)] })
 
   // ---------------------------------------------------------------- medidas
   C.ajustar = (vw, vh) => {
@@ -89,7 +89,7 @@ export function criarCena(canvas, CONFIG) {
     // R25 — POUCAS FIGURAS GRANDES: até 5 representantes por pelotão no PC e 4 no celular, um degrau inteiro de pixel de TELA maiores
     // (PC ×3 → ×4, celular ×2 → ×3: continua pixel inteiro, sem borrar)
     C.repMax = C.tipo === 'celular' ? 3 : 5; C.kRep = (C.e + 1) / C.e // R26: 3 no celular (a estrada tem 18 px: 4 não cabem com folga)
-    for (let i = 0; i < C.n; i++) if (C.peca[i] && C.peca[i].w <= 60) C.k[i] = C.kRep
+    for (let i = 0; i < C.n; i++) if (C.peca[i] && C.peca[i].w <= (C.tipo === 'pc' ? 100 : 60)) C.k[i] = C.kRep
     caminho(); vinheta = null; moldura = null
   }
   function caminho() {
@@ -124,7 +124,7 @@ export function criarCena(canvas, CONFIG) {
     const margem = (pc ? 6 : 4) + Math.ceil(10 * C.kRep), cam = C.menos || !pc ? 0 : C.camMin, ppc = (b[1] - a[1]) / (b[0] - a[0]) // px de arte por centésimo
     C.xeBorda = ppc > 0 ? a[0] + (margem + cam - C.ox - a[1]) / ppc : -1e9
     C.linMin = C.xeBorda + VAO + (cols - 1) * passo + passo * 0.42 + 4
-    C.fundoMax = (pc ? 4 : 2) * passo
+    C.fundoMax = (pc ? 4 : 2) * passo; C.ppc = ppc
   }
   /** Posição do motor (centésimos de terreno) + fileira (−1..1) → ponto da tela de arte (sem câmera). Resultado em P. */
   function pos(xe, lane) {
@@ -166,7 +166,7 @@ export function criarCena(canvas, CONFIG) {
   const aFr = new Float32Array(NG), gFr = new Float32Array(NREG * NTIPO)
   const linR = new Float32Array(NG).fill(NaN), linL = new Float32Array(NG).fill(NaN), gMinM = new Float32Array(NG), gMaxM = new Float32Array(NG), gDes = new Float32Array(NG), gLo = new Float32Array(NG).fill(-1e9), gHi = new Float32Array(NG).fill(1e9), aOff = new Float32Array(NG), ordG = new Uint8Array(NG)
   const sFI = new Float32Array(NG + 1), sBI = new Float32Array(NG + 1), sLo = new Float32Array(NG + 1).fill(-1e9), sHi = new Float32Array(NG + 1).fill(1e9), secB = new Int16Array(NG + 1)
-  const bFr = new Float32Array(NREG * NTIPO), bSec = new Int8Array(NREG * NTIPO), bOff = new Float32Array(NREG * NTIPO), bPerto = new Uint8Array(NREG * NTIPO), bPrim = new Int16Array(NREG * NTIPO), gCnt = new Int16Array(NREG * NTIPO), pertos = new Int16Array(64)
+  const bFr = new Float32Array(NREG * NTIPO), bSec = new Int8Array(NREG * NTIPO), bOff = new Float32Array(NREG * NTIPO), bPerto = new Uint8Array(NREG * NTIPO), bPrim = new Int16Array(NREG * NTIPO), gCnt = new Int16Array(NREG * NTIPO), pertos = new Int16Array(64), bAl = new Uint8Array(NREG * NTIPO), regFundo = new Float32Array(NREG), regFr = new Float32Array(NREG), silN = new Uint8Array(NREG)
   let nViv = 0
   C.sec = new Uint8Array(MAXU)
   /** As linhas de frente deste quadro (só contas do motor; roda ANTES de posicionar os bonecos). */
@@ -177,11 +177,14 @@ export function criarCena(canvas, CONFIG) {
     for (let k = 0; k < NG; k++) { if (gMinM[k] > 1e8) { linR[k] = NaN; linL[k] = NaN; gLo[k] = -1e9; gHi[k] = 1e9; continue } let a = nViv++; while (a > 0 && gMinM[ordG[a - 1]] > gMinM[k]) { ordG[a] = ordG[a - 1]; a-- } ordG[a] = k }
     for (let i = 0; i < C.n; i++) { if (C.lado[i] !== 1 || C.est[i] !== 1) continue; const x = C.xDe(i); let s = 0; for (let q = 0; q < nViv; q++) if (x > gMaxM[ordG[q]] + 10) s = q + 1; C.sec[i] = s; if (x > sFI[s]) sFI[s] = x; if (x < sBI[s]) sBI[s] = x }
     const f = Math.min(1, C.dtAnim / 110)
+    // R29 — o CHEFE (e o bruto) têm âncora própria no portão: a linha do choque abre espaço para o corpo deles caber inteiro na tela
+    let linMin = C.linMin
+    for (let i = 0; i < C.n; i++) if (C.lado[i] === 1 && C.est[i] === 1 && C.peca[i].w > 60 && C.sec[i] === 0 && C.xDe(i) < C.xeBorda + 120) { const m = C.peca[i].w > 100 ? 26 : 12, v = loGrande(i) + m + VAO; if (v > linMin) linMin = v }
     let lo = -1e9
     for (let q = 0; q < nViv; q++) {
       const k = ordG[q]
       let aR = sFI[q] > -1e8 ? (sFI[q] + gMinM[k]) / 2 : NaN
-      if (q === 0 && aR < C.linMin) aR = C.linMin // junto do portão o choque inteiro é puxado para DENTRO da tela (o portão pode ficar de fora, a luta não)
+      if (q === 0 && aR < linMin) aR = linMin // junto do portão o choque inteiro é puxado para DENTRO da tela (o portão pode ficar de fora, a luta não)
       linR[k] = aR !== aR ? NaN : linR[k] !== linR[k] ? aR : linR[k] + (aR - linR[k]) * f
       const aL = sBI[q + 1] < 1e8 ? (gMaxM[k] + sBI[q + 1]) / 2 : NaN
       linL[k] = aL !== aL ? NaN : linL[k] !== linL[k] ? Math.min(aL + 30, Math.max(aL, gDes[k] + VAO)) : linL[k] + (aL - linL[k]) * f
@@ -196,6 +199,8 @@ export function criarCena(canvas, CONFIG) {
       if (sLo[s] > sHi[s]) sLo[s] = sHi[s] = (sLo[s] + sHi[s]) / 2
     }
   }
+  /** O mais perto da borda de entrada que um invasor GRANDE pode ser desenhado sem o corpo sair da tela. */
+  const loGrande = (i) => C.xeBorda + (C.peca[i].w * 0.3 * C.k[i] - 10 * C.kRep) / (C.ppc || 1)
   /** Onde o boneco `i` está DESENHADO ao longo da estrada (centésimos de terreno; sem o bote, que é pose). */
   C.xeDes = (i) => C.xDe(i) + C.dxe[i]
   /** Limites de desenho de `i` neste quadro: [depois de, antes de] (a linha de frente dele, já com o vão). */
@@ -248,21 +253,34 @@ export function criarCena(canvas, CONFIG) {
       const x = C.xDe(i), briga = tl - C.lutaT[i] <= 1500
       if (C.lado[i] === 0) { if (briga) { const k = C.grupo[i] % NG; if (x < aFr[k]) aFr[k] = x } continue }
       let t = tipoDe.get(C.peca[i]); if (t === undefined) { t = tipoDe.size % NTIPO; tipoDe.set(C.peca[i], t) }
-      const k = Math.max(0, Math.min(NREG - 1, Math.floor((x + 100) / 100))) * NTIPO + t
+      const k = Math.min(NREG - 1, C.sec[i] * 2 + (sFI[C.sec[i]] - x > 200 ? 1 : 0)) * NTIPO + t // R29: pelotão = trecho × (faixa do choque | retaguarda) × tipo
       C.balde[i] = k; gHp[k] += Math.max(0, C.hp[i]); gMax[k] += C.hpMax[i]; gN[k]++
       if (briga && x > gFr[k]) gFr[k] = x
       if (x > bFr[k]) bFr[k] = x
       if (bSec[k] < 0) { bSec[k] = C.sec[i]; bPrim[k] = i }
     }
     // a FILA de cada trecho: os pelotões que estão perto da linha de frente, o que luta primeiro; cada um atrás do outro
+    // R29 — HORDA SEM BLOCO: teto de representantes da horda INTEIRA por faixa de choque (PC 6, celular 4; retaguarda 4 e 3), repartido
+    // entre os tipos na proporção (cada tipo com pelo menos 1, até o teto do pelotão); o resto espera atrás como SILHUETA ou na plaqueta
+    bAl.fill(0); regFundo.fill(0); regFr.fill(-1e9); silN.fill(0)
+    for (let reg = 0; reg < NREG; reg++) {
+      const b0 = reg * NTIPO; let teto = (reg & 1) ? (pc ? 4 : 3) : (pc ? 6 : 4), nb = 0
+      for (let q = 0; q < NTIPO; q++) if (gN[b0 + q]) nb++
+      if (!nb) continue
+      if (nb <= teto) { for (let q = 0; q < NTIPO; q++) if (gN[b0 + q]) { bAl[b0 + q] = 1; teto-- } }
+      else for (let v = 0; v < teto; v++) { let m = -1, c = -1e18; for (let q = 0; q < NTIPO; q++) { const k = b0 + q; if (!gN[k] || bAl[k]) continue; const ck = (gFr[k] > -1e8 ? 1e6 : 0) + bFr[k]; if (ck > c) { c = ck; m = k } } if (m >= 0) bAl[m] = 1 }
+      if (nb <= (reg & 1 ? (pc ? 4 : 3) : (pc ? 6 : 4))) while (teto > 0) { let m = -1, c = 0; for (let q = 0; q < NTIPO; q++) { const k = b0 + q; if (!gN[k] || bAl[k] >= Math.min(REP, gN[k])) continue; const v = gN[k] / (bAl[k] + 1); if (v > c) { c = v; m = k } } if (m < 0) break; bAl[m]++; teto-- }
+      for (let q = 0; q < NTIPO; q++) if (bFr[b0 + q] > regFr[reg]) regFr[reg] = bFr[b0 + q]
+    }
     // (vale também na marcha: pelotões que andam juntos vão em coluna, não um em cima do outro; só o da FRENTE mostra todos os
     // representantes — os de trás mostram uma fileira, o resto está na plaqueta)
     let nP = 0
-    for (let k = 0; k < gN.length && nP < pertos.length; k++) { if (!gN[k] || C.atirador[bPrim[k]]) continue; pertos[nP++] = k; const h = sHi[bSec[k]]; if (luta && h < 1e8 && bFr[k] > h - 90) bPerto[k] = 1 }
+    for (let k = 0; k < gN.length && nP < pertos.length; k++) { if (!gN[k] || !bAl[k] || C.atirador[bPrim[k]]) continue; pertos[nP++] = k; const h = sHi[bSec[k]]; if (luta && h < 1e8 && bFr[k] > h - 90) bPerto[k] = 1 }
     for (let a = 0; a < nP; a++) {
       const ka = pertos[a], ca = (gFr[ka] > -1e8 ? 1e6 : 0) + bFr[ka]; let n = 0, melhor = -1, cm = -1e9
       for (let b = 0; b < nP; b++) { const kb = pertos[b]; if (b === a || bSec[kb] !== bSec[ka] || Math.abs(bFr[kb] - bFr[ka]) > 110) continue; const cb = (gFr[kb] > -1e8 ? 1e6 : 0) + bFr[kb]; if (cb > ca || (cb === ca && kb < ka)) { n++; if (cb > cm || (cb === cm && kb < melhor)) { cm = cb; melhor = kb } } }
-      bOff[ka] = n ? Math.ceil(Math.min(REP, gN[melhor]) / R) * passo + 4 + (n - 1) * (passo + 4) : 0
+      bOff[ka] = n ? Math.ceil(bAl[melhor] / R) * passo + 4 + (n - 1) * (passo + 4) : 0
+      const reg = (ka / NTIPO) | 0, fundo = bOff[ka] + Math.ceil(bAl[ka] / R) * passo; if (fundo > regFundo[reg]) regFundo[reg] = fundo
     }
     { let ant = -2e9, off = 0; for (let q = 0; q < nViv; q++) { const k = ordG[q]; if (gLo[k] !== ant) { ant = gLo[k]; off = 0 } aOff[k] = off; if (aFr[k] < 1e8) off += passo * 0.5 } } // dois grupos do reino no mesmo choque: o de trás meio passo atrás
     for (let i = 0; i < C.n; i++) { if (C.lado[i] !== 0) continue; const k = C.grupo[i] % NG; aMax[k] += C.hpMax[i]; aTot[k]++; if (C.est[i] === 1) { aViv[k]++; aHp[k] += Math.max(0, C.hp[i]) } } // quem caiu conta como vida perdida
@@ -278,26 +296,41 @@ export function criarCena(canvas, CONFIG) {
         if (grande) { aN[k]++; aX[k] += C.sx[i]; aTopo[k] = Math.min(aTopo[k], C.sy[i] - (p.ay - Arte.topoDe(p)) * C.k[i]); continue }
         const r = aCont[k]++
         if (r >= aRep[k]) { // fora da conta dos representantes: some (na luta, com uma FUMACINHA pequena: é a vida do grupo indo embora)
-          C.oculto[i] = 1
+          C.oculto[i] = 1; C.chega[i] = 0
           if (!era && !C.ocultoAnt[i] && luta) { C.med.repsCaidos++; if (podeFumaca(k)) { const fu = fx().fumacinha[0]; porEfeito(fu, C.sx[i], C.sy[i], false, fu.anim.play, C.kRep); C.med.fumacinhas++ } }
           C.ocultoAnt[i] = 1; continue
         }
         C.ocultoAnt[i] = 0; repA[k * MAXREP + r] = i
         lugarDef(r, aRep[k], i, k, passo, luta, luta && !pc) // no celular, quem não está no choque recua meio terreno: o golpe ganha ar
         C.laneT[i] = LUG.lane; C.dxeT[i] = LUG.dxe
+        if (era && luta && !C.chega[i]) { C.dxe[i] = C.dxeT[i] + 2.2 * passo; C.lane[i] = C.laneT[i]; C.chega[i] = 1; C.oculto[i] = 1; C.med.vagas++; continue } // VAGA do reino: o reforço chega andando de trás (aparece no quadro seguinte)
         aN[k]++; aX[k] += C.sx[i]; const topo = C.sy[i] - (p.ay - Arte.topoDe(p)) * C.k[i]; if (topo < aTopo[k]) aTopo[k] = topo
         continue
       }
       if (grande) continue
       const k = C.balde[i], r = gCnt[k]++
-      if (r >= (bOff[k] > 0 ? R : REP)) { C.oculto[i] = 1; continue }
+      if (r >= bAl[k]) { // fora do teto: os primeiros esperam atrás da fila como SILHUETA escura e menor (multidão, não figura); o resto só na plaqueta
+        C.oculto[i] = 1; C.chega[i] = 0
+        const reg = (k / NTIPO) | 0, n = silN[reg]
+        if (n < (pc ? 6 : 4) && !C.atirador[i]) {
+          silN[reg]++
+          const x = C.xDe(i), h = hashDe(i), perto = bPerto[k] || (luta && sHi[C.sec[i]] < 1e8 && regFr[reg] > sHi[C.sec[i]] - 90), fundo = regFundo[reg] + 12 + ((n / R) | 0) * 15 + ((h >>> 9) % 5)
+          const X = Math.min(x, (perto ? sHi[C.sec[i]] : regFr[reg]) - fundo)
+          C.laneT[i] = ((n % R) / Math.max(1, R - 1) * 2 - 1) * 0.8 + (((h >>> 4) % 5) - 2) * 0.03; C.dxeT[i] = Math.max(-200, X - x)
+          if (!(portao && C.sec[i] === 0 && C.xeDes(i) < C.xeBorda)) { C.oculto[i] = 2; C.med.silhuetas++ }
+        }
+        continue
+      }
       lugarInv(r, REP, i, k, passo); C.laneT[i] = LUG.lane; C.dxeT[i] = LUG.dxe
+      // R29 — VAGA: quem entra no lugar de quem caiu chega ANDANDO de trás (2–3 passos). No quadro em que é posto lá atrás ainda não aparece
+      if (era === 1 && luta && !C.chega[i]) { C.dxe[i] = C.dxeT[i] - 2.2 * passo; C.lane[i] = C.laneT[i]; C.chega[i] = 1; C.oculto[i] = 1; C.med.vagas++; continue }
+      if (era === 2 && luta && !C.chega[i]) { C.chega[i] = 1; C.med.vagas++ } // a silhueta que esperava atrás anda até a vaga
       if (portao && C.sec[i] === 0 && C.xeDes(i) < C.xeBorda) { C.oculto[i] = 1; C.med.foraDoPortao++; continue }
       repG[k * MAXREP + gVis[k]] = i
       gVis[k]++; gX[k] += C.sx[i]; gTier[k] = C.tier[i]; const topo = C.sy[i] - (p.ay - Arte.topoDe(p)) * C.k[i]; if (topo < gTopo[k]) gTopo[k] = topo
       const s = C.sec[i], b = secB[s]; if (b < 0 || (bPerto[k] && (!bPerto[b] || bOff[k] < bOff[b]))) secB[s] = k // o pelotão à vista mais à frente do trecho
     }
-    let nRep = 0; for (let i = 0; i < C.n; i++) if (C.est[i] === 1 && !C.oculto[i] && C.peca[i].w <= 60) nRep++
+    let nRep = 0; C.focoX = 0; C.focoY = 0; C.focoN = 0; for (let i = 0; i < C.n; i++) if (C.est[i] === 1 && !C.oculto[i] && C.peca[i].w <= 60) { nRep++; C.focoX += C.sx[i]; C.focoY += C.sy[i]; C.focoN++ }
     if (luta) medirLinha()
     if (nRep > C.med.repsMax) C.med.repsMax = nRep
   }
@@ -306,10 +339,11 @@ export function criarCena(canvas, CONFIG) {
   function medirLinha() {
     const med = C.med, t = C.relogio, lim = 13 * C.kRep; let errado = 0, caixa = 0, perto = 0, cortado = 0
     for (let i = 0; i < C.n; i++) {
-      if (C.est[i] !== 1 || C.oculto[i]) continue
+      if (C.est[i] !== 1 || C.oculto[i] === 1) continue
       const d = C.xeDes(i), inv = C.lado[i] === 1
       if (inv) { const s = C.sec[i]; if (d > sHi[s] + 0.01 || d < sLo[s] - 0.01) errado = 1 } else { const k = C.grupo[i] % NG; if (d < gLo[k] - 0.01 || d > gHi[k] + 0.01) errado = 1 }
-      if (inv && C.noPortao && C.sec[i] === 0 && C.peca[i].w <= 60) { const X = C.sx[i] - C.cam.x; if (X - 8 * C.k[i] < 0 || X + 8 * C.k[i] > C.VW) cortado = 1 } // representante cortado pela borda no choque do portão
+      if (C.oculto[i]) continue
+      if (inv && C.noPortao && C.sec[i] === 0 && C.peca[i].w <= 60) { const X = C.sx[i] - C.cam.x; if (X - 8 * C.k[i] < 0 || X + 8 * C.k[i] > C.VW) { cortado = 1; med.cortadoQuem = C.idTipo[i] + ' x=' + Math.round(X) + ' xe=' + Math.round(C.xeDes(i)) + ' cam=' + Math.round(C.cam.x) + ' chega=' + C.chega[i] } } // representante cortado pela borda no choque do portão
       if (!inv || C.peca[i].w > 60 || C.fase[i] || t - C.hitT[i] < 260) continue
       for (let j = 0; j < C.n; j++) {
         if (C.lado[j] !== 0 || C.est[j] !== 1 || C.oculto[j] || C.peca[j].w > 60 || C.fase[j] || t - C.hitT[j] < 260 || C.tier[j] !== C.tier[i]) continue
@@ -385,10 +419,10 @@ export function criarCena(canvas, CONFIG) {
     // formação com profundidade: ninguém exatamente em cima do outro nem na mesma pose (desvio fixo por boneco; só desenho)
     const h = (i * 2654435761) >>> 0
     C.x0[i] = x; C.v[i] = 0; C.t0[i] = C.tb; C.lane[i] = lane + (p.w > 60 ? 0 : (((h >>> 4) % 7) - 3) * 0.03); C.dxe[i] = dxe + (p.w > 60 ? 0 : ((h >>> 9) % 7) - 3); C.hp[i] = hp; C.hpMax[i] = hp; C.est[i] = 1
-    C.anim[i] = 0; C.animT[i] = C.relogio - (h >>> 12) % 1040; C.dir[i] = lado ? 1 : -1; C.dirV[i] = C.dir[i]; C.k[i] = p.w > 60 ? grande : C.kRep; C.laneT[i] = C.lane[i]; C.dxeT[i] = C.dxe[i]; C.ocultoAnt[i] = 1; C.oculto[i] = 0; C.altV[i] = p.w > 60 ? 0 : ((h >>> 15) % 3) - 1; C.lutaT[i] = -1e9; C.gesto[i] = C.atirador[i] ? 5 : p.w > 60 ? 4 : GESTOS[tipo] || 0; C.atqDist[i] = 6; C.barra[i] = p.barra ? 1 : 0; C.preso[i] = -1; C.nv[i] = nivel; C.lider[i] = lider ? 1 : 0
+    C.anim[i] = 0; C.animT[i] = C.relogio - (h >>> 12) % 1040; C.dir[i] = lado ? 1 : -1; C.dirV[i] = C.dir[i]; C.k[i] = p.w > (C.tipo === 'pc' ? 100 : 60) ? grande : C.kRep; /* R29: no PC o bruto sobe um degrau de pixel com os representantes (visivelmente maior); no celular a estrada não comporta */ C.laneT[i] = C.lane[i]; C.dxeT[i] = C.dxe[i]; C.ocultoAnt[i] = 1; C.oculto[i] = 0; C.altV[i] = p.w > 60 ? 0 : ((h >>> 15) % 3) - 1; C.lutaT[i] = -1e9; C.gesto[i] = C.atirador[i] ? 5 : p.w > 60 ? 4 : GESTOS[tipo] || 0; C.atqDist[i] = 6; C.barra[i] = p.barra ? 1 : 0; C.preso[i] = -1; C.nv[i] = nivel; C.lider[i] = lider ? 1 : 0
     if (lado === 0 && lider) grupoAtual++
     C.grupo[i] = lado === 0 ? grupoAtual : 0
-    C.atqT[i] = C.hitT[i] = C.viraT[i] = C.morteT[i] = -1e9; C.atqSolta[i] = 0; C.fase[i] = 0; C.passoN[i] = -1; C.etapa[i] = 0; C.morteTipo[i] = 0
+    C.atqT[i] = C.hitT[i] = C.viraT[i] = C.morteT[i] = C.entraT[i] = -1e9; C.chega[i] = 0; C.atqSolta[i] = 0; C.fase[i] = 0; C.passoN[i] = -1; C.etapa[i] = 0; C.morteTipo[i] = 0
     C.n = i + 1; ordenar = true
     return i
   }
@@ -416,6 +450,8 @@ export function criarCena(canvas, CONFIG) {
   }
   /** A batalha avisa que `i` está no corpo a corpo agora (bateu ou apanhou de perto): entra na conta da linha de frente. */
   C.marcarLuta = (i) => { if (i >= 0) C.lutaT[i] = C.relogio }
+  /** O chefe entra na luta: um passo pesado (a batalha chama quando ele nasce). */
+  C.entrarPesado = (i) => { if (i >= 0) C.entraT[i] = C.relogio }
   C.emGolpe = (i) => C.relogio - C.atqT[i] < C.atqAnt[i] + Mov.BOTE_MS + Mov.SEGURA_MS
   /** `i` apanhou: recua e amassa (`dirTela` = +1 empurra para a direita da tela). Não troca o quadro de quem está no meio do bote. */
   C.apanhar = (i, dirTela, forca = 1) => { C.hitT[i] = C.relogio; C.hitDir[i] = dirTela; C.hitF[i] = forca; if (C.lado[i] === 0) aLutaT[C.grupo[i] % NG] = C.relogio; if (!C.oculto[i]) C.med.estrelas++ }
@@ -651,6 +687,8 @@ export function criarCena(canvas, CONFIG) {
     if (!I) { g.drawImage(img, sx, q[1], w, h, esq, topo, W * k, H * k); return }
     for (let b = 0; b < 4; b++) { const y0 = (h * b) >> 2, y1 = (h * (b + 1)) >> 2, d0 = Math.round(H * b / 4), d1 = Math.round(H * (b + 1) / 4); g.drawImage(img, sx, q[1] + y0, w, y1 - y0, esq + Math.round(I * (1 - b / 3)) * k, topo + d0 * k, W * k, (d1 - d0) * k) }
   }
+  /** Um quadro do risco de um gesto: nasce em (x, y) e cresce para o lado `fc` (espelha para a esquerda). */
+  function riscoFx(v, qf, x, y, fc, k) { const q = v.quadros[qf]; if (fc > 0) g.drawImage(v.img, q[0], q[1], q[2], q[3], x, y - v.ay * k, q[2] * k, q[3] * k); else { g.save(); g.translate(x, y - v.ay * k); g.scale(-1, 1); g.drawImage(v.img, q[0], q[1], q[2], q[3], 0, 0, q[2] * k, q[3] * k); g.restore() } C.med.riscos++ }
   /** Estrela de impacto em pixel no ponto do golpe (3 quadros; não é clarão de tela). */
   function estrela(x, y, f, k) {
     const r = [2, 4, 3][f] * k, u = k
@@ -675,7 +713,11 @@ export function criarCena(canvas, CONFIG) {
     g.globalAlpha = 1
     // 2) os bonecos, de trás para a frente
     for (let o = 0; o < C.n; o++) {
-      const i = C.ordem[o]; if (C.tier[i] !== tier || C.oculto[i]) continue
+      const i = C.ordem[o]; if (C.tier[i] !== tier) continue
+      if (C.oculto[i]) { // SILHUETA de quem espera atrás (R29): o mesmo quadro, escuro, na escala do cenário (menor que os representantes), sem marca nem sombra
+        if (C.oculto[i] === 2 && C.est[i] === 1) { const p = C.peca[i], fc = face(i), flip = (fc < 0) !== p.olhaEsquerda, qs = p.variantes ? p.variantes[C.vari[i]] : p.quadros; sprite(Arte.folhaVar(p.img, '#4A3A6C', flip), p, qs[C.qi[i]], Math.round(C.sx[i]) - cx, Math.round(C.sy[i]) + ty + C.pDy[i], flip, 0, 0, 0, 1) }
+        continue
+      }
       const e = C.est[i]; if (e !== 1 && e !== 2 && e !== 5) continue
       const p = C.peca[i], fc = face(i), X = Math.round(C.sx[i]) - cx, Y = Math.round(C.sy[i]) + ty
       if (e === 5) { // virou fumaça: nuvem em pixel que sobe e some (clara no soldado, roxa com faísca lima no invasor, grande no chefe)
@@ -694,21 +736,13 @@ export function criarCena(canvas, CONFIG) {
       // ARMA QUE VARRE, pelo GESTO do tipo: arco de aço (corte, frigideira, esmaga), risco reto (estocada); a bicada é só o pescoço. Some em 3 quadros.
       if (C.fase[i] === Mov.FASE.bote && !C.atirador[i]) {
         const ms = t - C.atqT[i] - C.atqAnt[i], qf = Math.min(2, Math.floor(ms / 35)), gs = C.gesto[i], kv = grandao ? 2 : kk, alt = Math.round(p.ay * 0.5) * kk
-        if (gs === 1) { g.fillStyle = '#2B1E3A'; g.fillRect(Xp + fc * 6 * kv - (fc < 0 ? (12 - qf * 3) * kv : 0), Yp - alt - kv, (12 - qf * 3) * kv, 3 * kv); g.fillStyle = qf === 2 ? '#CECAD8' : '#FFFFFF'; g.fillRect(Xp + fc * 7 * kv - (fc < 0 ? (10 - qf * 3) * kv : 0), Yp - alt, (10 - qf * 3) * kv, kv) }
-        else if (gs === 6) { // MORDIDA: duas fileiras de dentes que se fecham na frente da boca
-          const ab = (2 - qf) * 2, x0 = fc > 0 ? Xp + 6 * kv : Xp - 13 * kv, ym = Yp - alt
-          for (const s of [-1, 1]) { const y = ym + s * (ab + 1) * kv - (s < 0 ? 2 * kv : 0); g.fillStyle = '#2B1E3A'; g.fillRect(x0 - kv, y - kv, 9 * kv, 4 * kv); g.fillStyle = qf === 2 ? '#CECAD8' : '#FFFFFF'; for (let d = 0; d < 3; d++) g.fillRect(x0 + (d * 3 + (s < 0 ? 0 : 1)) * kv, y + (s < 0 ? 0 : -kv + kv), kv, 2 * kv) }
-        } else if (gs === 7) { // PORTADA: a quina da porta de pé, com dois riscos de empurrão
-          const x0 = fc > 0 ? Xp + 7 * kv : Xp - 10 * kv, h = (16 - qf * 4) * kv
-          g.fillStyle = '#2B1E3A'; g.fillRect(x0 - kv, Yp - alt - h / 2 - kv, 5 * kv, h + 2 * kv); g.fillStyle = qf === 2 ? '#CECAD8' : '#FFFFFF'; g.fillRect(x0, Yp - alt - h / 2, 3 * kv, h); g.fillStyle = '#C48C54'; g.fillRect(x0 + (fc > 0 ? 0 : 2 * kv), Yp - alt - h / 2, kv, h)
-          if (qf < 2) { g.fillStyle = '#FFFFFF'; for (const dy of [-5, 4]) g.fillRect(fc > 0 ? x0 + 5 * kv : x0 - 5 * kv, Yp - alt + dy * kv, 3 * kv, kv) }
-        } else if (gs === 8) { // INVESTIDA: riscos de velocidade ATRÁS e a ponta reta na frente
-          g.fillStyle = qf === 2 ? '#CECAD8' : '#FFFFFF'
-          for (let d = 0; d < 3; d++) { const w = ([12, 16, 9][d] - qf * 3) * kv; g.fillRect(fc > 0 ? Xp - 6 * kv - w : Xp + 6 * kv, Yp - alt + (d * 5 - 6) * kv, w, kv) }
-          g.fillStyle = '#2B1E3A'; g.fillRect(Xp + fc * 6 * kv - (fc < 0 ? 10 * kv : 0), Yp - alt - kv, 10 * kv, 3 * kv); g.fillStyle = '#FFFFFF'; g.fillRect(Xp + fc * 7 * kv - (fc < 0 ? 8 * kv : 0), Yp - alt, 8 * kv, kv)
-        } else if (gs === 9) { // BARRIGADA: duas ondas de baque saindo da barriga
-          for (let d = 0; d <= Math.min(1, qf); d++) { const x0 = fc > 0 ? Xp + (8 + d * 4 + qf * 2) * kv : Xp - (9 + d * 4 + qf * 2) * kv, h = (8 - d * 2) * kv; g.fillStyle = '#2B1E3A'; g.fillRect(x0 - kv, Yp - alt - h / 2 - kv, 3 * kv, h + 2 * kv); g.fillStyle = qf === 2 ? '#C9C4DA' : '#FFF6E0'; g.fillRect(x0, Yp - alt - h / 2, kv, h) }
-        }
+        // R29: cada gesto tem o seu RISCO em pixel (2 tons, contorno e ponta; 3 quadros de 35 ms), no lugar dos retângulos
+        const G = F.gesto, ym = Yp - alt
+        if (gs === 1) riscoFx(G.risco, qf, Xp + fc * 6 * kv, ym, fc, kv) // estocada: lâmina reta com ponta
+        else if (gs === 6) riscoFx(G.mordida, qf, Xp + fc * 5 * kv, ym, fc, kv) // mordida: arcadas com dentes que se fecham
+        else if (gs === 7) riscoFx(G.lasca, qf, Xp + fc * 7 * kv, ym, fc, kv) // portada: quina da porta e lascas
+        else if (gs === 8) { riscoFx(G.rastro, qf, Xp - fc * 5 * kv, ym, -fc, kv); riscoFx(G.risco, qf, Xp + fc * 6 * kv, ym, fc, kv) } // investida: rastro com poeira atrás, ponta na frente
+        else if (gs === 9) riscoFx(G.onda, qf, Xp + fc * 7 * kv, ym, fc, kv) // barrigada: ondas de baque
         else if (gs !== 3) { const v = F.varrida, q = v.quadros[qf]; if (fc > 0) g.drawImage(v.img, q[0], q[1], q[2], q[3], Xp + 2 * kv, Yp - alt - v.ay * kv, q[2] * kv, q[3] * kv); else { g.save(); g.translate(Xp - 2 * kv, Yp - alt - v.ay * kv); g.scale(-1, 1); g.drawImage(v.img, q[0], q[1], q[2], q[3], 0, 0, q[2] * kv, q[3] * kv); g.restore() } }
       }
       // BRILHO DE AÇO (R28): UM quadro só, no ápice do arco (no fim do bote), na ponta da arma. Miúdo (5 px), nunca clarão de tela; no máximo
@@ -755,10 +789,12 @@ export function criarCena(canvas, CONFIG) {
       const p0 = C.peca[i], inv = C.lado[i] === 1
       // entrada da horda: vem marchando de fora da tela até a posição (só desenho; a luta ainda não começou)
       let desl = false
-      { const f = Math.min(1, C.dtAnim / 140), dl = C.laneT[i] - C.lane[i], dd = C.dxeT[i] - C.dxe[i]; if (e === 1) { C.lane[i] += dl * f; C.dxe[i] += dd * f; desl = Math.abs(dd) > 3
+      { const f = Math.min(1, C.dtAnim / 140), dl = C.laneT[i] - C.lane[i], dd = C.dxeT[i] - C.dxe[i]; if (e === 1) {
+        if (C.chega[i]) { const lim = 80 * C.dtAnim / 1000; C.lane[i] += dl * f; C.dxe[i] += Math.abs(dd) <= lim ? dd : Math.sign(dd) * lim; desl = true; if (Math.abs(dd) < 2) C.chega[i] = 0 } // vaga: anda 2–3 passos, não escorrega
+        else { C.lane[i] += dl * f; C.dxe[i] += dd * f; desl = Math.abs(dd) > 3 }
         // LINHA DE FRENTE DURA (R28): quem está vivo nunca é desenhado do lado errado da linha dele (nem andando, nem chegando)
         const x = C.xDe(i); let a, b
-        if (inv) { const s = C.sec[i], m = p0.w > 100 ? 26 : p0.w > 60 ? 12 : 0; a = sLo[s]; b = sHi[s] - m } else { const k = C.grupo[i] % NG; a = gLo[k]; b = gHi[k] }
+        if (inv) { const s = C.sec[i], m = p0.w > 100 ? 26 : p0.w > 60 ? 12 : 0; a = sLo[s]; b = sHi[s] - m; if (m && s === 0 && C.noPortao) { const v = Math.min(loGrande(i), b); if (v > a) a = v } } else { const k = C.grupo[i] % NG; a = gLo[k]; b = gHi[k] }
         if (x + C.dxe[i] > b) C.dxe[i] = b - x; else if (x + C.dxe[i] < a) C.dxe[i] = a - x } }
       const p = pos(C.xDe(i) + C.dxe[i] - (inv && entra < 1 ? (1 - entra * (2 - entra)) * (60 + (i % 5) * 9) : 0), C.lane[i])
       C.sx[i] = p.x; C.sy[i] = p.y; C.tier[i] = p.tier; C.sentido[i] = p.sent
@@ -809,6 +845,10 @@ export function criarCena(canvas, CONFIG) {
         if (pisou && np !== C.passoN[i]) { C.passoN[i] = np; med.passos++; if (!C.oculto[i] && C.particula(p.x - fc * 4, p.y, -fc * 14, -10, 260, 1, peso > 1 ? 2 : 1, 1, peso > 1 ? 1 : 0)) med.poeiras++ } // poeira no pé (enfeite: só com teto sobrando)
       } else if (an === AN.idle && !C.menos) Mov.parado(PO, t + i * 397)
       if (!inv && !C.menos) Mov.grito(PO, t - C.gritoT - (i % 6) * 55)
+      { const me = t - C.entraT[i]; if (me >= 0 && me < 440) { // R29 — ENTRADA DO CHEFE: um passo pesado (levanta, desce com tudo, amassa) e poeira dos dois lados
+        if (!C.menos) Mov.pisao(PO, me)
+        if (me >= 260 && me - C.dtAnim < 260) { med.pisoes++; C.efeito('dust', p.x - 20, p.y + 2); C.efeito('dust', p.x + 20, p.y + 2, true); porEfeito(fx().anelPo, p.x, p.y, false, fx().anelPo.anim.play) }
+      } }
       if (C.fimT > 0) { const mf = t - C.fimT - (i % 4) * 70, ganhou = (C.lado[i] === 0) === C.fimVitoria; if (ganhou) { if (!C.menos) { Mov.festa(PO, mf); if (mf >= 0 && mf < 640 && !C.oculto[i]) med.festas++ } } else if (!inv) { Mov.recuo(PO, mf); if (mf >= 0 && !C.oculto[i]) med.recuos++ } } // fim da luta: quem venceu comemora, o reino vencido recua um passo
       const msA = t - C.atqT[i]
       let fase = 0
@@ -915,7 +955,7 @@ export function criarCena(canvas, CONFIG) {
     const G = C.gravador; if (!G || !G.armado || G.pronta) return
     if (G.atraso > 0) { G.atraso--; return }
     if (G.cont++ % G.cada) return
-    const e = C.e, w = G.w * e, h = G.h * e, sx = Math.max(0, Math.min(canvas.width - w, Math.round(((G.x ?? C.VW / 2) - G.w / 2) * e))), sy = Math.max(0, Math.min(canvas.height - h, Math.round(((G.y ?? C.VH / 2) - G.h / 2) * e)))
+    const e = C.e, w = G.w * e, h = G.h * e, z = C.cam.zoom, gx = G.x == null ? C.VW / 2 : z === 1 ? G.x : C.cam.fx + (G.x - C.cam.fx) * z, gy = G.y == null ? C.VH / 2 : z === 1 ? G.y : C.cam.fy + (G.y - C.cam.fy) * z, sx = Math.max(0, Math.min(canvas.width - w, Math.round((gx - G.w / 2) * e))), sy = Math.max(0, Math.min(canvas.height - h, Math.round((gy - G.h / 2) * e)))
     G.tela.getContext('2d').drawImage(canvas, sx, sy, w, h, G.i * w * G.zoom, 0, w * G.zoom, h * G.zoom)
     if (++G.i >= G.n) G.pronta = true
   }
@@ -929,14 +969,20 @@ export function criarCena(canvas, CONFIG) {
     if (C.cam.kick && !C.menos) { C.trem.x += Math.round(C.cam.kick); C.cam.kick *= Math.pow(0.004, dtReal / 1000); if (Math.abs(C.cam.kick) < 0.5) C.cam.kick = 0 } else C.cam.kick = 0
     if (C.menos) C.cam.x = 0; else { const d = C.cam.alvo - C.cam.x, passo = (C.cam.vel || 24) * dtReal / 1000; C.cam.x += Math.abs(d) <= passo ? d : Math.sign(d) * passo }
     if (C.menos) { C.cam.zoom = C.cam.zoomAlvo = 1 } else {
+      // R29 — CÂMERA DE DUELO: com ≤ 4 representantes no total (a primeira luta), a câmera chega um degrau de pixel mais perto e segue o
+      // meio do choque, macio; volta sozinha quando a luta acaba
+      if (C.duelo && C.emLuta && !C.marcha && C.focoN > 0 && agora > C.cam.zoomAte - 150) {
+        const tx = C.focoX / C.focoN - C.cam.x, ty = C.focoY / C.focoN - 12, k = C.cam.zoom === 1 ? 1 : 1 - Math.pow(0.02, dtReal / 1000)
+        C.cam.fx += (tx - C.cam.fx) * k; C.cam.fy += (ty - C.cam.fy) * k; C.cam.zoomAlvo = (C.e + 1) / C.e; C.cam.zoomAte = agora + 150; C.med.duelo++
+      }
       if (C.cam.zoomAlvo !== 1 && agora > C.cam.zoomAte) C.cam.zoomAlvo = 1
       if (C.cam.zoom !== C.cam.zoomAlvo) { const d = C.cam.zoomAlvo - C.cam.zoom, k = 1 - Math.pow(0.001, dtReal / (d > 0 ? 170 : 260)); C.cam.zoom += d * k; if (Math.abs(C.cam.zoomAlvo - C.cam.zoom) < 0.006) C.cam.zoom = C.cam.zoomAlvo }
       if (C.cam.zoom > C.med.zoomMax) C.med.zoomMax = C.cam.zoom
     }
     { // no fim de partida do PC o mundo sobe para a placa caber embaixo
-      const pc = C.tipo === 'pc', alvoY = pc && C.fimDeJogo ? -36 : 0, // na luta o mundo não sai do lugar: o painel de resumo ocupa a base
+      const pc = C.tipo === 'pc', alvoY = pc && C.fimDeJogo ? -36 : (C.enquadre || 0), // R29: no celular, com a tira curta no lugar do painel, o mundo desce para ocupar a altura que sobrou (a batalha decide ANTES da luta) // na luta o mundo não sai do lugar: o painel de resumo ocupa a base
        d = alvoY - C.camY, passo = C.menos ? 1e9 : 70 * dtReal / 1000
-      C.camY += Math.abs(d) <= passo ? d : Math.sign(d) * passo; C.oy = C.oyBase + Math.round(C.camY)
+      C.camY += Math.abs(d) <= passo ? d : Math.sign(d) * passo; C.oy = C.oyBase + Math.round(C.camY); if (C.camY > C.med.enquadre) C.med.enquadre = Math.round(C.camY)
     }
     if (C.mix < 1) C.mix = Math.min(1, C.mix + dtReal / 2000)
     viv = 0; for (let i = 0; i < MAXP; i++) if (C.pvida[i] > 0) viv++; for (const e of C.ef) if (e.ate > t) viv++

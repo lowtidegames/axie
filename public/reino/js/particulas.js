@@ -196,4 +196,69 @@ export function graduar(g, x, y, w, h, { sat = 1, nev = null, qNev = 0, mult = n
   }
   g.putImageData(d, x, y)
 }
+
+// ---------------------------------------------------------------- R29 — RISCOS DOS GESTOS em pixel (2 tons + contorno ameixa, com ponta)
+/** Pinta numa tela e devolve a mesma figura com contorno escuro de 1 px em volta. */
+function comContorno(w, h, pinta, cor = '#2B1E3A') {
+  const a = tela(w, h); pinta(a.getContext('2d'))
+  const d = tela(w, h), gd = d.getContext('2d'); gd.drawImage(a, 0, 0); gd.globalCompositeOperation = 'source-in'; gd.fillStyle = cor; gd.fillRect(0, 0, w, h)
+  const o = tela(w, h), go = o.getContext('2d'); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) go.drawImage(d, dx, dy); go.drawImage(a, 0, 0)
+  return o
+}
+function folha(W, H, N, ms, ay, pinta) {
+  const c = tela(W * N, H), g = c.getContext('2d')
+  for (let f = 0; f < N; f++) g.drawImage(comContorno(W, H, (q) => pinta(q, f)), f * W, 0)
+  return peca(c, W, H, N, ms, 0, ay)
+}
+const px = (g, x, y, cor, pont = false) => { if (pont && ((x + y) & 1)) return; g.fillStyle = cor; g.fillRect(Math.round(x), Math.round(y), 1, 1) }
+/** Reta em pixel que AFINA até a ponta: grossa (2 px, tom de baixo) na base, 1 px claro na ponta. */
+function farpa(g, x0, y0, x1, y1, claro, tom, pont = false) {
+  const n = Math.max(1, Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))))
+  for (let k = 0; k <= n; k++) { const x = x0 + (x1 - x0) * k / n, y = y0 + (y1 - y0) * k / n; px(g, x, y, claro, pont); if (k < n * 0.6) px(g, x, y + 1, tom, pont) }
+}
+/** MORDIDA: duas arcadas com dentes que se fecham (aberta → quase → fechada com estalo). 3 quadros de 16×18, boca em (0, 9). */
+export function mordida(claro = '#FFFFFF', tom = '#CECAD8', estalo = '#FFD248') {
+  return folha(16, 18, 3, 35, 9, (g, f) => {
+    const ab = [4, 2, 0][f]
+    for (let x = 0; x <= 10; x++) {
+      const X = 2 + x, arco = ab ? Math.round(Math.sin(x / 10 * Math.PI) * 2) : 0, gro = x < 8 ? 2 : 1
+      for (const s of [-1, 1]) {
+        const borda = 9 + s * (ab + 1 + arco) // a beira de dentro da arcada
+        for (let q = 0; q < gro; q++) px(g, X, borda + s * q, q === gro - 1 && gro > 1 ? tom : claro)
+        if (x % 3 === (s < 0 ? 1 : 2) && x < 9) { px(g, X, borda - s, claro); if (ab > 1) px(g, X, borda - s * 2, claro) } // dente (ponta para dentro)
+      }
+    }
+    if (f === 2) { px(g, 14, 7, estalo); px(g, 15, 9, estalo); px(g, 14, 11, estalo) }
+  })
+}
+/** LASCA DA PORTADA: a quina da porta bate e solta três lascas de madeira com ponta. 3 quadros de 16×20, quina em (0, 10). */
+export function lasca(claro = '#FFF6E0', madeira = '#C48C54', escuro = '#96623C') {
+  return folha(16, 20, 3, 35, 10, (g, f) => {
+    const alt = [16, 12, 6][f], d = [2, 4, 7][f], L = [3, 5, 6][f]
+    for (let y = 10 - alt / 2; y < 10 + alt / 2; y++) { px(g, 1, y, claro, f === 2); px(g, 2, y, madeira, f === 2) }
+    for (const [dy, i] of [[-0.75, 0], [0, 1], [0.75, 2]]) farpa(g, 3 + d, 10 + dy * d + (i - 1) * 2, 3 + d + L, 10 + dy * (d + L) + (i - 1) * 2, claro, i === 1 ? madeira : escuro, f === 2 && i !== 1)
+  })
+}
+/** RISCO RETO com ponta (estocada e investida): lâmina de 2 tons que estica e some. 3 quadros de 20×7, punho em (0, 3). */
+export function risco(claro = '#FFFFFF', tom = '#CECAD8') {
+  return folha(20, 7, 3, 35, 3, (g, f) => {
+    const L = [12, 16, 13][f], x0 = [1, 2, 6][f]
+    for (let x = 0; x < L; x++) { px(g, x0 + x, 3, f === 2 ? tom : claro, f === 2 && x < 4); if (x < L - 4) px(g, x0 + x, 4, tom, f === 2) }
+    px(g, x0 + L, 3, claro); if (f < 2) { px(g, x0 + L - 2, 2, claro); px(g, x0 + L - 3, 2, tom) } // ponta de lança
+  })
+}
+/** RASTRO DA INVESTIDA: três riscos de velocidade com ponta para trás e bolinhas de poeira no chão. 3 quadros de 22×18, corpo em (0, 9), aponta para a ESQUERDA do quadro espelhado (desenhe virado). */
+export function rastro(claro = '#FFFFFF', tom = '#CECAD8', po = '#E8C48A', po2 = '#CDA068') {
+  return folha(22, 18, 3, 35, 9, (g, f) => {
+    const L = [[10, 14, 8], [13, 18, 10], [8, 12, 6]][f], d = [1, 3, 7][f]
+    ;[3, 8, 12].forEach((y, i) => { for (let x = 0; x < L[i]; x++) { px(g, d + x, y, x > L[i] - 4 ? tom : claro, f === 2); if (x < L[i] * 0.4) px(g, d + x, y + 1, tom, f === 2) } })
+    for (let k = 0; k < 3; k++) { const x = 2 + k * 5 + f * 2, y = 16 - (f === 2 ? 1 + (k & 1) : 0), r = f === 0 ? 1 : 2; for (let a = 0; a < r; a++) for (let b = 0; b < r; b++) px(g, x + a, y - b, b ? po : po2, f === 2) }
+  })
+}
+/** ONDA DA BARRIGADA: dois arcos de baque que abrem para a frente. 3 quadros de 14×18, barriga em (0, 9). */
+export function onda(claro = '#FFF6E0', tom = '#C9C4DA') {
+  return folha(14, 18, 3, 35, 9, (g, f) => {
+    for (let o = 0; o <= Math.min(1, f); o++) { const r = [4, 7, 9][f] - o * 4, cx = [1, 2, 3][f]; if (r < 2) continue; for (let a = -1.05; a <= 1.05; a += 0.12) { const x = cx + Math.cos(a) * r, y = 9 + Math.sin(a) * r * 0.85; px(g, x, y, o ? tom : claro, f === 2); if (!o && Math.abs(a) < 0.5) px(g, x - 1, y, tom, f === 2) } }
+  })
+}
 export { tela, rnd }

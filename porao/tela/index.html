@@ -12,21 +12,6 @@
   <button type="button" id="menos" aria-pressed="false">Menos animação</button>
 </header>
 <main class="pagina-palco"><div id="cena"></div></main>
-<script type="module">
-import { criarCena } from './cena.js';
-
-// Estado de exemplo fixo (na versão real vem do servidor).
-const ESTADO = { trouxas: 1280, hype: 70, luxos: ['aquario', 'maquina_bebida', 'sofa'], celularNovo: true };
-
-const cena = await criarCena(document.getElementById('cena'), {
-  estado: ESTADO,
-  aoClicar: (c) => console.log('clique', c),
-});
-const botao = document.getElementById('menos');
-const mostrar = () => botao.setAttribute('aria-pressed', String(cena.menosAnimacao));
-botao.addEventListener('click', () => { cena.definirMenosAnimacao(!cena.menosAnimacao); mostrar(); });
-mostrar();
-window.porao = cena; // só para conferência
-</script>
+<script type="module" src="app.js"></script>
 </body>
 </html>

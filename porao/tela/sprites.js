@@ -307,6 +307,23 @@ export function preparar() {
   }
 }
 
+// Arte das cartas de ideia (carta_<raridade>_<n>): a imagem pode ser grande e de qualquer formato.
+// Carrega uma vez e guarda só uma versão reduzida (lado maior 480 px) como endereço de dados.
+const ARTE_CARTAS = new Map();
+function guardarCarta(nome, img) {
+  try {
+    const w0 = img.naturalWidth, h0 = img.naturalHeight;
+    if (!w0 || !h0) return;
+    const k = Math.min(1, 480 / Math.max(w0, h0));
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(w0 * k)); cv.height = Math.max(1, Math.round(h0 * k));
+    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+    ARTE_CARTAS.set(nome, { src: cv.toDataURL('image/png'), w: cv.width, h: cv.height });
+  } catch { /* sem arte: a carta fica desenhada */ }
+}
+// Devolve { src, w, h } da arte da ideia (ex.: "mitico_1") ou null.
+export const arteCarta = (ideia) => ARTE_CARTAS.get('carta_' + ideia) || null;
+
 // Procura imagens de arte final. Cada pasta (arte/, ../arte.local/) pode ter um indice.json
 // com a lista de nomes (sem .png). Sem indice, nada é pedido e nada falha.
 export async function carregarArte() {
@@ -317,9 +334,12 @@ export async function carregarArte() {
       const r = await fetch(new URL('indice.json', pasta));
       if (r.ok) { const j = await r.json(); if (Array.isArray(j)) nomes = j; }
     } catch { /* sem arte nesta pasta */ }
-    await Promise.all(nomes.filter((n) => CATALOGO.has(n)).map((n) => new Promise((ok) => {
+    await Promise.all(nomes.filter((n) => typeof n === 'string' && (CATALOGO.has(n) || /^carta_[a-z]+_\d+$/.test(n))).map((n) => new Promise((ok) => {
       const img = new Image();
-      img.onload = () => { CATALOGO.get(n).img = img; ok(); };
+      img.onload = () => {
+        if (CATALOGO.has(n)) CATALOGO.get(n).img = img; else guardarCarta(n, img);
+        ok();
+      };
       img.onerror = () => ok();
       img.src = new URL(n + '.png', pasta).href;
     })));

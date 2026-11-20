@@ -55,3 +55,7 @@ Sempre possíveis: 401 SEM_SESSAO/SESSAO_VENCIDA · 429 MUITOS_PEDIDOS · 503 MA
 
 
 **R22 (banco v7).** Ranking: `lista[]` ganha `partida` (id da MELHOR partida terminada e conferida da conta na temporada, ou null fora do top 10 do replay; a própria sempre vem) e `estradaDeOntem: { dia, lista: [{ posicao, apelido, pontos, vencidas, partida }] }` (placar do dia passado, só leitura; `partida` = null fora do top 10 e, para quem ainda tem a estrada de ontem aberta, null em todas menos a própria). Perfil: `conquistas: [{ id, feita, quando (ISO ou null) }]` e `trocaDeApelido: { podeEm: ISO | null }` (null = já pode trocar).
+
+**R33.** Perfil: `conta: { diasSemUsoAtePerder }` (só leitura; dias inteiros = validade da sessão sem uso ÷ 24, arredondado para baixo; hoje 30). Sessão sem uso por esse tempo vence e a conta se perde.
+
+**R31.** `Partida` (da `visao` do motor) traz `chances` (chance real por raridade para as cartas de onde sai a mão agora) e `chanceReliquia` (bolsa; null na rodada do chefe, 0 sem relíquia livre). A tela mostra só esses números.

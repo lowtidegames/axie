@@ -232,11 +232,12 @@ async function rodar(fmt) {
   await conferirLayout(page, 'batalha')
   // R13 itens 10, 15 e 16: resumo ao vivo na base (celular: na mesa; PC: painel embaixo, sem área morta), com a contagem dos dois lados
   // (a regra mudou na R27, item 5: no CELULAR, com 1–2 terrenos ocupados, o painel "damage by plot" sai e fica uma tira curta com a
-  //  contagem dos dois lados — a cena fica com o espaço. No PC continua o painel embaixo.)
+  //  contagem dos dois lados — a cena fica com o espaço. No PC continua o painel embaixo.
+  //  A regra mudou de novo na R29, item 4: nessas rodadas a cena DESCE para ocupar o espaço que sobrou (camY de 0 a 40 px; antes era 0 fixo).)
   { const lay = await K(page, (k) => k.layout()), m2 = await modelo(page), mr = m2.resumo
     if (fmt.toque) {
       const curto = await viuJa(page, 'resumoCurto'), d = await viu(page), t = (await modelo(page)).resumoCurtoRet
-      confere(curto && !d.includes('resumo') && mr && mr.aliadosTotal > 0 && mr.inimigosTotal === m.hordaN && lay.camY === 0, `R27: rodada 1 no celular: sem o painel "damage by plot" (1 terreno ocupado); fica a contagem dos dois lados (${mr?.aliados}/${mr?.aliadosTotal} × ${mr?.inimigos}/${mr?.inimigosTotal})`)
+      confere(curto && !d.includes('resumo') && mr && mr.aliadosTotal > 0 && mr.inimigosTotal === m.hordaN && lay.camY >= 0 && lay.camY <= 40, `R27: rodada 1 no celular: sem o painel "damage by plot" (1 terreno ocupado); fica a contagem dos dois lados (${mr?.aliados}/${mr?.aliadosTotal} × ${mr?.inimigos}/${mr?.inimigosTotal})`)
       confere(!!t && t.h <= 24 && t.y + t.h >= lay.VH - 1 && t.h < lay.mesa.h / 3, `R27: a tira da base tem ${t?.h} px de arte (a mesa tinha ${lay.mesa.h}): a cena fica com o espaço`)
     } else confere((await viuJa(page, 'resumo')) && mr && mr.aliadosTotal > 0 && mr.inimigosTotal === m.hordaN && lay.resumo.y + lay.resumo.h >= lay.VH - 8 && lay.resumo.h >= 60 && lay.camY === 0, `resumo ao vivo ocupa a base da tela na batalha (${mr?.aliados}/${mr?.aliadosTotal} × ${mr?.inimigos}/${mr?.inimigosTotal})`) }
   if (fmt.toque) { await page.waitForTimeout(1900); await foto(page, 'resumo-celular'); await foto(page, 'rodada1-celular') }

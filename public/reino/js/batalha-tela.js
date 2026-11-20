@@ -38,7 +38,7 @@ export function criarBatalha(C, CONFIG, Som, expandirHorda) {
     const ocupados = terrenos.filter(Boolean).length
     C.enquadre = C.tipo === 'celular' && aoFim?.name === 'aoFimDaLuta' && ocupados <= 2 ? 34 : 0
     // CÂMERA DE DUELO: com ≤ 4 representantes no total (os dois lados), a câmera chega mais perto
-    { const reps = exercito.soldados.reduce((a, s) => a + Math.min(s.qtd, C.repMax), 0) + Math.min(B.inimigosTotal, C.tipo === 'pc' ? 6 : 4); C.duelo = !C.menos && reps <= 4 }
+    { const reps = exercito.soldados.reduce((a, s) => a + Math.min(s.qtd, C.repMax), 0) + Math.min(B.inimigosTotal, C.tipo === 'pc' ? 6 : 4); C.duelo = !C.menos && C.tipo === 'pc' && reps <= 4 } // (só no PC: no celular a estrada inteira já cabe na tela e o zoom esconderia quem chega pelo portão)
     Som.tocar('marcha')
   }
   function comecarLuta() { B.preludioAte = 0; C.marcha = false; C.cam.vel = 0; B.mapa.fill(-1); C.limparBonecos(); C.tb = 0; C.magiaAnim = {} }

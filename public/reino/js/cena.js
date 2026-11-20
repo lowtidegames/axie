@@ -57,7 +57,7 @@ export function criarCena(canvas, CONFIG) {
     // medidas do movimento (para o teste e o relato): quantas vezes cada etapa aconteceu
     med: null,
   }
-  C.zerarMedidas = () => { C.med = { antecipa: 0, bote: 0, volta: 0, seq: [], seqDe: -1, fumacas: 0, quadrosLuta: 0, abracos: 0, plaquetas: 0, gestos: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], cascata: 0, poBote: 0, festas: 0, recuos: 0, numPorGrupo: 0, vaoMin: 99, riscos: 0, silhuetas: 0, vagas: 0, vagaPassos: 0, pisoes: 0, enquadre: 0, duelo: 0, ladoErrado: 0, caixas: 0, quadrosPortao: 0, vaoRepouso: 999, foraDoPortao: 0, cortados: 0, fumacinhas: 0, fumacasJuntas: 0, fumacasSeguradas: 0, nuvens: 0, fumacaMs: 0, fumacaLado: 0, numAlternados: 0, numEsperas: 0, numColados: 0, quadrosNum: 0, brilhos: 0, sombrasNoPulo: 0, bandeirolas: 0, gruposCaidos: 0, pausaGrupoMs: 0, lentoMs: 0, repsCaidos: 0, repsMax: 0, estrelas: 0, varridas: 0, tombos: 0, estouros: 0, chefeEtapas: [], passos: 0, poeiras: 0, viradas: 0, flechas: 0, fincadas: 0, explosoes: 0, aneis: 0, somados: 0, numeros: 0, zoomMax: 1, empurrao: 0, brancosLog: [], meioPixel: 0, trechos: [] }; C.tremidaMax = 0; C.picoParticulas = 0; C.flashes.length = 0 }
+  C.zerarMedidas = () => { C.med = { antecipa: 0, bote: 0, volta: 0, seq: [], seqDe: -1, fumacas: 0, quadrosLuta: 0, abracos: 0, plaquetas: 0, gestos: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], cascata: 0, poBote: 0, festas: 0, recuos: 0, numPorGrupo: 0, vaoMin: 99, riscos: 0, hordaMax: 0, silMax: 0, silhuetas: 0, vagas: 0, vagaPassos: 0, pisoes: 0, enquadre: 0, duelo: 0, ladoErrado: 0, caixas: 0, quadrosPortao: 0, vaoRepouso: 999, foraDoPortao: 0, cortados: 0, fumacinhas: 0, fumacasJuntas: 0, fumacasSeguradas: 0, nuvens: 0, fumacaMs: 0, fumacaLado: 0, numAlternados: 0, numEsperas: 0, numColados: 0, quadrosNum: 0, brilhos: 0, sombrasNoPulo: 0, bandeirolas: 0, gruposCaidos: 0, pausaGrupoMs: 0, lentoMs: 0, repsCaidos: 0, repsMax: 0, estrelas: 0, varridas: 0, tombos: 0, estouros: 0, chefeEtapas: [], passos: 0, poeiras: 0, viradas: 0, flechas: 0, fincadas: 0, explosoes: 0, aneis: 0, somados: 0, numeros: 0, zoomMax: 1, empurrao: 0, brancosLog: [], meioPixel: 0, trechos: [] }; C.tremidaMax = 0; C.picoParticulas = 0; C.flashes.length = 0 }
   C.zerarMedidas()
   const CORES_P = ['#FFF6E0', '#E8C48A', '#FFD248', '#CC3C3E', '#4884E8', '#9248C8', '#7CC950', '#E0489B', '#CECAD8', '#B6F03C', '#E87E2E', '#704C3E']
   const BRASA = ['#704C3E', '#CC3C3E', '#E87E2E', '#FFD248', '#FFF6E0']
@@ -330,8 +330,8 @@ export function criarCena(canvas, CONFIG) {
       gVis[k]++; gX[k] += C.sx[i]; gTier[k] = C.tier[i]; const topo = C.sy[i] - (p.ay - Arte.topoDe(p)) * C.k[i]; if (topo < gTopo[k]) gTopo[k] = topo
       const s = C.sec[i], b = secB[s]; if (b < 0 || (bPerto[k] && (!bPerto[b] || bOff[k] < bOff[b]))) secB[s] = k // o pelotão à vista mais à frente do trecho
     }
-    let nRep = 0; C.focoX = 0; C.focoY = 0; C.focoN = 0; for (let i = 0; i < C.n; i++) if (C.est[i] === 1 && !C.oculto[i] && C.peca[i].w <= 60) { nRep++; C.focoX += C.sx[i]; C.focoY += C.sy[i]; C.focoN++ }
-    if (luta) medirLinha()
+    let nRep = 0; C.focoX = 0; C.focoY = 0; C.focoN = 0; C.focoL = 0; for (let i = 0; i < C.n; i++) if (C.est[i] === 1 && !C.oculto[i] && C.peca[i].w <= 60) { nRep++; C.focoX += C.sx[i]; C.focoY += C.sy[i]; C.focoN++; C.focoL |= 1 << C.lado[i] }
+    if (luta) { for (let reg = 0; reg < NREG; reg++) { let v = 0; for (let q = 0; q < NTIPO; q++) v += gVis[reg * NTIPO + q]; if (v > C.med.hordaMax) C.med.hordaMax = v; if (silN[reg] > C.med.silMax) C.med.silMax = silN[reg] } medirLinha() }
     if (nRep > C.med.repsMax) C.med.repsMax = nRep
   }
   /** MEDIDAS da linha de frente, em TODO quadro da luta (para o teste e o relato): lado errado da linha, caixas que se tocam em repouso
@@ -794,7 +794,7 @@ export function criarCena(canvas, CONFIG) {
         else { C.lane[i] += dl * f; C.dxe[i] += dd * f; desl = Math.abs(dd) > 3 }
         // LINHA DE FRENTE DURA (R28): quem está vivo nunca é desenhado do lado errado da linha dele (nem andando, nem chegando)
         const x = C.xDe(i); let a, b
-        if (inv) { const s = C.sec[i], m = p0.w > 100 ? 26 : p0.w > 60 ? 12 : 0; a = sLo[s]; b = sHi[s] - m; if (m && s === 0 && C.noPortao) { const v = Math.min(loGrande(i), b); if (v > a) a = v } } else { const k = C.grupo[i] % NG; a = gLo[k]; b = gHi[k] }
+        if (inv) { const s = C.sec[i], m = p0.w > 100 ? 26 : p0.w > 60 ? 12 : 0; a = sLo[s]; b = sHi[s] - m; if (m && s === 0) { const v = Math.min(loGrande(i), b); if (v > a) a = v } } else { const k = C.grupo[i] % NG; a = gLo[k]; b = gHi[k] }
         if (x + C.dxe[i] > b) C.dxe[i] = b - x; else if (x + C.dxe[i] < a) C.dxe[i] = a - x } }
       const p = pos(C.xDe(i) + C.dxe[i] - (inv && entra < 1 ? (1 - entra * (2 - entra)) * (60 + (i % 5) * 9) : 0), C.lane[i])
       C.sx[i] = p.x; C.sy[i] = p.y; C.tier[i] = p.tier; C.sentido[i] = p.sent
@@ -971,7 +971,7 @@ export function criarCena(canvas, CONFIG) {
     if (C.menos) { C.cam.zoom = C.cam.zoomAlvo = 1 } else {
       // R29 — CÂMERA DE DUELO: com ≤ 4 representantes no total (a primeira luta), a câmera chega um degrau de pixel mais perto e segue o
       // meio do choque, macio; volta sozinha quando a luta acaba
-      if (C.duelo && C.emLuta && !C.marcha && C.focoN > 0 && agora > C.cam.zoomAte - 150) {
+      if (C.duelo && C.emLuta && !C.marcha && C.focoL === 3 && agora > C.cam.zoomAte - 150) { // (só com os dois lados à vista)
         const tx = C.focoX / C.focoN - C.cam.x, ty = C.focoY / C.focoN - 12, k = C.cam.zoom === 1 ? 1 : 1 - Math.pow(0.02, dtReal / 1000)
         C.cam.fx += (tx - C.cam.fx) * k; C.cam.fy += (ty - C.cam.fy) * k; C.cam.zoomAlvo = (C.e + 1) / C.e; C.cam.zoomAte = agora + 150; C.med.duelo++
       }

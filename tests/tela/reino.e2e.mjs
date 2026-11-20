@@ -1299,11 +1299,11 @@ async function r31() {
 
 /** R39 — vitória na rodada 20 e as 30 conquistas. O robô de plano do motor joga pela tela até a rodada 20 (gancho `jogarSozinho`, sem
  *  esperar animação); a luta da rodada 20 é apertada no botão de verdade. A semente é conferida ANTES com o motor (vence a 20). */
-const SEM39 = 'e2e-keepmile-r39-35', ROBO39 = 'plano:muralha'
+const SEM39 = 'e2e-keepmile-r39-35', ROBO39 = 'plano:muralha', META39 = CFG.PARTIDA.rodadaDaVitoria // R42 (a regra mudou: decisão de 20/11 10:10, vitória 20 → 15): os passos do teste que diziam 20/21 agora saem do config
 function motorAte20(semente, liberadas) {
   let e = criarPartida({ semente, cartasLiberadas: liberadas }), s = 12345, n = 0
   const inteiro = (k) => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s % k }
-  while (e.fase !== 'fim' && n++ < 3000) { if (e.rodada >= 20 && e.fase === 'carta' && !e.cartaPosta) break; e = aplicar(e, escolher(ROBO39, e, inteiro)).estado }
+  while (e.fase !== 'fim' && n++ < 3000) { if (e.rodada >= META39 && e.fase === 'carta' && !e.cartaPosta) break; e = aplicar(e, escolher(ROBO39, e, inteiro)).estado }
   if (e.fase === 'fim') return { chegou: false }
   let s2 = 999; const int2 = (k) => { s2 = (Math.imul(s2, 1664525) + 1013904223) >>> 0; return s2 % k }
   for (let i = 0; i < 50; i++) { const c = escolher(ROBO39, e, int2); if (c.tipo === 'batalhar') break; e = aplicar(e, c).estado }
@@ -1327,15 +1327,17 @@ async function r39(fmt) {
   const efeitos = (page) => page.evaluate(() => window.__kmCena.__log.slice())
   const apertarLutar = async (page) => { await toca(page, (await page.locator('#bt-lutar2').count()) ? 'lutar2' : 'lutar'); await fase(page, 'luta'); await page.waitForTimeout(120) }
   const lutarA20 = async (page) => {
-    await K(page, (k, r) => k.jogarSozinho({ robo: r, ateRodada: 20 }), ROBO39)
+    await K(page, (k, r) => k.jogarSozinho({ robo: r[0], ateRodada: r[1] }), [ROBO39, META39])
     await K(page, (k, r) => k.roboAteLutar(r), ROBO39); await page.waitForTimeout(200)
     const antes = await V(page), v = await K(page, (k) => k.visao())
     await apertarLutar(page)
     // rodada 20 = luta de chefe: a barra de vida dele (R38) aparece com a horda — guarda onde ela fica
     const barra = await page.waitForFunction(() => window.__keepmile.med().chefeBarraRet || null, null, { timeout: 8000 }).then((h) => h.jsonValue(), () => null)
     await K(page, (k) => k.zerarMedidas()); await espiar(page)
+    // R42: a ordem na tela — quando cada letreiro apareceu pela 1ª vez (queda do chefe × festa do reino) e se algum quadro teve os dois
+    await page.evaluate(() => { const k = window.__keepmile, O = (window.__ordem = { chefe: 0, reino: 0, juntos: 0, t0: 0 }); const f = () => { const d = k.desenhou(), a = performance.now(); if (k.fase() === 'vitoria' && !O.t0) O.t0 = a; if (d.includes('chefeCaiu') && !O.chefe) O.chefe = a; if (d.includes('festaReino') && !O.reino) O.reino = a; if (d.includes('chefeCaiu') && d.includes('festaReino')) O.juntos++; if (!k.vitoria().pronto) requestAnimationFrame(f) }; requestAnimationFrame(f) })
     await K(page, (k) => k.avancarBatalha()); await fase(page, 'vitoria', 10000); await viuJa(page, 'festaReino')
-    return { antes, rodada: v.rodada, venceuAntes: v.venceu, barra }
+    return { antes, rodada: v.rodada, venceuAntes: v.venceu, barra, ordem: await page.evaluate(() => ({ ...window.__ordem })), chefe: v.horda.chefe }
   }
 
   // ---- a semente: o motor diz que este robô chega à rodada 20 e vence (se o balanceamento mudar, procurar outra semente)
@@ -1359,6 +1361,8 @@ async function r39(fmt) {
     confere(!!r && r.maior <= r.VW - 4 && r.y >= 0 && r.y + r.h <= r.VH && r.linhas.length <= 2, `R39 festa: a faixa cabe na tela (título ×${r?.k}, ${r?.maior} de ${r?.VW} px de arte, ${r?.linhas.length} linha(s))`) }
   { const br = L1.barra, r = m.reino?.ret // rodada 20 = luta de chefe (R38: barra de vida própria)
     confere(!!br && !!r && (r.y + r.h <= br.y || r.y >= br.y + br.h), `R39 festa: a faixa (y ${r?.y}–${r ? r.y + r.h : '?'}) não tapa a barra do chefe ${br?.nome} (y ${br?.y}–${br ? br.y + br.h : '?'})`) }
+  { const o = L1.ordem, nome = CFG.CHEFES.find((c) => c.id === L1.chefe)?.nome
+    confere(!!L1.chefe && o.chefe > 0 && o.reino > 0 && o.reino - o.chefe >= 700 && o.juntos === 0, `R42 ordem: primeiro a queda do chefe ${nome} ("... DOWN!"), ${Math.round(o.reino - o.chefe)} ms depois a festa do reino; nenhum quadro com os dois`) }
   { const b = await page.evaluate(() => [...document.querySelectorAll('#toques button')].map((x) => x.id))
     confere(b.length === 1 && b[0] === 'bt-seguir', `R39 festa: durante a festa o único toque é o de pular (${b.join(', ')})`) }
   await page.waitForTimeout(650)
@@ -1371,7 +1375,7 @@ async function r39(fmt) {
     confere(t >= 1500 && t <= 2700, `R39 festa: segura ${Math.round(t)} ms (1,5–2,5 s) e devolve o controle`)
     const b = await page.evaluate(() => [...document.querySelectorAll('#toques button')].map((x) => x.id))
     confere(b.some((x) => x.startsWith('bt-espolio')) && !b.includes('bt-seguir') && !(await viu(page)).includes('festaReino'), 'R39 festa: depois dela os espólios aparecem e a faixa sai') }
-  await K(page, (k, r) => k.jogarSozinho({ robo: r, ateRodada: 21 }), ROBO39); await page.waitForTimeout(250)
+  await K(page, (k, r) => k.jogarSozinho({ robo: r[0], ateRodada: r[1] }), [ROBO39, META39 + 1]); await page.waitForTimeout(250)
   m = await V(page); d = await viu(page)
   { const l = m.metaRet ? await livre(page, m.metaRet) : null, v = await K(page, (k) => k.visao())
     confere(v.venceu === true && m.venceu && d.includes('resistiu') && !d.includes('meta') && m.metaRet?.texto === 'HELD', `R39 selo: na rodada ${v.rodada} o HUD troca a meta pelo selo "${m.metaRet?.texto}"`)
@@ -1562,7 +1566,7 @@ async function r41(fmt) {
   // ================= 2. FESTA DA 20 MAIS FORTE
   { const ctxF = await novoCtx(), pf = await ctxF.newPage(); vigiar(pf, erros, ruins)
     await abrir(pf, `?teste=1&nova=1&semente=${SEM39}`)
-    await K(pf, (k, r) => k.jogarSozinho({ robo: r, ateRodada: 20 }), ROBO39)
+    await K(pf, (k, r) => k.jogarSozinho({ robo: r[0], ateRodada: r[1] }), [ROBO39, META39])
     await K(pf, (k, r) => k.roboAteLutar(r), ROBO39); await pf.waitForTimeout(200)
     await apertarLutar(pf)
     await pf.waitForFunction(() => window.__keepmile.med().chefeBarraRet, null, { timeout: 8000 }).catch(() => {})
@@ -1587,7 +1591,7 @@ async function r41(fmt) {
   // Reduced motion: sem contagem, sem fogos, sem tremida, sem clarão — só a faixa
   { const ctxR = await novoCtx({ reducedMotion: 'reduce' }), pr = await ctxR.newPage(); vigiar(pr, erros, ruins)
     await abrir(pr, `?teste=1&nova=1&semente=${SEM39}`)
-    await K(pr, (k, r) => k.jogarSozinho({ robo: r, ateRodada: 20 }), ROBO39)
+    await K(pr, (k, r) => k.jogarSozinho({ robo: r[0], ateRodada: r[1] }), [ROBO39, META39])
     await K(pr, (k, r) => k.roboAteLutar(r), ROBO39); await pr.waitForTimeout(200)
     await apertarLutar(pr); await K(pr, (k) => k.zerarMedidas())
     await K(pr, (k) => k.avancarBatalha()); await fase(pr, 'vitoria', 10000); await viuJa(pr, 'festaReino')

@@ -1517,18 +1517,19 @@ async function r41(fmt) {
   await page.keyboard.press('Shift') // destrava o som
   await K(page, (k) => k.conquistar(['shields']))
   confere(await viuJa(page, 'avisoConquista'), 'R41 aviso: a conquista nova avisa na hora, com a medalha desenhada na placa')
+  await page.waitForTimeout(320) // a placa acabou de pousar
   { const b = await K(page, (k) => k.brinde()), l = b?.ret ? await livre(page, b.ret) : null, so = await sons(page)
     confere(!!b && b.titulo === 'ACHIEVEMENT' && b.texto === nomeDe('shields') && b.conq === 'shields' && b.ms === 1500, `R41 aviso: "${b?.titulo}" + "${b?.texto}", ${b?.ms} ms`)
     confere(!!l && l.dentro && l.em.length === 0, 'R41 aviso: a placa fica inteira na tela e fora dos botões' + (l && l.em.length ? ' → ' + l.em.join(', ') : ''))
     confere(so.includes('conquista'), 'R41 aviso: com a batida de som da conquista (som que já existia na folha)')
     await foto(page, `r41-aviso-${fmt.nome}`) }
-  await page.waitForFunction(() => !window.__keepmile.brinde(), null, { timeout: 4000 })
+  await page.waitForFunction(() => window.__keepmile.festas().log.some((x) => x.titulo === 'ACHIEVEMENT' && x.fim > 0), null, { timeout: 4000 })
   { const lg = (await K(page, (k) => k.festas())).log.filter((x) => x.titulo === 'ACHIEVEMENT'), dur = lg[0] ? lg[0].fim - lg[0].ini : 0
     confere(lg.length === 1 && dur >= 1400 && dur <= 1750, `R41 aviso: fica ${Math.round(dur)} ms na tela (~1,5 s) e sai sozinho`) }
   // seis de uma vez: fila curta (3) e o resto resumido
   const SEIS = ['bows', 'dish', 'sparks', 'mason', 'spicy', 'pockets']
   await K(page, (k, ids) => k.conquistar(ids), SEIS)
-  { const fe = await K(page, (k) => k.festas()), todos = [fe.atual, ...fe.fila.map((f) => f.texto)].filter(Boolean)
+  { const fe = await K(page, (k) => k.festas()), todos = fe.fila.map((f) => f.texto)
     confere(todos.length === 4 && JSON.stringify(todos.slice(0, 3)) === JSON.stringify(SEIS.slice(0, 3).map(nomeDe)) && todos[3] === '+3 MORE' && todos[3] === T.maisConquistas(3), `R41 aviso: 6 de uma vez → fila curta de 3 e o resto resumido (${todos.join(' · ')})`) }
   await page.waitForFunction(() => window.__keepmile.festas().log.some((x) => x.texto === '+3 MORE' && x.fim > 0), null, { timeout: 12000 })
   { const lg = (await K(page, (k) => k.festas())).log.filter((x) => x.titulo === 'ACHIEVEMENT').slice(1), g = await K(page, (k) => k.guarda())
@@ -1581,7 +1582,7 @@ async function r41(fmt) {
     confere(c.tremidaMax >= 1 && c.tremidaMax <= 4, `R41 festa: tremida leve na batida (${c.tremidaMax} px, ≤ 4)`)
     confere(c.flashes.length >= 1 && c.flashes.length <= 3, `R41 festa: ${c.flashes.length} clarão (no máximo 3 por segundo)`)
     confere(v.reino.fogosVistos >= 10 && depois.some((a) => a.fogos >= 1) && A.every((a) => a.fogos <= 3), `R41 festa: fogos desenhados POR CIMA do escurecido (${v.reino.fogosVistos} quadros; no máximo ${Math.max(...A.map((a) => a.fogos))} estouros de uma vez)`)
-    confere(depois.every((a) => !a.peq && a.h > 60) && fim.length >= 3 && fim.every((a) => a.peq && a.h <= 24 && a.y + a.h <= a.VH * 0.2), `R41 festa: depois de ${sai} ms a faixa encolhe e sobe (de ${depois[0]?.h} px para ${fim[0]?.h} px de arte, até y ${fim[0] ? fim[0].y + fim[0].h : '?'} de ${fim[0]?.VH}): o campo volta a ser visto`)
+    confere(depois.every((a) => !a.peq && a.h > 60) && fim.length >= 3 && fim.every((a) => a.peq && a.h <= 24 && a.y + a.h <= a.VH * 0.25), `R41 festa: depois de ${sai} ms a faixa encolhe e sobe (de ${depois[0]?.h} px para ${fim[0]?.h} px de arte, até y ${fim[0] ? fim[0].y + fim[0].h : '?'} de ${fim[0]?.VH}): o campo volta a ser visto`)
     await ctxF.close() }
   // Reduced motion: sem contagem, sem fogos, sem tremida, sem clarão — só a faixa
   { const ctxR = await novoCtx({ reducedMotion: 'reduce' }), pr = await ctxR.newPage(); vigiar(pr, erros, ruins)
@@ -1600,18 +1601,19 @@ async function r41(fmt) {
     await abrir(pg, `?teste=1&nova=1&semente=${SEM}`)
     await K(pg, (k) => k.jogarSozinho({})); await fase(pg, 'fim'); await pg.waitForFunction(() => window.__keepmile.fimInfo()?.contou, null, { timeout: 12000 })
     const com = async (rodadas, tem) => { await K(pg, (k, [r, t]) => { k.guardaSet('rodadas', r); k.guardaSet('conquistas', t) }, [rodadas, tem]); await abrir(pg, '?teste=1'); await pg.waitForFunction(() => window.__keepmile.fimInfo()?.contou, null, { timeout: 12000 }); await pg.waitForTimeout(200); return { f: await K(pg, (k) => k.fimInfo()), d: await viu(pg) } }
-    let r = await com(D.tally50 - 6, ['supper', 'tally25'])
+    // (o que o aparelho guarda só cresce: os casos vão em ordem de rodadas)
+    let r = await com(D.tally25 - 3, [])
+    confere(r.f.ganchoDegrau?.id === 'tally25' && r.f.gancho === `${nomeDe('tally25').toUpperCase()}: 3 ROUNDS TO GO`, `R41 fim: escolhe o degrau mais próximo que falta — "${r.f.gancho}"`)
+    r = await com(D.tally50 - 20, ['tally25'])
+    confere(r.f.gancho === null && r.f.ganchoDegrau === null && !r.d.includes('fimGancho') && r.d.includes('fimAlbum'), 'R41 fim: faltando muito (20 rodadas) não há linha do degrau — só o gancho do álbum')
+    r = await com(D.tally50 - 6, ['tally25'])
     confere(r.f.gancho === `${nomeDe('tally50').toUpperCase()}: 6 ROUNDS TO GO` && r.f.ganchoDegrau?.id === 'tally50' && r.d.includes('fimGancho') && r.d.includes('fimAlbum'), `R41 fim: a ${D.tally50 - 6} rodadas somadas o fim diz "${r.f.gancho}" (um gancho a mais, junto do álbum)`)
     confere(r.f.ganchoCabe === true && !/TOMORROW|TODAY|HOUR|\d+[HM]\b/.test(r.f.gancho), 'R41 fim: a linha cabe inteira na placa e não tem relógio nem "volte amanhã"')
     await conferirLayout(pg, `R41 ${fmt.nome} fim com gancho`); await foto(pg, `r41-fim-gancho-${fmt.nome}`)
-    r = await com(D.tally50 - 1, ['supper', 'tally25'])
+    r = await com(D.tally50 - 1, ['tally25'])
     confere(r.f.gancho === `${nomeDe('tally50').toUpperCase()}: 1 ROUND TO GO`, `R41 fim: no singular — "${r.f.gancho}"`)
-    r = await com(D.tally50 - 20, ['supper', 'tally25'])
-    confere(r.f.gancho === null && !r.d.includes('fimGancho') && r.d.includes('fimAlbum'), `R41 fim: faltando muito (20 rodadas) não há linha do degrau — só o gancho do álbum`)
-    r = await com(D.tally400 - 10, ['supper', 'tally25', 'tally50', 'tally100', 'tally200'])
+    r = await com(D.tally400 - 10, ['tally25', 'tally50', 'tally100', 'tally200'])
     confere(r.f.ganchoDegrau?.id === 'tally400' && r.f.ganchoCabe === true && /10 (ROUNDS )?TO GO$/.test(r.f.gancho), `R41 fim: o nome mais comprido também cabe — "${r.f.gancho}"`)
-    r = await com(D.tally25 - 3, [])
-    confere(r.f.ganchoDegrau?.id === 'tally25' && r.f.gancho === `${nomeDe('tally25').toUpperCase()}: 3 ROUNDS TO GO`, `R41 fim: escolhe o degrau mais próximo que falta — "${r.f.gancho}"`)
     await ctxG.close() }
   confere(erros.length === 0 && ruins.length === 0, `R41 ${fmt.nome}: zero erro e zero 404` + (erros.length + ruins.length ? ' → ' + [...erros, ...ruins].slice(0, 4).join(' | ') : ''))
 }

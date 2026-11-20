@@ -1,8 +1,8 @@
 # Status
 
-_Atualizado: 20/11/2026 11:30 BRT_
+_Atualizado: 20/11/2026 18:35 BRT_
 
-Projeto atual: Keepmile (nome provisório), jogo original de montar reino com cartas e batalha automática. Nada publicado: só o repositório (`main`).
+Projeto atual: Keepmile (nome provisório), jogo original de montar reino com cartas e batalha automática. Site de TESTE no ar desde 20/11 18:24 BRT: https://delightful-happiness-production-4042e6af.up.railway.app/public/reino/ (Railway, commit 094f6fe). Production: nada.
 
 ## Pronto
 - Motor `shared/reino/`, tela `public/reino/`, servidor `server/reino/` (banco v8).
@@ -14,7 +14,7 @@ Projeto atual: Keepmile (nome provisório), jogo original de montar reino com ca
 - Aviso de conquista, festa, gancho do degrau, textos do guardião (R41).
 - Baterias verdes no `main` (20/11 16:56 BRT): `npm test` 446; reino.e2e tudo verde; reino-servidor 377; reino-movimento 189; reino-som tudo verde.
 - Revanche completa no `main` (R47–R52): mesma horda + 1 troca de 2 terrenos + dica sempre verdadeira com "SHOW ME" + festa REVENGE!; banco v9; segurança GO.
-- Site de teste: Railway escolhido pelo dono; conta, projeto e chave prontos; falta publicar (precisa de sessão nova para a chave aparecer).
+- Site de teste NO AR no Railway (20/11 18:24 BRT): jogo completo com servidor, banco em disco próprio; conferido no PC e no celular. Bateria completa de telas rodando sobre essa versão.
 - Idiomas: 12 pedidos pelo dono; desenho e glossário prontos; letras em pixel em andamento.
 - Notas: diversão 89 (conferência 5); guardião 80, aprovado sem veto (rodada 4).
 - R42 (vitória na rodada 15, Encore! na 17, último degrau 300), R43 (tiques da contagem) e R44 (18 medalhas, fogos, meta do HUD) no `main`, enviados.

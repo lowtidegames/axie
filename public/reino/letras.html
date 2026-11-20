@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kingdom — letter sheet</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --fundo: #1d1a26; --papel: #3a2a4e; --borda: #4a4160; --texto: #f3ead7; --fraco: #b9aecb; --ouro: #f2c14e }
+  * { box-sizing: border-box }
+  body { margin: 0; padding: 16px; background: var(--fundo); color: var(--texto); font: 15px/1.4 system-ui, sans-serif }
+  h1 { margin: 0 0 4px; font-size: 22px } h2 { margin: 0 0 6px; font-size: 16px; color: var(--ouro) }
+  p { margin: 4px 0 8px; color: var(--fraco); max-width: 900px }
+  section { display: inline-block; margin: 0 0 18px; padding: 10px; background: var(--papel); border: 1px solid var(--borda); border-radius: 10px; max-width: 100% }
+  canvas { display: block; image-rendering: pixelated; max-width: 100% }
+  .km-px { image-rendering: pixelated } #dom span { display: inline-block; margin: 0 12px 8px 0; padding: 0; background: #2b1e3a; line-height: 0 }
+  pre { margin: 6px 0 0; color: var(--fraco); font: 12px/1.35 ui-monospace, monospace; white-space: pre-wrap }
+</style>
+</head>
+<body>
+<h1>Kingdom — letter sheet</h1>
+<p>Every pixel letter of the game in its two sizes (<b>reino</b> 5×7 and <b>mini</b> 3×5) and every colour, drawn by the game's own code. Phrases with a letter that has no pixel drawing (Vietnamese, Thai) come out whole in the device font and are listed at the bottom.</p>
+<div id="folha"></div>
+<script type="module">
+import * as Arte from './js/arte.js'
+import { Letras, LISTA, NOVAS } from './js/letras.js'
+import * as CONFIG from '../../shared/reino/config.js'
+
+await Arte.carregar(CONFIG)
+const Z = 4, folha = document.getElementById('folha')
+/** Uma seção: título, explicação e uma tela ×Z onde `desenhar(g, linha)` escreve; `linha(texto, fonte, opc)` escreve e desce. */
+function secao(id, titulo, nota, w, desenhar) {
+  const s = document.createElement('section'); s.id = id
+  s.innerHTML = `<h2>${titulo}</h2><p>${nota}</p>`
+  const medida = document.createElement('canvas').getContext('2d'); let y = 4
+  const fazer = (g) => { y = 4; desenhar(g, (t, fonte = 'reino', o = {}) => { const passo = o.passo || Arte.alturaDaFonte(fonte) + 7; Arte.texto(g, t, o.x ?? 4, y + 3, { fonte, ...o }); y += passo * (o.k || 1) }, () => y, (v) => { y = v }) }
+  fazer(medida)
+  const c = document.createElement('canvas'); c.width = w * Z; c.height = (y + 4) * Z; c.style.width = w * Z + 'px'
+  const g = c.getContext('2d'); g.setTransform(Z, 0, 0, Z, 0, 0); g.imageSmoothingEnabled = false
+  g.fillStyle = '#3A2A4E'; g.fillRect(0, 0, w, y + 4)
+  fazer(g); s.appendChild(c); folha.appendChild(s); folha.appendChild(document.createElement('br'))
+  return s
+}
+const REINOS = ['reino', 'reino-contorno', 'reino-ouro', 'reino-verde'], MINIS = ['mini', 'mini-contorno', 'mini-ouro', 'mini-verde']
+const LATIM = ['AÁÀÂÃÄÅÆ CÇ EÉÈÊË GĞ', 'IÍÌÎÏİ NÑ OÓÒÔÕÖŒ', 'SŞ UÚÙÛÜ YÝŸ']
+const SINAIS = ['¿QUÉ? ¡SÍ! «OUI» ‹A› "B" „C“ ‘D’', 'A — B – C… D·E • 2×3; #1 №5 [X] A_B |', '1º 2ª 30° 50% 1.000,5 L’ARMÉE']
+const CIR = ['АБВГДЕЁЖЗИЙ', 'КЛМНОПРСТУФ', 'ХЦЧШЩЪЫЬЭЮЯ']
+
+secao('latim', 'Latin with accents (pt es fr de it tr id fil)', 'Each accented letter next to its plain letter. The accent rises at most 2 px above the line and the cedilla drops 2 px below: line height never changes.', 236, (g, linha) => {
+  for (const f of REINOS) for (const l of LATIM) linha(l, f)
+  for (const f of MINIS) for (const l of LATIM) linha(l, f)
+})
+secao('sinais', 'Signs', 'Quotes, dashes, ellipsis, ordinals and the rest that game text asks for.', 236, (g, linha) => {
+  for (const f of ['reino', 'reino-ouro', 'mini', 'mini-contorno']) for (const l of SINAIS) linha(l, f)
+})
+secao('cirilico', 'Russian (33 capitals)', 'Letters with the same shape as Latin reuse the Latin drawing; the rest are drawn here.', 236, (g, linha) => {
+  for (const f of ['reino', 'reino-contorno', 'reino-ouro', 'reino-verde', 'mini', 'mini-contorno', 'mini-ouro']) for (const l of CIR) linha(l, f)
+})
+const FRASES = [
+  ['en', 'ROUND 12 - PICK A PLOT, THEN FIGHT!'], ['pt', 'CORAÇÃO DE LEÃO: VOCÊ VENCEU A 3ª RODADA!'], ['es', '¿QUÉ PASÓ? ¡EL NIÑO GANÓ EL PINGÜINO!'], ['fr', 'FENÊTRE ÇA « ŒUVRE » DÉJÀ VU, NOËL À L’ÎLE'],
+  ['de', 'GRÖSSE ÜBER ALLES: „KÖNIG“ SCHLÄGT STRAßE'], ['it', 'PERCHÉ È COSÌ? PIÙ CITTÀ, PIÙ VIRTÙ'], ['tr', 'İYİ ŞANSLAR ĞI: ÇOK GÜZEL IŞIK, ÖĞLE'],
+  ['id', 'SELAMAT DATANG! PILIH 1 DARI 3 KARTU'], ['fil', 'MAGANDANG ARAW! PILIIN ANG 1 SA 3 BARAHA NIÑO'], ['ru', 'ПОБЕДА! ЩИТ ЖЁЛТЫЙ, СЪЕШЬ ЭТИХ МЯГКИХ БУЛОК'],
+]
+secao('frases', 'Real phrases', 'Each language in the big and small letter, as the game writes them (capitals of each language: Turkish i→İ, German ß→SS).', 300, (g, linha) => {
+  for (const [id, f] of FRASES) { Letras.idioma = id; linha(f, 'reino-contorno'); linha(f, 'mini', { cor: '#FFD248' }) }
+  Letras.idioma = 'tr'; linha('iyi şanslar, ışık (tr)', 'reino'); Letras.idioma = 'de'; linha('größe, straße (de)', 'reino'); Letras.idioma = 'en'
+})
+secao('linhas', 'Lines close together', 'The game’s own line steps (reino 9, mini 7, outlined 11 and 8): accents and cedillas live in the gap between lines.', 236, (g, linha, y, ir) => {
+  const par = ['AÇÃO, CORAÇÃO E PÃO', 'ÀS ÓRBITAS DO ÂMAGO', 'ÉPOCA ÚNICA, ÎLE ÑU', 'ЙОД ЁЖ ЩИ ÇA ŞU ĞI']
+  for (const [f, passo] of [['reino', 9], ['mini', 7], ['reino-contorno', 11], ['mini-contorno', 8]]) { for (const l of par) linha(l, f, { passo }); ir(y() + 6) }
+  Arte.titulo(g, 'VITÓRIA! AÇÃO', 118, y() + 6, 2, true); ir(y() + 30); Arte.titulo(g, 'ПОБЕДА ЙЁ', 118, y() + 4, 3); ir(y() + 34)
+})
+const RES = [['vi', 'Chào mừng! Chiến thắng vòng 12'], ['th', 'ยินดีต้อนรับ! ชนะรอบที่ 12'], ['vi', 'Tiếng Việt: chọn 1 trong 3 thẻ']]
+secao('reserva', 'Device font (Vietnamese, Thai)', 'No pixel drawing for these: the whole phrase is written with the device font in the same height, colour and outline.', 300, (g, linha) => {
+  for (const [id, f] of RES) { Letras.idioma = id; for (const fo of ['reino', 'reino-contorno', 'reino-ouro', 'reino-verde', 'mini', 'mini-contorno', 'mini-ouro']) linha(f, fo, { passo: fo.startsWith('mini') ? 13 : 16 }); linha(f, 'reino', { cor: '#96F082', passo: 16 }) }
+  Letras.idioma = 'en'
+})
+const cabe = new Set()
+secao('caber', 'Break and fit', 'Boxes show the width asked. Left: break into lines (a word wider than the box is cut with a hyphen). Right: fit in one line (big letter → small letter → ellipsis).', 300, (g, linha, y, ir) => {
+  let yy = y() + 2
+  for (const [t, w, f] of [['CORAÇÃO VALENTE DEFENDE O REINO INTEIRO', 70, 'reino'], ['DONAUDAMPFSCHIFFFAHRTSGESELLSCHAFT ÜBER', 60, 'mini'], ['ДОСТОПРИМЕЧАТЕЛЬНОСТЬ ЖЁЛТАЯ', 64, 'reino']]) {
+    const lin = Arte.quebrar(t, w, f), passo = f === 'mini' ? 7 : 9
+    g.fillStyle = '#2B1E3A'; g.fillRect(4, yy - 2, w + 4, lin.length * passo + 3)
+    lin.forEach((l, i) => Arte.texto(g, l, 6, yy + i * passo, { fonte: f }))
+    yy += lin.length * passo + 8
+  }
+  let y2 = y() + 2
+  for (const [t, w, f] of [['PLAY AGAIN', 80, 'reino-ouro'], ['JOGAR DE NOVO AGORA', 80, 'reino-ouro'], ['¡JUGAR OTRA VEZ AHORA MISMO YA!', 80, 'reino-ouro'], ['НАЧАТЬ ЗАНОВО ПРЯМО СЕЙЧАС', 80, 'reino-verde'], ['WEITERSPIELEN', 60, 'reino']]) {
+    const c = Arte.caber(t, w, f); cabe.add(`${t} → ${c.feito} (${c.fonte}, ${c.largura}px of ${w})`)
+    g.fillStyle = '#2B1E3A'; g.fillRect(150, y2 - 3, w + 4, 14)
+    Arte.texto(g, c.texto, 152, y2, { fonte: c.fonte }); y2 += 18
+  }
+  ir(Math.max(yy, y2))
+})
+// a letra dentro da página (como as janelas do jogo fazem com `miniatura`): acento na 1ª linha não é cortado; letra do aparelho sai nítida
+{
+  const s = document.createElement('section'); s.id = 'dom'; s.innerHTML = '<h2>Letters inside page boxes</h2><p>Same letters drawn the way the game windows do (small canvas enlarged ×2 or ×3).</p>'
+  for (const [t, fonte, k, id] of [['VITÓRIA ÀS 3', 'reino', 3, 'pt'], ['ÇA ÉTÉ', 'mini', 3, 'fr'], ['PLAY', 'reino', 3, 'en'], ['ЙОД ЁЖ', 'reino-ouro', 2, 'ru'], ['Tiếng Việt', 'reino', 2, 'vi'], ['ชนะรอบที่ 12', 'mini', 3, 'th']]) {
+    Letras.idioma = id
+    const sp = document.createElement('span'); sp.appendChild(Arte.miniatura(Arte.largura(t, fonte), Arte.alturaDaFonte(fonte), (g) => Arte.texto(g, t, 0, 0, { fonte }), k)); s.appendChild(sp)
+  }
+  Letras.idioma = 'en'; folha.appendChild(s); folha.appendChild(document.createElement('br'))
+}
+{
+  const s = document.createElement('section'); s.id = 'registro'
+  s.innerHTML = '<h2>What went to the device font / what did not fit</h2>'
+  const pre = document.createElement('pre')
+  pre.textContent = 'Letras.faltas():\n' + Letras.faltas().map((f) => `  [${f.idioma}] ${f.fonte}: ${f.texto}  (${f.letras.join(' ')})`).join('\n') + '\n\nLetras.estouros():\n' + Letras.estouros().map((e) => `  ${e.feito} · ${e.fonte} · ${e.largura}px · ${e.texto}`).join('\n') + '\n\ncaber():\n  ' + [...cabe].join('\n  ')
+  s.appendChild(pre); folha.appendChild(s)
+}
+window.Folha = { Arte, Letras, LISTA, NOVAS, CONFIG }
+window.pronto = true
+</script>
+</body>
+</html>

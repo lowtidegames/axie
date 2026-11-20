@@ -1,9 +1,10 @@
 // Keepmile — CAMADA DE ARTE: usa o atlas (arte/atlas.json) quando a peça existe e cai no desenho por código, peça por peça.
 // Toda peça sai no mesmo formato: { img, quadros, variantes, anim, w, h, ax, ay, olhaEsquerda }.
 import * as Cod from './arte-codigo.js'
+import { Letras, apelido, caberCom, maiuscula, quebrarCom, tamanhoDe } from './letras.js'
 
 const BASE = new URL('../', import.meta.url)
-const A = { atlas: null, folhas: {}, pecas: new Map(), porNome: {}, fontes: {}, icones: null, prov: {}, origem: {}, cenarios: {}, botoes: {}, cartas: new Map(), cores: new Map() }
+const A = { atlas: null, folhas: {}, pecas: new Map(), porNome: {}, fontes: {}, icones: null, prov: {}, origem: {}, cenarios: {}, botoes: {}, cartas: new Map(), cores: new Map(), novas: {}, glifos: new Map(), planos: new Map(), aparelho: new Map(), corLisa: Cod.COR.creme }
 export const origem = A.origem // id → 'atlas' | 'provisoria' | 'codigo' (para o relato e o teste)
 const FUCSIA = { cor: '#E0489B', claro: '#F58CC4', escuro: '#9C2C6E' } // decisão de cor: roxo é só do invasor; Fizzwick é rosa-fúcsia
 export const FAMILIA_COR = { ...Cod.FAMILIA_COR, fizzwick: FUCSIA }
@@ -78,6 +79,11 @@ export async function carregar(CONFIG) {
     A.origem['fonte:' + nome] = img ? 'atlas' : 'codigo'
   }
   for (const [nome, f] of Object.entries(atlas?.fontes || {})) if (!A.fontes[nome] && A.folhas[f.folha]) { A.fontes[nome] = { img: A.folhas[f.folha], glifos: f.glifos, altura: f.altura, espaco: f.espaco }; A.origem['fonte:' + nome] = 'atlas' }
+  // R54 — letras novas (acentos, sinais, cirílico) na cor de cada variante; a cor lisa é a da fonte "reino" que estiver valendo (a do atlas é branca)
+  A.corLisa = A.origem['fonte:reino'] === 'atlas' ? '#FFFFFF' : COR.creme
+  A.novas = Cod.fontesNovas(A.corLisa)
+  if (!A.fontes['mini-verde']) { A.fontes['mini-verde'] = Cod.miniDeCor(Cod.VERDE_LETRA); A.origem['fonte:mini-verde'] = 'codigo' } // a pequena da reino-verde (para o `caber`)
+  A.glifos.clear(); A.planos.clear(); A.aparelho.clear()
   const ic = Cod.iconesPorCodigo(), ia = atlas?.icones, iimg = ia && A.folhas[ia.folha]
   A.icones = { cod: ic, img: iimg, quadros: iimg ? ia.quadros : {} }
   A.origem.icones = iimg ? 'atlas' : 'codigo'
@@ -201,39 +207,74 @@ export function quadroDe(a, ms) {
 export function duracao(a) { if (!a.total) quadroDe(a, 0); return a.total }
 
 // ------------------------------------------------------------------ texto em pixel
+// R54 — a letra em 12 idiomas. O caminho de uma letra: fonte do atlas → mesma fonte por código → letras novas (letras.js) na cor da
+// variante → apelido (letra de mesma forma). Frase com QUALQUER letra sem desenho sai inteira na letra do aparelho e fica em `Letras.faltas()`.
+export { Letras, maiuscula }
 const RESERVA = { 'mini-ouro': 'mini-contorno', 'reino-verde': 'reino-contorno', 'dano-g': 'reino-contorno', 'dano-g-ouro': 'reino-ouro' }
+const NOVA_DE = { 'dano-g': 'reino-contorno', 'dano-g-ouro': 'reino-ouro' } // as letras novas de quem não tem folha própria
 function fonteCor(f, nome, cor) {
   if (!cor) return f
-  const k = nome + cor + (f === A.fontes[nome] ? '' : 'c')
+  const k = nome + cor + (f === A.fontes[nome] ? '' : f.cima ? 'n' : 'c')
   if (!A.cores.has(k)) A.cores.set(k, { ...f, img: Cod.silhueta(f.img, cor) })
   return A.cores.get(k)
 }
-/** O glifo de `ch` na fonte; se a fonte do atlas não tiver a letra (ex.: "&"), usa a mesma fonte feita por código. Devolve [fonte, quadro]. */
+/** O glifo de `ch` na fonte: [fonte, quadro, rabo] ou null (sem desenho em pixel). Guardado por fonte+letra. */
 function glifo(nome, ch) {
+  const k = nome + '\n' + ch
+  let r = A.glifos.get(k)
+  if (r === undefined) A.glifos.set(k, r = acharGlifo(nome, ch))
+  return r
+}
+function acharGlifo(nome, ch) {
   const f = A.fontes[nome] || A.fontes[RESERVA[nome]] || A.fontes.reino
   let q = f.glifos[ch] || f.glifos[ch.toLowerCase()]
   if (q) return [f, q]
-  const c = A.fontesCod[nome] || A.fontesCod[RESERVA[nome]]
+  const c = A.fontesCod[nome] || A.fontesCod[RESERVA[nome]] // se a fonte do atlas não tiver a letra (ex.: "&"), a mesma fonte feita por código
   if (c && c !== f) { q = c.glifos[ch] || c.glifos[ch.toLowerCase()]; if (q) return [c, q] }
-  if (ch === ',' || ch === ';') return [f, f.glifos['.'] || f.glifos[' '], true]
-  return [f, f.glifos[' ']]
+  if (ch === ',') return [f, f.glifos['.'] || f.glifos[' '], true] // fonte sem vírgula (mini): ponto com rabinho
+  const n = A.novas[nome] || A.novas[NOVA_DE[nome]]
+  if (n && n.glifos[ch]) return [n, n.glifos[ch]]
+  const a = apelido(ch, tamanhoDe(nome))
+  return a ? acharGlifo(nome, a) : null
 }
-export function largura(s, fonte = 'reino') {
-  let w = 0, esp = 0
-  for (const ch of String(s).toUpperCase()) { const [f, q] = glifo(fonte, ch); esp = (A.fontes[fonte] || f).espaco; w += q[2] + esp }
-  return w - esp
+/** A frase (já em maiúscula) pronta para desenhar: glifos, largura e quanto sobe/desce; ou `falta` = as letras sem desenho. */
+function plano(s, fonte) {
+  const k = fonte + '\n' + s
+  let p = A.planos.get(k)
+  if (p) return p
+  const gs = []; let w = 0, esp = 0, sobe = 0, desce = 0, falta = null
+  for (const ch of s) {
+    const r = glifo(fonte, ch)
+    if (!r) { if (!falta) falta = []; if (!falta.includes(ch)) falta.push(ch); continue }
+    esp = (A.fontes[fonte] || r[0]).espaco; w += r[1][2] + esp
+    if (r[1][4] > sobe) sobe = r[1][4]
+    if (r[1][5] > desce) desce = r[1][5]
+    gs.push(ch === ' ' ? [r[0], r[1], false, true] : r)
+  }
+  p = { gs, w: w - esp, sobe, desce, falta }
+  if (falta) { Letras.registrarFalta(s, fonte, falta); p.w = larguraDoAparelho(s, fonte) }
+  if (A.planos.size > 3000) A.planos.clear()
+  A.planos.set(k, p)
+  return p
 }
+/** A ÚNICA medida de texto do jogo: largura em px de arte, já com a maiúscula do idioma (e a da letra do aparelho, quando a frase vai para ela). */
+export function largura(s, fonte = 'reino') { return plano(maiuscula(s), fonte).w }
+export const medir = largura
+/** A frase sai toda em pixel nesta fonte? (falso = vai para a letra do aparelho) */
+export const temLetra = (s, fonte = 'reino') => !plano(maiuscula(s), fonte).falta
 /** Escreve em pixel. `cor` só vale nas fontes sem contorno (reino, mini). Devolve a largura. */
 export function texto(g, s, x, y, { fonte = 'reino', cor = null, alinhar = 'esquerda', k = 1 } = {}) {
-  s = String(s).toUpperCase()
-  const w = largura(s, fonte) * k, pinta = fonte === 'reino' || fonte === 'mini' ? cor : null
+  s = maiuscula(s)
+  const p = plano(s, fonte), w = p.w * k, pinta = fonte === 'reino' || fonte === 'mini' ? cor : null
   if (alinhar === 'centro') x -= w >> 1; else if (alinhar === 'direita') x -= w
   x = Math.round(x); y = Math.round(y)
+  if (p.falta) { letraDoAparelho(g, s, x, y, fonte, pinta, k); return w }
   const esp = (A.fontes[fonte] || A.fontes[RESERVA[fonte]] || A.fontes.reino).espaco
-  for (const ch of s) {
-    const [f0, q, rabo] = glifo(fonte, ch), f = fonteCor(f0, fonte, pinta)
+  if (p.sobe || p.desce) usou(y - p.sobe * k, y + (alturaDaFonte(fonte) + p.desce) * k)
+  for (const [f0, q, rabo, vazio] of p.gs) {
+    const f = fonteCor(f0, fonte, pinta)
     if (rabo) g.drawImage(f.img, q[0], q[1], q[2], q[3], x - k, y + k, q[2] * k, q[3] * k) // fonte sem vírgula: ponto com rabinho
-    if (ch !== ' ') g.drawImage(f.img, q[0], q[1], q[2], q[3], x, y, q[2] * k, q[3] * k)
+    if (!vazio) g.drawImage(f.img, q[0], q[1], q[2], q[3], x, f.cima ? y - f.cima * k : y, q[2] * k, q[3] * k)
     x += (q[2] + esp) * k
   }
   return w
@@ -242,11 +283,58 @@ export function texto(g, s, x, y, { fonte = 'reino', cor = null, alinhar = 'esqu
 export const alturaDaFonte = (fonte) => (A.fontes[fonte] || A.fontes[RESERVA[fonte]] || A.fontes.reino).altura
 /** Texto com contorno em qualquer tamanho inteiro `k` (títulos grandes). */
 export function titulo(g, s, x, y, k = 2, ouro = false) {
-  const fonte = ouro === true ? 'reino-ouro' : ouro || 'reino-contorno', w = largura(s, fonte), c = Cod.tela(w + 2, (A.fontes[fonte] || A.fontes['reino-contorno']).altura + 1)
-  texto(c.getContext('2d'), s, 0, 0, { fonte })
-  g.drawImage(c, 0, 0, c.width, c.height, Math.round(x - (w * k) / 2), Math.round(y), c.width * k, c.height * k)
+  const fonte = ouro === true ? 'reino-ouro' : ouro || 'reino-contorno', p = plano(maiuscula(s), fonte), w = p.w
+  if (p.falta) { texto(g, s, x, y, { fonte, alinhar: 'centro', k }); return w * k }
+  const c = Cod.tela(w + 2, (A.fontes[fonte] || A.fontes['reino-contorno']).altura + 1 + p.sobe + p.desce) // o acento sobe e a cedilha desce: a tela guardada ganha a folga
+  texto(c.getContext('2d'), s, 0, p.sobe, { fonte })
+  g.drawImage(c, 0, 0, c.width, c.height, Math.round(x - (w * k) / 2), Math.round(y) - p.sobe * k, c.width * k, c.height * k)
   return w * k
 }
+
+// ---- medir e caber (uma função só de cada; `interface.js` e `telas.js` podem trocar as cópias deles por estas)
+/** Quebra em linhas de até `larg` px de arte: no espaço; palavra maior que a caixa é cortada com hífen (anotado em `Letras.estouros()`). */
+export function quebrar(s, larg, fonte = 'mini') { return quebrarCom((t) => largura(t, fonte), s, larg, fonte) }
+const MENOR = { reino: 'mini', 'reino-contorno': 'mini-contorno', 'reino-ouro': 'mini-ouro', 'reino-verde': 'mini-verde' }
+/** Faz caber em UMA linha de `larg` px: a fonte pedida → a pequena da mesma cor → reticências. Devolve { texto, fonte, largura, feito }
+ *  (`feito`: 'coube' | 'menor' | 'reticencias'); o que não coube fica em `Letras.estouros()`. Uso: const c = caber(s, w); texto(g, c.texto, x, y, { fonte: c.fonte }) */
+export function caber(s, larg, fonte = 'reino') { return caberCom(largura, s, larg, MENOR[fonte] ? [fonte, MENOR[fonte]] : [fonte]) }
+
+// ---- a letra do aparelho (reserva honesta): a frase INTEIRA com a fonte do sistema, na altura, cor e contorno da fonte em pixel
+const APARELHO = { reino: [9, 7], mini: [7, 5], dano: [18, 14] } // [tamanho da letra, altura da maiúscula] em px de arte
+const FAMILIA = 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Thai", "Helvetica Neue", Arial, sans-serif'
+const corDaFonte = (fonte) => (fonte.endsWith('ouro') ? COR.ouro : fonte.endsWith('verde') ? Cod.VERDE_LETRA : fonte === 'reino' || fonte === 'mini' ? A.corLisa : COR.creme)
+const medidaDoAparelho = (fonte) => APARELHO[fonte.startsWith('dano') ? 'dano' : tamanhoDe(fonte)]
+const comContorno = (fonte) => fonte !== 'reino' && fonte !== 'mini'
+let reguaG = null
+function larguraDoAparelho(s, fonte) {
+  const [px] = medidaDoAparelho(fonte)
+  reguaG ||= Cod.tela(1, 1).getContext('2d')
+  reguaG.font = `bold ${px * 8}px ${FAMILIA}`
+  return Math.max(1, Math.ceil(reguaG.measureText(s).width / 8)) + (comContorno(fonte) ? 2 : 0)
+}
+function letraDoAparelho(g, s, x, y, fonte, cor, k) {
+  const [px, alt] = medidaDoAparelho(fonte), borda = comContorno(fonte) ? 1 : 0, t = g.getTransform ? g.getTransform() : { a: 1, b: 0 }
+  const e = Math.max(1, Math.hypot(t.a, t.b)) * k // px de tela por px de arte
+  const tinta = cor || corDaFonte(fonte), chave = [s, fonte, tinta, e].join('\n')
+  let c = A.aparelho.get(chave)
+  if (!c) {
+    const w = larguraDoAparelho(s, fonte), m = Math.ceil(px * 0.7 * e), mx = Math.ceil(2 * e)
+    c = Cod.tela(Math.ceil(w * e) + 2 * mx, Math.ceil((alt + 2 * borda) * e) + 2 * m)
+    const gc = c.getContext('2d'), bx = mx + borda * e, by = m + (borda + alt) * e
+    gc.font = `bold ${px * e}px ${FAMILIA}`; gc.textBaseline = 'alphabetic'
+    if (borda) { gc.strokeStyle = COR.ameixa; gc.lineWidth = 2 * e; gc.lineJoin = 'round'; gc.strokeText(s, bx, by) }
+    gc.fillStyle = tinta; gc.fillText(s, bx, by)
+    c.margem = [mx / e, m / e]
+    if (A.aparelho.size > 200) A.aparelho.clear()
+    A.aparelho.set(chave, c)
+  }
+  const [mx, m] = c.margem
+  usou(y - m * k, y + (c.height / e - m) * k, true)
+  g.drawImage(c, 0, 0, c.width, c.height, x - mx * k, y - m * k, (c.width / e) * k, (c.height / e) * k)
+}
+/** Até onde o texto subiu e desceu no desenho em curso (para quem guarda o desenho numa tela justa: `miniatura`). */
+let USO = null
+function usou(topo, base, aparelho = false) { if (!USO) return; if (topo < USO.topo) USO.topo = topo; if (base > USO.base) USO.base = base; if (aparelho) USO.aparelho = true }
 
 // ------------------------------------------------------------------ ícones, botões, painel
 export function icone(g, nome, x, y) {
@@ -449,7 +537,24 @@ export function fimPeca(g, nome, x, y, ms = 0, w = 0, h = 0) {
   g.drawImage(img, q[0], q[1], q[2], q[3], x, y, w || q[2], h || q[3]); return q
 }
 /** Canvas pequeno com um desenho do atlas (para as telas em HTML). */
-export function miniatura(w, h, desenhar, k = 2) { const c = Cod.tela(w, h); c.className = 'km-px'; c.style.width = w * k + 'px'; c.style.height = h * k + 'px'; desenhar(c.getContext('2d')); return c }
+export function miniatura(w, h, desenhar, k = 2) {
+  const c = Cod.tela(w, h); c.className = 'km-px'; c.style.width = w * k + 'px'; c.style.height = h * k + 'px'
+  const antes = USO, uso = USO = { topo: 0, base: h, aparelho: false }
+  try {
+    desenhar(c.getContext('2d'))
+    // R54 — acento que sobe, cedilha que desce ou letra do aparelho: a tela cresce para fora (margem negativa: o lugar na página não muda)
+    // e, com letra do aparelho, é refeita na resolução da tela (senão a letra do sistema sairia em blocos)
+    const cima = Math.ceil(-uso.topo), baixo = Math.ceil(uso.base - h)
+    if (cima > 0 || baixo > 0 || uso.aparelho) {
+      const e = uso.aparelho ? Math.max(1, Math.ceil(k * (globalThis.devicePixelRatio || 1))) : 1
+      c.width = w * e; c.height = (h + cima + baixo) * e
+      const g = c.getContext('2d'); g.setTransform(e, 0, 0, e, 0, cima * e); g.imageSmoothingEnabled = false
+      USO = null; desenhar(g)
+      c.style.height = (h + cima + baixo) * k + 'px'; c.style.marginTop = -cima * k + 'px'; c.style.marginBottom = -baixo * k + 'px'
+    }
+  } finally { USO = antes }
+  return c
+}
 /** Efeitos de ambiente da hora (cenarios.vida do atlas). */
 export const vidaDaHora = (hora) => A.atlas?.cenarios?.vida?.[hora] || []
 export const temFonte = (nome) => !!A.fontes[nome]

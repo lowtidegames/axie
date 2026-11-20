@@ -192,7 +192,8 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
     abrir('falha', T.menu.titulo, [linha(erroTexto(codigo), { pid: 'telaErro', fonte: 'reino', cor: COR.ouro }), Object.assign(bt(T.srv.deNovo, fechar), { id: 'telaDeNovo' })])
     aoSair = deNovo
   }
-  const linhaDaEnergia = (e) => linha(e.atual >= e.maximo ? T.srv.energia(e.atual, e.maximo) : `${T.srv.energia(e.atual, e.maximo)} · ${T.srv.energiaVolta(e.porDia, falta(e.recarregaEm))}`, { pid: 'telaEnergia', fonte: 'reino', cor: COR.ouro })
+  /** Energia de ranking: quanto tem e, se não está cheia, quando volta (números e hora do servidor). Sem botão, sem empurrar. */
+  const linhaDaEnergia = (e) => h('p', { class: 'km-linha km-energia', id: 'telaEnergia' }, [letra(T.srv.energia(e.atual, e.maximo), { fonte: 'reino', cor: COR.ouro }), e.atual >= e.maximo ? null : letra(' ' + T.srv.energiaVolta(e.porDia, falta(e.recarregaEm)), { fonte: 'mini', cor: CINZA })])
   /** Botão de duas linhas (título + o que é), no acabamento dos botões do menu. */
   const btDuplo = (id, titulo, sub, clique, marca = '') => h('button', { type: 'button', class: 'km-bt km-bt--fraco km-chapa km-modo', id, clique: () => { Som.tocar('toque'); clique() } }, [h('span', {}, [letra(titulo + (marca ? ' · ' + marca : ''), { fonte: 'reino-ouro', larg: LARG() - 30 }), letra(sub, { fonte: 'mini', cor: CINZA, larg: LARG() - 30 })])])
   function chapaDoPerfil(id, clique) {
@@ -204,7 +205,7 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
     const corpo = [
       chapaDoPerfil('mLiga', perfil),
       Object.assign(bt(T.srv.jogar.menu, () => jogar()), { id: 'mJogar' }), Object.assign(bt(T.srv.ranking.menu, ranking), { id: 'mRanking' }), Object.assign(bt(T.srv.placar.menu, placar), { id: 'mPlacar' }),
-      Object.assign(bt(T.menu.album, album), { id: 'mAlbum' }), Object.assign(bt(T.menu.conquistas, conquistas), { id: 'mConquistas' }),
+      Object.assign(bt(T.menu.album, album, 'km-bt--fraco'), { id: 'mAlbum' }), Object.assign(bt(T.menu.conquistas, conquistas, 'km-bt--fraco'), { id: 'mConquistas' }),
       liga(T.menu.som, !Som.mudo(), () => !Som.alternarMudo(), 'mSom'),
       volume(T.menu.musica, 'musica', 'mMusica'), volume(T.menu.efeitos, 'efeitos', 'mEfeitos'),
       liga(T.menu.movimento, menos(), () => menos(!menos()), 'mMenos'),

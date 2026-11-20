@@ -720,7 +720,7 @@ function situacaoDoServidor() {
   const v = S.perfil?.temporada?.voce, L = CONFIG.BETA.ligas, nomeDe = (id) => (id === CONFIG.BETA.lenda.id ? CONFIG.BETA.lenda.nome : L.find((l) => l.id === id)?.nome || String(id))
   if (!v) return { media: 0, posicao: null, liga: { nome: T.srv.semLiga, i: -1, pct: 0, proxima: null, falta: 0, marca: T.srv.temporadaMarca, linha: T.srv.semRanking } }
   const i = L.findIndex((l) => l.id === v.liga), f = v.faltaParaProxima, de = i >= 0 ? L[i].min : 0, ate = f ? v.pontos + f.pontos : de
-  return { media: v.pontos, posicao: v.posicao, liga: { nome: nomeDe(v.liga), i, pct: f && ate > de ? Math.max(0, Math.min(100, Math.floor(((v.pontos - de) * 100) / (ate - de)))) : 100, proxima: f ? nomeDe(f.liga) : null, falta: f ? f.pontos : 0, marca: T.srv.posicao(v.posicao) } }
+  return { media: v.pontos, posicao: v.posicao, liga: { nome: nomeDe(v.liga), i, pct: f && ate > de ? Math.max(0, Math.min(100, Math.floor(((v.pontos - de) * 100) / (ate - de)))) : 100, proxima: f ? nomeDe(f.liga) : null, falta: f ? f.pontos : 0, marca: T.srv.posicaoMarca(v.posicao) } }
 }
 function albumDoServidor() {
   const a = S.perfil?.album; if (!a || !a.proxima) return a ? null : { falta: 0, pct: 0, carta: null }

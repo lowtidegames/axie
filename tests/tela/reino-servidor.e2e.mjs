@@ -264,10 +264,11 @@ async function celular() {
   confere((await texto(page, '#mLiga')).includes(e.apelido), 'o menu mostra o nome da conta')
   await medirTela(page, 'menu')
   await foto('menu-celular')
+  await espera(page, () => !window.__keepmile.modelo().status, null, 8000)
   await tap('#mJogar')
   await espera(page, () => !!document.getElementById('jRanking'))
   confere((await texto(page, '#jRanking')).includes('3/9') && (await texto(page, '#telaEnergia')).startsWith(T.srv.energia(3, 9)), 'escolha de modo: a energia de ranking aparece como 3/9')
-  confere(/\+3 in (\d+h )?\d+m$/.test(await texto(page, '#telaEnergia')), `e diz quando volta (${await texto(page, '#telaEnergia')})`)
+  confere(/ \+3 in (\d+h )?\d+m$/.test(await texto(page, '#telaEnergia')), `e diz quando volta (${await texto(page, '#telaEnergia')})`)
   { const falta = Date.parse(perfil1.energia.recarregaEm) - Date.now(), dito = (await texto(page, '#telaEnergia')).split('in ')[1]; confere([T.srv.em(falta), T.srv.em(falta - 60_000), T.srv.em(falta + 60_000)].includes(dito), 'o tempo da recarga é o do servidor') }
   confere(!/buy|pay|price|\$|prize|reward/i.test(await texto(page, '#telaCaixa')), 'nada de compra nem de prêmio na escolha de modo')
   await medirTela(page, 'escolha de modo')
@@ -280,10 +281,10 @@ async function celular() {
   await K(page, () => window.__keepmile.jogarNoServidor({ ateRodada: 3 }))
   await K(page, () => window.__keepmile.jogarNoServidor({ semCarta: true }))
   await espera(page, () => window.__keepmile.fase() === 'fim' && window.__keepmile.modelo().fim?.contou, null, 20_000)
-  await espera(page, () => /^#\d+$/.test(window.__keepmile.modelo().fim.liga.marca || ''))
+  await espera(page, () => /^RANK \d+$/.test(window.__keepmile.modelo().fim.liga.marca || ''))
   fim = (await modelo(page)).fim
   const rk1 = (await api('GET', '/api/reino/ranking', await token())).json
-  confere(fim.liga.marca === '#' + rk1.voce.posicao && fim.media === rk1.voce.pontos, `fim do ranking: posição e média da temporada vêm do servidor (#${rk1.voce.posicao}, ${rk1.voce.pontos})`)
+  confere(fim.liga.marca === T.srv.posicaoMarca(rk1.voce.posicao) && fim.media === rk1.voce.pontos, `fim do ranking: posição e média da temporada vêm do servidor (${rk1.voce.posicao}º, ${rk1.voce.pontos})`)
   confere(fim.amigo?.texto === T.srv.energiaCurta(2, 9), 'e a energia que sobrou (2/9)')
 
   // ---- 9. ranking da temporada
@@ -317,7 +318,7 @@ async function celular() {
   await espera(page, () => window.__keepmile.fase() === 'fim' && window.__keepmile.modelo().fim?.contou, null, 20_000)
   await page.waitForTimeout(400)
   fim = (await modelo(page)).fim
-  confere(fim.amigo?.texto === T.srv.fora.CONTA_NOVA && !/#\d/.test(fim.amigo.texto), 'fim da estrada: diz que está fora do placar e por quê; não diz posição')
+  confere(fim.amigo?.texto === T.srv.fora.CONTA_NOVA && !/RANK \d/.test(fim.amigo.texto), 'fim da estrada: diz que está fora do placar e por quê; não diz posição')
   await tap('#bt-denovo')
   await espera(page, () => document.getElementById('tela').dataset.tela === 'jogar' && !!document.getElementById('jEstrada'))
   confere((await texto(page, '#jEstrada')).includes(T.srv.jogar.estradaFeita), 'depois de jogar: "Done today. Available tomorrow."')
@@ -380,7 +381,7 @@ async function celular() {
     const seqAntes = (await srv(page)).seq
     await K(page, () => window.__keepmile.avancarBatalha())
     await espera(page, () => window.__keepmile.fase() === 'replay')
-    confere((await K(page, () => window.__keepmile.desenhou())).includes('replay'), 'entre as lutas, a faixa do replay diz de quem é e o passo')
+    confere(await espera(page, () => window.__keepmile.desenhou().includes('replay'), null, 3000).then(() => true, () => false), 'entre as lutas, a faixa do replay diz de quem é e o passo')
     await foto('replay-celular')
     // até o fim, pulando cada luta
     for (let i = 0; i < 400; i++) { const m = await modelo(page); if (m.replay.fim) break; if (m.fase === 'luta') await K(page, () => window.__keepmile.avancarBatalha()); await page.waitForTimeout(60) }
@@ -436,7 +437,7 @@ async function pc({ sessao, apelido }) {
   await espera(page, () => window.__keepmile.fase() === 'fim' && window.__keepmile.modelo().fim?.contou, null, 20_000)
   const rk = (await api('GET', '/api/reino/ranking', token)).json
   await espera(page, (t) => window.__keepmile.modelo().fim.amigo?.texto === t, T.srv.noPlacar(rk.estradaDoDia.voce.posicao))
-  confere(rk.estradaDoDia.voce.posicao === 1, 'fim da estrada: a tela só diz "#1 ON THE BOARD" depois que o servidor trouxe a posição da conta')
+  confere(rk.estradaDoDia.voce.posicao === 1, 'fim da estrada: a tela só diz "RANK 1 ON THE BOARD" depois que o servidor trouxe a posição da conta')
   await page.waitForTimeout(300)
   await foto('estrada-fim-pc')
   await abrirTela('#mPlacar', '#placarVoce')

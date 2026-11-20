@@ -62,8 +62,8 @@ export const T = {
     modoSub: { treino: 'FREE PRACTICE', estrada: 'SAME ROAD FOR EVERYONE TODAY' }, energiaCurta: (a, m) => `RANKED ENERGY ${a}/${m}`,
     fora: { CONTA_NOVA: "OFF TODAY'S BOARD: NEW ACCOUNT. PLAY FREELY.", SEM_RANKING: "OFF TODAY'S BOARD: FINISH 1 RANKED RUN FIRST." },
     foraFrase: { CONTA_NOVA: "Off today's board: this account is new. From tomorrow, with 1 ranked run finished, you are in.", SEM_RANKING: "Off today's board: finish 1 ranked run to enter." },
-    noPlacar: (n) => `TODAY'S ROAD: #${n} ON THE BOARD`, foraSemMotivo: "TODAY'S ROAD: NOT ON THE BOARD", naoContou: 'THIS RUN DID NOT COUNT',
-    semLiga: 'UNRANKED', semRanking: 'NO RANKED RUN THIS SEASON', temporadaMarca: 'SEASON', posicao: (n) => `#${n}`,
+    noPlacar: (n) => `TODAY'S ROAD: RANK ${n} ON THE BOARD`, foraSemMotivo: "TODAY'S ROAD: NOT ON THE BOARD", naoContou: 'THIS RUN DID NOT COUNT',
+    semLiga: 'UNRANKED', semRanking: 'NO RANKED RUN THIS SEASON', temporadaMarca: 'SEASON', posicao: (n) => String(n), posicaoMarca: (n) => `RANK ${n}`, // a letra do jogo não tem o sinal de número: a posição vai por extenso
     postar: (n, url) => `Keepmile: I held ${n} round${n === 1 ? '' : 's'}. ${url}`,
     em: (ms) => { const m = Math.max(0, Math.ceil(ms / 60000)), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60); return d ? `${d}d ${h}h` : h ? `${h}h ${m % 60}m` : `${m}m` },
     energia: (a, m) => `Ranked energy ${a}/${m}`, energiaVolta: (n, quando) => `+${n} in ${quando}`,
@@ -74,16 +74,16 @@ export const T = {
     },
     ranking: {
       titulo: 'Season', menu: 'Season ranking', temporada: (n, quando) => `Season ${n} - ends in ${quando}`, fechada: (n) => `Season ${n} - closed`, regra: (n) => `Score: average of your best ${n} ranked runs`,
-      voce: (pos, pts) => `#${pos} - ${pts}`, semVoce: 'No ranked run this season yet', proxima: (nome, n) => `${n} more for ${nome}`, topo: 'Top keepers', vazio: 'No ranked runs yet this season',
+      voce: (pos, pts) => `Rank ${pos} - ${pts} points`, semVoce: 'No ranked run this season yet', proxima: (nome, n) => `${n} more for ${nome}`, topo: 'Top keepers', vazio: 'No ranked runs yet this season',
       mais: 'More', ligas: 'Titles', faixa: (de) => `${de} or more`, lenda: (n) => `Top ${n} of the season`, beta: 'Beta: titles only.', partidas: (n) => `${n} run${n === 1 ? '' : 's'}`,
     },
     placar: {
-      titulo: "Today's road", menu: "Today's road", dia: (d, quando) => `${d} - new road in ${quando}`, voce: (pos, pts) => `You: #${pos} - ${pts}`, aberta: 'Your road is in progress', naoJogou: 'You have not played today',
+      titulo: "Today's road", menu: "Today's road", dia: (d, quando) => `${d} - new road in ${quando}`, voce: (pos, pts) => `You: rank ${pos} - ${pts} points`, aberta: 'Your road is in progress', naoJogou: 'You have not played today',
       fora: (pts) => `Your run: ${pts} - not on the board`, vazio: 'Nobody on the board yet', jogar: "Play today's road", replays: "Replays of today's road open tomorrow.", linha: (pts, n) => `${pts} - ${n} round${n === 1 ? '' : 's'}`,
     },
     perfil: {
-      titulo: 'Profile', menu: 'Profile', recordes: (p, r, n) => `Best score ${p} - Longest run ${r} - Runs ${n}`, temporada: (n, quando) => `Season ${n} ends in ${quando}`, titulos: 'Past seasons',
-      titulo1: (t, pos, liga, pts) => `Season ${t}: #${pos} - ${liga} - ${pts}`, melhores: 'Best runs', ver: 'Watch', nenhuma: 'No runs yet', corrida: (n, modo, dia) => `${n} round${n === 1 ? '' : 's'} - ${modo} - ${dia}`, nome: (n) => `Name: ${n}`,
+      titulo: 'Profile', menu: 'Profile', recordes: (p, r, n) => `Best ${p} - Longest ${r} round${r === 1 ? '' : 's'} - ${n} run${n === 1 ? '' : 's'}`, temporada: (n, quando) => `Season ${n} ends in ${quando}`, titulos: 'Past seasons',
+      titulo1: (t, pos, liga, pts) => `Season ${t}: rank ${pos} - ${liga} - ${pts}`, melhores: 'Best runs', ver: 'Watch', nenhuma: 'No runs yet', corrida: (n, modo, dia) => `${n} round${n === 1 ? '' : 's'} - ${modo} - ${dia}`, nome: (n) => `Name: ${n}`,
     },
     replay: { sair: 'Leave replay', de: (n) => `REPLAY: ${n}`, passo: (i, n) => `STEP ${i}/${n}`, fim: (r, p) => `RUN OVER: ${r} ROUNDS - SCORE ${p}`, saia: 'TAP X TO LEAVE', por: (carta, k) => `${carta} > PLOT ${k}`, espolio: 'TOOK A REWARD', desistir: 'GAVE UP' },
   },

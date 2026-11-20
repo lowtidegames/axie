@@ -576,9 +576,10 @@ cabecalho('R35 — no jogo: cada evento da tela nova dispara o som certo, no qua
   confere(antes.ligado === false && antes.ambientePedido === 'manha', 'antes do primeiro toque nada liga; o ambiente do trecho (manhã nos campos) só fica pedido')
   await j.keyboard.press('Shift'); await dorme(400)
   const pn = () => KJ(j, (k) => k.som().porNome)
-  // cartas que viram em cascata
+  // cartas que viram em cascata (espera a revelação da abertura acabar: um tique dela caindo entre as duas leituras entrava na conta — falhou 1 vez em 3 no R43)
+  await j.waitForFunction(() => window.__keepmile.modelo().maoRevelada === true, null, { timeout: 5000 }); await dorme(200)
   let a = await pn(); await KJ(j, (k) => k.maoNova()); await dorme(1300); let b = await pn()
-  confere((b.cartaVira || 0) - (a.cartaVira || 0) === 3 && (b.toque || 0) - (a.toque || 0) === 3, 'as 3 cartas que viram: papel virando (cartaVira) + a nota que sobe, uma vez por carta')
+  confere((b.cartaVira || 0) - (a.cartaVira || 0) === 3 && (b.toque || 0) - (a.toque || 0) === 3, `as 3 cartas que viram: papel virando (cartaVira) + a nota que sobe, uma vez por carta (cartaVira ${(b.cartaVira || 0) - (a.cartaVira || 0)}, toque ${(b.toque || 0) - (a.toque || 0)})`)
   confere((await KJ(j, (k) => k.som().ambiente)) === 'manha', 'depois do toque o ambiente do trecho toca (rodada 1: manhã nos campos)')
   // menu
   a = await pn(); await j.click('#bt-menu'); await dorme(300); const abriu = await pn(); await j.keyboard.press('Escape'); await dorme(300); b = await pn()
@@ -714,7 +715,7 @@ cabecalho('R43 — tique de contagem: soa em todo passo (mesmo com o teto cheio)
   confere(r.copias <= 2 && r.cortados >= 5, `7 fanfarras iguais coladas não empilham: ficam ${r.copias} vivas (teto 2), ${r.cortados} antigas cortadas`)
   confere(r.cheio === 12 && r.soPri1 && r.vozesNoTique.slice(0, 5).every((v) => v === 12), `teto cheio com 12 vozes de prioridade 1 quando a contagem começa (${r.vozesNoTique.join(' ')})`)
   confere(r.tiques.length === 13 && r.tiques.every(Boolean) && r.tocou === 13 && r.recusados === 0 && r.max <= 12, `os 13 tiques da contagem soam, um por passo de 70 ms, sem passar do teto (${r.tocou} de 13, ${r.recusados} recusados, no máximo ${r.max} vozes)`)
-  confere(r.juntos.every(Boolean) && r.comum[0] === true && r.comum[1] === false && JSON.stringify(r.certos) === '["ouroTique","rankingSobe"]', 'dois passos de contagem no mesmo instante soam os dois (rankingSobe e ouroTique); som comum repetido no mesmo instante continua virando um só')
+  confere(r.juntos.every(Boolean) && r.comum[0] === true && r.comum[1] === false && JSON.stringify(r.certos.sort()) === '["ouroTique","rankingSobe"]', 'dois passos de contagem no mesmo instante soam os dois (rankingSobe e ouroTique); som comum repetido no mesmo instante continua virando um só')
   confere(r.nota0.sol > r.nota0.re + 10 && r.nota7.re > r.nota7.sol + 10 && r.sobrou === 0, `a contagem sobe de nota: sem degrau toca sol (${n1(r.nota0.sol)} dB contra ${n1(r.nota0.re)} do ré), no degrau 7 toca ré (${n1(r.nota7.re)} dB contra ${n1(r.nota7.sol)} do sol)`)
   await p.close()
 }

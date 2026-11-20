@@ -4,6 +4,7 @@
 //   --n      partidas (A, D, F; padrão 2000) ou ofertas (B 400, C 300); E usa n/10 contas atentas e aleatórias e n/50 do planejador
 //            (padrão 200 e 40), cada conta com --partidas partidas seguidas (padrão 60; R40: as 30 conquistas e a vitória da rodada 20)
 //   --sem-ranking  E sem o ranking semanal (mais rápido) · --sem-aleatorio  E sem as contas do aleatório
+//   --intermediario  E também com o robô intermediário (atento com juízo); E traz a medida V (rodada da vitória 12/15/16/18/20)
 //   --planos partidas por robô de plano no D (padrão 300; 0 = sem planos)
 //   --k      continuações por opção (B, C; padrão 8)
 //   --saida arquivo.json  guarda os números crus (para comparar variantes com as mesmas sementes)
@@ -57,6 +58,11 @@ export const VARIANTES = {
   bis22: { cfg: () => por(CONQUISTAS, 'rodadaDoBis', 22) }, // Encore! mais perto da vitória (20)
   bis21: { cfg: () => por(CONQUISTAS, 'rodadaDoBis', 21) },
   bolsos4: { cfg: () => por(CONQUISTAS, 'reliquias', 4) }, // Pocketful: os 3 chefes dão 3 relíquias (cai junto com Mole Patrol)
+  // R40 — rodada da vitória (hoje 20). A medida V já tira todas da mesma partida; estas servem para o teste provar a equivalência.
+  vit12: { cfg: () => por(P, 'rodadaDaVitoria', 12) },
+  vit15: { cfg: () => por(P, 'rodadaDaVitoria', 15) },
+  vit16: { cfg: () => por(P, 'rodadaDaVitoria', 16) },
+  vit18: { cfg: () => por(P, 'rodadaDaVitoria', 18) },
 }
 
 function aplicarVariante(nome) {
@@ -156,14 +162,15 @@ function gananciosoPuro(e) {
  * vazio a partir do portão; construção no 1º vazio ao lado de uma tropa ("buildings help the plots next to them"). Reino cheio sem LEVEL UP:
  * troca a carta de nível mais baixo. Nunca sorteia. Espólio: Promotion na tropa de nível mais alto; senão Card; senão Purse.
  */
-function novatoAtento(e, inteiro) {
+function novatoAtento(e, inteiro, juizo = false) {
   const v = visao(e), o = opcoes(e)
   if (o.fase === 'carta') {
-    if (o.consertar.pode) return { tipo: 'consertar' }
+    if (o.consertar.pode && (!juizo || v.vidas === 1 || v.ouro >= o.consertar.custo + 15)) return { tipo: 'consertar' }
     if (v.cartaPosta) return { tipo: 'batalhar' }
     const porC = o.comandos.filter((c) => c.tipo === 'por')
     if (!porC.length) return { tipo: 'batalhar' }
     const T = v.terrenos
+    if (juizo && o.sortear.pode && e.sorteios === 0 && v.ouro - o.sortear.custo >= 10 && maoRuim(v)) return { tipo: 'sortear' }
     if (v.oferta[0] && v.oferta[0].levelUp) {
       const c = v.oferta[0].carta
       const k = T.findIndex((t) => t && t.carta === c && t.nivel < P.nivelMax)
@@ -183,7 +190,9 @@ function novatoAtento(e, inteiro) {
     for (const t of T) if (t) cont[CARTAS[t.carta].familia] = (cont[CARTAS[t.carta].familia] || 0) + 1
     const cheio = T.every(Boolean)
     const liga = v.oferta.map((x) => x.carta).find((c) => !cheio && (cont[CARTAS[c].familia] || 0) + 1 === FAMILIAS[CARTAS[c].familia].terrenos)
-    const carta = liga || v.oferta[inteiro(v.oferta.length)].carta
+    // com juízo: sem LEVEL UP nem carta que liga, a carta da família que o reino já tem mais (monta o bônus); senão ao acaso
+    const junta = juizo && !liga && !cheio ? v.oferta.map((x) => x.carta).filter((c) => cont[CARTAS[c].familia]).sort((a, b) => cont[CARTAS[b].familia] - cont[CARTAS[a].familia])[0] : null
+    const carta = liga || junta || v.oferta[inteiro(v.oferta.length)].carta
     const cmd = { tipo: 'por', carta, terreno: lugar(carta) }
     return porC.some((c) => c.carta === cmd.carta && c.terreno === cmd.terreno) ? cmd : porC[0]
   }
@@ -195,11 +204,31 @@ function novatoAtento(e, inteiro) {
   return esp.find((c) => v.espolios[c.indice].tipo !== 'carta' && v.espolios[c.indice].tipo !== 'promocao') || esp[0]
 }
 
-export const ROBOS36 = ['aleatorio', 'ganancioso-puro', 'novato-atento', 'planejador']
+/**
+ * Mão ruim (R40, para o "intermediário"), só olhando a mão e o reino, sem simular luta: nenhuma carta sobe (LEVEL UP), nenhuma liga
+ * família, nenhuma é de família que o reino já tem e o reino já tem 3 cartas ou mais (no começo qualquer carta serve).
+ */
+export function maoRuim(v) {
+  const T = v.terrenos
+  if (T.filter(Boolean).length < 3) return false
+  if (v.oferta[0] && v.oferta[0].levelUp && T.some((t) => t && t.carta === v.oferta[0].carta && t.nivel < P.nivelMax)) return false
+  const cont = {}
+  for (const t of T) if (t) cont[CARTAS[t.carta].familia] = (cont[CARTAS[t.carta].familia] || 0) + 1
+  const cheio = T.every(Boolean)
+  return !v.oferta.some((x) => { const f = CARTAS[x.carta].familia; return !cheio && cont[f] })
+}
+
+/**
+ * "Intermediário" (R40): o novato atento com juízo — o jogador real médio. Conserta só com 1 vida ou com ouro sobrando (a regra do
+ * planejador); sorteia de novo 1 vez por rodada quando a mão é ruim (maoRuim) e sobram 10 de ouro; sem LEVEL UP nem carta que liga,
+ * prefere a carta da família que o reino já tem mais. Não simula luta (é o que o separa do planejador).
+ */
+export const ROBOS36 = ['aleatorio', 'ganancioso-puro', 'novato-atento', 'intermediario', 'planejador']
 export function escolher36(robo, e, inteiro) {
   if (robo === 'planejador') return planejador(e)
   if (robo === 'ganancioso-puro') return gananciosoPuro(e)
   if (robo === 'novato-atento') return novatoAtento(e, inteiro)
+  if (robo === 'intermediario') return novatoAtento(e, inteiro, true)
   return escolher(robo, e, inteiro) // aleatorio, ganancioso, plano:<id> (robos.js, sem cópia)
 }
 
@@ -599,12 +628,13 @@ function tarefaE({ robo, de, ate, semente, regras, partidas }) {
   const out = []
   for (let j = de; j < ate; j++) {
     const tem = new Set(), conta = { rodadas: 0 }
-    const conq = {}, venceu = []
+    const conq = {}, venceu = [], vencidas = []
     for (let p = 1; p <= partidas; p++) {
       const e = jogarComConquistas({ robo, semente: `${semente}:E:${j}:${p}`, liberadas: liberadasPorRodadas(conta.rodadas), regras, tem, conta, aoGanhar: (id) => { conq[id] = p } })
       if (resistiu(e.vencidas)) venceu.push(p)
+      vencidas.push(e.vencidas)
     }
-    out.push({ conq, venceu, somadas: conta.rodadas })
+    out.push({ conq, venceu, vencidas, somadas: conta.rodadas })
   }
   return out
 }
@@ -692,6 +722,55 @@ function resumoE(porRobo, partidas) {
   for (const a of avisos) L.push(`- ${a}`)
   return { linhas: L, res }
 }
+// ---------------------------------------------------------------- V (R40): onde pôr a rodada da vitória
+// A rodada da vitória não muda o jogo (a partida segue depois dela; resistiu() só lê as vencidas), então TODAS as rodadas candidatas
+// saem da MESMA partida: vitória com a rodada R ⇔ vencidas ≥ R. Encore! com a rodada B ⇔ vencidas ≥ B (quem perde repete a rodada:
+// vencer a rodada B é chegar a B vencidas). O teste confere as duas equivalências contra a injeção (variantes vitNN e bisNN).
+export const LIMIARES_V = [12, 15, 16, 18, 20]
+const RODADAS_DE_CHEFE = new Set(CHEFES.map((c) => c.rodada))
+const FAIXAS_V = [[1, 5], [6, 15], [16, 30], [31, 60]]
+/** Contas (cada uma com `vencidas` por partida) → números da vitória na rodada R. */
+export function vitoriaNoLimiar(jogs, R, ate = Infinity) {
+  const n = jogs.length
+  const prim = jogs.map((x) => { const i = x.vencidas.findIndex((v) => v >= R); return i < 0 ? NUNCA : i + 1 })
+  const tot = jogs.reduce((s, x) => s + x.vencidas.length, 0)
+  const ateK = (k) => pct(prim.filter((p) => p <= k).length, n)
+  return {
+    partidas: pct(jogs.reduce((s, x) => s + x.vencidas.filter((v) => v >= R).length, 0), tot),
+    primeira: quantil(prim, 0.5), primeiraP90: quantil(prim, 0.9),
+    ate10: ateK(10), ate20: ateK(20), ate30: ateK(30), ate60: ateK(Math.min(60, ate)),
+  }
+}
+function resumoV(porRobo, partidas) {
+  const robos = Object.keys(porRobo)
+  const L = ['### V — vencidas por partida (o álbum cresce; mediana / p75 / p90 / máximo)', '', '| robô | ' + FAIXAS_V.map(([a, b]) => `partidas ${a}–${Math.min(b, partidas)}`).join(' | ') + ' |', '|---|' + FAIXAS_V.map(() => '---|').join('')]
+  const res = { faixas: {}, limiares: {}, bis: {} }
+  for (const robo of robos) {
+    const cel = FAIXAS_V.filter(([a]) => a <= partidas).map(([a, b]) => {
+      const vs = porRobo[robo].flatMap((x) => x.vencidas.slice(a - 1, b))
+      const r = { mediana: quantil(vs, 0.5), p75: quantil(vs, 0.75), p90: quantil(vs, 0.9), max: vs.length ? Math.max(...vs) : 0 }
+      ;(res.faixas[robo] ||= {})[`${a}-${b}`] = r
+      return `${r.mediana} / ${r.p75} / ${r.p90} / ${r.max}`
+    })
+    L.push(`| ${robo} | ${cel.join(' | ')} |`)
+  }
+  L.push('', `### V — vitória na rodada R (luta de chefe nas rodadas ${[...RODADAS_DE_CHEFE].join(', ')})`, '')
+  L.push('| R | chefe? | robô | partidas com vitória | 1ª vitória: partida mediana / p90 | contas que já venceram em 10 / 20 / 30 / 60 partidas |', '|---|---|---|---|---|---|')
+  for (const R of LIMIARES_V) for (const robo of robos) {
+    const x = vitoriaNoLimiar(porRobo[robo], R, partidas)
+    ;(res.limiares[R] ||= {})[robo] = x
+    L.push(`| ${R} | ${RODADAS_DE_CHEFE.has(R) ? 'sim' : 'não'} | ${robo} | ${f1(x.partidas)}% | ${fmtP(x.primeira, partidas)} / ${fmtP(x.primeiraP90, partidas)} | ${f1(x.ate10)}% / ${f1(x.ate20)}% / ${f1(x.ate30)}% / ${f1(x.ate60)}% |`)
+  }
+  L.push('', '### V — Encore! acompanhando a vitória (vencer a rodada B): % das contas que alcançam em 60 partidas · partida mediana', '')
+  const bisList = [...new Set(LIMIARES_V.flatMap((R) => [R + 2, R + 5]).concat([CONQUISTAS.rodadaDoBis]))].sort((a, b) => a - b)
+  L.push('| B | ' + robos.join(' | ') + ' |', '|---|' + robos.map(() => '---|').join(''))
+  for (const B of bisList) {
+    const cel = robos.map((robo) => { const x = vitoriaNoLimiar(porRobo[robo], B, partidas); (res.bis[B] ||= {})[robo] = x; return `${f1(x.ate60)}% · ${fmtP(x.primeira, partidas)}` })
+    L.push(`| ${B}${B === CONQUISTAS.rodadaDoBis ? ' (hoje)' : ''} | ${cel.join(' | ')} |`)
+  }
+  return { linhas: L, res }
+}
+
 /** Ranking semanal: média das 3 melhores de 21 partidas; reamostra das partidas já jogadas (partidas são independentes). */
 export function rankingSemanal(pontosPior, pontosMelhor, { semanas = 20000, partidas = 21, melhores = 3, semente = 'ranking' } = {}) {
   const rng = criarRng(semente)
@@ -769,14 +848,18 @@ export async function medirPontos({ robo, n = 2000, semente = 'keepmile36', vari
   return (await emParalelo(ts, trabalhos)).flat().map((r) => r.pontos)
 }
 /** E: `n` contas do novato atento (e do aleatório, se `aleatorio`), `nBom` do planejador; cada conta joga `partidas` partidas seguidas. */
-export async function medirE({ n = 200, nBom = 40, partidas = 60, aleatorio = true, semente = 'keepmile36', variante = 'base', trabalhos, pontos } = {}) {
+export async function medirE({ n = 200, nBom = 40, partidas = 60, aleatorio = true, intermediario = false, semente = 'keepmile36', variante = 'base', trabalhos, pontos } = {}) {
   const ts = [...fatias(n, 5).map(([de, ate]) => ({ tipo: 'E', robo: 'novato-atento', de, ate, semente, variante, partidas })),
+    ...(intermediario ? fatias(n, 5).map(([de, ate]) => ({ tipo: 'E', robo: 'intermediario', de, ate, semente, variante, partidas })) : []),
     ...fatias(nBom, 1).map(([de, ate]) => ({ tipo: 'E', robo: 'planejador', de, ate, semente, variante, partidas })),
     ...(aleatorio ? fatias(n, 5).map(([de, ate]) => ({ tipo: 'E', robo: 'aleatorio', de, ate, semente, variante, partidas })) : [])]
   const r = await emParalelo(ts, trabalhos)
   const por = {}
   ts.forEach((t, i) => (por[t.robo] ||= []).push(...r[i]))
   const out = resumoE(por, partidas)
+  const V = resumoV(por, partidas)
+  out.linhas.push('', ...V.linhas)
+  out.res.v = V.res
   out.cru = por
   if (pontos) {
     out.linhas.push('')
@@ -823,6 +906,7 @@ function argumentos(argv) {
     else if (argv[i] === '--partidas') a.partidas = Number(argv[++i])
     else if (argv[i] === '--sem-ranking') a.semRanking = true
     else if (argv[i] === '--sem-aleatorio') a.semAleatorio = true
+    else if (argv[i] === '--intermediario') a.intermediario = true
   }
   if (!VARIANTES[a.variante]) throw new Error(`variante desconhecida: ${a.variante} (há: ${Object.keys(VARIANTES).join(', ')})`)
   return a
@@ -853,7 +937,7 @@ if (!isMainThread && parentPort) {
     const pontos = a.semRanking ? null : {}
     if (pontos) for (const robo of ['aleatorio', 'ganancioso-puro', 'novato-atento', 'planejador']) pontos[robo] = await medirPontos({ ...base, robo, n: a.n ?? 2000 })
     const partidas = a.partidas ?? 60
-    mostrar(`E — longo prazo: as 30 conquistas e a vitória em ${partidas} partidas por conta${pontos ? ', e o ranking' : ''}`, await medirE({ ...base, n: a.n ? Math.max(10, Math.round(a.n / 10)) : 200, nBom: a.n ? Math.max(2, Math.round(a.n / 50)) : 40, partidas, aleatorio: !a.semAleatorio, pontos }))
+    mostrar(`E — longo prazo: as 30 conquistas e a vitória em ${partidas} partidas por conta${pontos ? ', e o ranking' : ''}`, await medirE({ ...base, n: a.n ? Math.max(10, Math.round(a.n / 10)) : 200, nBom: a.n ? Math.max(2, Math.round(a.n / 50)) : 40, partidas, aleatorio: !a.semAleatorio, intermediario: !!a.intermediario, pontos }))
   }
   if (quer('F')) {
     const por = {}

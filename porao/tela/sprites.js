@@ -11,7 +11,9 @@ export const LUXOS_PEGADA = {
   aquario: [1.2, 2],
   cadeira_gamer: [1, 1],
   maquina_bebida: [1, 1],
-  sofa: [2, 1.2],
+  ar_condicionado: [0.9, 0.1],
+  letreiro_neon: [0.1, 0.9],
+  tela_curva: [0.92, 0.12],
   garagem: [3, 2.6],
 };
 
@@ -204,6 +206,29 @@ defCaixa('sofa', 'luxo', 2, 1.2, 20, (c) => {
   caixa(c, 0, 0, 1.6, 1.1, 7, m);
   caixa(c, -14, -7, 0.2, 1.2, 11, m);
   caixa(c, 14, 7, 0.2, 1.2, 11, m);
+});
+// Na parede da direita (desce para a direita). Brilho fixo: nada pisca.
+def('ar_condicionado', 'luxo', 22, 26, 3, 3, (c) => {
+  faixaD(c, 0, 0, 16, 10, P.metal_e);
+  faixaD(c, 1, 1, 14, 8, P.metal_c);
+  for (const y of [4, 6]) faixaD(c, 2, y, 9, 1, P.metal_e);
+  faixaD(c, 12, 2, 2, 2, P.tela_v);
+});
+// Na parede da esquerda (sobe para a direita). Letras de neon com brilho fixo.
+def('letreiro_neon', 'luxo', 22, 26, 19, 3, (c) => {
+  faixaE(c, -16, 0, 16, 11, P.contorno);
+  faixaE(c, -15, 1, 14, 9, P.tela_f);
+  faixaE(c, -14, 3, 3, 5, P.tela_r); faixaE(c, -10, 3, 3, 5, P.hype); faixaE(c, -6, 3, 3, 5, P.tela_c);
+  faixaE(c, -14, 2, 12, 1, P.tela_r); faixaE(c, -14, 8, 12, 1, P.tela_c);
+});
+// Monitor curvo extra na mesa.
+defCaixa('tela_curva', 'luxo', 0.92, 0.12, 20, (c) => {
+  caixa(c, 0, 0, 0.2, 0.12, 3, matMetal());
+  const k = caixa(c, 0, 0, 0.92, 0.12, 15, mat(P.metal_c, P.metal_e, P.metal_e), 3);
+  painelEsq(c, k, 0.05, 0.95, 0.1, 0.92, P.tela_f);
+  painelEsq(c, k, 0.1, 0.9, 0.6, 0.84, P.tela_a);
+  painelEsq(c, k, 0.1, 0.4, 0.2, 0.52, P.tela_r); painelEsq(c, k, 0.46, 0.9, 0.2, 0.52, P.tela_v);
+  painelEsq(c, k, 0.05, 0.12, 0.1, 0.92, P.metal_c); painelEsq(c, k, 0.88, 0.95, 0.1, 0.92, P.metal_c);
 });
 defCaixa('garagem', 'luxo', 3, 2.6, 18, (c) => {
   const piso = caixa(c, 0, 0, 3, 2.6, 1, mat(P.metal, P.metal_e, P.contorno));

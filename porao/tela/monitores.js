@@ -225,8 +225,6 @@ const ICONES = {
   porao: (r) => { r('k', 6, 0, 4, 2); r('k', 4, 2, 8, 2); r('k', 2, 4, 12, 2); r('r', 7, 1, 2, 1); r('r', 5, 3, 6, 1); r('r', 3, 5, 10, 1); r('k', 2, 6, 12, 10); r('n', 3, 7, 10, 8); r('k', 9, 9, 3, 7); r('y', 4, 8, 3, 3); r('k', 5, 9, 1, 1); },
 };
 const COR_ICONE = { k: '--pix-contorno', f: '--pix-tela-f', v: '--pix-tela-v', V: '--pix-planta', y: '--ouro', o: '--acao', r: '--pix-tela-r', b: '--pix-tela-a', w: '--linho', p: '--pix-pele', m: '--pix-metal', n: '--pix-madeira' };
-// luxo (id do config) → número do nome em nomes.js
-const NOME_LUXO = { aquario: 1, cadeira_gamer: 2, maquina_bebida: 3, carro_na_garagem: 4, letreiro_neon: 5 };
 
 export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   // CSP do servidor não aceita <style> embutido: folha construída por código (CSSOM) passa.
@@ -259,8 +257,10 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     return `${inf.tamanho}.${iguais.findIndex((i) => i.id === id) + 1}`;
   };
   const nomeInflu = (id) => T(`influ.${chaveInflu(id)}.nome`, id);
-  const nomeLuxo = (id) => (NOME_LUXO[id] ? T(`luxo.${NOME_LUXO[id]}.nome`) : id.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()));
-  const descLuxo = (id) => (NOME_LUXO[id] ? T(`luxo.${NOME_LUXO[id]}.descricao`) : '');
+  // nome e descrição vêm no estado (servidor: luxos[].nome/descricao); sem eles (modo falso) mostra o id legível
+  const achaLuxo = (id) => visao?.luxos?.find((l) => l.id === id);
+  const nomeLuxo = (id) => achaLuxo(id)?.nome || id.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+  const descLuxo = (id) => achaLuxo(id)?.descricao || '';
   const textoBonus = (b) => [
     b.rendimento ? `+${Math.round(b.rendimento * 100)}% de rendimento` : '',
     b.hype ? `−${Math.round(b.hype * 100)}% de gasto de hype` : '',
@@ -1022,7 +1022,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     if (antes && !cenaAtiva.revelacao) { /* chat anda só nas atualizações de rotina */ }
     if (atualizarCelularNovo()) avisar(2);
     // cena do porão
-    const luxos = e.luxos.map((id) => (id === 'carro_na_garagem' ? 'garagem' : id));
+    const luxos = [...e.luxos];
     const trouxas = projetosNoAr().reduce((s, p) => s + Math.round(p.trouxas), 0);
     const hype = Math.round(Math.max(0, ...projetosNoAr().map((p) => p.hype)));
     const sig = JSON.stringify([trouxas, hype, luxos, celularNovo]);

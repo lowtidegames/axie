@@ -18,9 +18,11 @@ export const ALTURA = 196;
 const OX = 136, OY = 58, LADO = 8;
 const iso = (gx, gy) => [OX + Math.round((gx - gy) * 16), OY + Math.round((gx + gy) * 8)];
 
-export const LUXOS = ['aquario', 'cadeira_gamer', 'maquina_bebida', 'sofa', 'garagem'];
+export const LUXOS = ['cadeira_gamer', 'aquario', 'ar_condicionado', 'letreiro_neon', 'maquina_bebida', 'tela_curva', 'garagem'];
 const LUGAR = {
-  aquario: [0.7, 4.6], cadeira_gamer: [6.6, 2.6], maquina_bebida: [7.3, 0.7], sofa: [2.3, 7.0], garagem: [6.4, 6.0],
+  aquario: [0.7, 4.6], cadeira_gamer: [6.6, 2.6], maquina_bebida: [7.3, 0.7], garagem: [6.4, 6.0],
+  // [gx, gy, altura]: dois na parede e um em cima da mesa
+  ar_condicionado: [6.3, 0, 40], letreiro_neon: [0, 3.3, 34], tela_curva: [3.2, 0.2, 12],
 };
 const MONITORES = [
   { id: 'grafico', titulo: 'Gráfico', sprite: 'monitor_grafico', gx: 3.5 },
@@ -133,7 +135,13 @@ export async function criarCena(raiz, opcoes = {}) {
     add('celular', 5.55, 0.85, { z: 12, ordem: 9, alvo: 'celular' });
     add('cadeira', 4.5, 2.0, { ordem: 6.4 });
     add(menos() || Math.floor(tempo / 0.4) % 2 === 0 ? 'rugrigo_a' : 'rugrigo_b', 4.5, 2.0, { ordem: 6.6, alvo: 'rugrigo' });
-    for (const id of estado.luxos) if (LUGAR[id]) add(id, LUGAR[id][0], LUGAR[id][1], { alvo: 'luxo', id, ordem: LUGAR[id][0] + LUGAR[id][1] + (id === 'garagem' ? 0.01 : 0) });
+    add('sofa', 2.3, 7.0); // decoração fixa (não é compra)
+    for (const id of estado.luxos) {
+      if (!LUGAR[id]) continue;
+      const [gx, gy, z = 0] = LUGAR[id];
+      const naParede = id === 'ar_condicionado' || id === 'letreiro_neon';
+      add(id, gx, gy, { alvo: 'luxo', id, z, ordem: naParede ? -1 : id === 'tela_curva' ? 6.9 : gx + gy + (id === 'garagem' ? 0.01 : 0) });
+    }
     const n = Math.min(12, estado.trouxas > 0 ? Math.ceil(Math.sqrt(estado.trouxas) / 2) : 0);
     for (let i = 0; i < n; i++) {
       const [bx, by] = ZONA_TROUXAS[i];
@@ -178,7 +186,7 @@ export async function criarCena(raiz, opcoes = {}) {
     for (const id of LUXOS) {
       if (estado.luxos.includes(id)) continue;
       const [x, y] = iso(LUGAR[id][0], LUGAR[id][1]);
-      const r = sprites.desenhar(ctx, 'lugar_' + id, x, y);
+      const r = sprites.desenhar(ctx, 'lugar_' + id, x, y - (LUGAR[id][2] || 0));
       if (r) regioes.push({ ...r, alvo: 'luxo', id, livre: true, ordem: -1 });
     }
     for (const ob of objetos()) {

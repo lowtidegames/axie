@@ -68,6 +68,23 @@ const med = (page) => K(page, (k, C) => ({ ...C.med, repMax: C.repMax, kRep: C.k
 const porSegundo = (ts) => { let m = 0; for (const t of ts) m = Math.max(m, ts.filter((x) => x >= t && x < t + 1000).length); return m }
 const espera = (page, fn, prazo = 30000) => page.waitForFunction(fn, null, { timeout: prazo, polling: 50 }).then(() => true, () => false)
 
+/** R38 (item 1) — PROVA DO CHEFE na tela, em pixel: conta, na caixa do corpo do chefe, os pixels do CONTORNO CLARO (a cor da cena, já
+ *  com a noite por cima, ±12 por canal) e mede a folha APAGADA dos outros invasores contra a folha normal (luz e cor médias).
+ *  A leitura de pixel é feita numa cópia (o canvas do jogo não é lido). */
+const provaDoChefe = (page) => K(page, async (k, C) => {
+  const A = await import(new URL('./js/arte.js', location.href)), { COR_CHEFE } = await import(new URL('./js/cena.js', location.href))
+  let ch = -1, inv = -1; for (let i = 0; i < C.n; i++) { if (C.est[i] !== 1 || C.lado[i] !== 1) continue; if (C.ehChefe[i]) ch = i; else if (inv < 0) inv = i }
+  if (ch < 0) return null
+  const bmp = await createImageBitmap(document.getElementById('cena')), c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0)
+  const p = C.peca[ch], e = C.e, x0 = Math.max(0, Math.round((C.sx[ch] - C.cam.x - p.w * 0.6) * e)), y0 = Math.max(0, Math.round((C.sy[ch] - p.h - 4) * e)), w = Math.min(c.width - x0, Math.round(p.w * 1.2 * e)), h = Math.min(c.height - y0, Math.round((p.h + 10) * e))
+  const d = g.getImageData(x0, y0, w, h).data, n = C.noite * 0.38, cor = [1, 3, 5].map((q, j) => parseInt(COR_CHEFE.slice(q, q + 2), 16) * (1 - n) + [20, 20, 50][j] * n)
+  let claros = 0; for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - cor[0]) <= 12 && Math.abs(d[i + 1] - cor[1]) <= 12 && Math.abs(d[i + 2] - cor[2]) <= 12) claros++
+  const media = (img) => { const t = document.createElement('canvas'); t.width = img.width; t.height = img.height; const q = t.getContext('2d', { willReadFrequently: true }); q.drawImage(img, 0, 0); const a = q.getImageData(0, 0, t.width, t.height).data; let l = 0, s = 0, m = 0; for (let i = 0; i < a.length; i += 16) { if (a[i + 3] < 200) continue; const mx = Math.max(a[i], a[i + 1], a[i + 2]), mn = Math.min(a[i], a[i + 1], a[i + 2]); l += 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2]; s += mx - mn; m++ } return { luz: l / m, cor: s / m } }
+  const folha = inv >= 0 ? C.peca[inv].img : p.img, antes = media(folha), depois = media(A.folhaApagada(folha, null, false))
+  return { claros, perimetro: Math.round(2 * (p.w + p.h) * 0.5 * e), luz: depois.luz / antes.luz, cor: depois.cor / antes.cor, noite: C.noite, barra: C.med.chefeBarraRet, VW: C.VW, VH: C.VH, estrada: C.oy + Math.max(...C.geo.terrenos.map((t) => t.estrada[1])), base: C.tipo === 'celular' ? C.VH - 88 : C.VH - 66, css: C.css }
+})
+
 /** Luta de vitrine montada pelo MOTOR (shared/reino/batalha.js), tocada pela mesma batalha da tela. Não mexe na partida. */
 const lutaDoMotor = (page, cartas, ordem, chefe = null, rodada = 9) => K(page, async (k, C, a) => {
   const { simularBatalha, montarExercito } = await import(new URL('../../shared/reino/batalha.js', location.href))
@@ -167,7 +184,16 @@ async function rodar(fmt) {
   confere(m.gestos.filter((q) => q > 0).length >= 4 && m.cascata > 0 && m.poBote > 0, `peso do golpe: ${m.gestos.filter((q) => q > 0).length} gestos diferentes na luta (corte ${m.gestos[0]}, estocada ${m.gestos[1]}, frigideira ${m.gestos[2]}, bicada ${m.gestos[3]}, tiro ${m.gestos[5]}), ${m.cascata} golpes em cascata, poeira no pé em ${m.poBote} botes`)
   confere(m.passos > 0 && m.poeiras > 0, `marcha com passo e poeira no pé (${m.passos} pisadas, ${m.poeiras} poeirinhas)`)
   confere(m.flechas > 0 && m.fincadas > 0, `tiro em arco que chega e finca (${m.flechas} projéteis, ${m.fincadas} fincadas)`)
+  // R38 (item 1) — CHEFE LIDO EM 1 SEGUNDO: contorno claro, multidão de invasores apagada atrás dele e barra de vida com o nome
+  { confere(await espera(page, () => { const C = window.__kmCena; for (let i = 0; i < C.n; i++) if (C.ehChefe[i] && C.est[i] === 1 && !C.fase[i] && C.sx[i] - C.cam.x > 34 && C.med.apagados > 0) return true; return false }, 45000), 'R38: o chefe entra na luta cheia, com a horda em volta')
+    const arq = path.join(TIRAS, '..', `chefe-luta-${fmt.nome}.png`); await page.screenshot({ path: arq }); const kb = (await stat(arq)).size / 1024; confere(kb < 400, `foto chefe-luta-${fmt.nome}.png (chefe com contorno, multidão apagada e barra): ${kb.toFixed(0)} KB (< 400)`)
+    const pv = await provaDoChefe(page), mc = await med(page), b = pv?.barra
+    confere(!!pv && mc.chefeContorno > 0 && pv.claros >= pv.perimetro, `R38 CHEFE COM CONTORNO CLARO: ${pv?.claros} pixels de tela na cor do contorno em volta do corpo dele (≥ ${pv?.perimetro}, meia volta do corpo), desenhado em ${mc.chefeContorno} quadros`)
+    confere(!!pv && mc.apagados > 0 && pv.luz <= 0.85 && pv.luz >= 0.55 && pv.cor <= 0.8, `R38 MULTIDÃO APAGADA atrás do chefe: os outros invasores saem com ${(100 * pv?.luz).toFixed(0)}% da luz e ${(100 * pv?.cor).toFixed(0)}% da cor (levemente: luz entre 55% e 85%, cor ≤ 80%), em ${mc.apagados} desenhos`)
+    confere(!!b && mc.chefeBarra > 0 && b.nome === 'Gutbucket the Wide' && b.f === 1 && b.letra >= 14 && b.largNome <= b.w - 4 && b.w * pv.css >= (pc ? 600 : 300), `R38 BARRA DO CHEFE com o nome: "${b?.nome}" em letra de ${b?.letra} px de tela (≥ 14), barra de ${Math.round(b?.w * pv?.css)}×${Math.round(b?.h * pv?.css)} px de tela, cheia enquanto ele não apanha`)
+    confere(!!b && b.x >= 0 && b.x + b.w <= pv.VW && b.y >= pv.estrada && b.y + b.h <= pv.base && b.y >= 48, `R38: a barra do chefe fica logo abaixo da estrada (y ${b?.y}–${b?.y + b?.h}; estrada até ${pv?.estrada}, painel a partir de ${pv?.base}): não tapa o reino, o HUD nem o painel`) }
   confere(m.somados > 0 && m.numeros > 0 && m.numeros8 === 8, `números de dano: ${m.numeros} nasceram, ${m.somados} golpes SOMADOS num número já na tela; no máximo 8 ao mesmo tempo`)
+  if (!pc) confere(m.numPxMin >= 28 && m.numPxMin <= 64, `R38 (item 2): número de dano no celular com ${m.numPxMin} px de tela de altura no menor caso (régua do guia: 28–64)`)
   confere(m.empurrao > 0 && m.empurrao <= 3, `empurrão de câmera na carga: ${m.empurrao} px (≤ 3)`)
   await page.waitForTimeout(2500)
   m = await med(page)
@@ -218,13 +244,20 @@ async function rodar(fmt) {
     confere(await espera(page, () => window.__kmCena.med.bote >= 1 && (window.__kmCena.tipo !== 'pc' || window.__kmCena.cam.zoom > 1.2), 20000), 'a luta chega ao choque (no PC, com a câmera de duelo já mais perto)')
     const c1 = await K(page, (k, C) => ({ camY: C.camY, zoom: C.cam.zoom })); await page.waitForTimeout(900); const c2 = await K(page, (k, C) => ({ camY: C.camY, zoom: C.cam.zoom, zoomMax: C.med.zoomMax, e: C.e, duelo: C.med.duelo }))
     confere(c1.camY === (pc ? 0 : 40) && c2.camY === c1.camY, `o enquadre não muda DURANTE a luta: ${c1.camY} px no choque e ${c2.camY} px 0,9 s depois`)
-    confere(c2.zoomMax <= (c2.e + 1) / c2.e + 0.001 && (pc ? c2.zoomMax > 1.2 && c2.duelo > 20 : c2.duelo === 0), `câmera de duelo: até ×${c2.zoomMax.toFixed(2)} (PC: um degrau inteiro de pixel de tela; celular: sem câmera de duelo — só o zoom curto do último de pé), ${c2.duelo} quadros seguindo o meio do choque`)
+    confere(c2.zoomMax <= (c2.e + 1) / c2.e + 0.001 && (pc ? c2.zoomMax > 1.2 && c2.duelo > 20 : c2.duelo === 0), `câmera de duelo: até ×${c2.zoomMax.toFixed(2)} (PC: um degrau inteiro de pixel de tela, seguindo o meio do choque em ${c2.duelo} quadros; celular: a câmera de duelo do PC continua desligada — a regra mudou na R38: lá entra a CÂMERA PERTO, conferida a seguir)`)
+    // R38 (item 2) — a regra mudou: no CELULAR, nas lutas com poucos bonecos, a câmera chega um degrau de pixel mais perto, só enquanto
+    // todo mundo à vista (com as plaquetas) cabe na tela; e o número de dano tem a altura da régua do guia (28–64 px de tela)
+    if (!pc) { confere(await espera(page, () => window.__kmCena.med.perto > 40 && window.__kmCena.med.numeros >= 2, 20000), 'R38: no duelo do celular a câmera chega perto')
+      const q = await K(page, (k, C) => ({ perto: C.med.perto, cortes: C.med.pertoCortes, zoom: C.med.pertoZoom, px: C.med.numPxMin, e: C.e, css: C.css, flag: C.perto }))
+      const arq = path.join(TIRAS, '..', 'rodada1-perto-celular.png'); await page.screenshot({ path: arq }); const kb = (await stat(arq)).size / 1024; confere(kb < 400, `foto rodada1-perto-celular.png (duelo com a câmera perto): ${kb.toFixed(0)} KB (< 400)`)
+      confere(q.flag && q.zoom > 1.2 && q.zoom <= (q.e + 1) / q.e + 0.001 && q.cortes === 0, `R38 CÂMERA PERTO no celular: ×${q.zoom.toFixed(2)} em ${q.perto} quadros e, deles, ${q.cortes} com algum pelotão ou plaqueta cortado pela tela, pelo HUD ou pela tira da base`)
+      confere(q.px >= 28 && q.px <= 64, `R38 NÚMERO DE DANO no celular: ${q.px} px de tela de altura no menor caso (régua do guia: 28–64 px; antes eram 14–18)`) }
     { const d = await K(page, (k, C) => ({ fb: C.med.frenteBaixa, vao: C.med.vaoRepouso, k: C.kRep })); confere(pc ? d.fb === 0 : d.fb > 20 && d.vao < 46, `celular: a base da tela ganha a primeira fileira do cenário (${d.fb} quadros) e no duelo os dois lados ficam mais perto (vão de ${d.vao} px; fora do duelo 51+)`) }
     await K(page, (k, C) => C.batalha.parar())
     confere(await espera(page, () => window.__kmCena.camY === 0 && window.__kmCena.cam.zoom === 1, 6000), 'acabou a luta: a cena volta ao enquadre normal e o zoom a ×1, macio') }
   // números lado a lado: alturas alternadas e, se ainda colidir, o menor espera 120 ms (direto na cena, sem depender da sorte da luta)
   { const n = await K(page, (k, C) => { C.batalha.parar(); for (const q of C.num) q.t0 = q.nasc = -1e9; C.zerarMedidas(); C.dano(100, 100, 50, 0, false, 1, 1); C.dano(102, 100, 70, 0, false, 2, 1); C.dano(101, 100, 3, 0, false, 3, 1); const v = (c) => { const q = C.num.find((z) => z.chave === c && z.tipo !== 3); return q ? { y: q.y, espera: Math.round(q.t0 - q.nasc) } : null }; return { a: v(1), b: v(2), c: v(3), alt: C.med.numAlternados, esp: C.med.numEsperas } })
-    confere(n.a && n.b && n.c && n.b.y === n.a.y - 11 && n.c.y === n.a.y - 22 && n.a.espera === 0 && n.b.espera === 0 && n.c.espera === 120, `três pelotões batendo no mesmo ponto: o 2º número nasce 11 px acima, o 3º mais 11 e, por ser o menor, espera ${n.c?.espera} ms (alturas ${n.a?.y}, ${n.b?.y}, ${n.c?.y}; ${n.alt} alternados, ${n.esp} esperas)`) }
+    confere(n.a && n.b && n.c && n.b.y === n.a.y - (pc ? 11 : 17) && n.c.y === n.a.y - (pc ? 22 : 34) && n.a.espera === 0 && n.b.espera === 0 && n.c.espera === 120, `três pelotões batendo no mesmo ponto: o 2º número nasce ${pc ? 11 : 17} px acima, o 3º mais ${pc ? 11 : 17} (a regra mudou na R38 só no celular: a letra do dano lá tem 16 px, então o degrau é 17; no PC continua 11) e, por ser o menor, espera ${n.c?.espera} ms (alturas ${n.a?.y}, ${n.b?.y}, ${n.c?.y}; ${n.alt} alternados, ${n.esp} esperas)`) }
   // GESTOS: os 10 são poses diferentes no ápice do bote (conta pura do movimento.js) e os 4 novos aparecem na luta
   { const g = await K(page, async () => { const M = await import(new URL('./js/movimento.js', location.href)); const A = [], B = []; for (let q = 0; q < 10; q++) { const P = M.pose(); M.golpe(P, 110 + 59, 110, 1, q, 12); A.push([P.dx, P.dy, P.larg, P.alt, P.incl].join(',')); const Q = M.pose(); M.golpe(Q, 100, 110, 1, q, 12); B.push([Q.dx, Q.dy, Q.larg, Q.alt, Q.incl].join(',')) } return { A, B, nomes: Object.keys(M.GESTO) } })
     confere(new Set(g.A).size === 10 && new Set(g.B).size === 10 && g.nomes.length === 10, `10 gestos reconhecíveis por código (${g.nomes.join(', ')}): 10 poses diferentes no ápice do bote e ${new Set(g.B).size} na antecipação`)
@@ -259,6 +292,7 @@ async function rodar(fmt) {
   if (pc) await tira(page, 'chefe-caindo', { gatilho: 'chefeCai', cada: 14, w: 150, h: 120, dy: -14 }, 70000)
   confere(await espera(page, () => window.__kmCena.med.chefeEtapas.includes(4), 70000), 'o chefe cai')
   m = await med(page)
+  confere(m.chefeBarra > 0 && m.chefeBarraRet?.f === 0 && m.chefeContorno > 0, `R38: na queda do chefe a barra dele chega a zero (${m.chefeBarraRet?.f}) e o contorno claro acompanha o corpo (${m.chefeContorno} quadros)`)
   confere(m.chefeEtapas.join('') === '1234', `queda do chefe em etapas: cambaleia → ajoelha → tomba → poeira e fumaça (${m.chefeEtapas.join(' ')})`)
   confere(m.zoomMax > 1 && m.zoomMax <= (m.e + 1) / m.e + 0.001 && m.tremidaMax <= 6 && porSegundo(m.flashes) <= 3, `queda do chefe: zoom macio até ×${m.zoomMax.toFixed(2)}, tremida ${m.tremidaMax} px, ${porSegundo(m.flashes)} clarões/s`)
   confere(m.fim === 'festa', `fim da luta: quem venceu comemora antes do painel (${m.fim})`)
@@ -322,6 +356,7 @@ async function rodar(fmt) {
   confere(m.tremidaMax === 0 && m.flashes.length === 0 && m.brancos.length === 0 && m.zoomMax === 1 && m.camX === 0 && m.empurrao === 0, `Reduced motion: sem tremida (${m.tremidaMax}), sem clarão (${m.flashes.length}), sem quadro branco (${m.brancos.length}), sem zoom (×${m.zoomMax}), câmera parada, sem empurrão`)
   confere(m.duelo === 0 && m.zoomMax === 1 && m.riscosFortes === 0, `Reduced motion: sem câmera de duelo (${m.duelo}), sem zoom e sem quadro de contraste nos riscos (${m.riscosFortes})`)
   confere(m.brilhos === 0 && m.ladoErrado === 0 && m.quadrosLuta > 30, `Reduced motion: sem brilho de aço (${m.brilhos}) e a linha de frente vale igual (${m.ladoErrado} quadros com lado errado em ${m.quadrosLuta})`)
+  confere(m.chefeBarra > 0 && m.perto === 0 && (pc || m.numPxMin >= 28), `R38 com Reduced motion: a barra do chefe aparece parada (${m.chefeBarra} quadros), sem câmera perto (${m.perto})` + (pc ? '' : ` e o número de dano continua grande (${m.numPxMin} px)`))
   confere(m.bote > 0 && m.fumacas > 0 && m.numeros > 0, `Reduced motion: o movimento essencial continua (${m.bote} botes, ${m.fumacas} quedas em fumaça, ${m.numeros} números de dano)`)
   confere(m.pico <= m.limite && m.limite <= 30, `Reduced motion: partículas pela metade (pico ${m.pico} de ${m.limite})`)
   await K(pm, (k, C) => { k.chefeCai(); C.zerarMedidas() })

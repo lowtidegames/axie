@@ -167,6 +167,13 @@ export function folhaSil(img, cor, flip) {
   if (!m[k]) { const c = Cod.silhueta(img, cor); m[k] = flip ? Cod.espelhar(c) : c }
   return m[k]
 }
+/** R38 — folha APAGADA (dessaturada e um tom mais escura, já com a luz da hora), feita uma vez: os invasores atrás do chefe. */
+export function folhaApagada(img, tinta, flip) {
+  let m = VARS.get(img); if (!m) VARS.set(img, m = {})
+  const k = 'A' + (tinta || '') + (flip ? 'F' : '')
+  if (!m[k]) { const c = Cod.apagar(tinta ? folhaVar(img, tinta, false) : img); m[k] = flip ? Cod.espelhar(c) : c }
+  return m[k]
+}
 /** Quantos px vazios há acima da cabeça no 1º quadro da peça (para pôr a marca de nível no lugar). */
 export function topoDe(p) {
   if (p.topo != null) return p.topo
@@ -217,20 +224,22 @@ export function largura(s, fonte = 'reino') {
   return w - esp
 }
 /** Escreve em pixel. `cor` só vale nas fontes sem contorno (reino, mini). Devolve a largura. */
-export function texto(g, s, x, y, { fonte = 'reino', cor = null, alinhar = 'esquerda' } = {}) {
+export function texto(g, s, x, y, { fonte = 'reino', cor = null, alinhar = 'esquerda', k = 1 } = {}) {
   s = String(s).toUpperCase()
-  const w = largura(s, fonte), pinta = fonte === 'reino' || fonte === 'mini' ? cor : null
+  const w = largura(s, fonte) * k, pinta = fonte === 'reino' || fonte === 'mini' ? cor : null
   if (alinhar === 'centro') x -= w >> 1; else if (alinhar === 'direita') x -= w
   x = Math.round(x); y = Math.round(y)
   const esp = (A.fontes[fonte] || A.fontes[RESERVA[fonte]] || A.fontes.reino).espaco
   for (const ch of s) {
     const [f0, q, rabo] = glifo(fonte, ch), f = fonteCor(f0, fonte, pinta)
-    if (rabo) g.drawImage(f.img, q[0], q[1], q[2], q[3], x - 1, y + 1, q[2], q[3]) // fonte sem vírgula: ponto com rabinho
-    if (ch !== ' ') g.drawImage(f.img, q[0], q[1], q[2], q[3], x, y, q[2], q[3])
-    x += q[2] + esp
+    if (rabo) g.drawImage(f.img, q[0], q[1], q[2], q[3], x - k, y + k, q[2] * k, q[3] * k) // fonte sem vírgula: ponto com rabinho
+    if (ch !== ' ') g.drawImage(f.img, q[0], q[1], q[2], q[3], x, y, q[2] * k, q[3] * k)
+    x += (q[2] + esp) * k
   }
   return w
 }
+/** Altura (px de arte) da letra de uma fonte (com o contorno, se tiver). */
+export const alturaDaFonte = (fonte) => (A.fontes[fonte] || A.fontes[RESERVA[fonte]] || A.fontes.reino).altura
 /** Texto com contorno em qualquer tamanho inteiro `k` (títulos grandes). */
 export function titulo(g, s, x, y, k = 2, ouro = false) {
   const fonte = ouro === true ? 'reino-ouro' : ouro || 'reino-contorno', w = largura(s, fonte), c = Cod.tela(w + 2, (A.fontes[fonte] || A.fontes['reino-contorno']).altura + 1)

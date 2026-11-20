@@ -34,6 +34,24 @@ export function fumaca(claro, sombra, faisca = null, semente = 1) {
   return peca(c, W, H, N, 70, 16, 40)
 }
 
+/** FUMACINHA DE BAIXA (R28): 5 quadros de 16×20, pé em (8, 18), 60 ms cada = 300 ms. Pequena (cabe dentro do boneco), sobe 8 px e
+ *  some em pontilhado: marca que um representante saiu sem cobrir o golpe do vizinho. */
+export function fumacinha(claro, sombra, faisca = null) {
+  const W = 16, H = 20, N = 5, c = tela(W * N, H), g = c.getContext('2d')
+  const B = [[-3, 0, 3], [3, -1, 3], [0, -3, 3]]
+  for (let f = 0; f < N; f++) {
+    const ox = f * W + 8, sobe = [0, 2, 4, 6, 8][f], abre = [0.6, 1, 1.1, 1.2, 1.3][f], enc = [1, 1, 0.8, 0.6, 0.4][f], furos = f >= 4 ? 2 : f >= 3 ? 1 : 0
+    g.save(); g.beginPath(); g.rect(f * W, 0, W, H); g.clip()
+    for (let pass = 0; pass < 2; pass++) for (let b = 0; b < B.length; b++) {
+      const [bx, by, br] = B[b], r = Math.max(1, Math.round(br * enc)), x = ox + Math.round(bx * abre), y = 15 + by - sobe
+      if (pass === 0) bola(g, x + 1, y + 1, r, sombra, furos, f); else bola(g, x, y, Math.max(1, r - 1), claro, furos, f)
+    }
+    if (faisca && f < 3) { g.fillStyle = faisca; for (let k = 0; k < 3; k++) g.fillRect(ox + (k - 1) * (3 + f), 9 - f * 2 - (k & 1) * 2, 1, 1) }
+    g.restore()
+  }
+  return peca(c, W, H, N, 60, 8, 18)
+}
+
 /** Anel de choque no chão (elipse achatada que abre e afina): 5 quadros de 72×32, centro em (36, 16). */
 export function anel(cor, cor2) {
   const W = 72, H = 32, N = 5, c = tela(W * N, H), g = c.getContext('2d')

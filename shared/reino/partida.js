@@ -2,13 +2,14 @@
 // A semente decide só cartas, hordas e espólios; a batalha não tem dado. O servidor refaz a partida com reproduzir().
 //
 // API:
-//   criarPartida({ semente, cartasLiberadas })  → estado (JSON puro; guardar no servidor)
+//   criarPartida({ semente, cartasLiberadas, regra }) → estado (JSON puro; guardar no servidor). regra: 1 (padrão) ou 2 (R46)
 //   opcoes(estado)                              → oferta, espólios, custos e a lista de comandos válidos agora
 //   aplicar(estado, comando, { eventos })       → { ok: true, estado, eventos } | { ok: false, erro, motivo }  (não muda o recebido)
 //   resultado(estado)                           → { fim, motivo, rodada, vencidas, pontos, venceu, ... }
 //   resistiu(vencidas)                          → true se a partida já venceu a rodada da vitória (R39: a 20)
 //   visao(estado)                               → o que a tela pode ver (nunca a semente nem o sorteio futuro)
-//   reproduzir({ semente, cartasLiberadas, comandos }) → { ok, estado, resultado } | { ok: false, erro, indice }
+//   reproduzir({ semente, cartasLiberadas, comandos, regra }) → { ok, estado, resultado } | { ok: false, erro, indice }
+//   dicaDaTroca(estado)                         → R46: { a, b } a 1ª troca de 2 terrenos que vence a horda como está, ou null
 //   chancesReais(cartas)                        → [{ id, nome, chance }] chance real (%) de cada raridade para essas cartas
 //   sortearCartaDaSemente(semente, cartas)      → uma carta, pelo mesmo sorteio (conferência das chances)
 //   chancesDaMao({ cartas, sobe })              → [{ id, nome, chance, exata }] chance (%) de cada raridade na MÃO (sem repetir)
@@ -21,12 +22,19 @@
 //   { tipo: 'batalhar' }                          começa a luta da rodada
 //   { tipo: 'espolio', indice: 0..2, terreno? }   escolhe o espólio depois de vencer (Card e Promotion pedem terreno)
 //   { tipo: 'desistir' }
+//   { tipo: 'trocar', a: 1..6, b: 1..6 }          R46 (regra ≥ 2): troca o conteúdo de 2 terrenos, 1 vez, só na revanche
+//
+// Regra da partida (R46). 1 = a de antes: perdeu e a partida segue → horda NOVA. 2 = REVANCHE: a MESMA horda volta e vale UMA
+// troca grátis de 2 terrenos, com a dica calculada aqui na derrota. A regra fica em `e.regra` (só existe com regra ≥ 2: a partida
+// de regra 1 sai igual, byte a byte, à de antes); estado guardado sem o campo = regra 1. VERSAO não sobe.
 import { estadoDaSemente, inteiroEm } from '../rng.js'
 import { ALBUM, CARTAS, CHEFES, HORDA, INVASORES, PARTIDA as P, RARIDADES, RELIQUIAS } from './config.js'
 import { montarExercito, simularBatalha } from './batalha.js'
 
 const arr = (x) => Math.floor(x + 0.5)
 const VERSAO = 1
+const REGRA_MAIS_NOVA = 2 // a maior regra que este motor sabe jogar (versão de código, não número de balanceamento)
+const regraDe = (e) => e.regra ?? 1
 
 // ---------------------------------------------------------------- sorteio (muda o estado clonado)
 function int(e, n) { const r = inteiroEm(e.sorteio, n); e.sorteio = r.s; return r.valor }
@@ -223,10 +231,11 @@ function validarLiberadas(lista) {
   return Object.keys(CARTAS).filter((id) => vistos.has(id))
 }
 
-export function criarPartida({ semente, cartasLiberadas } = {}) {
+export function criarPartida({ semente, cartasLiberadas, regra } = {}) {
   if (!((typeof semente === 'string' && semente.length >= 1 && semente.length <= 200) || Number.isSafeInteger(semente))) {
     throw new Error('Semente inválida')
   }
+  if (regra !== undefined && !(Number.isInteger(regra) && regra >= 1 && regra <= REGRA_MAIS_NOVA)) throw new Error('Regra da partida inválida')
   const e = {
     v: VERSAO,
     sorteio: estadoDaSemente(semente),
@@ -244,9 +253,39 @@ export function criarPartida({ semente, cartasLiberadas } = {}) {
     fim: null,
     comandos: 0,
   }
+  // R46: regra 1 não grava nada (a partida sai igual à de antes); regra ≥ 2 grava a regra e a revanche (desligada)
+  if (regra >= 2) { e.regra = regra; e.revanche = { troca: false, dica: null } }
   abrirRodada(e)
   return e
 }
+
+// ---------------------------------------------------------------- R46: revanche
+/** As trocas de 2 terrenos (a < b) que mudam alguma coisa: dois terrenos vazios não contam (até 15). */
+function trocasPossiveis(terrenos) {
+  const out = []
+  for (let a = 1; a <= P.terrenos; a++) for (let b = a + 1; b <= P.terrenos; b++) if (terrenos[a - 1] || terrenos[b - 1]) out.push({ a, b })
+  return out
+}
+function trocado(terrenos, a, b) {
+  const out = terrenos.map((t) => (t ? { ...t } : null))
+  const x = out[a - 1]; out[a - 1] = out[b - 1]; out[b - 1] = x
+  return out
+}
+
+/**
+ * R46: a DICA da revanche — a 1ª troca (na ordem a < b, sem dois vazios) que vence a horda com o reino como está (sem a carta
+ * nova da mão); null se nenhuma vence. A luta não tem dado: isto só olha o que já está na tela. Fonte única (motor, servidor,
+ * modo local e medidor); o motor a calcula na derrota e a guarda no estado.
+ */
+export function dicaDaTroca(e) {
+  if (!e || !e.horda || !Array.isArray(e.terrenos)) return null
+  for (const { a, b } of trocasPossiveis(e.terrenos)) {
+    if (simularBatalha({ terrenos: trocado(e.terrenos, a, b), reliquias: e.reliquias, horda: e.horda, eventos: false }).vitoria) return { a, b }
+  }
+  return null
+}
+
+const trocaLiberada = (e) => regraDe(e) >= 2 && e.fase === 'carta' && !!e.revanche && e.revanche.troca === true
 
 // ---------------------------------------------------------------- custos e regras
 function custoSortear(e) {
@@ -286,7 +325,10 @@ function pontosDe(e) {
 }
 
 // ---------------------------------------------------------------- aplicar
-export function aplicar(estado, comando, { eventos = true } = {}) {
+export function aplicar(estado, comando, { eventos = true } = {}) { return aplicarComando(estado, comando, eventos, true) }
+
+/** `comDica` = false só no reproduzir: a dica da revanche fica para o fim (ela não muda nenhum comando; ver reproduzir). */
+function aplicarComando(estado, comando, eventos, comDica) {
   if (!estado || estado.v !== VERSAO || !estado.sorteio) return erro('estado', 'Partida inválida.')
   if (!comando || typeof comando !== 'object' || Array.isArray(comando) || typeof comando.tipo !== 'string') return erro('comando', 'Comando inválido.')
   if (estado.fase === 'fim') return erro('fim', 'A partida já acabou.')
@@ -333,6 +375,7 @@ export function aplicar(estado, comando, { eventos = true } = {}) {
       if (e.fase !== 'carta') return erro('fase', 'Agora não dá para lutar.')
       const b = simularBatalha({ terrenos: e.terrenos, reliquias: e.reliquias, horda: e.horda, eventos })
       e.ultima = { rodada: e.rodada, vitoria: b.vitoria, pctHorda: b.pctHorda, segundos: b.segundos, porTempo: b.porTempo, chefe: e.horda.chefe }
+      if (regraDe(e) >= 2) e.revanche = { troca: false, dica: null } // lutar encerra a troca (usada ou não)
       evs.push({ tipo: 'batalha', vitoria: b.vitoria, segundos: b.segundos, porTempo: b.porTempo, pctHorda: b.pctHorda, horda: e.horda, eventos: b.eventos })
       if (b.vitoria) {
         e.vencidas++
@@ -347,7 +390,14 @@ export function aplicar(estado, comando, { eventos = true } = {}) {
         ganhar(e, P.ouro.derrota)
         evs.push({ tipo: 'ouro', valor: P.ouro.derrota }, { tipo: 'vida', vidas: e.vidas })
         if (e.vidas <= 0) { acabar(e, 'sem_vidas'); evs.push({ tipo: 'fim', ...e.fim }); break }
-        abrirRodada(e) // a mesma rodada volta, com horda nova e mais uma carta
+        if (regraDe(e) >= 2) {
+          // R46 REVANCHE: a MESMA horda volta. O sorteio anda como na regra 1 (horda nova sorteada e jogada fora): mão e espólio iguais.
+          const horda = e.horda
+          abrirRodada(e)
+          e.horda = horda
+          const troca = P.trocasNaRevanche >= 1
+          e.revanche = { troca, dica: troca && comDica ? dicaDaTroca(e) : null }
+        } else abrirRodada(e) // a mesma rodada volta, com horda nova e mais uma carta
       }
       break
     }
@@ -380,6 +430,15 @@ export function aplicar(estado, comando, { eventos = true } = {}) {
       if (e.rodada > P.tetoRodada) { acabar(e, 'teto'); evs.push({ tipo: 'fim', ...e.fim }); break }
       abrirRodada(e)
       evs.push({ tipo: 'rodada', rodada: e.rodada, chefe: e.horda.chefe })
+      break
+    }
+    case 'trocar': {
+      if (!trocaLiberada(e)) return erro('sem_troca', 'A troca grátis só vale uma vez, logo depois de perder uma luta.')
+      if (!terrenoValido(c.a) || !terrenoValido(c.b) || c.a === c.b) return erro('terreno', `Escolha dois terrenos diferentes, de 1 a ${P.terrenos}.`)
+      if (!e.terrenos[c.a - 1] && !e.terrenos[c.b - 1]) return erro('terreno_vazio', 'Os dois terrenos estão vazios.')
+      e.terrenos = trocado(e.terrenos, c.a, c.b)
+      e.revanche = { troca: false, dica: null }
+      evs.push({ tipo: 'troca', a: c.a, b: c.b })
       break
     }
     case 'desistir': {
@@ -434,6 +493,8 @@ export function visao(e) {
     ultima: e.ultima ? { ...e.ultima } : null,
     fim: e.fim ? { ...e.fim, venceu: resistiu(e.fim.vencidas) } : null,
     comandos: e.comandos,
+    // R46: só nas partidas de regra ≥ 2. troca = a troca grátis está valendo agora; dica = { a, b } (troca que vence) ou null
+    ...(regraDe(e) >= 2 ? { revanche: { troca: trocaLiberada(e), dica: trocaLiberada(e) && e.revanche.dica ? { ...e.revanche.dica } : null } } : {}),
   }
 }
 
@@ -453,6 +514,7 @@ export function opcoes(e) {
       if (e.ouro >= v.custos.sortear) comandos.push({ tipo: 'sortear' })
     }
     if (e.vidas < e.vidasMax && e.ouro >= v.custos.consertar) comandos.push({ tipo: 'consertar' })
+    if (trocaLiberada(e)) for (const { a, b } of trocasPossiveis(e.terrenos)) comandos.push({ tipo: 'trocar', a, b })
     comandos.push({ tipo: 'batalhar' })
   } else if (e.fase === 'espolio') {
     e.espolios.forEach((esp, i) => {
@@ -480,14 +542,19 @@ export function opcoes(e) {
 }
 
 /** Refaz a partida inteira a partir da semente e dos comandos (é como o servidor confere um recorde). */
-export function reproduzir({ semente, cartasLiberadas, comandos }) {
+export function reproduzir({ semente, cartasLiberadas, comandos, regra }) {
   if (!Array.isArray(comandos) || comandos.length > P.tetoComandos) return { ok: false, erro: 'comandos', indice: -1 }
   let e
-  try { e = criarPartida({ semente, cartasLiberadas }) } catch (err) { return { ok: false, erro: 'criar', motivo: err.message, indice: -1 } }
+  try { e = criarPartida({ semente, cartasLiberadas, regra }) } catch (err) { return { ok: false, erro: 'criar', motivo: err.message, indice: -1 } }
+  // R46: a dica (até 15 lutas por derrota) só é calculada para a revanche que ainda vale no FIM, com o reino da hora da derrota:
+  // nenhum comando depende dela e ela some na troca e na luta, então o estado final sai igual ao do jogo, só que mais rápido.
+  let daDerrota = null
   for (let i = 0; i < comandos.length; i++) {
-    const r = aplicar(e, comandos[i], { eventos: false })
+    const r = aplicarComando(e, comandos[i], false, false)
     if (!r.ok) return { ok: false, erro: r.erro, motivo: r.motivo, indice: i }
     e = r.estado
+    if (comandos[i].tipo === 'batalhar') daDerrota = e.revanche && e.revanche.troca ? e : null
   }
+  if (daDerrota && e.revanche.troca) e.revanche.dica = dicaDaTroca(daDerrota)
   return { ok: true, estado: e, resultado: resultado(e) }
 }

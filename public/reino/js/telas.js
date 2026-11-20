@@ -320,6 +320,7 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
         chapaDoPerfil('perfilTopo', null),
         nota ? linha(nota, { pid: 'perfilNota', fonte: 'reino', cor: COR.ouro }) : null,
         Object.assign(bt(T.srv.apelido.menu, () => apelido(), 'km-bt--fraco'), { id: 'perfilNome' }),
+        linha(T.srv.aparelho, { pid: 'perfilAparelho', cor: CINZA }), // (R30) a conta mora só neste aparelho: dito em 1 linha, sem promessa de recuperar
         linha(P.recordes(r.pontos, r.rodadasVencidas, r.partidas), { pid: 'perfilRecordes' }),
         linhaDaEnergia(p.energia),
         linha(P.temporada(p.temporada.numero, falta(p.temporada.termina)), { pid: 'perfilTemporada', cor: CINZA }),

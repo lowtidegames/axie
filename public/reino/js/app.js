@@ -23,7 +23,7 @@ const C = criarCena(canvas, CONFIG)
 const J = { familias: [], e: null, v: null, op: null, comandos: [], semente: null, liberadas: [], ouroAlvo: 0, pos: null, ultimaLuta: null, lutas: [], espolioI: -1, semSorteio: true, anunciado: '', avisado: '', erros: [], chefesVistos: new Set(), emLuta: false, link: '', postou: '', infoAte: 0 }
 let UI, M, Bat, Telas
 // MODO SERVIDOR (js/servidor.js): a partida mora no servidor. `J.v`/`J.op` são a `visao`/`opcoes` que ELE mandou; `J.e` vira só { fase }.
-const S = { on: false, id: null, modo: null, seq: 0, ocupado: false, abrindo: false, ultimo: null, energia: null, perfil: null, resultado: null, fora: null, novid: null, fimVisto: null }
+const S = { on: false, id: null, modo: null, seq: 0, ocupado: false, abrindo: false, ultimo: null, energia: null, perfil: null, resultado: null, fora: null, novid: null, fimVisto: null, ligas: null, sessaoNova: false }
 const timers = new Set()
 const depois = (ms, fn) => { const id = setTimeout(() => { timers.delete(id); fn() }, ms); timers.add(id); return id }
 const semTimers = () => { for (const id of timers) clearTimeout(id); timers.clear() }
@@ -112,7 +112,7 @@ function festasTique(agora) {
   f.t0 = agora; if (F.fila.length >= 2) f.ms = Math.round(f.ms * 0.7) // fila comprida anda mais depressa
   F.atual = f; M[f.tipo] = f; f.ao?.()
   if (f.voltou && f.log) { f.log.fim = 0; f.log.voltou = agora; return } // a mesma festa, de volta depois do chefe: não conta duas vezes
-  f.log = { texto: f.texto, tam: f.tam, tipo: f.tipo, ini: agora, fim: 0, fase: M.fase }; F.log.push(f.log); if (F.log.length > 80) F.log.shift()
+  f.log = { texto: f.texto, titulo: f.titulo ?? null, tam: f.tam, tipo: f.tipo, ini: agora, fim: 0, fase: M.fase }; F.log.push(f.log); if (F.log.length > 80) F.log.shift()
 }
 const kAviso = () => (C.tipo === 'celular' ? 1 : 2)
 
@@ -658,15 +658,22 @@ function adotar(p) {
 function entrar(p, aviso = null, nova = false, direto = false) {
   zerarPartida(); J.replay = null; M.replay = null
   adotar(p); M.ouro = J.v.ouro; J.ouroAlvo = J.v.ouro; J.familias = J.v.familias.slice()
-  if (J.e.fase === 'fim') { if (S.fimVisto?.id === S.id) J.melhor = S.fimVisto.melhor || null; fimDaPartida(direto); return }
+  if (J.e.fase === 'fim') { if (S.fimVisto?.id === S.id) J.melhor = S.fimVisto.melhor || null; fimDaPartida(direto); avisarSessaoNova(); return }
   S.fimVisto = null; Srv.guardarFim(null) // partida em curso: a tela de fim guardada já não vale (Play again, treino novo)
   if (J.v.fase === 'espolio') mostrarEspolio(); else abrirRodada()
   if (nova) {
     const e = S.energia, sub = p.modo === 'ranking' ? (e ? T.srv.energiaCurta(e.atual, e.maximo) : '') : T.srv.modoSub[p.modo]
     festa({ tam: 2, tipo: 'aviso', ms: 2600, texto: T.srv.modo[p.modo], sub, ouro: true, k: kAviso(), fase: 'carta', ao: () => Som.tocar('chefeAnuncia', { forca: 0.5 }) })
-  } else if (p.seq > 0 || aviso) festa({ tam: 1, tipo: 'brinde', ms: 2200, titulo: aviso || T.jogo, texto: T.continua(J.v.rodada), icone: { tipo: 'carta' } })
+  } else if (p.seq > 0 || aviso) festa({ tam: aviso ? 0 : 1, tipo: 'brinde', ms: aviso ? 3200 : 2200, titulo: aviso || T.jogo, texto: T.continua(J.v.rodada), icone: { tipo: 'carta' } }) // com aviso (outra aba, servidor): é a 1ª da fila — a rodada não pula em silêncio
+  avisarSessaoNova()
   // estrada do dia fora do placar: o motivo em 1 linha, na hora (o servidor é quem diz)
   if (p.modo === 'estrada' && S.fora && T.srv.fora[S.fora.codigo]) { const l = ['#' + T.srv.fora[S.fora.codigo]]; if (M.fase === 'chefe') J.infoPend = l; else dizer(l, 8000) }
+}
+/** (R30) A sessão guardada não valia mais (401) e o aparelho ganhou conta nova: a tela diz isso UMA vez, sem prometer recuperar nada. */
+function avisarSessaoNova() {
+  if (!S.sessaoNova) return
+  S.sessaoNova = false
+  festa({ tam: 0, tipo: 'brinde', ms: 5000, titulo: T.srv.sessao.titulo, texto: T.srv.sessao.texto, icone: { tipo: 'carta' }, ao: () => Som.tocar('negado') })
 }
 function conferirResposta(cmd, seq, r) {
   if (r.seq !== seq + 1) J.erros.push(`servidor: mandei o seq ${seq} e voltou ${r.seq}`)
@@ -702,7 +709,7 @@ async function erroDoComando(e) {
 async function recarregar() {
   try {
     const ab = await Srv.aberta(S.modo); S.energia = ab.energia
-    if (ab.partida) { entrar(ab.partida, T.srv.sincronizado); return }
+    if (ab.partida) { entrar(ab.partida, aviso); return }
     M.status = { texto: T.srv.acabou, ate: agoraMs() + 4500, codigo: 'ACABOU' }
     await abrirModo('treino')
   } catch (e) { avisarServidor(e.codigo) }
@@ -899,6 +906,7 @@ async function voltarAoFim() {
 /** Começo no modo servidor: conta (criada na 1ª visita, sem perguntar nada), perfil e a partida aberta — ou um treino novo. Falhou
  *  (rede, manutenção): uma tela curta com "Try again"; nunca fica travado. */
 async function comecarNoServidor() {
+  Srv.aoTrocarConta = () => { S.sessaoNova = true }
   Srv.aoRede = (caiu) => { if (caiu) M.status = { texto: T.srv.rede, ate: Infinity, rede: true }; else if (M.status?.rede) M.status = { texto: T.srv.voltou, ate: agoraMs() + 1500 } }
   for (;;) {
     try {

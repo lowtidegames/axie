@@ -10,7 +10,7 @@ const CINZA = '#CECAD8'
 
 export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaPartida, emPartida, aoFechar }) {
   const fundo = document.getElementById('tela'), caixa = document.getElementById('telaCaixa'), COR = Arte.COR
-  let aberta = null, engole = false, engoleAte = 0, vestida = false
+  let aberta = null, engoleAte = 0, vestida = false
   const h = (tag, attrs = {}, filhos = []) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'texto') e.textContent = v; else if (k === 'clique') e.addEventListener('click', v); else e.setAttribute(k, v) } for (const f of [].concat(filhos)) if (f) e.appendChild(f); return e }
   /** Largura útil da caixa, em px de tela. */
   const LARG = () => Math.max(160, Math.min(innerWidth - 24, 560) - 40)
@@ -48,9 +48,10 @@ export function criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos, novaParti
     x.focus()
   }
   function fechar() { if (!aberta) return; aberta = null; fundo.hidden = true; aoFechar() }
-  // Toque fora fecha. O MESMO toque que fechou não reabre o menu (o dedo sobe em cima do ícone); um toque novo, logo depois, abre.
-  fundo.addEventListener('pointerdown', (ev) => { if (ev.target === fundo) { fechar(); engole = true; engoleAte = performance.now() + 1500 } })
-  addEventListener('pointerup', () => { if (engole) { engole = false; engoleAte = performance.now() + 120 } }, true)
+  // Toque fora fecha. O MESMO toque que fechou não reabre o menu (o dedo sobe em cima do ícone e o clique dele pode chegar atrasado);
+  // um toque NOVO — qualquer outro apertar de dedo depois — abre na hora.
+  fundo.addEventListener('pointerdown', (ev) => { if (ev.target === fundo) { fechar(); engoleAte = performance.now() + 700 } })
+  addEventListener('pointerdown', (ev) => { if (ev.target !== fundo) engoleAte = 0 }, true)
   const emblema = (nome, k = 2) => Arte.miniatura(27, 30, (g) => { if (!Arte.liga(g, nome, 0, 0)) Arte.icone(g, 'shield', 8, 9) }, k)
   const situacao = () => { const melhores = Guarda.get('melhores'), media = mediaDasMelhores(melhores); return { melhores, media, ...ligaDe(media) } }
 

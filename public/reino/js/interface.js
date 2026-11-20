@@ -42,6 +42,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       L.odds.linhas = linhas; L.odds.fonte = fonte; L.odds.alt = alt; L.odds.h = linhas.length * alt }
     L.faixa = cel ? { x: 0, y: VH - 88, w: VW, h: 0 } : { x: 6, y: L.odds.y - 50, w: x0 - 14, h: 48 }
     L.lutar2 = cel ? { x: 4, y: VH - 30, w: VW - 8, h: 26 } : { x: Math.floor(VW / 2) - 48, y: VH - 44, w: 96, h: 26 }
+    L.voltar = cel ? { x: 64, y: VH - 30, w: VW - 68, h: 26 } : L.lutar2
     L.premios = cel ? { x: 2, y: VH - 87, w: VW - 4, h: 55 } : { x: VW - 124, y: VH - 66, w: 120, h: 60 }
     L.ganhe = cel ? { x: 0, y: VH - 78 - hmin, w: VW, h: hmin } : L.premios
     L.resumo = cel ? L.mesa : { x: 4, y: VH - 66, w: VW - 132, h: 60 }
@@ -102,7 +103,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       for (const r of tampa) { const fim = r.y + r.h + Math.max(0, (44 / C.css - r.h) / 2) + 1; if (x < r.x + r.w && x + w > r.x && y < fim && h - (fim - y) >= 44 / C.css) { h -= fim - y; y = fim } }
       add('terreno' + k, { x, y, w, h }, T.aria.terreno(k), { terreno: k })
     }
-    if (f === 'terreno') { add('voltar', L.lutar2, T.voltar); return b }
+    if (f === 'terreno') { add('voltar', L.voltar, T.voltar); return b }
     add('lutar', L.lutar, T.aria.lutar)
     if (!M.cartaPosta) {
       M.mao.forEach((c, i) => add('carta' + i, L.cartas[i], T.aria.carta(CONFIG.CARTAS[c.carta].nome), { carta: c.carta, indice: i }, { arrasta: true }))
@@ -313,10 +314,17 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
     for (const s of linhas) { const ouro = s[0] === '#'; for (const q of quebrar(ouro ? s.slice(1) : s, larg)) out.push((ouro ? '#' : '') + q) }
     return out.slice(0, max)
   }
+  /** A linha "WIN: A / B / C" inteira; se não couber, com a última palavra de cada nome; se ainda não couber, "WIN: PICK 1 OF 3" (nunca cortada). */
+  function linhaGanhe(larg) {
+    const cheio = `${T.ganhe} ${M.espolios.map(nomeEspolio).join(' / ')}`
+    if (Arte.largura(cheio, 'mini') <= larg) return cheio
+    const curto = `${T.ganhe} ${M.espolios.map((e) => (e.tipo === 'carta' || e.reliquia ? nomeEspolio(e).split(' ').at(-1) : nomeEspolio(e))).join(' / ')}`
+    return Arte.largura(curto, 'mini') <= larg ? curto : T.ganheN(M.espolios.length)
+  }
   function premios(grande) {
     const L = UI.L, p = L.premios
     if (!M.espolios.length) return
-    if (!grande) { faixa(['#' + quebrar(`${T.ganhe} ${M.espolios.map(nomeEspolio).join(' / ')}`, C.VW - 6)[0]]); viu('ganhe'); return }
+    if (!grande) { faixa(['#' + linhaGanhe(C.VW - 6)]); viu('ganhe'); return }
     if (L.cel) {
       // celular: a base inteira — "WIN:" e os 3 espólios em ladrilhos grandes (os mesmos da escolha), com o nome embaixo
       Arte.painel(g, p.x, p.y, p.w, p.h)
@@ -410,7 +418,7 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       const nomeMvp = R.mvp > 0 ? CONFIG.CARTAS[R.cartas[R.mvp]]?.nome : R.mvp === 0 ? T.resumo.magia : null
       if (nomeMvp) { const s = `${T.resumo.mvp}: ${nomeMvp} ${R.dano[R.mvp]}`; quebrar(s, r.w - passo * 7 - 14).slice(0, 3).forEach((q, i) => Arte.texto(g, q, bx + passo * 7 + 4, by + 4 + i * 7, { fonte: 'mini', cor: COR.ouro })) }
     }
-    if (cel && comGanhe && M.espolios.length) Arte.texto(g, quebrar(`${T.ganhe} ${M.espolios.map(nomeEspolio).join(' / ')}`, r.w - 6)[0], r.x + (r.w >> 1), r.y + r.h - 9, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' })
+    if (cel && comGanhe && M.espolios.length) Arte.texto(g, linhaGanhe(r.w - 6), r.x + (r.w >> 1), r.y + r.h - 9, { fonte: 'mini', cor: COR.creme, alinhar: 'centro' })
     viu('resumo')
   }
 
@@ -612,7 +620,8 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
   }
   function aviso(agora) {
     const a = M.aviso; if (!a || agora > a.t0 + a.ms || agora < a.t0) return
-    const dt = agora - a.t0, cx = C.VW >> 1, y = Math.floor(C.VH * (UI.L.cel ? 0.24 : 0.2)) - (C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 150) * 8))
+    const dt = agora - a.t0, cx = C.VW >> 1, base = Math.floor(C.VH * (UI.L.cel ? 0.24 : 0.2)), livre = UI.L.cel && M.fase === 'carta' && !M.cartaPosta ? UI.L.odds.y + UI.L.odds.h + 5 : 0 // celular: abaixo das linhas de chances
+    const y = Math.max(base, livre) - (C.menos ? 0 : Math.round(Math.max(0, 1 - dt / 150) * 8))
     if (dt > a.ms - 200 && ((agora >> 6) & 1) && !C.menos) return
     const k = a.k || 2, lin = quebrar(a.texto, (C.VW - 8) / k, 'reino-contorno')
     lin.forEach((s, i) => Arte.titulo(g, s, cx, y + i * 10 * k, k, a.ouro))
@@ -687,7 +696,14 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       if (M.consertar.visivel) ouroBt(L.consertar, 'consertar', 'life', M.consertar, agora, T.consertarNome)
     } else if (f === 'luta') { mesa(); resumo(L.resumo, true); if (!L.cel) premios(true) } else if (f === 'terreno') {
       mesa(); faixa(['#' + T.escolhaTerreno, ...(M.info || [])])
-      const r = L.lutar2, d = bt('plum', r, 'voltar'); Arte.texto(g, T.voltar, r.x + (r.w >> 1), r.y + 7 + d, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }); g.globalAlpha = 1
+      const e = M.espolios[M.espolioI], ds = M.espolioDesc[M.espolioI]
+      if (L.cel && e && ds) {
+        premio(e, 4, C.VH - 83)
+        Arte.texto(g, quebrar(ds.titulo, C.VW - 70, 'reino')[0], 66, C.VH - 82, { fonte: 'reino', cor: COR.ouro })
+        quebrar(ds.texto, C.VW - 70).slice(0, 6).forEach((q, i) => Arte.texto(g, q, 66, C.VH - 71 + i * 6, { fonte: 'mini', cor: COR.creme }))
+        viu('terrenoEspolio')
+      }
+      const r = L.voltar, d = bt('plum', r, 'voltar'); Arte.texto(g, T.voltar, r.x + (r.w >> 1), r.y + 7 + d, { fonte: 'reino', cor: COR.creme, alinhar: 'centro' }); g.globalAlpha = 1
     } else if (f === 'vitoria') { mesa(); if (!L.cel || !M.vitoria.pronto) resumo(L.resumo, false); vitoria(agora) } else if (f === 'derrota') { mesa(); derrota(agora); resumo(L.resumo, false) } else if (f === 'chefe') { mesa(); chefe(agora) }
     hud(agora); aviso(agora); brinde(agora)
     if (M.arrasto?.moveu) { const c = M.mao[M.arrasto.indice]; if (c) Arte.carta(g, c.carta, c.nivel, Math.round(M.arrasto.x - 28), Math.round(M.arrasto.y - 50)) }

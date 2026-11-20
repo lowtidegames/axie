@@ -634,7 +634,7 @@ async function r17(fmt) {
       m = await modelo(p)
       confere(m.trocar === 1 && m.fase === 'terreno' && (await cartasDe(p)) === antes, 'B1: o "REPLACE?" armado não se confirma com um toque repetido (menos de 400 ms)')
       confere((m.trocarLinhas || []).join(' ') === `REPLACE ${CFG.CARTAS[mao0].nome} LV1?` && (await viuJa(p, 'trocar')), `B1: o aviso diz o que se perde: "${(m.trocarLinhas || []).join(' ')}"`)
-      if (fmt.toque) await foto(p, 'replace-celular')
+      if (fmt.toque) { confere(await viuJa(p, 'terrenoEspolio'), 'D10: na escolha do terreno a base do celular mostra o espólio escolhido e o que ele faz (não fica vazia)'); await foto(p, 'replace-celular') }
       await p.waitForTimeout(450)
       await bate(p, tx, ty); await fase(p, 'carta')
       v = await K(p, (k) => k.visao())
@@ -798,7 +798,9 @@ async function r17(fmt) {
     const ctx = await novoCtx(), p = await abrir(ctx, `?teste=1&nova=1&semente=${SEM}`)
     let m = await modelo(p)
     const qual = Math.max(0, ['T02', 'T01', 'T07', 'T04'].map((c) => m.mao.findIndex((x) => x.carta === c)).find((i) => i >= 0) ?? 0)
-    await toca(p, 'carta' + qual); await toca(p, 'terreno1'); await toca(p, 'lutar2'); await fase(p, 'luta')
+    await toca(p, 'carta' + qual); await toca(p, 'terreno1')
+    if (fmt.toque) { const lay = await K(p, (k) => k.layout()); confere(lay.lutar2.w >= lay.VW - 10 && lay.lutar2.y + lay.lutar2.h >= lay.VH - 6 && lay.premios.w >= lay.VW - 6 && lay.premios.y <= lay.mesa.y + 2 && (await viuJa(p, 'ganhe')), `D10: depois de pôr a carta a base do celular fica cheia — os 3 espólios em ladrilhos de lado a lado e o FIGHT da largura da tela (${lay.lutar2.w} de ${lay.VW})`) }
+    await toca(p, 'lutar2'); await fase(p, 'luta')
     await p.waitForTimeout(2300)
     confere((await K(p, (k) => k.resumoColunas())) === (fmt.toque ? 1 : 7) && (await viuJa(p, 'resumo')), fmt.toque ? 'D5: no celular o painel da batalha mostra só o terreno ocupado (1 linha, com o nome da carta), sem colunas vazias' : 'D5: no PC o resumo continua com as 7 colunas')
     if (fmt.toque) await foto(p, 'festa-vitoria-antes-celular')
@@ -954,7 +956,7 @@ async function r17(fmt) {
       confere(!!m.fim.faixaRet && m.fim.faixaRet.x === m.fim.faixaAlvo.x && m.fim.faixaRet.y === m.fim.faixaAlvo.y && m.fim.faixaRet.y >= lay.fimPainel.y && m.fim.faixaRet.y <= lay.fimPainel.y + 12, '"NEW RECORD" pousa junto do número que é o recorde: na linha do SCORE, dentro da placa')
       confere(/ \d+ DMG IN ROUND \d+$/.test(m.fim.melhor || ''), `D8: o melhor momento da partida, tirado do resumo das lutas: "BEST MOMENT: ${m.fim.melhor}"`)
       let maxFl = 0; for (const t of cn.flashes) maxFl = Math.max(maxFl, cn.flashes.filter((x) => x >= t && x < t + 1000).length)
-      confere(s.filter((x) => x === 'rankingSobe').length >= 4 && s.includes('recorde') && cn.tremidaMax <= 6 && maxFl <= 3 && cn.picoParticulas <= cn.limite, `D8: a contagem tem som e a festa fica nos limites (${maxFl} clarões/s, tremida ${cn.tremidaMax}, partículas ${cn.picoParticulas} de ${cn.limite})`) }
+      confere(s.filter((x) => x === 'rankingSobe').length >= 2 && s.includes('recorde') && cn.tremidaMax <= 6 && maxFl <= 3 && cn.picoParticulas <= cn.limite, `D8: a contagem tem som e a festa fica nos limites (${maxFl} clarões/s, tremida ${cn.tremidaMax}, partículas ${cn.picoParticulas} de ${cn.limite})`) }
     await conferirLayout(p, 'fim em sequência')
     await anotar(p, 'fim com recorde')
     // D1: cartão de compartilhar

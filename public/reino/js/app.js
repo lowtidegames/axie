@@ -426,7 +426,7 @@ function escolherEspolio(i) {
   if (!cmds.length) { Som.tocar('negado'); return }
   if (cedoDemais(M.vitoria?.prontoT0)) return // os cartões acabaram de aparecer: o toque era para outra coisa
   if (cmds[0].terreno == null) { pegarEspolio({ tipo: 'espolio', indice: i }); return }
-  J.espolioI = i; J.terrenoEm = agoraMs(); M.fase = 'terreno'; M.trocar = 0; M.info = null
+  J.espolioI = i; M.espolioI = i; J.terrenoEm = agoraMs(); M.fase = 'terreno'; M.trocar = 0; M.info = null
   montarReino(false) // os soldados de cada terreno ficam à vista para escolher onde pôr
   destacar(M.espolios[i].tipo === 'carta' ? M.espolios[i].carta : null, cmds)
   if (M.espolios[i].tipo === 'promocao') C.destaque.sobe = new Set(cmds.map((c) => c.terreno))
@@ -642,7 +642,7 @@ async function comecar() {
     if (tipo === 'noite') festa({ tam: 1, tipo: 'aviso', ms: 1500, texto: T.noite, sub: T.noiteSub(CONFIG.BATALHA.multNoite / 100), fase: 'luta' }) // o texto diz o que o motor faz (multNoite do config)
     if (tipo === 'ultimo') festa({ tam: 2, tipo: 'aviso', ms: 1500, texto: T.ultimo, ouro: true, k: kAviso(), fase: 'luta' })
     if (tipo === 'chefe') { const c = CONFIG.CHEFES.find((x) => x.id === dado); festa({ tam: 2, tipo: 'aviso', ms: 1600, texto: c.nome, ouro: true, k: kAviso(), fase: 'luta' }) }
-    if (tipo === 'chefeCaiu') { const c = CONFIG.CHEFES.find((x) => x.id === dado); if (c) festa({ tam: 3, tipo: 'aviso', ms: 1100, texto: T.caiu(c.nome.split(' the ')[0]), ouro: true, k: kAviso(), fase: 'luta' }) }
+    if (tipo === 'chefeCaiu') { const c = CONFIG.CHEFES.find((x) => x.id === dado); if (c) festa({ tam: 3, tipo: 'aviso', ms: 1100, texto: T.caiu(c.nome.split(' the ')[0]), ouro: true, k: 2, fase: 'luta' }) } // festa grande: título ×2 também no celular (quebra em duas linhas)
   }
   Telas = criarTelas({ CONFIG, Arte, Guarda, Som, Musica, menos: (v) => { if (v !== undefined) { menos(v); Guarda.set('menos', !!v) } return C.menos }, novaPartida, emPartida: () => M.fase !== 'fim', aoFechar: () => { UI.focar(); if (M.fase !== 'fim') Musica.momento(M.fase === 'luta' ? 'batalha' : J.v.vidas === 1 ? 'porUmFio' : 'construir'); else Musica.momento('fim') } })
   menos(guardado ?? matchMedia('(prefers-reduced-motion: reduce)').matches)

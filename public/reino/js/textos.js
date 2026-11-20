@@ -36,6 +36,7 @@ export const T = {
   },
   // a regra do chefe do config fala em terrenos sem dizer a unidade ("within 0.5"): a tela acrescenta "plots" (o número é o do config)
   comUnidade: (s) => String(s).replace(/(within \d+(?:\.\d+)?)(?=\.?$)/i, '$1 plots'),
+  ganheN: (n) => `WIN: PICK 1 OF ${n}`,
   toqueCarta: 'TAP A CARD', sortearNome: 'REROLL', consertarNome: 'REPAIR', chefeAmanha: (c) => `BOSS NEXT ROUND: REPAIR A HEART FOR ${c} GOLD`, dicaConserto: (c) => `SPARE GOLD? REPAIR A HEART FOR ${c}`,
   proximaMao: 'NEXT HAND', unidadeTerreno: (x) => `${x} PLOTS`,
   cartaNova: 'NEW CARD', conquista: 'ACHIEVEMENT', limpo: 'CLEAN PLATE', maisNivel: '+1 LEVEL', pegue: 'PICK 1 REWARD', continua: (r) => `RUN RESUMED: ROUND ${r}`,

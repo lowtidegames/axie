@@ -1,0 +1,349 @@
+{
+ "escala": "2x (1 px da arte = 2 px de tela), image-rendering: pixelated",
+ "pecas": [
+  {
+   "nome": "ui_btn_normal",
+   "arquivo": "ui_btn_normal.png",
+   "tamanho": [
+    24,
+    24
+   ],
+   "origem": "geração",
+   "fatia": {
+    "top": 6,
+    "right": 6,
+    "bottom": 8,
+    "left": 6
+   },
+   "border_image_slice": "6 6 8 6",
+   "nota": "gerado + recolorido na paleta (pano/roxo)"
+  },
+  {
+   "nome": "ui_btn_apertado",
+   "arquivo": "ui_btn_apertado.png",
+   "tamanho": [
+    24,
+    24
+   ],
+   "origem": "código",
+   "fatia": {
+    "top": 8,
+    "right": 6,
+    "bottom": 6,
+    "left": 6
+   },
+   "border_image_slice": "8 6 6 6",
+   "nota": "por código a partir do botão gerado"
+  },
+  {
+   "nome": "ui_btn_desligado",
+   "arquivo": "ui_btn_desligado.png",
+   "tamanho": [
+    24,
+    24
+   ],
+   "origem": "código",
+   "fatia": {
+    "top": 6,
+    "right": 6,
+    "bottom": 8,
+    "left": 6
+   },
+   "border_image_slice": "6 6 8 6",
+   "nota": "pedra, sem brilho"
+  },
+  {
+   "nome": "ui_btn_destaque",
+   "arquivo": "ui_btn_destaque.png",
+   "tamanho": [
+    24,
+    24
+   ],
+   "origem": "código",
+   "fatia": {
+    "top": 6,
+    "right": 6,
+    "bottom": 8,
+    "left": 6
+   },
+   "border_image_slice": "6 6 8 6",
+   "nota": "o grande laranja do PUXAR O TAPETE"
+  },
+  {
+   "nome": "ui_aba_ligada",
+   "arquivo": "ui_aba_ligada.png",
+   "tamanho": [
+    24,
+    20
+   ],
+   "origem": "código",
+   "fatia": {
+    "top": 6,
+    "right": 6,
+    "bottom": 2,
+    "left": 6
+   },
+   "border_image_slice": "6 6 2 6",
+   "nota": "papel claro; aberta embaixo"
+  },
+  {
+   "nome": "ui_aba_desligada",
+   "arquivo": "ui_aba_desligada.png",
+   "tamanho": [
+    24,
+    20
+   ],
+   "origem": "código",
+   "fatia": {
+    "top": 6,
+    "right": 6,
+    "bottom": 2,
+    "left": 6
+   },
+   "border_image_slice": "6 6 2 6",
+   "nota": "pano escuro"
+  },
+  {
+   "nome": "ui_janela",
+   "arquivo": "ui_janela.png",
+   "tamanho": [
+    48,
+    48
+   ],
+   "origem": "código",
+   "fatia": {
+    "top": 17,
+    "right": 24,
+    "bottom": 3,
+    "left": 3
+   },
+   "border_image_slice": "17 24 3 3",
+   "nota": "título vazado (cor do app por trás); 3 botões ficam no canto direito, que NÃO estica (right=24); usar border-image-slice com \"fill\""
+  },
+  {
+   "nome": "ui_barra_vazia",
+   "arquivo": "ui_barra_vazia.png",
+   "tamanho": [
+    24,
+    8
+   ],
+   "origem": "código",
+   "fatia": {
+    "top": 0,
+    "right": 4,
+    "bottom": 0,
+    "left": 4
+   },
+   "border_image_slice": "0 4 0 4",
+   "nota": "trilho escuro; 8 px de altura fixos"
+  },
+  {
+   "nome": "ui_barra_cheia",
+   "arquivo": "ui_barra_cheia.png",
+   "tamanho": [
+    24,
+    8
+   ],
+   "origem": "código",
+   "fatia": {
+    "top": 0,
+    "right": 4,
+    "bottom": 0,
+    "left": 4
+   },
+   "border_image_slice": "0 4 0 4",
+   "nota": "recheio verde (Confiança alta / geral)"
+  },
+  {
+   "nome": "ui_barra_calor",
+   "arquivo": "ui_barra_calor.png",
+   "tamanho": [
+    24,
+    8
+   ],
+   "origem": "código",
+   "fatia": {
+    "top": 0,
+    "right": 4,
+    "bottom": 0,
+    "left": 4
+   },
+   "border_image_slice": "0 4 0 4",
+   "nota": "recheio laranja (Calor)"
+  },
+  {
+   "nome": "ui_barra_confianca",
+   "arquivo": "ui_barra_confianca.png",
+   "tamanho": [
+    24,
+    8
+   ],
+   "origem": "código",
+   "fatia": {
+    "top": 0,
+    "right": 4,
+    "bottom": 0,
+    "left": 4
+   },
+   "border_image_slice": "0 4 0 4",
+   "nota": "recheio azul (Confiança)"
+  },
+  {
+   "nome": "ui_status",
+   "arquivo": "ui_status.png",
+   "tamanho": [
+    24,
+    16
+   ],
+   "origem": "geração",
+   "fatia": {
+    "top": 6,
+    "right": 6,
+    "bottom": 6,
+    "left": 6
+   },
+   "border_image_slice": "6 6 6 6",
+   "nota": "placa azul-noite da barra do topo, fichas de caixa/Calor/relógio"
+  },
+  {
+   "nome": "ui_dock",
+   "arquivo": "ui_dock.png",
+   "tamanho": [
+    24,
+    24
+   ],
+   "origem": "código",
+   "fatia": {
+    "top": 4,
+    "right": 4,
+    "bottom": 4,
+    "left": 4
+   },
+   "border_image_slice": "4 4 4 4",
+   "nota": "barra de tarefas: cantos de baixo retos, sem contorno embaixo"
+  },
+  {
+   "nome": "papel_grafico",
+   "arquivo": "papel_grafico.png",
+   "tamanho": [
+    64,
+    64
+   ],
+   "origem": "geração",
+   "ladrilho": true,
+   "nota": "ladrilho 64x64 que repete; fundo escuro, riscos de baixo contraste"
+  },
+  {
+   "nome": "papel_comunidade",
+   "arquivo": "papel_comunidade.png",
+   "tamanho": [
+    64,
+    64
+   ],
+   "origem": "geração",
+   "ladrilho": true,
+   "nota": "ladrilho 64x64 que repete; fundo escuro, riscos de baixo contraste"
+  },
+  {
+   "nome": "papel_projeto",
+   "arquivo": "papel_projeto.png",
+   "tamanho": [
+    64,
+    64
+   ],
+   "origem": "geração",
+   "ladrilho": true,
+   "nota": "ladrilho 64x64 que repete; fundo escuro, riscos de baixo contraste"
+  },
+  {
+   "nome": "icone_grafico",
+   "arquivo": "icone_grafico.png",
+   "tamanho": [
+    32,
+    32
+   ],
+   "origem": "geração",
+   "nota": "ícone 32x32, mostrar a 1x (32 px) ou 2x (64 px)"
+  },
+  {
+   "nome": "icone_caixa",
+   "arquivo": "icone_caixa.png",
+   "tamanho": [
+    32,
+    32
+   ],
+   "origem": "geração",
+   "nota": "ícone 32x32, mostrar a 1x (32 px) ou 2x (64 px)"
+  },
+  {
+   "nome": "icone_comunidade",
+   "arquivo": "icone_comunidade.png",
+   "tamanho": [
+    32,
+    32
+   ],
+   "origem": "geração",
+   "nota": "ícone 32x32, mostrar a 1x (32 px) ou 2x (64 px)"
+  },
+  {
+   "nome": "icone_chat",
+   "arquivo": "icone_chat.png",
+   "tamanho": [
+    32,
+    32
+   ],
+   "origem": "geração",
+   "nota": "ícone 32x32, mostrar a 1x (32 px) ou 2x (64 px)"
+  },
+  {
+   "nome": "icone_projetos",
+   "arquivo": "icone_projetos.png",
+   "tamanho": [
+    32,
+    32
+   ],
+   "origem": "geração",
+   "nota": "ícone 32x32, mostrar a 1x (32 px) ou 2x (64 px)"
+  },
+  {
+   "nome": "icone_ideias",
+   "arquivo": "icone_ideias.png",
+   "tamanho": [
+    32,
+    32
+   ],
+   "origem": "geração",
+   "nota": "ícone 32x32, mostrar a 1x (32 px) ou 2x (64 px)"
+  },
+  {
+   "nome": "icone_impressora",
+   "arquivo": "icone_impressora.png",
+   "tamanho": [
+    32,
+    32
+   ],
+   "origem": "geração",
+   "nota": "ícone 32x32, mostrar a 1x (32 px) ou 2x (64 px)"
+  },
+  {
+   "nome": "icone_porao",
+   "arquivo": "icone_porao.png",
+   "tamanho": [
+    32,
+    32
+   ],
+   "origem": "geração",
+   "nota": "ícone 32x32, mostrar a 1x (32 px) ou 2x (64 px)"
+  },
+  {
+   "nome": "icone_celular",
+   "arquivo": "icone_celular.png",
+   "tamanho": [
+    32,
+    32
+   ],
+   "origem": "código",
+   "nota": "ícone 32x32"
+  }
+ ]
+}

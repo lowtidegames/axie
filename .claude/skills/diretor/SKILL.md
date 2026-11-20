@@ -22,7 +22,7 @@ description: PRIMORDIAL — o DIRETOR do jogo é a conversa principal e faz o pa
 ## 3. Despachar
 1. Confira a coluna "arquivos": duas tarefas no mesmo arquivo NUNCA rodam juntas; a segunda fica `FILA` com "depende de".
 2. Abra com a ferramenta Agent: `subagent_type` = o cargo certo de `.claude/agents/`, `run_in_background: true`, `isolation: "worktree"` para quem muda código ou arte (só leitura não precisa). Se o worktree for negado: o agente cria a própria pasta (`git worktree add <pasta>/<tarefa> -b teste-<tarefa> origin/teste`) e trabalha só lá.
-3. Abra todos os que cabem na MESMA resposta: até 4 ao mesmo tempo (testes de tela um de cada vez, pela `trava-robos`). Modelo do tamanho da tarefa: Sonnet para tela, texto, teste e conserto; Opus só para servidor/dinheiro, núcleo da batalha, economia, auditoria e agente que falhou 2 vezes.
+3. Abra todos os que cabem na MESMA resposta: até 6 ao mesmo tempo (testes de tela um de cada vez, pela `trava-robos`). Modelo do tamanho da tarefa: Sonnet para tela, texto, teste e conserto; Opus só para servidor/dinheiro, núcleo da batalha, economia, auditoria e agente que falhou 2 vezes.
 4. Pedido a cada agente (completo, curto): objetivo; arquivos que PODE e que NÃO pode mexer; "leia a sua skill `oficio-<cargo>` e a lição da área em `docs/licoes/` (se existir)"; testes = só os do arquivo + `npm test` (bateria completa nunca: é do diretor); número novo PROVISÓRIO só no arquivo de configuração e só com o "sim" do dono; commit no ramo dele com o autor do projeto, SEM push; resposta final em até 10 linhas: o que mudou, testes que passaram, 3 passos para o dono testar, DECISÕES PARA ANOTAR, lição (se houve).
 5. Marque a linha `RODANDO` com o nome do agente e a hora.
 

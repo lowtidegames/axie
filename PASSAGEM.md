@@ -13,6 +13,15 @@
 - **Como trabalhar:** commit → `npm test` → push em comandos separados · testes de tela pela `tools/trava-robos.mjs`, um por vez · junção de ramos costuma conflitar só em fotos (`git checkout --theirs` nas fotos e regravar) · agentes de tela em Fable, servidor/medidor em Opus · nunca dois no mesmo arquivo · aviso "Unverified" no commit é esperado, autor não muda.
 
 ## 20/11/2026 01:05 BRT — estado anterior (superado pela seção acima)
+## ⚑ 20/11/2026 05:55 BRT — PORÃO (jogo-sátira, conversa separada no ramo `frayz-motor2`)
+- **O que é:** jogo pessoal do dono (moeda fictícia, sem cripto, roda só em 127.0.0.1): o jogador é o dev golpista Rugrigo num porão com 3 monitores. Ideia em `docs/ideias/dev-do-porao.md`; desenho técnico em `docs/porao/desenho-v1.md`; tarefas P1–P11 em `docs/fila.md` (todas PRONTAS); decisões de 20/11 03:29–05:32 no `docs/decisions.md`.
+- **Código:** `porao/` (comum: regras, config, nomes · servidor: banco, jogo, index · tela: cena, monitores, api, app · ferramentas: simulador). Rodar: `npm run porao` → http://127.0.0.1:4900. Testes: 80 do porão dentro do `npm test` (438 verdes); tela: `npm run e2e:porao` verde.
+- **Segurança:** 3 rodadas do `seguranca`, todas GO. Aberta (ASSUMPTION): pedir a cada pouco mais de 10 min foge do Calor.
+- **Nomes reais:** só em `porao/nomes.local.json` (fora do git), formato `{"ideia.comum.1.nome": "..."}`.
+- **Arte:** piloto PixelLab aprovado pelo diretor-de-arte (nota 86; `arte/piloto-porao/`); lote de produção (até 100 gerações) ESPERA o "sim" do dono. O teto antigo de 150 gerações do dono ficou em 158 com o piloto do Porão (aprovado pelo dono às 05:14).
+- **Equipe nova:** `nucleo-do-jogo`, `designer-de-progressao`, `humorista`, `artista-pixel`; até 6 agentes juntos.
+
+## ⚑ 20/11/2026 01:05 BRT — ESTADO ATUAL (vale acima de tudo abaixo)
 - **JOGO ATUAL: "Keepmile"** (nome provisório), ordem de autonomia do dono de 19/11 18:30 continua valendo ("não me pergunte mais nada"). Ordem nova de 20/11 23:17, com vídeo de um jogo do gênero como régua: "o mesmo nível de qualidade de movimentação, igual ou melhor" + "a direção de arte" (régua de ofício; nada copiado).
 - **No `main` (enviado):** tarefas R1–R25 da `docs/fila.md`. Motor `shared/reino/`; tela `public/reino/` (modo local + modo servidor em `js/servidor.js`); servidor `server/reino/` com banco v7; cena nova em `public/reino/js/cena.js`, `movimento.js`, `particulas.js`, `cenario.js` (pelotão = poucos bonecos representantes grandes + plaqueta com o número real; 4 trechos de cenário; moldura). `npm test` 339 verdes; telas: `reino.e2e` 695, `reino-movimento.e2e` 90, `reino-servidor.e2e` 261, `reino-som.e2e`.
 - **Notas honestas:** movimento 84 contra a régua do dono (alvo 88), direção de arte 88; diversão 80 na conferência 2 (antes do polimento 2). Segurança: parecer-reino-1 com K1–K6 fechados; R19, R20, R22, R24 com GO.

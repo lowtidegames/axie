@@ -24,6 +24,8 @@ const PROJ = { T04: 'flecha', T05: 'virote', T06: 'falcao', T08: 'nada', T09: 't
 const VOO_MS = 210 // VAO: quanto cada frente segura da LINHA do choque (centésimos de terreno): entre as duas sobra 1 boneco
 // GESTO de cada tipo de carta e de invasor (movimento.js): cada um bate de um jeito reconhecível
 // R28: mordida (Scoffer), portada (Doorman), investida (Sir Dent) e barrigada (Bloater) — as tropas que mais aparecem saíram do corte genérico
+export const COR_CHEFE = '#FFF6E0' // R38: contorno claro do chefe (creme: o tom mais claro da paleta, lê de dia e na noite de chefe)
+const VIZ8 = [-1, 0, 1, 0, 0, -1, 0, 1, -1, -1, 1, -1, -1, 1, 1, 1]
 const COR_MULTIDAO = ['#2E4A34', '#4A3A2A', '#4A2E3A', '#1E2440'] // contorno da multidão que espera: a sombra do próprio trecho (campos, vila, portões, noite)
 const GESTOS = { T01: 1, T02: 7, T03: 8, T07: 2, T11: 3, muncher: 6, stilt: 1, mole: 2, drum: 2, bloater: 9 }
 
@@ -47,6 +49,8 @@ export function criarCena(canvas, CONFIG) {
     ordem: new Uint16Array(MAXU), tb: 0, nv: new Uint8Array(MAXU), lider: new Uint8Array(MAXU), marcha: false, marchaT0: 0, gritoT: -1e9,
     // movimento (R21): golpe, apanhou, virada, queda — tempos em ms do relógio visual
     idTipo: new Array(MAXU), grOff: new Float32Array(MAXU), chega: new Uint8Array(MAXU), entraT: new Float64Array(MAXU), nuvem: new Uint8Array(MAXU), brilhoQ: new Int32Array(MAXU), atirador: new Uint8Array(MAXU), lutaT: new Float64Array(MAXU), gesto: new Uint8Array(MAXU), atqDist: new Float32Array(MAXU), fimT: -1e9, fimVitoria: false, laneT: new Float32Array(MAXU), dxeT: new Float32Array(MAXU), ocultoAnt: new Uint8Array(MAXU), balde: new Int16Array(MAXU), altV: new Int8Array(MAXU), repMax: 6, kRep: 1, grupo: new Uint8Array(MAXU), atqT: new Float64Array(MAXU), atqAnt: new Float32Array(MAXU), atqTiro: new Uint8Array(MAXU), atqAlvo: new Int16Array(MAXU), atqSolta: new Uint8Array(MAXU),
+    // R38 — CHEFE LEGÍVEL: quem é chefe (contorno claro), a barra de vida dele (`chefe`: a batalha entrega) e a câmera perto do celular (`perto`)
+    ehChefe: new Uint8Array(MAXU), chefeVivo: false, chefe: null, perto: false, setas: [], zonaChances: null,
     hitT: new Float64Array(MAXU), hitDir: new Int8Array(MAXU), hitF: new Float32Array(MAXU), viraT: new Float64Array(MAXU), dirV: new Int8Array(MAXU), morteT: new Float64Array(MAXU), morteTipo: new Uint8Array(MAXU), etapa: new Uint8Array(MAXU),
     fase: new Uint8Array(MAXU), passoN: new Int32Array(MAXU), qi: new Uint16Array(MAXU), pDx: new Int8Array(MAXU), pDy: new Int8Array(MAXU), pLarg: new Int8Array(MAXU), pAlt: new Int8Array(MAXU), pIncl: new Int8Array(MAXU),
     // partículas, efeitos animados, números
@@ -58,7 +62,7 @@ export function criarCena(canvas, CONFIG) {
     // medidas do movimento (para o teste e o relato): quantas vezes cada etapa aconteceu
     med: null,
   }
-  C.zerarMedidas = () => { C.med = { antecipa: 0, bote: 0, volta: 0, seq: [], seqDe: -1, fumacas: 0, quadrosLuta: 0, abracos: 0, plaquetas: 0, gestos: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], cascata: 0, poBote: 0, festas: 0, recuos: 0, numPorGrupo: 0, vaoMin: 99, riscoK: 0, hordaComGrande: 0, quadrosChefe: 0, chefeColado: 0, riscosFortes: 0, frenteBaixa: 0, riscos: 0, hordaMax: 0, silMax: 0, silhuetas: 0, vagas: 0, vagaPassos: 0, pisoes: 0, enquadre: 0, duelo: 0, ladoErrado: 0, caixas: 0, quadrosPortao: 0, vaoRepouso: 999, foraDoPortao: 0, cortados: 0, fumacinhas: 0, fumacasJuntas: 0, fumacasSeguradas: 0, nuvens: 0, fumacaMs: 0, fumacaLado: 0, numAlternados: 0, numEsperas: 0, numColados: 0, quadrosNum: 0, brilhos: 0, sombrasNoPulo: 0, bandeirolas: 0, gruposCaidos: 0, pausaGrupoMs: 0, lentoMs: 0, repsCaidos: 0, repsMax: 0, estrelas: 0, varridas: 0, tombos: 0, estouros: 0, chefeEtapas: [], passos: 0, poeiras: 0, viradas: 0, flechas: 0, fincadas: 0, explosoes: 0, aneis: 0, somados: 0, numeros: 0, zoomMax: 1, empurrao: 0, brancosLog: [], meioPixel: 0, trechos: [] }; C.tremidaMax = 0; C.picoParticulas = 0; C.flashes.length = 0 }
+  C.zerarMedidas = () => { C.med = { antecipa: 0, bote: 0, volta: 0, seq: [], seqDe: -1, fumacas: 0, quadrosLuta: 0, abracos: 0, plaquetas: 0, gestos: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], cascata: 0, poBote: 0, festas: 0, recuos: 0, numPorGrupo: 0, vaoMin: 99, riscoK: 0, hordaComGrande: 0, quadrosChefe: 0, chefeColado: 0, riscosFortes: 0, frenteBaixa: 0, riscos: 0, hordaMax: 0, silMax: 0, silhuetas: 0, vagas: 0, vagaPassos: 0, pisoes: 0, enquadre: 0, duelo: 0, ladoErrado: 0, caixas: 0, quadrosPortao: 0, vaoRepouso: 999, foraDoPortao: 0, cortados: 0, fumacinhas: 0, fumacasJuntas: 0, fumacasSeguradas: 0, nuvens: 0, fumacaMs: 0, fumacaLado: 0, numAlternados: 0, numEsperas: 0, numColados: 0, quadrosNum: 0, brilhos: 0, sombrasNoPulo: 0, bandeirolas: 0, gruposCaidos: 0, pausaGrupoMs: 0, lentoMs: 0, repsCaidos: 0, repsMax: 0, estrelas: 0, varridas: 0, tombos: 0, estouros: 0, chefeEtapas: [], passos: 0, poeiras: 0, viradas: 0, flechas: 0, fincadas: 0, explosoes: 0, aneis: 0, somados: 0, numeros: 0, zoomMax: 1, empurrao: 0, brancosLog: [], meioPixel: 0, trechos: [], chefeContorno: 0, apagados: 0, chefeBarra: 0, chefeBarraRet: null, numPxMin: 999, perto: 0, pertoCortes: 0, pertoZoom: 1, setaDesviada: 0 }; C.tremidaMax = 0; C.picoParticulas = 0; C.flashes.length = 0 }
   C.zerarMedidas()
   const CORES_P = ['#FFF6E0', '#E8C48A', '#FFD248', '#CC3C3E', '#4884E8', '#9248C8', '#7CC950', '#E0489B', '#CECAD8', '#B6F03C', '#E87E2E', '#704C3E']
   const BRASA = ['#704C3E', '#CC3C3E', '#E87E2E', '#FFD248', '#FFF6E0']
@@ -354,6 +358,11 @@ export function criarCena(canvas, CONFIG) {
     let nRep = 0; C.focoX = 0; C.focoY = 0; C.focoN = 0; C.focoL = 0; for (let i = 0; i < C.n; i++) if (C.est[i] === 1 && !C.oculto[i] && C.peca[i].w <= 60) { nRep++; C.focoX += C.sx[i]; C.focoY += C.sy[i]; C.focoN++; C.focoL |= 1 << C.lado[i] }
     if (luta) { for (let reg = 0; reg < NREG; reg++) { let v = 0; for (let q = 0; q < NTIPO; q++) v += gVis[reg * NTIPO + q]; if (v > C.med.hordaMax) C.med.hordaMax = v; if (regPeso[reg] && v > C.med.hordaComGrande) C.med.hordaComGrande = v; if (silN[reg] > C.med.silMax) C.med.silMax = silN[reg] } medirLinha() }
     if (nRep > C.med.repsMax) C.med.repsMax = nRep
+    // R38 — a CAIXA de todo mundo que está à vista (representantes, grandes e a multidão que espera), com a plaqueta em cima: a câmera
+    // perto do celular só chega se a caixa inteira couber (ninguém cortado)
+    { let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9
+      for (let i = 0; i < C.n; i++) { if (C.est[i] !== 1 || C.oculto[i] === 1) continue; const p = C.peca[i], hw = p.w > 60 ? p.w * 0.36 * C.k[i] : 8 * C.k[i], topo = C.sy[i] - (p.ay - Arte.topoDe(p)) * C.k[i] - 28; if (C.sx[i] - hw < x0) x0 = C.sx[i] - hw; if (C.sx[i] + hw > x1) x1 = C.sx[i] + hw; if (topo < y0) y0 = topo; if (C.sy[i] + 5 > y1) y1 = C.sy[i] + 5 }
+      C.cxa = x0 < 1e8 ? [x0, y0, x1, y1] : null }
   }
   /** MEDIDAS da linha de frente, em TODO quadro da luta (para o teste e o relato): lado errado da linha, caixas que se tocam em repouso
    *  (invasor × defensor, na tela) e o "abraço" (a menos de meio boneco). */
@@ -444,6 +453,7 @@ export function criarCena(canvas, CONFIG) {
     C.anim[i] = 0; C.animT[i] = C.relogio - (h >>> 12) % 1040; C.dir[i] = lado ? 1 : -1; C.dirV[i] = C.dir[i]; C.k[i] = p.w > (C.tipo === 'pc' ? 100 : 60) ? grande : C.kRep; /* R29: no PC o bruto sobe um degrau de pixel com os representantes (visivelmente maior); no celular a estrada não comporta */ C.laneT[i] = C.lane[i]; C.dxeT[i] = C.dxe[i]; C.ocultoAnt[i] = 1; C.oculto[i] = 0; C.altV[i] = p.w > 60 ? 0 : ((h >>> 15) % 3) - 1; C.lutaT[i] = -1e9; C.gesto[i] = C.atirador[i] ? 5 : p.w > 60 ? 4 : GESTOS[tipo] || 0; C.atqDist[i] = 6; C.barra[i] = p.barra ? 1 : 0; C.preso[i] = -1; C.nv[i] = nivel; C.lider[i] = lider ? 1 : 0
     if (lado === 0 && lider) grupoAtual++
     C.grupo[i] = lado === 0 ? grupoAtual : 0
+    C.ehChefe[i] = lado === 1 && (p.w > 100 || !!CONFIG.CHEFES?.some((x) => x.id === tipo)) ? 1 : 0
     C.atqT[i] = C.hitT[i] = C.viraT[i] = C.morteT[i] = C.entraT[i] = -1e9; C.chega[i] = 0; C.atqSolta[i] = 0; C.fase[i] = 0; C.passoN[i] = -1; C.etapa[i] = 0; C.morteTipo[i] = 0
     C.n = i + 1; ordenar = true
     return i
@@ -532,11 +542,11 @@ export function criarCena(canvas, CONFIG) {
         n.v += valor; n.grande = n.grande || grande; textoDoDano(n); if (t - n.nasc < 900) n.t0 = Math.max(n.t0, t - 90); C.med.somados++; return
       }
       // nasce do LADO de quem apanhou (para longe do golpe) e em faixa de altura própria: comum embaixo, forte em cima, cura mais alto
-      x += lado * 15; y -= tipo === 2 ? 14 : 0
+      x += lado * (C.tipo === 'celular' ? 20 : 15); y -= tipo === 2 ? DEGRAU() + 3 : 0
       // R28 — NÚMEROS VIZINHOS: dois pelotões lado a lado no choque não mostram números colados. O novo sobe um degrau (alturas
       // alternadas); se ainda colidir, sobe mais um e o MENOR dos dois espera 120 ms
       let o = vizinho(x, y, chave, t)
-      if (o) { y -= 11; C.med.numAlternados++; o = vizinho(x, y, chave, t); if (o) { y -= 11; C.med.numEsperas++; if (o.v < valor && t - o.nasc <= 40) o.t0 += 120; else espera = 120 } }
+      if (o) { y -= DEGRAU(); C.med.numAlternados++; o = vizinho(x, y, chave, t); if (o) { y -= DEGRAU(); C.med.numEsperas++; if (o.v < valor && t - o.nasc <= 40) o.t0 += 120; else espera = 120 } }
     }
     for (const n of C.num) {
       if (chave < 0 && n.tipo === tipo && t - n.nasc < 420 && t - n.t0 < DUR_NUM && Math.abs(n.x - x) < 26 && Math.abs(n.y - y) < 20) { n.v += valor; n.grande = n.grande || grande; textoDoDano(n); n.t0 = Math.max(n.t0, t - 90); C.med.somados++; return } // soma e dá um repique
@@ -555,7 +565,9 @@ export function criarCena(canvas, CONFIG) {
     if (chave >= 0) { let q = 0; for (const n of C.num) if (n.tipo !== 3 && t - n.t0 < DUR_NUM && n.chave === chave) q++; if (q > C.med.numPorGrupo) C.med.numPorGrupo = q }
   }
   /** Um número de OUTRO pelotão ainda na tela que ficaria colado em (x, y)? */
-  function vizinho(x, y, chave, t) { for (const n of C.num) if (n.tipo !== 3 && n.chave !== chave && t - n.t0 < DUR_NUM && Math.abs(n.x - x) < 24 && Math.abs(n.y - y) < 10) return n; return null }
+  function vizinho(x, y, chave, t) { const cel = C.tipo === 'celular', dx = cel ? 36 : 24, dy = cel ? 16 : 10; for (const n of C.num) if (n.tipo !== 3 && n.chave !== chave && t - n.t0 < DUR_NUM && Math.abs(n.x - x) < dx && Math.abs(n.y - y) < dy) return n; return null }
+  /** Degrau de altura entre dois números vizinhos: a altura da letra do número + 2 (PC 11; celular 17, R38: a letra de lá tem 16 px). */
+  const DEGRAU = () => (C.tipo === 'celular' ? 17 : 11)
   /** Chave do pelotão de um boneco (para os números de dano): grupo do reino, balde da horda, ou ele mesmo se é grande. */
   C.chaveDe = (i, cura = false) => (cura ? 10000 : 0) + (C.peca[i].w > 60 ? 5000 + i : C.lado[i] === 0 ? 1000 + (C.grupo[i] % NG) : C.balde[i])
   /** Projétil de enfeite (o tiro já está decidido): `tipo` 'flecha' | 'virote' | 'batata' | 'torta' | 'falcao' | 'raio' (ou 0/1 da versão antiga). */
@@ -673,7 +685,7 @@ export function criarCena(canvas, CONFIG) {
     for (let k = 0; k < 6; k++) {
       const tr = T[k]; if ((tr.estrada[0] + tr.estrada[1]) / 2 !== yTier) continue
       const X = Math.round(C.ox + tr.x - cx), Y = C.oy + tr.base_predio + ty, t0 = C.terrenos[k], pul = C.pulo[k + 1] > t ? -Math.round(4 * Math.sin(((C.pulo[k + 1] - t) / 300) * Math.PI)) : 0
-      if (!t0) { const p = Arte.peca('plot-empty'); if (p) Arte.desenhar(g, p, quadroDaPeca(p, 'plot' + (k + 1), C.menos ? 0 : t), X, Y + 3, false, tinta); continue }
+      if (!t0) { const p = Arte.peca('plot-empty'); if (p) { const q = quadroDaPeca(p, 'plot' + (k + 1), C.menos ? 0 : t); Arte.desenhar(g, p, q, X, Y + 3, false, tinta); { const tp = Arte.topoDe(p); C.setas.push({ k: k + 1, tipo: 'vazio', x: X - p.ax, y: Y + 3 - p.ay + tp, w: q[2], h: q[3] - tp }) } /* a caixa pontilhada com a seta dentro, sem a margem vazia do quadro */ } continue }
       const c = CONFIG.CARTAS[t0.carta], fam = CONFIG.FAMILIAS[c.familia].nome
       const fl = Arte.peca('plot-flag'); if (fl && fl.anim[fam]) Arte.desenhar(g, fl, quadroDaPeca(fl, fam, C.menos ? 0 : t + k * 90), X - (tr.largura >> 1) + 4, Y + 2, false, tinta)
       if (c.tipo === 'construcao') { const p = Arte.predio(t0.carta), an = p.niveis ? p.niveis[t0.nivel] : Object.keys(p.anim)[0]; Arte.desenhar(g, p, quadroDaPeca(p, an, C.menos ? 0 : t), X + 2, Y + 2 + pul, false, tinta) }
@@ -692,7 +704,13 @@ export function criarCena(canvas, CONFIG) {
         g.globalAlpha = k === d.forte ? 1 : 0.35 + 0.4 * pisca; g.fillStyle = '#FFD248'
         for (const [cx, cy, sx, sy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]]) { g.fillRect(sx > 0 ? cx : cx - 7, sy > 0 ? cy : cy - 2, 7, 2); g.fillRect(sx > 0 ? cx : cx - 2, sy > 0 ? cy : cy - 7, 2, 7) }
         g.globalAlpha = 0.10 + 0.08 * pisca; g.fillRect(x, y, w, h); g.globalAlpha = 1
-        if (k === d.forte || d.sobe?.has(k)) { const b = C.menos ? 0 : Math.round(Math.abs(Math.sin(t / 220)) * 5); g.save(); g.translate(x + (w >> 1), y - 6 - b); if (!d.sobe?.has(k)) g.scale(1, -1); Arte.icone(g, 'up', -5, -5); g.restore() }
+        if (k === d.forte || d.sobe?.has(k)) {
+          const b = C.menos ? 0 : Math.round(Math.abs(Math.sin(t / 220)) * 5), zc = C.zonaChances; let ya = y - 6
+          // R38: a seta do terreno nunca sobe para cima da linha das chances (a interface diz onde ela está): desce para dentro do terreno
+          if (zc && x + (w >> 1) + 6 > zc.x && x + (w >> 1) - 6 < zc.x + zc.w && ya - 11 < zc.y + zc.h && ya + 6 > zc.y) { ya = zc.y + zc.h + 11; C.med.setaDesviada++ }
+          C.setas.push({ k, tipo: 'destaque', x: x + (w >> 1) - 6, y: ya - 11, w: 12, h: 17 })
+          g.save(); g.translate(x + (w >> 1), ya - b); if (!d.sobe?.has(k)) g.scale(1, -1); Arte.icone(g, 'up', -5, -5); g.restore()
+        }
       }
       if (viz) { const b = C.menos ? 0 : Math.round(Math.abs(Math.sin(t / 200 + k)) * 3); g.globalAlpha = 1; Arte.icone(g, 'up', x + (w >> 1) - 5, y + 6 - b); Arte.texto(g, '+', x + (w >> 1) + 7, y + 8 - b, { fonte: 'reino-ouro' }) }
     }
@@ -768,7 +786,11 @@ export function criarCena(canvas, CONFIG) {
       const qs = p.variantes ? p.variantes[C.vari[i]] : p.quadros, flip = (fc < 0) !== p.olhaEsquerda, grandao = p.w > 60
       const tin = tinta || (grandao ? null : TOM_FILEIRA[C.lane[i] < -0.5 ? 2 : C.lane[i] < 0.1 ? 1 : 0])
       const kk = C.k[i], Xp = X + C.pDx[i] * fc * kk, Yp = Y + C.pDy[i] * kk
-      sprite(Arte.folhaVar(p.img, tin, flip), p, qs[C.qi[i]], Xp, Yp, flip, C.pLarg[i], C.pAlt[i], C.pIncl[i] * fc, C.k[i])
+      // R38 — CHEFE LIDO EM 1 SEGUNDO: contorno CLARO de 1 px de arte em volta do corpo dele (8 cópias da silhueta, por baixo) e, enquanto
+      // ele está de pé, os outros invasores um tom apagados (menos cor, mais escuros). Parado: vale igual com Reduced motion.
+      if (C.ehChefe[i]) { const sil = Arte.folhaSil(p.img, COR_CHEFE, flip); for (let d = 0; d < 8; d++) sprite(sil, p, qs[C.qi[i]], Xp + VIZ8[d * 2] * kk, Yp + VIZ8[d * 2 + 1] * kk, flip, C.pLarg[i], C.pAlt[i], C.pIncl[i] * fc, kk); C.med.chefeContorno++ }
+      const apaga = C.chefeVivo && C.lado[i] === 1 && !C.ehChefe[i]; if (apaga) C.med.apagados++
+      sprite(apaga ? Arte.folhaApagada(p.img, tinta, flip) : Arte.folhaVar(p.img, tin, flip), p, qs[C.qi[i]], Xp, Yp, flip, C.pLarg[i], C.pAlt[i], C.pIncl[i] * fc, C.k[i])
       if (e !== 1) continue
       // ARMA QUE VARRE, pelo GESTO do tipo: arco de aço (corte, frigideira, esmaga), risco reto (estocada); a bicada é só o pescoço. Some em 3 quadros.
       if (C.fase[i] === Mov.FASE.bote && !C.atirador[i]) {
@@ -822,9 +844,11 @@ export function criarCena(canvas, CONFIG) {
   function atualizarBonecos() {
     const t = C.relogio, med = C.med, entra = C.marcha && !C.menos ? Math.min(1, Math.max(0, (t - C.marchaT0) / 1250)) : 1, cxp = C.cam.x
     bordaDoPortao(); frentes()
+    C.chefeVivo = false
     for (let i = 0; i < C.n; i++) {
       const e = C.est[i]
       if (e === 0 || e === 3 || e === 4) continue
+      if (C.ehChefe[i] && (e === 1 || e === 2)) C.chefeVivo = true
       const p0 = C.peca[i], inv = C.lado[i] === 1
       // entrada da horda: vem marchando de fora da tela até a posição (só desenho; a luta ainda não começou)
       let desl = false
@@ -919,6 +943,27 @@ export function criarCena(canvas, CONFIG) {
       ordenar = false
     }
   }
+  /** R38 — CÂMERA PERTO NO CELULAR (rodadas com poucos bonecos; a batalha decide ANTES da luta se pode: `C.perto`). Um degrau inteiro de
+   *  pixel de tela mais perto (×1,5 a 2×), SÓ enquanto a caixa de todo mundo que está à vista (com as plaquetas) cabe inteira na faixa
+   *  livre da tela — entre o HUD e o painel da base. Não coube (chegou reforço pelo portão, dois terrenos longe): a câmera volta macio. */
+  let pertoDesde = 0
+  function pertoDoCelular(agora, dtReal) {
+    const b = C.cxa, z = (C.e + 1) / C.e, ligado = C.cam.zoomAlvo !== 1
+    const s0 = 4, s1 = C.VW - 4, t0 = 50, t1 = C.VH - (C.enquadre ? 27 : 90), folga = ligado ? 0 : 5, mx = ligado ? 5 : 8 // (histerese: para entrar pede folga; para ficar, não)
+    let fx = NaN, fy = NaN
+    if (b && C.focoL === 3) {
+      const eixo = (c, meia, a0, a1, total) => { const lo = Math.max(a0 + meia * z, c * z - total * (z - 1)), hi = Math.min(a1 - meia * z, c * z); if (lo > hi + 0.01) return NaN; const S = Math.max(lo, Math.min(hi, (a0 + a1) / 2)); return (c * z - S) / (z - 1) }
+      fx = eixo((b[0] + b[2]) / 2, (b[2] - b[0]) / 2 + mx + folga, s0, s1, C.VW); fy = eixo((b[1] + b[3]) / 2, (b[3] - b[1]) / 2 + folga, t0, t1, C.VH)
+    }
+    if (fx !== fx || fy !== fy) { pertoDesde = 0; return } // não cabe: o zoom vence sozinho em 150 ms e a câmera volta
+    if (!pertoDesde) pertoDesde = agora
+    if (!ligado && agora - pertoDesde < 300) return // só chega depois de caber por 0,3 s seguidos (não fica entrando e saindo)
+    const k = C.cam.zoom === 1 ? 1 : 1 - Math.pow(0.02, dtReal / 1000)
+    C.cam.fx += (fx - C.cam.fx) * k; C.cam.fy += (fy - C.cam.fy) * k; C.cam.zoomAlvo = z; C.cam.zoomAte = agora + 150
+    // medida (para o teste): quadros com a câmera perto e, deles, em quantos alguém à vista (ou a plaqueta) ficou cortado pela tela
+    const zz = C.cam.zoom, X0 = C.cam.fx + (b[0] - C.cam.fx) * zz, X1 = C.cam.fx + (b[2] - C.cam.fx) * zz, Y0 = C.cam.fy + (b[1] + 6 - C.cam.fy) * zz, Y1 = C.cam.fy + (b[3] - C.cam.fy) * zz
+    C.med.perto++; if (zz > C.med.pertoZoom) C.med.pertoZoom = zz; if (X0 < 0 || X1 > C.VW || Y0 < 44 || Y1 > C.VH - (C.enquadre ? 24 : 88)) C.med.pertoCortes++
+  }
   C.quadro = 0; C.relogioReal = 0; C.zonaTitulo = null; C.numerosPulados = 0; C.dtAnim = 0
 
   /** Linha em pixel (flecha, virote, raio). */
@@ -968,23 +1013,58 @@ export function criarCena(canvas, CONFIG) {
     const zt = C.zonaTitulo; let nb = 0
     for (const n of C.num) {
       const dur = n.tipo === 3 ? 500 : DUR_NUM, f = (t - n.t0) / dur; if (f < 0 || f >= 1) continue
-      let x, y, fonte
+      let x, y, fonte, kf = 1
       if (n.tipo === 3) { if (f > 0.75 && ((C.quadro >> 1) & 1) && !C.menos) continue; x = n.x - C.cam.x; y = n.y - Math.round(f * 10) - (n.grande ? 6 : 0); fonte = n.grande && /^[0-9!]+$/.test(n.s) && Arte.temFonte('dano-g-ouro') ? 'dano-g-ouro' : n.ouro ? 'reino-ouro' : 'reino-contorno' }
       else {
         const arco = C.menos ? 9 : Math.round(47.3 * f - 43 * f * f) // sobe 13 px e cai até 4 acima de onde nasceu
         x = n.x - C.cam.x + (C.menos ? 0 : Math.round(n.lado * 7 * f)); y = n.y - arco - (n.grande ? 6 : 0)
-        const gde = n.grande || (n.tipo === 1 && n.v >= 40)
-        fonte = n.tipo === 2 ? (Arte.temFonte('reino-verde') ? 'reino-verde' : 'reino-contorno') : n.tipo === 1 ? (gde && Arte.temFonte('dano-g-ouro') ? 'dano-g-ouro' : 'reino-ouro') : gde && Arte.temFonte('dano-g') ? 'dano-g' : n.v < 6 && Arte.temFonte('mini-contorno') ? 'mini-contorno' : 'reino-contorno'
+        // R38 — no CELULAR todo número de dano usa a letra GRANDE (16 px de arte = 32 px de tela a 2×: a régua do guia pede 28–64);
+        // sem a letra grande no atlas (ou na cura, que é verde), a letra comum sai em dobro
+        const cel = C.tipo === 'celular', gde = cel || n.grande || (n.tipo === 1 && n.v >= 40)
+        fonte = n.tipo === 2 ? (Arte.temFonte('reino-verde') ? 'reino-verde' : 'reino-contorno') : n.tipo === 1 ? (gde && Arte.temFonte('dano-g-ouro') ? 'dano-g-ouro' : 'reino-ouro') : gde && Arte.temFonte('dano-g') ? 'dano-g' : !cel && n.v < 6 && Arte.temFonte('mini-contorno') ? 'mini-contorno' : 'reino-contorno'
+        if (cel && Arte.alturaDaFonte(fonte) < 14) kf = 2
+        const alt = Arte.alturaDaFonte(fonte) * kf; if (cel) y -= alt - 9 // (cresce para cima: o pé do número fica onde estava)
+        { const px = alt * C.cam.zoom * C.css; if (px < C.med.numPxMin) C.med.numPxMin = px }
         if (f > 0.86) g.globalAlpha = 0.55
+      }
+      { // nenhum número cortado pela borda da tela (nem com a câmera perto)
+        const z = C.cam.zoom, w2 = (Arte.largura(n.s, fonte) * kf >> 1) + 2, e0 = z === 1 ? 0 : C.cam.fx - C.cam.fx / z, e1 = z === 1 ? C.VW : C.cam.fx + (C.VW - C.cam.fx) / z
+        if (x - w2 < e0) x = Math.min(e0 + w2, (e0 + e1) / 2); else if (x + w2 > e1) x = Math.max(e1 - w2, (e0 + e1) / 2)
       }
       if (zt) { // a zona do título (letreiro grande na tela): o número que cairia em cima dele não é desenhado
         const z = C.cam.zoom, sx = z === 1 ? x : C.cam.fx + (x - C.cam.fx) * z, sy = z === 1 ? y : C.cam.fy + (y - C.cam.fy) * z, mw = (n.grande ? 22 : 12) * z, mh = (n.grande ? 18 : 10) * z
         if (sx + mw > zt.x && sx - mw < zt.x + zt.w && sy + mh > zt.y && sy - 2 < zt.y + zt.h) { C.numerosPulados++; g.globalAlpha = 1; continue }
       }
-      Arte.texto(g, n.s, x, y, { fonte, alinhar: 'centro' }); g.globalAlpha = 1
-      if (n.tipo !== 3 && n.chave >= 0) { cxN[nb] = x; cyN[nb] = y; cwN[nb++] = Arte.largura(n.s, fonte) }
+      Arte.texto(g, n.s, x, y, { fonte, alinhar: 'centro', k: kf }); g.globalAlpha = 1
+      if (n.tipo !== 3 && n.chave >= 0) { cxN[nb] = x; cyN[nb] = y; cwN[nb++] = Arte.largura(n.s, fonte) * kf }
     }
-    if (nb > 1) { let col = 0; for (let a = 0; a < nb && !col; a++) for (let b = a + 1; b < nb; b++) if (Math.abs(cxN[a] - cxN[b]) < (cwN[a] + cwN[b]) / 2 - 1 && Math.abs(cyN[a] - cyN[b]) < 7) { col = 1; break } C.med.quadrosNum++; C.med.numColados += col }
+    if (nb > 1) { const dyc = C.tipo === 'celular' ? 14 : 7; let col = 0; for (let a = 0; a < nb && !col; a++) for (let b = a + 1; b < nb; b++) if (Math.abs(cxN[a] - cxN[b]) < (cwN[a] + cwN[b]) / 2 - 1 && Math.abs(cyN[a] - cyN[b]) < dyc) { col = 1; break } C.med.quadrosNum++; C.med.numColados += col } // (celular: letra de 16 px — "colado" é a menos de 14 px de altura)
+  }
+
+  /** R38 — BARRA DE VIDA DO CHEFE, com o nome dele, numa placa própria logo abaixo da estrada da luta (PC: no meio, com o nome em cima;
+   *  celular: de lado a lado, com o nome dentro — não tapa o reino nem o HUD). A vida é a que a batalha já entrega (`C.hp` dos bonecos
+   *  do chefe; quem ainda não entrou conta cheio). Fica na tela da entrada da horda até 1,2 s depois da queda. Não pisca nem treme. */
+  C.anunciarChefe = (id, vidaTotal) => { const c = id && CONFIG.CHEFES?.find((x) => x.id === id); C.chefe = c && vidaTotal > 0 ? { id, nome: c.nome, max: vidaTotal, f: 1, rastro: 1, caiuT: 0 } : null }
+  function barraDoChefe(agora, dtReal) {
+    const ch = C.chefe; if (!ch || !C.emLuta) return
+    let hp = ch.max, vivos = 0, nasc = 0
+    for (let i = 0; i < C.n; i++) { if (C.idTipo[i] !== ch.id || C.lado[i] !== 1 || C.est[i] === 0) continue; nasc++; hp -= C.hpMax[i]; if (C.est[i] === 1 || C.est[i] === 3) { hp += Math.max(0, C.hp[i]); vivos++ } }
+    ch.f = Math.max(0, Math.min(1, hp / ch.max)); ch.vivos = vivos
+    if (nasc && !vivos && ch.f <= 0) { if (!ch.caiuT) ch.caiuT = agora; if (agora - ch.caiuT > 1200) return } else ch.caiuT = 0
+    // o "rastro" claro da vida que acabou de sair escorre até a vida de verdade (parado com Reduced motion)
+    ch.rastro = C.menos ? ch.f : Math.max(ch.f, ch.rastro - dtReal / 1400)
+    const pc = C.tipo === 'pc', T0 = C.geo.terrenos[0], yEstrada = C.oy + Math.max(...C.geo.terrenos.map((t) => t.estrada[1]))
+    const w = pc ? Math.min(220, C.VW - 40) : C.VW - 6, h = pc ? 17 : 12, x = (C.VW - w) >> 1, y = Math.min(yEstrada + 1, C.VH - h - 1)
+    const bx = x + 2, by = pc ? y + 10 : y + 1, bw = w - 4, bh = pc ? 5 : 10
+    g.fillStyle = '#2B1E3A'; g.fillRect(x, y, w, h); g.fillStyle = '#FFD248'; g.fillRect(x + 1, y, w - 2, 1); g.fillStyle = '#4E3A66'; g.fillRect(x + 1, y + h - 1, w - 2, 1)
+    g.fillStyle = '#4E3A66'; g.fillRect(bx, by, bw, bh)
+    const cr = Math.round(bw * ch.rastro), cv = Math.max(ch.f > 0 ? 1 : 0, Math.round(bw * ch.f))
+    if (cr > cv) { g.fillStyle = '#FFF6E0'; g.fillRect(bx + cv, by, cr - cv, bh) }
+    if (cv > 0) { g.fillStyle = '#CC3C3E'; g.fillRect(bx, by, cv, bh); g.fillStyle = '#E87E2E'; g.fillRect(bx, by, cv, 1); g.fillStyle = '#8E2A3A'; g.fillRect(bx, by + bh - 1, cv, 1) }
+    g.fillStyle = '#2B1E3A'; for (let q = 1; q < 4; q++) g.fillRect(bx + Math.round(bw * q / 4), by, 1, bh) // marcas de 25%
+    const fonte = pc ? 'reino-ouro' : Arte.largura(ch.nome, 'reino-contorno') <= bw - 4 ? 'reino-contorno' : 'mini-contorno' // (celular: o nome dentro da barra, letra clara com contorno)
+    Arte.texto(g, ch.nome, C.VW >> 1, pc ? y + 1 : y + (fonte === 'reino-contorno' ? 2 : 3), { fonte, alinhar: 'centro' })
+    C.med.chefeBarra++; C.med.chefeBarraRet = { x, y, w, h, f: ch.f, nome: ch.nome, letra: Arte.alturaDaFonte(fonte) * C.css, largNome: Arte.largura(ch.nome, fonte) }
   }
 
   // gravador de TIRAS (prova de movimento): copia N quadros seguidos de um recorte do mundo, lado a lado. Só com ?teste=1.
@@ -1016,6 +1096,7 @@ export function criarCena(canvas, CONFIG) {
         const tx = C.focoX / C.focoN - C.cam.x, ty = C.focoY / C.focoN - 12, k = C.cam.zoom === 1 ? 1 : 1 - Math.pow(0.02, dtReal / 1000)
         C.cam.fx += (tx - C.cam.fx) * k; C.cam.fy += (ty - C.cam.fy) * k; C.cam.zoomAlvo = (C.e + 1) / C.e; C.cam.zoomAte = agora + 150; C.med.duelo++
       }
+      else if (C.perto && C.emLuta && !C.marcha && agora > C.cam.zoomAte - 150) pertoDoCelular(agora, dtReal)
       if (C.cam.zoomAlvo !== 1 && agora > C.cam.zoomAte) C.cam.zoomAlvo = 1
       if (C.cam.zoom !== C.cam.zoomAlvo) { const d = C.cam.zoomAlvo - C.cam.zoom, k = 1 - Math.pow(0.001, dtReal / (d > 0 ? 170 : 260)); C.cam.zoom += d * k; if (Math.abs(C.cam.zoomAlvo - C.cam.zoom) < 0.006) C.cam.zoom = C.cam.zoomAlvo }
       if (C.cam.zoom > C.med.zoomMax) C.med.zoomMax = C.cam.zoom
@@ -1043,6 +1124,7 @@ export function criarCena(canvas, CONFIG) {
     S.vidaDeTras(cen, de ? C.mix : 1, Tv)
     vida()
     const cxB = camX(), tyB = Math.round(C.trem.y)
+    C.setas.length = 0
     for (let tier = 0; tier < C.tiers.length; tier++) { moveis(tier, tinta, t); S.beira(dono, tier, 1, Tv, cxB, tyB); if (tier === C.tiers.length - 1 && C.antesDosBonecos) C.antesDosBonecos(g, t); bonecos(tier, tinta, sombra) }
     etiquetas()
     destaques(agora)
@@ -1073,6 +1155,7 @@ export function criarCena(canvas, CONFIG) {
     if (!vinheta) vinheta = fazerVinheta()
     g.globalAlpha = Math.min(1, (de ? de.luz.vinheta * (1 - C.mix) + cen.luz.vinheta * C.mix : cen.luz.vinheta) * 2.6 + (C.emLuta ? 0.12 : 0)); g.drawImage(vinheta, 0, 0); g.globalAlpha = 1
     if (C.emLuta) { if (!moldura) moldura = Px.moldura(C.VW, C.VH, C.tipo === 'celular'); g.drawImage(moldura, 0, 0); C.med.moldura = 1 }
+    barraDoChefe(agora, dtReal)
     if (C.flashAte > agora) { g.globalAlpha = 0.32 * ((C.flashAte - agora) / C.flashMs); g.fillStyle = C.flashCor; g.fillRect(0, 0, C.VW, C.VH); g.globalAlpha = 1 }
     gravarQuadro()
   }

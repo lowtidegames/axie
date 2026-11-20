@@ -49,6 +49,15 @@ export function tingir(src, cor) {
   return c
 }
 
+/** R38 — cópia APAGADA (menos cor e um tom mais escura, sem mexer no alfa): a multidão atrás do chefe. `sat` 0..1 = quanto da cor sai. */
+export function apagar(src, sat = 0.45, sombra = '#BDB7D2') {
+  const c = tela(src.width, src.height), g = c.getContext('2d')
+  g.drawImage(src, 0, 0); g.globalCompositeOperation = 'saturation'; g.globalAlpha = sat; R(g, 0, 0, c.width, c.height, '#808080')
+  g.globalAlpha = 1; g.globalCompositeOperation = 'multiply'; R(g, 0, 0, c.width, c.height, sombra)
+  g.globalCompositeOperation = 'destination-in'; g.drawImage(src, 0, 0)
+  return c
+}
+
 export function espelhar(src) {
   const c = tela(src.width, src.height), g = c.getContext('2d')
   g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(src, 0, 0)

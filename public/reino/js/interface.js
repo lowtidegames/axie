@@ -39,11 +39,13 @@ export function criarInterface(C, CONFIG, camada, aoTocar) {
       const itens = [{ s: T.chances, w: Arte.largura(T.chances, fonte) + 4 }, ...M.chances.map((c) => { const t = `${c.nome} ${c.chance}%`; return { s: t, c, w: 9 + Arte.largura(t, fonte) + 5 } })]
       // R38 — no CELULAR as chances nunca descem para cima dos terrenos 5 e 6 (a seta do terreno vazio): só a ÚLTIMA linha fica debaixo
       // do botão de sortear (largura inteira, colada nele); as outras sobem para o LADO do botão (à direita dele e do conserto, se houver)
+      // Tela baixa (o botão já encosta nos terrenos de cima): nem a última linha cabe debaixo dele — todas ficam ao lado.
       const lado = cel ? (M.consertar?.visivel ? L.consertar.x + L.consertar.w : L.sortear.x + L.sortear.w) + 3 * bs - ox : 0
+      const teto = cel ? Math.min(C.topoDoVazio(5), C.topoDoVazio(6)) : 1e9, fundoBt = L.sortear.y + 26 * bs, embaixo = fundoBt + alt <= teto
       const quebra = (n) => { const linhas = [[]]; let x = 0; for (const it of itens) { if (x + it.w - (it.c ? 5 : 4) > (linhas.length < n ? max - lado : max) && linhas.at(-1).length) { linhas.push([]); x = 0 } linhas.at(-1).push({ ...it, x }); x += it.w } return linhas }
-      let linhas = quebra(1); for (let n = 2; cel && linhas.length > n - 1 && n <= 8; n++) linhas = quebra(n)
-      L.odds = cel ? { x: ox, y: L.sortear.y + 26 * bs - (linhas.length - 1) * alt } : { x: ox, y: L.sortear.y - 1 - linhas.length * alt }
-      L.odds.dx = linhas.map((_, i) => (i < linhas.length - 1 ? lado : 0))
+      let linhas = quebra(cel && !embaixo ? 99 : 1); for (let n = 2; cel && embaixo && linhas.length > n - 1 && n <= 8; n++) linhas = quebra(n)
+      L.odds = cel ? { x: ox, y: (embaixo ? fundoBt + alt : Math.min(teto, fundoBt)) - linhas.length * alt } : { x: ox, y: L.sortear.y - 1 - linhas.length * alt }
+      L.odds.dx = linhas.map((_, i) => (cel && (!embaixo || i < linhas.length - 1) ? lado : 0))
       L.odds.linhas = linhas; L.odds.fonte = fonte; L.odds.alt = alt; L.odds.h = linhas.length * alt }
     L.faixa = cel ? { x: 0, y: VH - 88, w: VW, h: 0 } : { x: 6, y: L.odds.y - 50, w: x0 - 14, h: 48 }
     L.lutar2 = cel ? { x: 4, y: VH - 30, w: VW - 8, h: 26 } : { x: Math.floor(VW / 2) - 48, y: VH - 44, w: 96, h: 26 }

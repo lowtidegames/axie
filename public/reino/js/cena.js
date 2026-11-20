@@ -674,6 +674,19 @@ export function criarCena(canvas, CONFIG) {
   }
   const quadroDaPeca = (p, animNome, ms, vari = 0) => { const a = p.anim[animNome] || Object.values(p.anim)[0]; return (p.variantes ? p.variantes[vari] : p.quadros)[Arte.quadroDe(a, ms)] }
 
+  /** R38 — a caixa do que o terreno vazio `nome` desenha de verdade (a caixa pontilhada com a seta, em todos os quadros da animação),
+   *  dentro do quadro da peça. Medida uma vez por terreno, numa cópia pequena. */
+  const CXV = new Map()
+  function caixaDoVazio(p, nome) {
+    let c = CXV.get(nome); if (c) return c
+    const a = p.anim[nome] || Object.values(p.anim)[0], q0 = p.quadros[a.quadros[0]], w = q0[2], h = q0[3], tl = Px.tela(w, h), tg = tl.getContext('2d', { willReadFrequently: true })
+    for (const qi of a.quadros) { const q = p.quadros[qi]; tg.drawImage(p.img, q[0], q[1], w, h, 0, 0, w, h) }
+    const d = tg.getImageData(0, 0, w, h).data; let x0 = w, y0 = h, x1 = -1, y1 = -1
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y }
+    c = x1 < 0 ? { x: 0, y: 0, w, h } : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }; CXV.set(nome, c); return c
+  }
+  /** Onde começa (y de arte da tela, sem a câmera da luta) o desenho do terreno vazio `k` (1..6): a interface não põe texto dali para baixo. */
+  C.topoDoVazio = (k) => { const p = Arte.peca('plot-empty'), tr = C.geo.terrenos[k - 1]; return p ? C.oyBase + tr.base_predio + 3 - p.ay + caixaDoVazio(p, 'plot' + k).y : C.oyBase + tr.base_predio - 41 }
   function moveis(tier, tinta, t) {
     const T = C.geo.terrenos, cx = camX(), ty = Math.round(C.trem.y)
     const yTier = C.tiers[tier]
@@ -685,7 +698,7 @@ export function criarCena(canvas, CONFIG) {
     for (let k = 0; k < 6; k++) {
       const tr = T[k]; if ((tr.estrada[0] + tr.estrada[1]) / 2 !== yTier) continue
       const X = Math.round(C.ox + tr.x - cx), Y = C.oy + tr.base_predio + ty, t0 = C.terrenos[k], pul = C.pulo[k + 1] > t ? -Math.round(4 * Math.sin(((C.pulo[k + 1] - t) / 300) * Math.PI)) : 0
-      if (!t0) { const p = Arte.peca('plot-empty'); if (p) { const q = quadroDaPeca(p, 'plot' + (k + 1), C.menos ? 0 : t); Arte.desenhar(g, p, q, X, Y + 3, false, tinta); { const tp = Arte.topoDe(p); C.setas.push({ k: k + 1, tipo: 'vazio', x: X - p.ax, y: Y + 3 - p.ay + tp, w: q[2], h: q[3] - tp }) } /* a caixa pontilhada com a seta dentro, sem a margem vazia do quadro */ } continue }
+      if (!t0) { const p = Arte.peca('plot-empty'); if (p) { const q = quadroDaPeca(p, 'plot' + (k + 1), C.menos ? 0 : t); Arte.desenhar(g, p, q, X, Y + 3, false, tinta); { const cv = caixaDoVazio(p, 'plot' + (k + 1)); C.setas.push({ k: k + 1, tipo: 'vazio', x: X - p.ax + cv.x, y: Y + 3 - p.ay + cv.y, w: cv.w, h: cv.h }) } /* a caixa pontilhada com a seta dentro, sem a margem vazia do quadro */ } continue }
       const c = CONFIG.CARTAS[t0.carta], fam = CONFIG.FAMILIAS[c.familia].nome
       const fl = Arte.peca('plot-flag'); if (fl && fl.anim[fam]) Arte.desenhar(g, fl, quadroDaPeca(fl, fam, C.menos ? 0 : t + k * 90), X - (tr.largura >> 1) + 4, Y + 2, false, tinta)
       if (c.tipo === 'construcao') { const p = Arte.predio(t0.carta), an = p.niveis ? p.niveis[t0.nivel] : Object.keys(p.anim)[0]; Arte.desenhar(g, p, quadroDaPeca(p, an, C.menos ? 0 : t), X + 2, Y + 2 + pul, false, tinta) }

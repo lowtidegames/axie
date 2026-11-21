@@ -44,6 +44,7 @@ const CSS = `
 .pm-jan__botoes span:last-child { background: var(--pix-tela-r); }
 .pm-jan__corpo { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
 .pm-jan:not(.pm-jan--frente) .pm-jan__barra { filter: saturate(0.45) brightness(0.8); }
+.pm-jan:not(.pm-jan--frente) .pm-jan__corpo { visibility: hidden; }
 .pm-jan--frente { box-shadow: 5px 5px 0 var(--pix-contorno), 0 0 0 2px var(--linho); }
 /* cascata fixa (não arrasta): cada janela um pouco mais para baixo e para a direita */
 .pm-jan[data-pos="0"][data-total="2"] { inset: 0 18px 36px 0; } .pm-jan[data-pos="1"][data-total="2"] { inset: 36px 0 0 18px; }
@@ -288,6 +289,8 @@ function h(tag, props = {}, ...filhos) {
 
 const fmt = (n, casas = 0) => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: casas, minimumFractionDigits: 0 });
 const din = (n) => `$ ${fmt(n)}`;
+/** Porcentagem com as casas que o número tem (0,03% não vira 0%; 12,5% fica 12,5%). */
+const pct = (n) => fmt(n, 4);
 const ROTULO_RARIDADE = { comum: 'Comum', incomum: 'Incomum', raro: 'Raro', epico: 'Épico', lendario: 'Lendário', mitico: 'Mítico' };
 const ROTULO_FASE = { LANCAMENTO: 'Lançando', HYPE: 'Em alta', PICO: 'No pico', ESFRIANDO: 'Esfriando', APLICADO: 'Tapete puxado', APREENDIDO: 'Apreendido' };
 const ROTULO_TAMANHO = { nano: 'Nano', medio: 'Médio', mega: 'Mega' };
@@ -334,6 +337,8 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   let ultimoEstadoCena = '';
   let rindoAte = 0; // o Rugrigo ri na cena logo depois de puxar o tapete (só enfeite: o ganho já veio do servidor)
   const revelada = { carta: null }; // última carta impressa (para a folha)
+  const guardadas = new Set(); // cartas que o jogador mandou guardar (a folha não as mostra de novo)
+  let batidaDispensada = null; // a batida que o jogador fechou sem resolver (a faixa vermelha continua)
   const menos = () => cena.menosAnimacao;
 
   // ----- textos (o servidor pode trocar por chave em visao.nomes) -----
@@ -553,9 +558,11 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     const lista = projetosNoAr();
     const p = projetoAtivo();
     if (!p) {
-      t.corpo.append(
-        h('p', { class: 'pm-vazio' }, 'Nenhum projeto no ar. Imprima uma ideia na Impressora (monitor 3) e lance.'),
-        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-k': 'ir-projeto', onclick: () => { trazer('impressora'); cena.irParaMonitor(2); } }, 'Abrir a Impressora'),
+      const n = visao.estado.cartas.length;
+      t.corpo.append(n
+        ? h('p', { class: 'pm-vazio' }, `Nenhum projeto no ar. Você tem ${n} ${n === 1 ? 'ideia' : 'ideias'} na gaveta: lance uma (monitor 3).`)
+        : h('p', { class: 'pm-vazio' }, 'Nenhum projeto no ar. Imprima uma ideia na Impressora (monitor 3) e lance.'),
+        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-k': 'ir-projeto', onclick: () => { trazer(n ? 'ideias' : 'impressora'); cena.irParaMonitor(2); } }, n ? 'Abrir as Ideias' : 'Abrir a Impressora'),
       );
       return;
     }
@@ -798,7 +805,11 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   function renderNoAr(t) {
     if (visao.estado.batida) t.corpo.append(faixaBatida());
     const lista = projetosNoAr();
-    if (!lista.length) t.corpo.append(h('p', { class: 'pm-vazio' }, 'Nenhum projeto no ar. Imprima uma ideia e lance.'));
+    const nGaveta = visao.estado.cartas.length;
+    if (!lista.length && nGaveta) {
+      t.corpo.append(h('p', { class: 'pm-vazio', 'data-pm': 'gaveta-aviso' }, `Você tem ${nGaveta} ${nGaveta === 1 ? 'ideia' : 'ideias'} na gaveta: lance uma.`),
+        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'ir-ideias', 'data-k': 'ir-ideias', onclick: () => trazer('ideias') }, 'Abrir as Ideias'));
+    } else if (!lista.length) t.corpo.append(h('p', { class: 'pm-vazio' }, 'Nenhum projeto no ar. Imprima uma ideia e lance.'));
     lista.forEach((p) => {
       const previa = visao.previas.tapete[p.id];
       t.corpo.append(h('div', { class: 'pm-card', 'data-pm': 'projeto', 'data-projeto': String(p.id) },
@@ -855,7 +866,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     visao.impressora.chances.forEach(({ raridade, chance }) => {
       const n = IDEIAS_POR_RARIDADE[raridade];
       t.corpo.append(h('div', { class: `pm-rar--${raridade}` },
-        h('div', { class: 'pm-linha' }, chipRar(raridade), h('span', { class: 'pm-pequeno' }, `${fmt(chance, 1)}% por impressão`)),
+        h('div', { class: 'pm-linha' }, chipRar(raridade), h('span', { class: 'pm-pequeno' }, `${pct(chance)}% por impressão`)),
         h('div', { class: 'pm-grade', style: 'margin-top:4px' }, Array.from({ length: n }, (_, i) => {
           const id = `${raridade}_${i + 1}`;
           const arte = visao.estado.album[id] ? caixaArte(id, raridade, 'cheia', true) : null;
@@ -883,7 +894,14 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     const custo = visao.impressora.custo;
     const folha = h('div', { class: 'pm-folha pm-folha--vazia', 'data-pm': 'folha', 'data-etapa': '0', 'aria-live': 'polite' });
     const rar = h('div', { class: 'pm-folha__rar' }), nome = h('div', { class: 'pm-folha__nome' });
-    folha.append(h('div', { style: 'opacity:.55;font-weight:700' }, revelada.carta ? '' : 'Folha em branco'), rar, nome);
+    // sem impressão nesta visita (ex.: depois de recarregar): a folha mostra a última ideia da gaveta (a do servidor)
+    if (!revelada.carta) {
+      const ultima = visao.estado.cartas.filter((x) => !guardadas.has(x.id)).reduce((m, x) => (!m || x.id > m.id ? x : m), null);
+      if (ultima) revelada.carta = { id: ultima.id, ideia: ultima.ideia, raridade: ultima.raridade };
+    }
+    const nGaveta = visao.estado.cartas.length;
+    const vazia = nGaveta ? `Na gaveta: ${nGaveta} ${nGaveta === 1 ? 'ideia' : 'ideias'}` : 'Folha em branco';
+    folha.append(h('div', { style: 'opacity:.55;font-weight:700' }, revelada.carta ? '' : vazia), rar, nome);
     if (revelada.carta) {
       const c = revelada.carta;
       folha.className = `pm-folha pm-moldura pm-rar--${c.raridade}`; folha.dataset.etapa = cenaAtiva.revelacao ? '0' : '3';
@@ -904,13 +922,13 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
       const viva = visao.estado.cartas.some((x) => x.id === c.id);
       if (viva) t.corpo.append(h('div', { class: 'pm-botoes' },
         h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'lancar-agora', 'data-k': 'lancar-agora', onclick: () => lancar(c.id) }, 'Lançar agora'),
-        h('button', { type: 'button', class: 'pm-btn', 'data-k': 'guardar', onclick: () => { revelada.carta = null; render('projeto'); } }, 'Guardar na gaveta')));
+        h('button', { type: 'button', class: 'pm-btn', 'data-k': 'guardar', onclick: () => { guardadas.add(c.id); revelada.carta = null; render('projeto'); } }, 'Guardar na gaveta')));
     }
     t.corpo.append(h('div', { class: 'pm-card', 'data-pm': 'chances' }, h('h3', {}, 'Chance de cada tamanho de golpe'),
       visao.impressora.chances.map(({ raridade, chance }) => h('div', { class: `pm-barra pm-rar--${raridade}` },
         h('span', { class: 'pm-barra__rot' }, ROTULO_RARIDADE[raridade]),
         h('span', { class: 'pm-barra__trilho' }, h('span', { class: 'pm-barra__cheio', style: `display:block;width:${Math.max(2, chance)}%` })),
-        h('span', { class: 'pm-barra__pct' }, `${fmt(chance, 1)}%`)))));
+        h('span', { class: 'pm-barra__pct' }, `${pct(chance)}%`)))));
   }
 
   async function imprimir() {
@@ -947,7 +965,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   }
   async function comprarLuxo(id) {
     const r = await api.luxo(id);
-    aplicar(r, r.ok ? `${nomeLuxo(id)} comprado: já está no porão.` : null);
+    aplicar(r, r.ok ? `Comprado: ${nomeLuxo(id)}. Já está no porão.` : null);
   }
 
   // =============================================================================================
@@ -981,11 +999,14 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
         h('button', { type: 'button', class: 'pm-btn pm-btn--perigo', 'data-pm': 'perder', onclick: () => resolverBatida('perder') }, `Perder ${nome}`)),
     ];
   }
+  const chaveBatida = () => `${visao?.estado.contagem?.batidas ?? 0}:${visao?.previas.batida?.projetoId ?? ''}`;
   function abrirBatida() {
     if (!visao?.previas.batida) return;
     if (cenaAtiva.tapete) { batidaAdiada = true; return; }
     if (janelaBatida) { janelaBatida.atualizar(conteudoBatida()); return; }
-    janelaBatida = janela({ titulo: 'A polícia chegou!', classe: 'pm-janela--batida', dado: 'batida', corpo: conteudoBatida(), aoFechar: () => { janelaBatida = null; render('projeto'); } });
+    batidaDispensada = null;
+    janelaBatida = janela({ titulo: 'A polícia chegou!', classe: 'pm-janela--batida', dado: 'batida', corpo: conteudoBatida(),
+      aoFechar: () => { janelaBatida = null; if (visao?.previas.batida) batidaDispensada = chaveBatida(); render('projeto'); } });
   }
   async function resolverBatida(escolha) {
     const r = await api.batida(escolha);
@@ -1023,22 +1044,38 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     return [tabs, abaCelular === 'mensagens' ? mensagens() : contratar()];
   }
 
+  /** Falas do influenciador neste contrato: as do servidor (estado.celular, já com nome e valor); no modo falso,
+   *  as mesmas chaves e regras de porao/servidor/jogo.mjs estadoParaTela. */
+  function falasDoContrato(p) {
+    if (Array.isArray(visao.estado.celular)) return visao.estado.celular.filter((m) => m.projetoId === p.id);
+    const c = p.contrato, nome = nomeProj(p);
+    const f = (tipo, k, valor) => ({ tipo, texto: citar(T(k), nome).replaceAll('{valor}', din(valor)) });
+    const l = [f('oferta', 'msg.video1.oferta', c.p1)];
+    if (c.proposta !== null && (c.fase === 'PEDE_MAIS' || c.chorou || c.motivo === 'sumiu' || c.proposta > c.p1)) l.push(f('pede_mais', 'msg.melhorar.oferta', c.proposta));
+    else if (c.proposta !== null) l.push(f('proposta', 'msg.video2.mesmo_preco', c.proposta));
+    if (c.chorou) l.push(f('desconto', 'msg.choro.resposta', c.proposta));
+    if (c.motivo === 'sumiu') l.push(f('sumiu', 'msg.sumir'));
+    return l;
+  }
+
   function mensagens() {
     const com = visao.estado.projetos.filter((p) => p.contrato);
     if (!com.length) return h('p', { class: 'pm-vazio' }, 'Nenhuma mensagem ainda. Contrate um influenciador para um projeto.');
     return h('div', { class: 'pm-chat', 'data-pm': 'mensagens' }, com.map((p) => {
       const c = p.contrato, nome = nomeProj(p), quem = nomeInflu(c.influenciador);
       const inf = visao.influenciadores.find((i) => i.id === c.influenciador);
-      const oferta = citar(T('msg.video1.oferta'), nome).replaceAll('{valor}', din(c.p1));
+      const falas = falasDoContrato(p);
+      const fala = (tipo) => falas.find((m) => m.tipo === tipo)?.texto || null;
       const bal = [
-        h('div', { class: 'pm-balao' }, oferta),
+        h('div', { class: 'pm-balao', 'data-pm': 'fala' }, fala('oferta') ?? ''),
         h('div', { class: 'pm-balao pm-balao--eu' }, `Fechado: ${din(c.p1)} pelo vídeo 1.`),
         // o servidor manda contrato.trazidasV1; se faltar, a frase sai sem o número (não inventa)
         Number.isFinite(c.trazidasV1) ? h('div', { class: 'pm-balao' }, `Vídeo 1 no ar: trouxe ${fmt(c.trazidasV1)} trouxas.`) : h('div', { class: 'pm-balao' }, 'Vídeo 1 no ar.'),
       ];
-      if (c.fase === 'PEDE_MAIS' || (c.proposta !== null && c.proposta !== c.p1) || c.chorou) bal.push(h('div', { class: 'pm-balao' }, T('msg.melhorar.oferta')));
-      else if (c.proposta !== null) bal.push(h('div', { class: 'pm-balao' }, `Foi bem! Vídeo 2 pelo mesmo preço: ${din(c.proposta)}.`));
-      if (c.chorou) bal.push(h('div', { class: 'pm-balao--eu pm-balao' }, 'Está caro, dá um desconto?'), h('div', { class: 'pm-balao' }, T('msg.choro.resposta')));
+      // a fala do vídeo 2 é a que o servidor mandou (pede mais OU mesmo preço); a tela não escreve outra por cima
+      const pedido = fala('pede_mais') ?? fala('proposta');
+      if (pedido) bal.push(h('div', { class: 'pm-balao', 'data-pm': 'fala' }, pedido));
+      if (c.chorou) bal.push(h('div', { class: 'pm-balao--eu pm-balao' }, 'Está caro, dá um desconto?'), fala('desconto') ? h('div', { class: 'pm-balao', 'data-pm': 'fala' }, fala('desconto')) : null);
       const aberto = (c.fase === 'V1_NO_AR' && c.proposta !== null) || c.fase === 'PEDE_MAIS';
       if (aberto) {
         const falta = c.proposta - visao.estado.caixa;
@@ -1051,7 +1088,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
           c.fase === 'PEDE_MAIS' && !c.chorou ? h('p', { class: 'pm-pequeno' }, 'Chorar pode dar desconto, ou ele some de vez.') : null));
       } else if (c.fase === 'V2_NO_AR') bal.push(h('div', { class: 'pm-balao--eu pm-balao' }, `Pago. Vídeo 2 no ar.`), h('div', { class: 'pm-balao' }, citar(T('video.2.roteiro'), nome)));
       else if (c.fase === 'V3_NO_AR') bal.push(h('div', { class: 'pm-balao' }, citar(T('video.3.roteiro'), nome)));
-      else if (c.fase === 'ENCERRADO') bal.push(h('div', { class: 'pm-balao' }, c.motivo === 'sumiu' ? T('msg.sumir') : c.motivo === 'apreendido' ? 'O projeto foi apreendido: parceria encerrada.' : 'Você recusou. Ele visualizou e não respondeu.'));
+      else if (c.fase === 'ENCERRADO') bal.push(h('div', { class: 'pm-balao' }, c.motivo === 'sumiu' ? (fala('sumiu') ?? T('msg.sumir')) : c.motivo === 'apreendido' ? 'O projeto foi apreendido: parceria encerrada.' : 'Você recusou. Ele visualizou e não respondeu.'));
       return h('div', { class: 'pm-card' },
         h('div', { class: 'pm-quem' }, retratoInflu(c.influenciador),
           h('div', { class: 'pm-quem__txt' }, h('strong', {}, quem), h('span', { class: 'pm-pequeno' }, nome), inf?.reincidente ? h('span', { class: 'pm-selo' }, 'REINCIDENTE') : null)),
@@ -1150,8 +1187,10 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
         const q = antes.estado.projetos.find((x) => x.id === p.id);
         if (q && q.fase !== p.fase && (p.fase === 'PICO' || (q.fase === 'LANCAMENTO' && p.fase === 'HYPE'))) avisar(0);
       }
-      if (e.batida && !antes.estado.batida) { avisar(1); abrirBatida(); }
+      if (e.batida && !antes.estado.batida) avisar(1);
     }
+    // batida pendente abre a janela sozinha (inclusive depois de recarregar); se o jogador fechou, fica só a faixa
+    if (e.batida && !janelaBatida && batidaDispensada !== chaveBatida()) abrirBatida();
     if (!e.batida && janelaBatida) janelaBatida.fechar();
     else if (e.batida && janelaBatida) janelaBatida.atualizar(conteudoBatida());
     if (antes && !cenaAtiva.revelacao) { /* chat anda só nas atualizações de rotina */ }

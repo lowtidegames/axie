@@ -383,7 +383,8 @@ function criarApiReal(base = '', { janela = janelaPadrao() } = {}) {
     tapete: (projetoId, chave) => post(`/api/projeto/${encodeURIComponent(projetoId)}/tapete`, {}, chave),
     batida: (escolha, chave) => post('/api/batida', { escolha }, chave),
     luxo: (id, chave) => post(`/api/luxo/${encodeURIComponent(id)}`, {}, chave),
-    contrato: (projetoId, influenciador, chave) => post('/api/contrato', { projetoId, influenciador }, chave),
+    // o servidor lê { projetoId, influenciadorId } (porao/servidor/index.mjs ROTAS_POST)
+    contrato: (projetoId, influenciadorId, chave) => post('/api/contrato', { projetoId, influenciadorId }, chave),
     resposta: (projetoId, resposta, chave) => post(`/api/contrato/${encodeURIComponent(projetoId)}/resposta`, { resposta }, chave),
     prestigio: (chave) => post('/api/prestigio', {}, chave),
     missao: (id, chave) => post(`/api/missao/${encodeURIComponent(id)}`, {}, chave),

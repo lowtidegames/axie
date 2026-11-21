@@ -312,6 +312,20 @@ const HISTORIA = [
   'Três monitores, o porão e o Wi-Fi da vó. Nascia um dev. A vó acha que é curso.',
 ];
 
+// MISSÕES DO DIA: metas do "CEO" do porão. Sem pressão nem culpa: perder o dia não tira nada.
+// Cada missao.<tipo> tem {n} uma vez (a meta que o servidor sorteou). Luxo, fusão e contrato têm meta 1: singular.
+const MISSAO = {
+  'missao.titulo': 'Metas do dia do CEO',
+  'missao.tapete': 'Puxar {n} tapetes. No currículo: “pivotei”.',
+  'missao.imprimir': 'Imprimir {n} ideias. Todas originais (copiei).',
+  'missao.luxo': 'Comprar {n} luxo. É material de escritório.',
+  'missao.fusao': 'Fazer {n} fusão de golpes. É sinergia.',
+  'missao.contrato': 'Contratar {n} influenciador. Amizade com boleto.',
+  'missao.resgatar': 'Embolsar',
+  'missao.resgatada': 'Embolsado! Funcionário do mês: eu.',
+  'missao.vazia': 'Agenda vazia. O CEO se deu folga até amanhã.',
+};
+
 function montar() {
   const t = {};
   for (const [rar, lista] of Object.entries(IDEIAS)) {
@@ -341,6 +355,8 @@ function montar() {
   VO.forEach((s, i) => { t[`vo.${i + 1}`] = s; });
   APELIDOS.forEach((s, i) => { t[`apelido.sugestao.${i + 1}`] = s; });
   HISTORIA.forEach((s, i) => { t[`historia.${i + 1}`] = s; });
+  // missões do dia: no fim, para não mexer na ordem das chaves antigas
+  Object.assign(t, MISSAO);
   return t;
 }
 

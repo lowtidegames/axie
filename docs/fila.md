@@ -164,3 +164,4 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | P31 | Polimento para 90+: Confirmar fixo nos modais do celular, apelido só depois do resumo do 1º tapete, vó some durante modais, explicar as metas do dia e meta de longo prazo visível (álbum/prestígio) | dev-tela (Opus) | porao/tela/monitores.js, vo.js, estilo.css, porao/tests/abertura.e2e.mjs | Q2 | PRONTO (72f0fbe; D90 Cg92 Ch95) |
 | Q3 | QA rodada 3: NOTA 89 (D85 Cg84 Ch92), sem regressão; 3 bugs baixos | qa-jogador | — | P31 | PRONTO (fotos em scratchpad/qa-porao3) |
 | P32 | Álbum mostra a carta descoberta (moldura + nome), ordem dos modais (batida acima da história/apelido) | dev-tela | porao/tela/monitores.js, vo.js, porao/tests/abertura.e2e.mjs | Q3 | PRONTO (55dd490; nome do álbum em 11px) |
+| P33 | Achar o teste do servidor que falhou 1 vez em 4 (instável; não reapareceu em 3 rodadas) | testador | — | — | FILA |

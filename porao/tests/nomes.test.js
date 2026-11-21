@@ -137,9 +137,16 @@ test('batida: 5 frases curtas; medidor de confianca tem rotulo', () => {
 
 // Regra mudou (decisao do dono 20/11 18:17, login por assinatura): a chave assinatura.mensagem
 // ganhou {site}, {hora} e {numero}. Para TODAS as outras chaves a regra antiga continua igual.
-test('marcadores: so {projeto}, {valor} e {nome}; so a assinatura usa {site}, {hora} e {numero}', () => {
+// Regra mudou (21/11, missoes do dia): as 5 chaves missao.<tipo> usam {n} (a meta sorteada) e nenhum outro marcador.
+// Para TODAS as outras chaves a regra antiga continua igual ({n} fora das missoes continua proibido).
+const TIPOS_DE_MISSAO = ['tapete', 'imprimir', 'luxo', 'fusao', 'contrato'];
+const CHAVES_DE_MISSAO = TIPOS_DE_MISSAO.map((t) => `missao.${t}`);
+
+test('marcadores: so {projeto}, {valor} e {nome}; so a assinatura usa {site}, {hora} e {numero}; so missao.<tipo> usa {n}', () => {
   for (const [k, v] of Object.entries(N.TEXTOS)) {
-    const permitidos = k === 'assinatura.mensagem' ? ['{site}', '{hora}', '{numero}'] : ['{projeto}', '{valor}', '{nome}'];
+    const permitidos = k === 'assinatura.mensagem' ? ['{site}', '{hora}', '{numero}']
+      : CHAVES_DE_MISSAO.includes(k) ? ['{n}']
+        : ['{projeto}', '{valor}', '{nome}'];
     for (const m of v.match(/\{[^}]*\}/g) ?? []) assert.ok(permitidos.includes(m), `${k}: ${m}`);
   }
 });
@@ -211,4 +218,34 @@ test('carregando: 6 frases curtas; vo: 8 falas de balao; historia: 3 legendas', 
     const t = N.TEXTOS[`historia.${i}`];
     assert.ok(t && t.length <= 110, `historia.${i}`);
   }
+});
+
+// ---- MISSOES DO DIA (21/11) ----
+test('missoes: cada missao.<tipo> tem {n} uma vez, comeca pela acao e cabe no celular', () => {
+  for (const k of CHAVES_DE_MISSAO) {
+    const t = N.TEXTOS[k];
+    assert.ok(typeof t === 'string' && t.includes('{n}'), `${k} sem {n}`);
+    assert.equal(t.split('{n}').length - 1, 1, `${k}: {n} repetido`);
+    assert.deepEqual(t.match(/\{[^}]*\}/g), ['{n}'], `${k}: marcador estranho`);
+    assert.ok(/^\p{Lu}\p{Ll}+ \{n\} /u.test(t), `${k}: comeca com o verbo e a meta`);
+    assert.ok(t.length <= 50, `${k}: ${t.length} letras`);
+  }
+  assert.equal(new Set(CHAVES_DE_MISSAO.map((k) => N.TEXTOS[k])).size, CHAVES_DE_MISSAO.length);
+  assert.deepEqual(N.CHAVES.filter((k) => k.startsWith('missao.')).sort(),
+    [...CHAVES_DE_MISSAO, 'missao.titulo', 'missao.resgatar', 'missao.resgatada', 'missao.vazia'].sort());
+});
+
+test('missoes: titulo, botao, resgatada e vazia existem, cabem no celular e nao tem marcador', () => {
+  const limite = { 'missao.titulo': 24, 'missao.resgatar': 14, 'missao.resgatada': 40, 'missao.vazia': 48 };
+  for (const [k, max] of Object.entries(limite)) {
+    const t = N.TEXTOS[k];
+    assert.ok(typeof t === 'string' && t.trim().length > 0, k);
+    assert.ok(t.length <= max, `${k}: ${t.length} letras`);
+    assert.ok(!/[{}]/.test(t), `${k}: marcador`);
+  }
+});
+
+test('missoes: os tipos dos textos sao os mesmos do servidor', async () => {
+  const { MISSOES } = await import('../comum/config.js');
+  assert.deepEqual(Object.keys(MISSOES.tipos).sort(), [...TIPOS_DE_MISSAO].sort());
 });

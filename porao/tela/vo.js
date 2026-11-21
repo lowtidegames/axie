@@ -352,6 +352,8 @@ export function criarTutorial({ api, conta, cena, menos = () => false }) {
   }
 
   async function apelidoEHistoria() {
+    // prioridade fixa dos modais: batida > resumo do tapete > apelido > história > vó (a batida pendente sempre passa na frente)
+    if (visao?.estado?.batida) { fluxo = 'esperando'; return; }
     fluxo = 'aberto'; esconder();
     const c = visao?.estado?.conta ?? visao?.conta ?? contaAtual;
     if (c?.pedirApelido && !apelidoAdiado) {
@@ -360,6 +362,7 @@ export function criarTutorial({ api, conta, cena, menos = () => false }) {
       if (r.ok) contaAtual = { ...(contaAtual || {}), ...(r.conta || {}), pedirApelido: false };
       else apelidoAdiado = true;
     }
+    if (visao?.estado?.batida) { fluxo = 'esperando'; return; } // a batida chegou durante o apelido: a história espera
     if (!guardado.historia || c?.pedirApelido) {
       await mostrarHistoria({ menos });
       if (!vivo) return;

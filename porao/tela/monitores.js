@@ -326,10 +326,15 @@ select.pm-btn option { color: var(--acao-texto); }
 /* ---- meta grande (topo da aba Metas): álbum e caixa desta vida, números do servidor ---- */
 .pm-longa { display: flex; flex-direction: column; gap: 6px; }
 .pm-longa h3 { margin: 0; }
-.pm-longa__album { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 3px; }
-.pm-longa__ideia { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: var(--linho-apagado);
-  background: var(--noite-funda); border: 2px dashed var(--borda); min-width: 0; }
-.pm-longa__ideia--vista { border-style: solid; border-color: var(--rc); background: var(--rc); }
+.pm-longa__album { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.pm-longa__ideia { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: var(--linho-apagado);
+  background: var(--noite-funda); border: 2px dashed var(--borda); min-width: 0; padding: 0; font-family: inherit; }
+.pm-longa__ideia--vista { position: relative; overflow: hidden; border-style: solid; border-color: transparent; background-color: var(--noite-funda); cursor: pointer; }
+.pm-longa__ideia--vista.pm-moldura { border-width: 6px; }
+.pm-longa__ideia--vista[aria-pressed="true"] { outline: 2px solid var(--linho); outline-offset: 1px; }
+.pm-longa__arte { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.pm-longa__nome { position: relative; font-size: 9px; line-height: 1.05; font-weight: 800; color: var(--linho); text-align: center; overflow: hidden; max-height: 100%; word-break: break-word; text-shadow: 0 1px 0 var(--noite-funda); }
+.pm-longa__qual { margin: 0; min-height: 1.2em; font-weight: 700; overflow-wrap: anywhere; }
 `;
 
 function h(tag, props = {}, ...filhos) {
@@ -1264,7 +1269,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   const metasProntas = () => listaMetas().filter((m) => m.pronta && !m.resgatada);
   let metasAvisadas = new Set(); // missões prontas que já acenderam o aviso (não repete)
   let metaVista = new Set(); // prontas que o jogador já viu na aba
-  let resgatando = null, popMeta = null; // id em resgate; { id, premio } para a festa pequena
+  let resgatando = null, popMeta = null, albumSel = null; // id em resgate; { id, premio } para a festa pequena
   function metasVistas() { metasProntas().forEach((m) => metaVista.add(m.id)); atualizarCelularNovo(); }
   /** Hora local em que o dia do jogo vira (meia-noite UTC depois do relógio do servidor). Só informa: sem contagem regressiva. */
   function horaDaVirada() {
@@ -1288,9 +1293,17 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
       h('div', { class: 'pm-linha' }, h('strong', {}, 'Álbum de ideias'), h('span', { class: 'pm-meta__conta', 'data-pm': 'meta-album-conta' }, `${nVistas} de ${total}`)),
       h('div', { class: 'pm-longa__album', role: 'img', 'aria-label': `Álbum: ${nVistas} de ${total} ideias vistas` },
         RARIDADES.flatMap((r) => Array.from({ length: IDEIAS_POR_RARIDADE[r] }, (_, i) => {
-          const visto = !!vistas[`${r}_${i + 1}`];
-          return h('span', { class: `pm-longa__ideia pm-rar--${r}${visto ? ' pm-longa__ideia--vista' : ''}`, 'data-pm': visto ? 'meta-album-vista' : 'meta-album-falta', title: visto ? nomeIdeia(`${r}_${i + 1}`) : 'Ainda não vista' }, visto ? '' : '?');
+          const id = `${r}_${i + 1}`;
+          const visto = !!vistas[id];
+          if (!visto) return h('span', { class: `pm-longa__ideia pm-rar--${r}`, 'data-pm': 'meta-album-falta', title: 'Ainda não vista' }, '?');
+          const nome = nomeIdeia(id);
+          const a = arteCarta(id);
+          return h('button', { type: 'button', class: `pm-longa__ideia pm-longa__ideia--vista pm-moldura pm-rar--${r}`, 'data-pm': 'meta-album-vista', 'data-ideia': id, title: nome, 'aria-label': `${nome} (${ROTULO_RARIDADE[r]})`, 'aria-pressed': String(albumSel === id),
+            onclick: () => { albumSel = albumSel === id ? null : id; janelaCelular?.atualizar(conteudoCelular()); } },
+            a ? h('img', { class: 'pm-longa__arte', src: a.src, alt: '', draggable: 'false', 'data-pm': 'album-arte' }) : null,
+            a ? null : h('span', { class: 'pm-longa__nome', 'data-pm': 'album-nome-curto' }, nomeIdeia(id).split(' ')[0]));
         }))),
+      h('p', { class: 'pm-longa__qual', 'data-pm': 'meta-album-qual', 'aria-live': 'polite' }, albumSel && vistas[albumSel] ? `${nomeIdeia(albumSel)} · ${ROTULO_RARIDADE[albumSel.split('_')[0]]}` : 'Toque numa ideia para ver o nome.'),
       metaPr > 0 ? [
         h('div', { class: 'pm-linha' }, h('strong', {}, 'Caixa desta vida'), h('span', { class: 'pm-meta__conta', 'data-pm': 'meta-prestigio-conta' }, `${din(ganho)} de ${din(metaPr)}`)),
         h('div', { class: 'pm-medidor', role: 'progressbar', 'aria-label': 'Caixa desta vida até poder ir preso', 'aria-valuemin': '0', 'aria-valuemax': String(metaPr), 'aria-valuenow': String(Math.min(ganho, metaPr)) },

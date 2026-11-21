@@ -490,6 +490,12 @@ try {
       const cabe = await page.evaluate(() => { const r = document.querySelector('.pm-janela__caixa').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight })
       confere(cabe && await semLateral(page), 'servidor: a janela da batida cabe no celular sem rolagem lateral')
       await foto(page, 'ab-srv-11-batida-recarregada')
+      const frente = await page.evaluate(() => {
+        const vis = (e) => { if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth }
+        const botoes = [...document.querySelectorAll('[data-pm="rebrand"], [data-pm="perder"]')]
+        return { fundos: document.querySelectorAll('.vo-fundo').length, botoes: botoes.length, visiveis: botoes.every(vis), rodape: vis(document.querySelector('[data-pm="janela-rodape"]')) }
+      })
+      confere(frente.fundos === 0 && frente.botoes >= 1 && frente.visiveis && frente.rodape, `servidor: recarregar com batida pendente mostra a batida na frente (sem história/apelido por cima), botões do rodapé visíveis em 390x844 (${JSON.stringify(frente)})`)
       await page.keyboard.press('Escape')
       await page.waitForSelector('[data-pm="janela-batida"]', { state: 'detached', timeout: 3000 }).catch(() => {})
       await page.evaluate(() => window.poraoApp.api.estado().then((r) => r.visao && window.poraoApp.monitores.atualizar(r.visao)))

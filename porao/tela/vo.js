@@ -19,26 +19,37 @@ export function chaveDaConta(conta) {
 /** Conta "nova em folha" (nada impresso nem lançado): o tutorial começa do zero, mesmo com algo guardado. */
 export const contaNova = (e) => e.contagem.impressoes === 0 && e.contagem.lancamentos === 0 && e.contagem.tapetes === 0 && (e.prestigio?.nivel ?? 0) === 0;
 
+const FASES_NO_AR = ['LANCAMENTO', 'HYPE', 'PICO', 'ESFRIANDO'];
+/** Passos que só pedem um olhar (somem sozinhos depois de um tempo) e a despedida. */
+const PASSIVOS = [3, 5, 6];
+export const TEMPO_PASSIVO_MS = 12000;
+export const TEMPO_DESPEDIDA_MS = 6000;
+
 /**
- * Qual fala da vó (1–8) cabe na visão de agora. Puro: só lê o que o servidor mandou.
- * 1 impressora · 2 lançar · 3 Confiança · 4 tapete · 5 Calor · 6 polícia · 7 luxos · 8 despedida.
+ * Qual fala da vó (0–8) cabe na visão de agora. Puro: só lê o que o servidor mandou, sem memória.
+ * 1 impressora · 2 lançar · 3 Confiança · 4 tapete · 5 Calor · 6 polícia · 7 luxos · 8 despedida · 0 nada a dizer.
+ * Cada passo vale só enquanto o "feito" dele não aconteceu: passa o estado, a fala some sozinha.
  * `revelando`: a folha ainda está saindo da impressora (a 2ª fala espera a ideia aparecer).
  */
 export function passoDaVisao(visao, { revelando = false } = {}) {
   const e = visao.estado, c = e.contagem;
   if (e.luxos.length >= 1) return 8;
-  if (c.tapetes >= 1 && (visao.luxos || []).some((l) => !l.comprado && l.custo <= e.caixa)) return 7;
-  if (c.tapetes >= 2 || e.batida || c.batidas >= 1) return 6;
-  if (c.tapetes >= 1) return 5;
+  if (c.tapetes >= 1) {
+    if ((visao.luxos || []).some((l) => !l.comprado && l.custo <= e.caixa)) return 7;
+    if (c.tapetes >= 2 || e.batida || c.batidas >= 1) return 6;
+    return 5;
+  }
   if (Object.keys(visao.previas?.tapete || {}).length > 0) return 4;
-  if (c.lancamentos >= 1) return 3;
-  if (c.impressoes >= 1 && !revelando) return 2;
-  return 1;
+  if ((e.projetos || []).some((p) => FASES_NO_AR.includes(p.fase))) return 3;
+  if (c.impressoes === 0 || revelando) return 1;
+  if ((e.cartas || []).length > 0) return 2;
+  return 1; // gaveta vazia e nada no ar: falta imprimir outra ideia
 }
 
-// ---------- guardado da conta (o servidor ainda não tem campo para o tutorial: fica no navegador) ----------
+// ---------- guardado da conta: só enfeite (história vista, falas já dispensadas, despedida vista). O PASSO vem do estado. ----------
 function lerGuardado(chave) {
-  try { return { passo: 0, fim: false, historia: false, ...JSON.parse(localStorage.getItem(`porao_vo:${chave}`) || '{}') }; } catch { return { passo: 0, fim: false, historia: false }; }
+  const base = { fim: false, historia: false, fechados: [] };
+  try { const g = { ...base, ...JSON.parse(localStorage.getItem(`porao_vo:${chave}`) || '{}') }; if (!Array.isArray(g.fechados)) g.fechados = []; return g; } catch { return base; }
 }
 function gravar(chave, g) { try { localStorage.setItem(`porao_vo:${chave}`, JSON.stringify(g)); } catch { /* sem armazenamento */ } }
 
@@ -183,11 +194,27 @@ export function mostrarHistoria({ menos = () => false } = {}) {
   });
 }
 
+// falas que dizem ONDE fica o botão quando ele está noutra janela/monitor (as demais vêm de nomes.js pela chave vo.N)
+const ONDE = {
+  1: (j, m) => `Imprime outra ideia: abre a janela ${j} no monitor ${m} e aperta IMPRIMIR.`,
+  2: (j, m) => `Agora lance a ideia: abre a janela ${j} no monitor ${m} e aperta Lançar.`,
+  4: (j, m) => `Agora puxe o tapete: abre a janela ${j} no monitor ${m} e aperta PUXAR O TAPETE.`,
+  7: (j, m) => `Sobrou dinheirinho? Abre a janela ${j} no monitor ${m} e compra um luxo.`,
+};
+/** Onde está a tarefa de cada passo: janela principal e as janelas/botões que também servem. */
+const TAREFA = {
+  1: { app: 'impressora', servem: [['impressora', 'imprimir']] },
+  2: { app: 'ideias', servem: [['impressora', 'lancar-agora'], ['ideias', 'lancar']] },
+  4: { app: 'grafico', servem: [['grafico', 'puxar']] },
+  7: { app: 'porao', servem: [['porao', null]] },
+};
+
 /**
  * Tutorial da vó para a conta que acabou de entrar.
  *   const t = criarTutorial({ api, conta, cena, menos });
  *   criarMonitores({ api: t.api, ... aoAtualizar: (v) => t.ver(v) })   // t.api = api com a chave fixa da 1ª impressão
  *   t.destruir()
+ * A vó é dirigida pelo ESTADO (passoDaVisao): não existe "passo guardado" que só sobe. Recarregar volta ao mesmo passo.
  */
 export function criarTutorial({ api, conta, cena, menos = () => false }) {
   const chave = chaveDaConta(conta);
@@ -199,7 +226,10 @@ export function criarTutorial({ api, conta, cena, menos = () => false }) {
   let fluxo = 'esperando'; // apelido + história depois do 1º tapete: 'esperando' | 'aberto' | 'feito'
   let apelidoAdiado = false;
   let primeiraFeita = false;
-  let fechado = 0; // número da fala que o jogador fechou tocando
+  let atual = { n: 0, texto: '' }; // o que o balão mostra agora (n = 0: escondido)
+  let fechadoAgora = 0; // passo que o jogador dispensou tocando (vale até o passo mudar)
+  let timerPasso = 0;
+  let avisoMonitor = -1;
 
   // 1ª impressão: o próximo imprimir sai com a chave fixa (o servidor não imprime duas vezes a mesma chave)
   let chaveFixa = null;
@@ -218,21 +248,83 @@ export function criarTutorial({ api, conta, cena, menos = () => false }) {
   caixa.setAttribute('aria-live', 'polite');
   document.body.append(caixa);
   balao.addEventListener('click', () => {
-    fechado = guardado.passo; caixa.hidden = true;
-    if (guardado.passo >= 8) { guardado.fim = true; gravar(chave, guardado); desligarVo(); }
+    const n = atual.n;
+    if (n === 8) { desligarVo(); return; }
+    fechadoAgora = n;
+    if (PASSIVOS.includes(n) || n === 7) lembrarFechado(n);
+    esconder();
   });
+  function lembrarFechado(n) { if (!guardado.fechados.includes(n)) { guardado.fechados.push(n); gravar(chave, guardado); } }
 
-  function mostrarFala(n) {
+  // ----- onde fica cada coisa (lido da tela, sem mexer nela) -----
+  const movel = () => window.matchMedia('(max-width: 720px)').matches;
+  const caixasMonitor = () => [...document.querySelectorAll('.cena__monitor')];
+  const janela = (app) => document.querySelector(`.pm-jan[data-app="${app}"]`);
+  const indiceMonitor = (app) => { const j = janela(app); return j ? caixasMonitor().findIndex((c) => c.contains(j)) : -1; };
+  const monitorEmVista = (i) => cena?.vista === 'monitores' && i >= 0 && (!movel() || caixasMonitor().findIndex((c) => c.classList.contains('cena__monitor--atual')) === i);
+  const janelaEmVista = (app) => monitorEmVista(indiceMonitor(app)) && !!janela(app)?.classList.contains('pm-jan--frente');
+  const botaoNaTela = (app, pm) => janelaEmVista(app) && (!pm || !!janela(app).querySelector(`[data-pm="${pm}"]`));
+
+  /** { aqui, app, nomeJanela, monitor, noMonitor } da tarefa do passo; null quando o passo não tem botão para apertar. */
+  function tarefaDe(n) {
+    const t = TAREFA[n]; if (!t) return null;
+    const j = janela(t.app); if (!j) return null;
+    const idx = indiceMonitor(t.app);
+    return { aqui: t.servem.some(([app, pm]) => botaoNaTela(app, pm)), app: t.app, nomeJanela: j.getAttribute('aria-label') || t.app, idx, monitor: idx + 1, noMonitor: monitorEmVista(idx) };
+  }
+
+  // ----- aviso na borda do monitor (função da cena) e no ícone da janela certa -----
+  const pontoDe = (i) => document.querySelectorAll('.cena__ponto')[i];
+  function soltarMonitor() {
+    if (avisoMonitor < 0) return;
+    cena?.avisarMonitor?.(avisoMonitor, false); pontoDe(avisoMonitor)?.classList.remove('pm-ponto-aviso'); avisoMonitor = -1;
+  }
+  function limparAvisos() {
+    soltarMonitor();
+    document.querySelectorAll('.vo-alvo').forEach((b) => b.classList.remove('vo-alvo', 'vo-alvo--parado'));
+  }
+  function avisarOnde(t) {
+    if (!t || t.aqui) { limparAvisos(); return; }
+    const idx = t.noMonitor ? -1 : t.idx; // monitor já à vista: o aviso vai só no ícone da janela
+    if (idx !== avisoMonitor) soltarMonitor();
+    if (idx >= 0) { avisoMonitor = idx; cena?.avisarMonitor?.(idx, true); pontoDe(idx)?.classList.add('pm-ponto-aviso'); }
+    document.querySelectorAll('.pm-icone.vo-alvo').forEach((b) => { if (b.dataset.app !== t.app) b.classList.remove('vo-alvo', 'vo-alvo--parado'); });
+    const b = document.querySelector(`.pm-icone[data-app="${t.app}"]`);
+    if (b && !janelaEmVista(t.app)) { b.classList.add('vo-alvo'); b.classList.toggle('vo-alvo--parado', menos()); }
+  }
+
+  // ----- lugar do balão: nunca em cima de botão (barra de status, Voltar/Celular, ícones dos monitores) -----
+  function posicionar() {
+    const topo = document.querySelector('.pagina-topo');
+    const baixoTopo = topo && !topo.hidden ? topo.getBoundingClientRect().bottom : 0;
+    const linha = cena?.vista === 'monitores' ? document.querySelector('.cena__zoom-topo') : null;
+    const r = linha && linha.offsetParent !== null ? linha.getBoundingClientRect() : null;
+    let top = baixoTopo + 8, esq = movel() ? 6 : 12, dir = movel() ? 6 : 12;
+    if (r && r.height > 0) {
+      const ultimo = linha.lastElementChild?.getBoundingClientRect();
+      const livre = ultimo ? innerWidth - ultimo.right - 24 : 0;
+      if (!movel() && livre >= 380) { top = Math.max(baixoTopo + 4, r.top - 4); esq = ultimo.right + 14; } // ao lado de Voltar/Celular
+      else top = r.bottom + 6; // logo abaixo da linha deles
+    }
+    caixa.style.setProperty('--vo-topo', `${Math.round(top)}px`);
+    caixa.style.setProperty('--vo-esq', `${Math.round(esq)}px`);
+    caixa.style.setProperty('--vo-dir', `${Math.round(dir)}px`);
+  }
+  window.addEventListener('resize', posicionar);
+
+  function esconder() { caixa.hidden = true; atual = { n: 0, texto: '' }; clearTimeout(timerPasso); limparAvisos(); }
+  function desligarVo() { ativo = false; esconder(); }
+  function mostrarFala(n, texto) {
     foto.src = n >= 8 ? 'arte/retrato_vo_orgulhosa.png' : 'arte/retrato_vo.png';
     foto.dataset.quem = n >= 8 ? 'vo.orgulhosa' : 'vo';
-    fala.textContent = T(`vo.${n}`);
+    fala.textContent = texto;
     caixa.dataset.passo = String(n);
-    balao.setAttribute('aria-label', `${T(`vo.${n}`)} (toque para fechar)`);
+    balao.setAttribute('aria-label', `${texto} (toque para dispensar)`);
     caixa.classList.toggle('vo--menos', menos());
     caixa.hidden = false;
+    posicionar();
     caixa.classList.remove('vo--surge'); void caixa.offsetWidth; caixa.classList.add('vo--surge');
   }
-  function desligarVo() { ativo = false; caixa.hidden = true; }
 
   // folha com ideia ainda saindo (etapa 0–2); folha em branco não conta
   const revelando = () => [...document.querySelectorAll('[data-pm="folha"]')].some((f) => !f.classList.contains('pm-folha--vazia') && f.dataset.etapa !== '3');
@@ -255,7 +347,7 @@ export function criarTutorial({ api, conta, cena, menos = () => false }) {
   }
 
   async function apelidoEHistoria() {
-    fluxo = 'aberto'; caixa.hidden = true;
+    fluxo = 'aberto'; esconder();
     const c = visao?.estado?.conta ?? visao?.conta ?? contaAtual;
     if (c?.pedirApelido && !apelidoAdiado) {
       const r = await pedirApelido({ api });
@@ -272,6 +364,13 @@ export function criarTutorial({ api, conta, cena, menos = () => false }) {
     pensar();
   }
 
+  /** Texto do passo: o de nomes.js, ou o que diz onde ir quando o botão está noutra janela. */
+  function textoDe(n, t, outraIdeia) {
+    if (t && !t.aqui && ONDE[n]) return ONDE[n](t.nomeJanela, t.monitor);
+    if (n === 1 && outraIdeia) return 'Imprime outra ideia, meu neto: aperta IMPRIMIR na Impressora.';
+    return T(`vo.${n}`);
+  }
+
   function pensar() {
     if (!vivo || !visao) return;
     const e = visao.estado;
@@ -283,23 +382,43 @@ export function criarTutorial({ api, conta, cena, menos = () => false }) {
       fluxo = 'feito';
     }
     if (!ativo || fluxo === 'aberto') return;
-    let alvo = passoDaVisao(visao, { revelando: revelando() });
-    if (alvo >= 5 && (fluxo !== 'feito' || tapeteNaTela())) alvo = Math.min(alvo, Math.max(guardado.passo, 4));
-    if (alvo > guardado.passo) { guardado.passo = alvo; gravar(chave, guardado); mostrarFala(alvo); }
-    else if (fechado !== guardado.passo && caixa.hidden && guardado.passo > 0) mostrarFala(guardado.passo);
+    posicionar();
+    const n = passoDaVisao(visao, { revelando: revelando() });
+    // tapete na tela, ou ainda sem apelido/história: a vó espera quieta
+    if (tapeteNaTela() || (n >= 5 && fluxo !== 'feito')) { if (atual.n) esconder(); return; }
+    if (n !== fechadoAgora) fechadoAgora = 0;
+    const dispensado = n === fechadoAgora || (n !== 8 && (PASSIVOS.includes(n) || n === 7) && guardado.fechados.includes(n));
+    if (dispensado) { if (atual.n) esconder(); return; }
+    if (n === 8 && guardado.fim && atual.n !== 8) { desligarVo(); return; } // a despedida já saiu uma vez
+    const outraIdeia = n === 1 && e.contagem.impressoes > 0 && !revelando(); // gaveta vazia e nada no ar: imprimir de novo
+    const t = n === 1 && !outraIdeia ? null : tarefaDe(n);
+    const texto = textoDe(n, t, outraIdeia);
+    avisarOnde(t);
+    if (atual.n === n && atual.texto === texto && !caixa.hidden) return;
+    const mudouPasso = atual.n !== n;
+    atual = { n, texto };
+    mostrarFala(n, texto);
+    if (!mudouPasso) return;
+    clearTimeout(timerPasso);
+    if (n === 8) {
+      guardado.fim = true; gravar(chave, guardado);
+      timerPasso = setTimeout(() => { if (vivo) desligarVo(); }, TEMPO_DESPEDIDA_MS);
+    } else if (PASSIVOS.includes(n)) {
+      timerPasso = setTimeout(() => { if (!vivo || atual.n !== n) return; lembrarFechado(n); fechadoAgora = n; esconder(); }, TEMPO_PASSIVO_MS);
+    }
   }
   const relogio = setInterval(pensar, 700);
 
   return {
     api: apiJogo,
-    get passo() { return guardado.passo; },
+    get passo() { return atual.n; },
     get ativo() { return !!ativo; },
     /** Cada visão nova do servidor (rotina ou depois de ação). */
     ver(nova) {
       visao = nova;
       if (ativo === null) {
         const novaConta = contaNova(nova.estado);
-        if (novaConta) { guardado = { passo: 0, fim: false, historia: false }; gravar(chave, guardado); }
+        if (novaConta) { guardado = { fim: false, historia: false, fechados: [] }; gravar(chave, guardado); }
         ativo = !guardado.fim && !(conta?.tutorialFeito);
         if (ativo && novaConta && !nova.estado.batida) {
           cena?.abrirMonitores?.(2);
@@ -308,6 +427,6 @@ export function criarTutorial({ api, conta, cena, menos = () => false }) {
       }
       setTimeout(pensar, 0); // depois que os monitores desenharam esta visão
     },
-    destruir() { vivo = false; clearInterval(relogio); caixa.remove(); },
+    destruir() { vivo = false; clearInterval(relogio); clearTimeout(timerPasso); window.removeEventListener('resize', posicionar); limparAvisos(); caixa.remove(); },
   };
 }

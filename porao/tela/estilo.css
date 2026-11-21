@@ -272,32 +272,37 @@ body {
 }
 
 /* ==== a VÓ tutora, o APELIDO e a HISTÓRIA (vo.js) ==== */
-/* balão: não bloqueia o jogo (só o próprio balão recebe toque; tocar fecha) */
-.vo { position: fixed; left: 12px; bottom: 12px; z-index: 55; max-width: min(460px, calc(100vw - 24px)); pointer-events: none; }
+/* balão: não bloqueia o jogo (só o próprio balão recebe toque; tocar dispensa). O lugar (--vo-topo/--vo-esq/--vo-dir) é
+   calculado em vo.js para ficar FORA da barra de status, de Voltar/Celular e dos ícones dos monitores. */
+.vo { position: fixed; top: var(--vo-topo, 120px); left: var(--vo-esq, 12px); right: var(--vo-dir, 12px); z-index: 55; max-width: 760px; pointer-events: none; }
 .vo[hidden] { display: none; }
 .vo__balao {
-  pointer-events: auto; display: flex; align-items: flex-end; gap: 10px; width: 100%; padding: 10px 12px 10px 10px; margin: 0;
+  pointer-events: auto; display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 10px 6px 8px; margin: 0;
   font: inherit; color: var(--linho); text-align: left; cursor: pointer; background: none; image-rendering: pixelated;
   border: 2px solid transparent; border-image: url('arte/ui/ui_status.png') 6 fill / 12px;
 }
 .vo__balao:hover { filter: brightness(1.08); }
-.vo__retrato { flex: none; width: 96px; height: 96px; image-rendering: pixelated; }
+.vo__retrato { flex: none; width: 56px; height: 56px; image-rendering: pixelated; }
 .vo__corpo { display: flex; flex-direction: column; gap: 2px; min-width: 0; align-self: center; }
-.vo__nome { font-family: var(--fonte-gorda); font-weight: 900; font-size: 15px; letter-spacing: 0.04em; color: var(--ouro); }
-.vo__texto { font-weight: 700; font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; }
+.vo__nome { display: none; } /* o retrato já diz quem fala: poupa uma linha de altura */
+.vo__texto { font-weight: 700; font-size: 15px; line-height: 1.25; overflow-wrap: anywhere; }
 .vo__x { align-self: flex-start; flex: none; font-size: 14px; color: var(--linho-apagado); }
-.vo--surge { animation: vo-surge 0.35s ease-out both; }
+.vo--surge { animation: vo-desce 0.3s ease-out both; }
 @keyframes vo-surge { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-@keyframes vo-desce { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+@keyframes vo-desce { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.vo--menos.vo--surge { animation: none; }
 @media (max-width: 720px) {
-  /* no celular a vó fica em cima (logo abaixo da barra de status): embaixo ficam os ícones e os pontinhos dos monitores */
-  .vo { left: 6px; right: 6px; top: calc(var(--alto-topo, 110px) + 6px); bottom: auto; max-width: none; }
-  .vo--surge { animation-name: vo-desce; }
-  .vo__balao { gap: 8px; padding: 8px 10px 8px 8px; }
+  .vo { max-width: none; }
   .vo__retrato { width: 40px; height: 40px; }
-  .vo__balao { align-items: center; padding: 4px 8px 4px 6px; }
-  .vo__nome { display: none; }
-  .vo__texto { font-size: 14px; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .vo__balao { gap: 8px; padding: 4px 8px 4px 6px; }
+  .vo__texto { font-size: 14px; line-height: 1.2; }
+}
+/* ícone da janela onde a vó mandou ir (borda estática; leve pulso só se a animação estiver ligada) */
+.pm-icone.vo-alvo { outline: 3px solid var(--aviso); outline-offset: -2px; animation: vo-alvo-pulso 1.6s ease-in-out infinite; }
+.pm-icone.vo-alvo--parado { animation: none; }
+@keyframes vo-alvo-pulso { 0%, 100% { outline-color: var(--aviso); } 50% { outline-color: transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  .vo--surge, .pm-icone.vo-alvo { animation: none !important; }
 }
 
 /* fundo das janelas da vó (apelido, história) */

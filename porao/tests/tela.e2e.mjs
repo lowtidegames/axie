@@ -19,6 +19,11 @@ const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml' }
 const FOTOS = process.env.PORAO_FOTOS || ''
 const PAGINA = '/porao/tela/index.html?falso=1&pular=abertura'
+// abre a página e espera o app e a cena existirem (sem isso o teste corria antes do boot e falhava às vezes)
+async function abrirPorao(page) {
+  await page.goto(BASE + PAGINA)
+  await page.waitForFunction(() => document.querySelector('.cena__canvas') && window.poraoApp?.cena, null, { timeout: 15000 })
+}
 
 const falhas = []
 const falha = (m) => { falhas.push(m); console.log('FALHA: ' + m) }
@@ -151,7 +156,7 @@ try {
     const { ctx, page } = await nova({ largura: 1280, altura: 800 })
     const t0 = Date.now()
     const salaResp = page.waitForResponse((r) => /\/arte\/sala\.png$/.test(r.url()), { timeout: 8000 }).catch(() => null)
-    await page.goto(BASE + PAGINA)
+    await abrirPorao(page)
     await foto(page, 'pc-00-porao')
     const rs = await salaResp
     confere(!!rs && rs.status() === 200 && await page.evaluate(() => window.poraoApp.cena.temSala), 'cena desenha a sala-âncora (arte/sala.png carregou)')
@@ -289,7 +294,7 @@ try {
   console.log('Celular 390x844')
   {
     const { ctx, page } = await nova({ largura: 390, altura: 844, movel: true })
-    await page.goto(BASE + PAGINA)
+    await abrirPorao(page)
     await foto(page, 'cel-00-porao')
     const cab = await page.evaluate(() => { const r = document.querySelector('.cena__canvas').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight && window.poraoApp.cena.temSala })
     confere(cab, 'celular: a sala inteira cabe na tela')
@@ -387,7 +392,7 @@ try {
   console.log('Menos animação')
   {
     const { ctx, page } = await nova({ largura: 1280, altura: 800, menos: true })
-    await page.goto(BASE + PAGINA)
+    await abrirPorao(page)
     await q(page, '.cena__btn--primario').click()
     await q(page, '.cena__zoom--aberto').waitFor({ timeout: 5000 })
     await aba(page, 'projeto', 'impressora')
@@ -422,7 +427,7 @@ try {
     await writeFile(path.join(arteTemp, 'indice.json'), JSON.stringify(nomes))
     for (const [rotulo, vp, movel] of [['pc', [1280, 800], false], ['cel', [390, 844], true]]) {
       const { ctx, page } = await nova({ largura: vp[0], altura: vp[1], movel })
-      await page.goto(BASE + PAGINA)
+      await abrirPorao(page)
       await q(page, '.cena__btn--primario').click()
       await q(page, '.cena__zoom--aberto').waitFor({ timeout: 5000 })
       await aba(page, 'projeto', 'impressora')
@@ -461,7 +466,7 @@ try {
     }
     // Menos animação: a imagem aparece sem transição
     const { ctx, page } = await nova({ largura: 1280, altura: 800, menos: true })
-    await page.goto(BASE + PAGINA)
+    await abrirPorao(page)
     await q(page, '.cena__btn--primario').click()
     await q(page, '.cena__zoom--aberto').waitFor({ timeout: 5000 })
     await aba(page, 'projeto', 'impressora')

@@ -9,6 +9,7 @@ import { DatabaseSync } from 'node:sqlite'
 import {
   abrirBancoPorao, carregarSave, gravarSave, MIGRACOES,
   criarConta, contaDaCarteira, buscarConta, carregarSaveDaConta, gravarSaveDaConta, somaDoDiarioDaConta,
+  anotarDiario,
 } from '../servidor/banco.mjs'
 import { agir, verEstado, estadoParaTela, somaDoDiario, ACOES, definirApelido } from '../servidor/jogo.mjs'
 import { validarApelido, APELIDO } from '../comum/apelido.js'
@@ -762,5 +763,142 @@ describe('abertura T2 — progresso por conta', () => {
       assert.equal(definirApelido(db, c.id, 'Novo_Dev', agora).codigo, 'apelido_cedo')
       db.close()
     })
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Lotes e missão do dia (QA 21/11, nota 72)
+// ---------------------------------------------------------------------------------------------
+describe('lotes e missão do dia no servidor', () => {
+  const DIA = 24 * 3600_000
+  const linhasDo = (db, pedido) => db.prepare('SELECT motivo, valor FROM diario WHERE pedido = ? ORDER BY id').all(pedido).map(l => ({ ...l }))
+  /** Põe caixa no save E no diário (ajuste do teste), para a soma do diário continuar igual ao caixa. */
+  function darCaixa(db, contaId, valor, agora) {
+    const e = carregarSaveDaConta(db, contaId)
+    e.caixa += valor
+    gravarSaveDaConta(db, contaId, e, agora)
+    anotarDiario(db, { em: agora, motivo: 'teste', valor, caixaDepois: e.caixa, contaId })
+  }
+
+  test('imprimir 10: uma linha de diário com o total, lista de cartas com nome, mesma chave = 1 vez', () => {
+    const db = bancoNovo()
+    darCaixa(db, 1, 2000, T0)
+    const pv = R.previaImprimir(R.avancar(carregarSave(db), T0 + 1000).estado, 10)
+    const k = chave()
+    const r = agir(db, { acao: 'imprimir', dados: { quantidade: 10 }, chave: k, agora: T0 + 1000 })
+    assert.equal(r.ok, true, r.erro)
+    assert.equal(r.resultado.cartas.length, 10)
+    assert.equal(r.resultado.custo, pv.custo)
+    for (const c of r.resultado.cartas) assert.equal(c.nome, TEXTOS[`ideia.${c.raridade}.${c.ideia.split('_')[1]}.nome`])
+    assert.deepEqual(linhasDo(db, k), [{ motivo: 'imprimir', valor: -pv.custo }])
+    assert.equal(r.estado.caixa, 2000 - pv.custo)
+    const de2 = agir(db, { acao: 'imprimir', dados: { quantidade: 10 }, chave: k, agora: T0 + 2000 })
+    assert.equal(de2.repetido, true)
+    assert.equal(carregarSave(db).cartas.length, 10)
+    assert.equal(carregarSave(db).caixa, 2000 - pv.custo)
+    // mesma chave com outra quantidade: recusa
+    assert.equal(agir(db, { acao: 'imprimir', dados: { quantidade: 3 }, chave: k, agora: T0 + 2000 }).codigo, 'chave_reusada')
+    // quantidade inválida: recusa sem gravar
+    const antes = foto(db)
+    assert.equal(agir(db, { acao: 'imprimir', dados: { quantidade: 11 }, chave: chave(), agora: T0 + 3000 }).codigo, 'recusado')
+    assert.deepEqual(foto(db), antes)
+    // a tela vê a prévia do lote (mesma função)
+    const t = estadoParaTela(carregarSave(db))
+    const pl = R.previaImprimir(carregarSave(db), 10)
+    assert.equal(t.impressora.lote.maximo, 10)
+    assert.equal(t.impressora.lote.custo, pl.custo)
+    assert.equal(t.impressora.lote.quantidade, pl.quantidade)
+    assert.equal(somaDoDiario(db), carregarSave(db).caixa)
+    db.close()
+  })
+
+  test('fundir tudo: a prévia da tela é o resultado; uma ação só', () => {
+    const db = bancoNovo()
+    const e = carregarSave(db)
+    for (let i = 0; i < 7; i++) e.cartas.push({ id: e.proximoId++, ideia: 'comum_4', raridade: 'comum' })
+    gravarSave(db, e, T0)
+    const t = estadoParaTela(carregarSave(db))
+    assert.equal(t.fusao.previaTudo.fusoes, 2)
+    const r = agir(db, { acao: 'fundirTudo', dados: {}, chave: chave(), agora: T0 + 10 })
+    assert.equal(r.ok, true, r.erro)
+    assert.equal(r.resultado.fusoes, t.fusao.previaTudo.fusoes)
+    assert.deepEqual(r.resultado.entraram, t.fusao.previaTudo.entraram)
+    assert.deepEqual(r.resultado.sairam, t.fusao.previaTudo.sairam)
+    assert.ok(r.resultado.entraram.every(c => typeof c.nome === 'string' && c.nome.length > 0))
+    assert.equal(r.estado.cartas.length, 3)
+    assert.equal(r.estado.fusao.previaTudo, null)
+    assert.equal(agir(db, { acao: 'fundirTudo', dados: {}, chave: chave(), agora: T0 + 20 }).codigo, 'recusado')
+    db.close()
+  })
+
+  test('missão: a tela vê progresso do servidor; resgata 1 vez; corrida de 2 resgates paga 1; diário = caixa', () => {
+    const db = bancoNovo()
+    const v = verEstado(db, T0, { textos: { ...TEXTOS, 'missao.imprimir': 'Imprima {n} folhas' } })
+    assert.equal(v.estado.missoes.length, 3)
+    for (const m of v.estado.missoes) {
+      assert.deepEqual(Object.keys(m).sort(), ['id', 'meta', 'premio', 'progresso', 'pronta', 'resgatada', 'texto', 'chaveTexto', 'tipo'].sort())
+      assert.equal(m.chaveTexto, `missao.${m.tipo}`)
+      assert.equal(m.progresso, 0)
+      assert.equal(m.pronta, false)
+      if (m.tipo === 'imprimir') assert.equal(m.texto, `Imprima ${m.meta} folhas`)
+    }
+    assert.ok(!JSON.stringify(v.estado.missoes).includes('base'))
+    // completa todas na mão (a contagem é do servidor) e resgata
+    const e = carregarSave(db)
+    for (const m of e.missoes.lista) e.contagem[R.CONTAGEM_DA_MISSAO[m.tipo]] = m.base + m.meta
+    gravarSave(db, e, T0)
+    const tela = verEstado(db, T0 + 10).estado.missoes
+    assert.ok(tela.every(m => m.pronta && !m.resgatada && m.progresso === m.meta))
+    const alvo = tela[0]
+    const caixa0 = carregarSave(db).caixa
+    const k1 = chave(), k2 = chave()
+    const a = agir(db, { acao: 'missao', dados: { missaoId: alvo.id }, chave: k1, agora: T0 + 20 })
+    const b = agir(db, { acao: 'missao', dados: { missaoId: alvo.id }, chave: k2, agora: T0 + 20 })
+    assert.equal(a.ok, true, a.erro)
+    assert.equal(a.resultado.premio, alvo.premio)
+    assert.equal(b.ok, false)
+    assert.equal(b.codigo, 'recusado')
+    assert.equal(carregarSave(db).caixa, caixa0 + alvo.premio)
+    assert.deepEqual(linhasDo(db, k1), [{ motivo: 'missao', valor: alvo.premio }])
+    assert.deepEqual(linhasDo(db, k2), [])
+    assert.equal(agir(db, { acao: 'missao', dados: { missaoId: alvo.id }, chave: k1, agora: T0 + 30 }).repetido, true)
+    assert.equal(carregarSave(db).caixa, caixa0 + alvo.premio)
+    assert.equal(a.estado.missoes.find(m => m.id === alvo.id).resgatada, true)
+    assert.equal(somaDoDiario(db), carregarSave(db).caixa)
+    // dia seguinte: outras missões, as prontas não resgatadas continuam, nada é tirado
+    const caixa1 = carregarSave(db).caixa
+    const amanha = verEstado(db, T0 + DIA).estado
+    assert.equal(amanha.caixa, caixa1)
+    const novas = amanha.missoes.filter(m => !tela.some(x => x.id === m.id))
+    assert.equal(novas.length, 3)
+    assert.ok(novas.every(m => m.progresso === 0 && !m.pronta))
+    assert.deepEqual(amanha.missoes.filter(m => tela.some(x => x.id === m.id)).map(m => m.id).sort(), tela.slice(1).map(m => m.id).sort())
+    assert.equal(somaDoDiario(db), carregarSave(db).caixa)
+    db.close()
+  })
+
+  test('missão e lote em duas contas: diário de cada conta = caixa dela; missão de uma não vale na outra', () => {
+    const db = bancoNovo()
+    const a = criarConta(db, { tipo: 'convidado', agora: T0, semente: 'miss-a' })
+    const b = criarConta(db, { tipo: 'convidado', agora: T0, semente: 'miss-b' })
+    let agora = T0
+    for (const conta of [a, b]) {
+      verEstado(db, agora, { contaId: conta.id })
+      darCaixa(db, conta.id, 1000, agora)
+      const e = carregarSaveDaConta(db, conta.id)
+      for (const m of e.missoes.lista) e.contagem[R.CONTAGEM_DA_MISSAO[m.tipo]] = m.base + m.meta
+      gravarSaveDaConta(db, conta.id, e, agora)
+    }
+    for (const conta of [a, b]) {
+      assert.equal(agir(db, { acao: 'imprimir', dados: { quantidade: 5 }, chave: chave(), agora: agora += 1000, contaId: conta.id }).ok, true)
+      const m = carregarSaveDaConta(db, conta.id).missoes.lista[0]
+      assert.equal(agir(db, { acao: 'missao', dados: { missaoId: m.id }, chave: chave(), agora: agora += 1000, contaId: conta.id }).ok, true)
+    }
+    for (const conta of [a, b]) assert.equal(somaDoDiarioDaConta(db, conta.id), carregarSaveDaConta(db, conta.id).caixa)
+    // um id que não existe no save de B é recusado em B
+    const antes = foto(db)
+    assert.equal(agir(db, { acao: 'missao', dados: { missaoId: '19990101-tapete' }, chave: chave(), agora, contaId: b.id }).ok, false)
+    assert.deepEqual(foto(db), antes)
+    db.close()
   })
 })

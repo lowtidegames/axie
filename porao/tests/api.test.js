@@ -266,3 +266,81 @@ describe('tarefa 4 — rotas do jogo exigem sessão', () => {
     assert.equal((await pedir('GET', '/')).status, 200) // estáticos não precisam
   })
 })
+
+describe('lotes e missão do dia (QA 21/11)', () => {
+  /** Põe caixa no save da conta do convidado direto no banco (o teste não tem outra fonte de caixa rápida). */
+  function darCaixa(valor) {
+    const l = srv.db.prepare('SELECT conta_id, estado FROM saves ORDER BY conta_id DESC LIMIT 1').get()
+    const e = JSON.parse(l.estado)
+    e.caixa += valor
+    srv.db.prepare('UPDATE saves SET estado = ? WHERE conta_id = ?').run(JSON.stringify(e), l.conta_id)
+    return l.conta_id
+  }
+
+  test('POST /api/imprimir {quantidade} imprime o lote; mesma chave = 1 vez; quantidade ruim = 400', async () => {
+    darCaixa(5000)
+    const e0 = (await pedir('GET', '/api/estado')).json.estado
+    assert.equal(e0.impressora.lote.maximo, 10)
+    const k = chave()
+    const a = await post('/api/imprimir', { quantidade: 10 }, { 'Idempotency-Key': k })
+    assert.equal(a.status, 200, a.texto)
+    assert.equal(a.json.resultado.cartas.length, 10)
+    assert.equal(a.json.resultado.custo, e0.impressora.lote.custo)
+    assert.equal(a.json.estado.caixa, e0.caixa - e0.impressora.lote.custo)
+    const b = await post('/api/imprimir', { quantidade: 10 }, { 'Idempotency-Key': k })
+    assert.equal(b.json.repetido, true)
+    assert.equal((await pedir('GET', '/api/estado')).json.estado.cartas.length, 10)
+    for (const q of [0, 11, 'dez', 2.5]) {
+      const r = await post('/api/imprimir', { quantidade: q }, { 'Idempotency-Key': chave() })
+      assert.equal(r.status, 400, String(q))
+    }
+    // sem quantidade continua sendo 1 folha
+    const um = await post('/api/imprimir', {}, { 'Idempotency-Key': chave() })
+    assert.equal(um.json.resultado.cartas.length, 1)
+  })
+
+  test('POST /api/fundir/tudo funde o que a prévia mostrou', async () => {
+    darCaixa(100_000)
+    await post('/api/imprimir', { quantidade: 10 }, { 'Idempotency-Key': chave() })
+    // garante um trio na gaveta (o sorteio da conta de convidado muda a cada teste)
+    const l = srv.db.prepare('SELECT conta_id, estado FROM saves ORDER BY conta_id DESC LIMIT 1').get()
+    const s = JSON.parse(l.estado)
+    for (let i = 0; i < 3; i++) s.cartas.push({ id: s.proximoId++, ideia: 'raro_2', raridade: 'raro' })
+    srv.db.prepare('UPDATE saves SET estado = ? WHERE conta_id = ?').run(JSON.stringify(s), l.conta_id)
+    const e = (await pedir('GET', '/api/estado')).json.estado
+    assert.ok(e.fusao.previaTudo && e.fusao.previaTudo.fusoes >= 1)
+    const r = await post('/api/fundir/tudo', {}, { 'Idempotency-Key': chave() })
+    assert.equal(r.status, 200, r.texto)
+    assert.equal(r.json.acao, 'fundirTudo')
+    assert.deepEqual(r.json.resultado.sairam, e.fusao.previaTudo.sairam)
+    assert.deepEqual(r.json.resultado.entraram, e.fusao.previaTudo.entraram)
+    assert.equal(r.json.estado.fusao.previaTudo, null)
+    assert.equal((await post('/api/fundir/tudo', {}, { 'Idempotency-Key': chave() })).status, 400)
+  })
+
+  test('POST /api/missao/:id: pronta paga 1 vez mesmo com 2 pedidos ao mesmo tempo; id ruim = 404/400', async () => {
+    const e0 = (await pedir('GET', '/api/estado')).json.estado
+    assert.equal(e0.missoes.length, 3)
+    // completa as missões direto no save (a contagem é do servidor)
+    const l = srv.db.prepare('SELECT conta_id, estado FROM saves ORDER BY conta_id DESC LIMIT 1').get()
+    const s = JSON.parse(l.estado)
+    const mapa = { tapete: 'tapetes', imprimir: 'impressoes', luxo: 'luxos', fusao: 'fusoes', contrato: 'contratos' }
+    for (const m of s.missoes.lista) s.contagem[mapa[m.tipo]] = m.base + m.meta
+    srv.db.prepare('UPDATE saves SET estado = ? WHERE conta_id = ?').run(JSON.stringify(s), l.conta_id)
+    const alvo = (await pedir('GET', '/api/estado')).json.estado.missoes[0]
+    assert.equal(alvo.pronta, true)
+    const [a, b] = await Promise.all([
+      post(`/api/missao/${alvo.id}`, {}, { 'Idempotency-Key': chave() }),
+      post(`/api/missao/${alvo.id}`, {}, { 'Idempotency-Key': chave() }),
+    ])
+    const oks = [a, b].filter(r => r.status === 200)
+    assert.equal(oks.length, 1, `${a.texto} | ${b.texto}`)
+    assert.equal([a, b].filter(r => r.status === 400).length, 1)
+    const fim = (await pedir('GET', '/api/estado')).json.estado
+    assert.equal(fim.caixa, e0.caixa + alvo.premio)
+    assert.equal(fim.missoes.find(m => m.id === alvo.id).resgatada, true)
+    assert.equal((await post('/api/missao/19990101-tapete', {}, { 'Idempotency-Key': chave() })).status, 400)
+    assert.equal((await post('/api/missao/..%2Fx', {}, { 'Idempotency-Key': chave() })).status, 404)
+    assert.equal((await pedir('GET', `/api/missao/${alvo.id}`)).status, 405)
+  })
+})

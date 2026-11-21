@@ -10,7 +10,7 @@ import { criarRng } from '../../shared/rng.js'
 import {
   RARIDADES, CHANCES, IDEIAS_POR_RARIDADE, IMPRESSORA, GAVETA, FUSAO, FASES, PROJETOS,
   RENDIMENTO_POR_TROUXA_HORA, TROUXAS, HYPE, TAPETE, CALOR, TEMPO, LUXOS, LIMITES, PRESTIGIO,
-  CONTRATO, INFLUENCIADORES,
+  CONTRATO, INFLUENCIADORES, LOTE, MISSOES,
 } from './config.js'
 
 export const VERSAO_DO_ESTADO = 1
@@ -81,7 +81,8 @@ export function estadoInicial({ semente, agora }) {
     pseudonimo: 0,
     album: {}, // ideia → true
     carteirinha: {}, // influenciador → carimbos
-    contagem: { impressoes: 0, fusoes: 0, lancamentos: 0, tapetes: 0, batidas: 0, rebrands: 0, prisoes: 0 },
+    contagem: { impressoes: 0, fusoes: 0, lancamentos: 0, tapetes: 0, batidas: 0, rebrands: 0, prisoes: 0, luxos: 0, contratos: 0 },
+    missoes: null, // { dia: 'aaaa-mm-dd' (UTC), lista: [{ id, tipo, meta, premio, base, resgatada }] } (prepararMissoes)
   }
 }
 
@@ -93,10 +94,12 @@ export const LUXOS_RENOMEADOS = Object.freeze({
   carro_na_garagem: 'garagem',
 })
 
-/** Save antigo → formato atual (ids de luxo renomeados). Devolve cópia; o estado recebido não muda. */
+/** Save antigo → formato atual (ids de luxo renomeados; contagens e missões de 21/11). Devolve cópia; o estado recebido não muda. */
 export function atualizarEstado(estado) {
   const e = copiar(estado)
   e.luxos = [...new Set(e.luxos.map(id => (Object.hasOwn(LUXOS_RENOMEADOS, id) ? LUXOS_RENOMEADOS[id] : id)))]
+  for (const k of ['luxos', 'contratos']) if (!Number.isSafeInteger(e.contagem[k])) e.contagem[k] = 0
+  if (e.missoes === undefined) e.missoes = null
   return e
 }
 
@@ -356,22 +359,60 @@ export function custoImpressao(estado) {
   return IMPRESSORA.custo
 }
 
-/** Imprime uma ideia: sorteia a raridade, depois a ideia. Devolve { ok, estado, carta, custo }. */
-export function imprimir(estado) {
-  if (estado.batida) return falha(ERRO_BATIDA)
-  if (estado.cartas.length >= GAVETA.maximoDeCartas) return falha('A gaveta está cheia: lance ou funda alguma ideia antes.')
-  const custo = custoImpressao(estado)
-  if (estado.caixa < custo) return falha(`Falta caixa para imprimir (custa ${custo}).`)
+/**
+ * Conta do lote (sem sorteio): quantas folhas cabem na gaveta e quanto custam somadas.
+ * Só a 1ª folha pode sair grátis (1ª da vida ou travado); depois dela já há carta e impressão, então as outras
+ * custam IMPRESSORA.custo — a mesma soma de imprimir uma de cada vez. Devolve { erro } ou { n, custo, cortada, erro? }.
+ */
+function contaDoLote(estado, quantidade) {
+  if (estado.batida) return { erro: ERRO_BATIDA }
+  if (!Number.isSafeInteger(quantidade) || quantidade < 1 || quantidade > LOTE.maximoImpressoes) {
+    return { erro: `Escolha de 1 a ${LOTE.maximoImpressoes} folhas.` }
+  }
+  const vagas = GAVETA.maximoDeCartas - estado.cartas.length
+  if (vagas <= 0) return { erro: 'A gaveta está cheia: lance ou funda alguma ideia antes.' }
+  const n = Math.min(quantidade, vagas)
+  const custo = custoImpressao(estado) + (n - 1) * IMPRESSORA.custo
+  const plano = { n, custo, cortada: n < quantidade }
+  if (estado.caixa < custo) {
+    plano.erro = n === 1 ? `Falta caixa para imprimir (custa ${custo}).` : `Falta caixa para imprimir ${n} folhas (custa ${custo}).`
+  }
+  return plano
+}
+
+/**
+ * Prévia do lote (antes de decidir): { ok, quantidade (folhas que cabem), pedida, custo (soma exata), cortada (a gaveta
+ * cortou) }. Sem caixa: { ok: false, erro, quantidade, pedida, custo, cortada } (a tela mostra o preço mesmo assim).
+ */
+export function previaImprimir(estado, quantidade = 1) {
+  const p = contaDoLote(estado, quantidade)
+  if (p.n === undefined) return falha(p.erro)
+  const dados = { quantidade: p.n, pedida: quantidade, custo: p.custo, cortada: p.cortada }
+  return p.erro ? { ...falha(p.erro), ...dados } : { ok: true, ...dados }
+}
+
+/**
+ * Imprime `quantidade` folhas (1 a LOTE.maximoImpressoes; padrão 1): um sorteio por folha (raridade, depois a
+ * ideia), igual a imprimir uma de cada vez. A gaveta cheia corta o lote; sem caixa para o lote todo, não imprime nada.
+ * Devolve { ok, estado, carta (a 1ª), cartas, custo (soma), quantidade, pedida, cortada }.
+ */
+export function imprimir(estado, quantidade = 1) {
+  const p = contaDoLote(estado, quantidade)
+  if (p.erro) return falha(p.erro)
   const e = copiar(estado)
-  e.caixa -= custo
-  const rng = rngDoEstado(e)
-  const raridade = sortearRaridade(rng)
-  const ideia = sortearIdeia(rng, raridade)
-  const carta = { id: e.proximoId++, ideia, raridade }
-  e.cartas.push(carta)
-  e.album[ideia] = true
-  e.contagem.impressoes += 1
-  return { ok: true, estado: e, carta, custo }
+  e.caixa -= p.custo
+  const cartas = []
+  for (let i = 0; i < p.n; i++) {
+    const rng = rngDoEstado(e)
+    const raridade = sortearRaridade(rng)
+    const ideia = sortearIdeia(rng, raridade)
+    const carta = { id: e.proximoId++, ideia, raridade }
+    e.cartas.push(carta)
+    e.album[ideia] = true
+    e.contagem.impressoes += 1
+    cartas.push({ ...carta })
+  }
+  return { ok: true, estado: e, carta: { ...cartas[0] }, cartas, custo: p.custo, quantidade: p.n, pedida: quantidade, cortada: p.cortada }
 }
 
 /** "Copiar e colar": FUSAO.quantidade cartas da mesma ideia → 1 da raridade seguinte (sem sorteio). */
@@ -394,7 +435,58 @@ export function fundir(estado, ideia) {
   e.cartas.push(carta)
   e.album[carta.ideia] = true
   e.contagem.fusoes += 1
-  return { ok: true, estado: e, carta, usadas: [...usar] }
+  return { ok: true, estado: e, carta: { ...carta }, usadas: [...usar] }
+}
+
+/** Próxima ideia a fundir no "fundir tudo": a de menor raridade com trio (empate: nome da ideia). null = nenhuma. */
+function proximaFusao(cartas) {
+  const conta = new Map()
+  for (const c of cartas) conta.set(c.ideia, (conta.get(c.ideia) || 0) + 1)
+  let melhor = null
+  for (const c of cartas) {
+    const i = indiceRaridade(c.raridade)
+    if (conta.get(c.ideia) < FUSAO.quantidade || i < 0 || i === RARIDADES.length - 1) continue
+    if (!melhor || i < melhor.i || (i === melhor.i && c.ideia < melhor.ideia)) melhor = { i, ideia: c.ideia }
+  }
+  return melhor ? melhor.ideia : null
+}
+
+/**
+ * "Fundir tudo": funde todos os trios possíveis numa ação, em cascata (a carta nova também funde se formar trio),
+ * até não sobrar trio fundível. Mesmo resultado de chamar fundir() um por um na ordem de `passos`. Sem sorteio.
+ * Devolve { ok, estado, fusoes, passos: [{ ideia, usadas, carta }], entraram (cartas novas que ficam),
+ * sairam (cartas da gaveta que foram usadas) }.
+ */
+export function fundirTudo(estado) {
+  if (estado.batida) return falha(ERRO_BATIDA)
+  let e = estado
+  const passos = []
+  for (let guarda = 0; guarda < GAVETA.maximoDeCartas * RARIDADES.length; guarda++) {
+    const ideia = proximaFusao(e.cartas)
+    if (!ideia) break
+    const r = fundir(e, ideia)
+    if (!r.ok) break
+    passos.push({ ideia, usadas: r.usadas, carta: r.carta })
+    e = r.estado
+  }
+  if (passos.length === 0) return falha(`Não há ${FUSAO.quantidade} cartas iguais para fundir.`)
+  const antes = new Set(estado.cartas.map(c => c.id))
+  const depois = new Set(e.cartas.map(c => c.id))
+  return {
+    ok: true,
+    estado: e,
+    fusoes: passos.length,
+    passos,
+    entraram: e.cartas.filter(c => !antes.has(c.id)).map(c => ({ ...c })),
+    sairam: estado.cartas.filter(c => !depois.has(c.id)).map(c => ({ ...c })),
+  }
+}
+
+/** Prévia do "fundir tudo" (antes de decidir): { ok, fusoes, entraram, sairam } — a mesma conta da ação. */
+export function previaFundirTudo(estado) {
+  const r = fundirTudo(estado)
+  if (!r.ok) return r
+  return { ok: true, fusoes: r.fusoes, entraram: r.entraram, sairam: r.sairam }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -507,6 +599,7 @@ export function comprarLuxo(estado, luxoId) {
   const e = copiar(estado)
   e.caixa -= l.custo
   e.luxos.push(l.id)
+  e.contagem.luxos = (e.contagem.luxos || 0) + 1
   return { ok: true, estado: e, luxo: l.id, custo: l.custo }
 }
 
@@ -582,6 +675,7 @@ export function contratar(estado, projetoId, influenciadorId) {
     motivo: null,
   }
   p.contrato.trazidasV1 = videoNoAr(e, p, eventos)
+  e.contagem.contratos = (e.contagem.contratos || 0) + 1
   return { ok: true, estado: e, custo: t.p1, trazidas: p.contrato.trazidasV1, eventos }
 }
 
@@ -624,4 +718,74 @@ export function responderContrato(estado, projetoId, resposta) {
   c.fase = 'ENCERRADO'
   c.motivo = 'recusou'
   return { ok: true, estado: e, desfecho: 'recusou' }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Missão do dia (v1 aprovada: "missão do dia que não pune")
+// Dia = data em UTC do relógio do estado (ultimoTempo, que nunca volta). Sorteio pela semente da conta + dia, sem
+// gastar o sorteio do jogo. Progresso = contagem do servidor desde o começo do dia (base), até a meta.
+// Sem punição: virar o dia não tira nada, não acumula dívida e não tem contagem regressiva; a missão pronta e não
+// resgatada continua na lista até ser resgatada.
+// ---------------------------------------------------------------------------------------------
+/** Tipo de missão → contador de estado.contagem que ela usa. */
+export const CONTAGEM_DA_MISSAO = Object.freeze({
+  tapete: 'tapetes', imprimir: 'impressoes', luxo: 'luxos', fusao: 'fusoes', contrato: 'contratos',
+})
+
+/** ms → 'aaaa-mm-dd' (UTC). */
+export function diaDoJogo(ms) {
+  return new Date(ms).toISOString().slice(0, 10)
+}
+
+const contadorDa = (e, tipo) => e.contagem[CONTAGEM_DA_MISSAO[tipo]] || 0
+const progressoDa = (e, m) => Math.max(0, Math.min(m.meta, contadorDa(e, m.tipo) - m.base))
+
+function tiposDisponiveis(e) {
+  return Object.keys(MISSOES.tipos).filter(t => Object.hasOwn(CONTAGEM_DA_MISSAO, t) &&
+    (t !== 'luxo' || LUXOS.some(l => !e.luxos.includes(l.id)))) // sem luxo a comprar, a missão de luxo seria impossível
+}
+
+/**
+ * Garante as missões do dia do estado (devolve cópia). Mesmo dia: nada muda. Dia novo: MISSOES.porDia missões de
+ * tipos diferentes; as prontas e não resgatadas de antes continuam. Quem chama (servidor): depois de avancar, antes da ação.
+ */
+export function prepararMissoes(estado) {
+  const e = copiar(estado)
+  const dia = diaDoJogo(e.ultimoTempo)
+  if (e.missoes && e.missoes.dia === dia) return e
+  const guardadas = (e.missoes?.lista || []).filter(m => !m.resgatada && progressoDa(e, m) >= m.meta)
+  const rng = criarRng(`${e.semente}:missoes:${dia}`)
+  const tipos = tiposDisponiveis(e)
+  const prefixo = dia.replaceAll('-', '')
+  const novas = []
+  for (let i = 0; i < MISSOES.porDia && tipos.length > 0; i++) {
+    const tipo = tipos.splice(rng.inteiro(tipos.length), 1)[0]
+    const t = MISSOES.tipos[tipo]
+    const meta = t.metas[rng.inteiro(t.metas.length)]
+    novas.push({ id: `${prefixo}-${tipo}`, tipo, meta, premio: Math.round(t.premioPorUnidade * meta), base: contadorDa(e, tipo), resgatada: false })
+  }
+  e.missoes = { dia, lista: [...novas, ...guardadas] }
+  return e
+}
+
+/** Missões como a tela vê: [{ id, tipo, meta, premio, progresso, pronta, resgatada }] (sem a base). */
+export function missoesComProgresso(estado) {
+  return (estado.missoes?.lista || []).map(m => {
+    const progresso = progressoDa(estado, m)
+    return { id: m.id, tipo: m.tipo, meta: m.meta, premio: m.premio, progresso, pronta: progresso >= m.meta, resgatada: m.resgatada }
+  })
+}
+
+/** Resgata o prêmio de uma missão pronta (1 vez). O prêmio é o que a missão mostra. Devolve { ok, estado, missaoId, premio }. */
+export function resgatarMissao(estado, missaoId) {
+  if (typeof missaoId !== 'string') return falha('Missão inválida.')
+  const m0 = (estado.missoes?.lista || []).find(m => m.id === missaoId)
+  if (!m0) return falha('Essa missão não existe.')
+  if (m0.resgatada) return falha('Você já resgatou essa missão.')
+  if (progressoDa(estado, m0) < m0.meta) return falha('Essa missão ainda não terminou.')
+  const e = copiar(estado)
+  e.missoes.lista.find(m => m.id === missaoId).resgatada = true
+  e.caixa += m0.premio
+  e.caixaTotal += m0.premio
+  return { ok: true, estado: e, missaoId, premio: m0.premio }
 }

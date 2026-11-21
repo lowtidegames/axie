@@ -3,7 +3,7 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import * as R from '../comum/regras.js'
-import { CHANCES, RARIDADES, TEMPO, CONTRATO, PRESTIGIO, LUXOS, IMPRESSORA, CALOR, FASES, TROUXAS } from '../comum/config.js'
+import { CHANCES, RARIDADES, TEMPO, CONTRATO, PRESTIGIO, LUXOS, IMPRESSORA, CALOR, FASES, TROUXAS, GAVETA, LOTE, MISSOES } from '../comum/config.js'
 
 const T0 = 1_700_000_000_000
 
@@ -491,4 +491,234 @@ test('save mexido à mão com nomes internos do JS em luxos não vira objeto (Ob
   e.luxos = ['__proto__', 'constructor', 'cofre']
   const novo = R.atualizarEstado(e)
   assert.deepEqual(novo.luxos, ['__proto__', 'constructor', 'tela_curva'])
+})
+
+// ---------------------------------------------------------------------------------------------
+// Lotes (QA 21/11, nota 72): imprimir N folhas e fundir tudo numa ação, com prévia que bate.
+// ---------------------------------------------------------------------------------------------
+describe('lotes: imprimir N e fundir tudo', () => {
+  test('imprimir 10 debita a soma exata (1ª grátis) e tira 10 sorteios, igual a 10 impressões seguidas', () => {
+    const e = novo('lote-10')
+    e.caixa = 10 * IMPRESSORA.custo
+    const pv = R.previaImprimir(e, 10)
+    assert.equal(pv.ok, true, pv.erro)
+    assert.equal(pv.quantidade, 10)
+    assert.equal(pv.custo, 9 * IMPRESSORA.custo) // a 1ª da vida é grátis
+    const r = R.imprimir(e, 10)
+    assert.equal(r.ok, true, r.erro)
+    assert.equal(r.cartas.length, 10)
+    assert.equal(r.custo, pv.custo)
+    assert.equal(r.estado.caixa, e.caixa - pv.custo)
+    assert.equal(r.estado.sorteios, e.sorteios + 10)
+    assert.equal(r.estado.contagem.impressoes, 10)
+    assert.equal(e.cartas.length, 0) // estado de entrada não muda
+    // um sorteio por folha: igual a imprimir uma de cada vez
+    let s = e
+    const uma = []
+    for (let i = 0; i < 10; i++) { const x = R.imprimir(s); assert.equal(x.ok, true); uma.push(x.carta); s = x.estado }
+    assert.deepEqual(r.cartas, uma)
+    assert.deepEqual(r.estado, s)
+    for (const c of r.cartas) assert.equal(r.estado.album[c.ideia], true)
+  })
+
+  test('quantidade fora de 1–10 ou não inteira é recusada; sem quantidade = 1', () => {
+    const e = novo()
+    e.caixa = 10_000
+    for (const q of [0, LOTE.maximoImpressoes + 1, -1, 2.5, '3', null, NaN]) {
+      assert.equal(R.imprimir(e, q).ok, false, String(q))
+      assert.equal(R.previaImprimir(e, q).ok, false, String(q))
+    }
+    const r = R.imprimir(e)
+    assert.equal(r.cartas.length, 1)
+    assert.deepEqual(r.carta, r.cartas[0])
+  })
+
+  test('gaveta cheia corta o lote (avisa na prévia); gaveta já cheia recusa', () => {
+    let e = novo()
+    for (let i = 0; i < GAVETA.maximoDeCartas - 3; i++) e = comCarta(e, 'comum', 1 + (i % 5))
+    e.caixa = 10_000
+    e.contagem.impressoes = 1
+    const pv = R.previaImprimir(e, 10)
+    assert.equal(pv.ok, true)
+    assert.equal(pv.quantidade, 3)
+    assert.equal(pv.cortada, true)
+    assert.equal(pv.custo, 3 * IMPRESSORA.custo)
+    const r = R.imprimir(e, 10)
+    assert.equal(r.cartas.length, 3)
+    assert.equal(r.custo, pv.custo)
+    assert.equal(r.cortada, true)
+    assert.equal(r.estado.cartas.length, GAVETA.maximoDeCartas)
+    const cheia = R.imprimir(r.estado, 2)
+    assert.equal(cheia.ok, false)
+    assert.match(cheia.erro, /gaveta/i)
+  })
+
+  test('sem caixa para o lote inteiro recusa sem imprimir nada (e diz quanto custa)', () => {
+    const e = novo()
+    e.contagem.impressoes = 1
+    e.cartas.push({ id: e.proximoId++, ideia: 'comum_1', raridade: 'comum' })
+    e.caixa = 3 * IMPRESSORA.custo - 1
+    const r = R.imprimir(e, 3)
+    assert.equal(r.ok, false)
+    assert.match(r.erro, new RegExp(String(3 * IMPRESSORA.custo)))
+    assert.equal(R.previaImprimir(e, 3).ok, false)
+  })
+
+  test('fundir tudo: funde todos os trios (em cascata) e a prévia mostra antes o que entra e sai', () => {
+    let e = novo()
+    for (let i = 0; i < 9; i++) e = comCarta(e, 'comum', 1) // 9 comum_1 → 3 incomum_1 → 1 raro_1
+    for (let i = 0; i < 4; i++) e = comCarta(e, 'comum', 2) // 4 comum_2 → 1 incomum_2 + 1 comum_2
+    e = comCarta(e, 'raro', 3)
+    for (let i = 0; i < 3; i++) e = comCarta(e, 'mitico', 1) // Mítico não funde
+    const antes = structuredClone(e)
+    const pv = R.previaFundirTudo(e)
+    assert.equal(pv.ok, true, pv.erro)
+    const r = R.fundirTudo(e)
+    assert.equal(r.ok, true, r.erro)
+    assert.deepEqual(e, antes)
+    assert.equal(r.fusoes, 5)
+    assert.equal(pv.fusoes, r.fusoes)
+    assert.deepEqual(pv.entraram, r.entraram)
+    assert.deepEqual(pv.sairam, r.sairam)
+    assert.deepEqual(r.entraram.map(c => c.ideia).sort(), ['incomum_2', 'raro_1'])
+    assert.equal(r.sairam.length, 12)
+    assert.equal(r.estado.cartas.length, e.cartas.length - 12 + 2)
+    assert.equal(r.estado.contagem.fusoes, 5)
+    assert.equal(r.estado.sorteios, e.sorteios) // sem sorteio
+    // depois dele não sobra nenhum trio fundível
+    const conta = {}
+    for (const c of r.estado.cartas) conta[c.ideia] = (conta[c.ideia] || 0) + 1
+    for (const c of r.estado.cartas) if (c.raridade !== 'mitico') assert.ok(conta[c.ideia] < 3, c.ideia)
+    // igual a fundir um por um na mesma ordem
+    let s = e
+    for (const p of r.passos) { const x = R.fundir(s, p.ideia); assert.equal(x.ok, true); assert.deepEqual(x.carta, p.carta); s = x.estado }
+    assert.deepEqual(r.estado, s)
+    // nada para fundir: recusa
+    assert.equal(R.fundirTudo(r.estado).ok, false)
+    assert.equal(R.previaFundirTudo(r.estado).ok, false)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Missão do dia (v1 aprovada: "missão do dia que não pune"). Dia = data em UTC.
+// ---------------------------------------------------------------------------------------------
+describe('missão do dia', () => {
+  const DIA = 24 * 3600_000
+  /** Primeiro dia (a partir de T0) em que a semente sorteia a missão do tipo pedido. */
+  function diaCom(semente, tipo) {
+    for (let d = 0; d < 60; d++) {
+      const e = R.prepararMissoes(R.estadoInicial({ semente, agora: T0 + d * DIA }))
+      if (e.missoes.lista.some(m => m.tipo === tipo)) return e
+    }
+    throw new Error(`nenhum dia com missão ${tipo}`)
+  }
+
+  test('3 missões por dia, de tipos diferentes, iguais para a mesma semente e dia', () => {
+    const base = novo('m-1')
+    const e = R.prepararMissoes(base)
+    assert.equal(base.missoes, null) // entrada não muda
+    assert.equal(e.missoes.dia, R.diaDoJogo(T0))
+    assert.equal(R.diaDoJogo(Date.UTC(2026, 10, 21, 23, 59)), '2026-11-21')
+    assert.equal(R.diaDoJogo(Date.UTC(2026, 10, 22, 0, 0)), '2026-11-22')
+    assert.equal(e.missoes.lista.length, MISSOES.porDia)
+    assert.equal(new Set(e.missoes.lista.map(m => m.tipo)).size, MISSOES.porDia)
+    for (const m of e.missoes.lista) {
+      assert.ok(Object.hasOwn(MISSOES.tipos, m.tipo), m.tipo)
+      assert.ok(MISSOES.tipos[m.tipo].metas.includes(m.meta))
+      assert.equal(m.premio, MISSOES.tipos[m.tipo].premioPorUnidade * m.meta)
+    }
+    assert.deepEqual(R.prepararMissoes(novo('m-1')).missoes, e.missoes)
+    assert.equal(e.sorteios, 0) // não gasta o sorteio do jogo
+    assert.deepEqual(R.prepararMissoes(e), e) // mesmo dia de novo: nada muda
+    const listas = new Set()
+    for (let d = 0; d < 10; d++) {
+      const x = R.prepararMissoes(R.estadoInicial({ semente: 'm-1', agora: T0 + d * DIA }))
+      listas.add(JSON.stringify(x.missoes.lista.map(m => [m.tipo, m.meta])))
+    }
+    assert.ok(listas.size > 1)
+  })
+
+  test('progresso conta só o que foi feito no dia; pronta → resgata 1 vez com o prêmio mostrado', () => {
+    let e = diaCom('m-imprimir', 'imprimir')
+    const m = e.missoes.lista.find(x => x.tipo === 'imprimir')
+    e.contagem.impressoes = 7 // feitas antes do dia: não contam
+    e.missoes.lista.find(x => x.id === m.id).base = 7
+    e.caixa = 10_000
+    let vis = R.missoesComProgresso(e).find(x => x.id === m.id)
+    assert.equal(vis.progresso, 0)
+    assert.equal(vis.pronta, false)
+    assert.equal(R.resgatarMissao(e, m.id).ok, false)
+    const r = R.imprimir(e, m.meta)
+    assert.equal(r.ok, true, r.erro)
+    e = r.estado
+    vis = R.missoesComProgresso(e).find(x => x.id === m.id)
+    assert.equal(vis.progresso, m.meta)
+    assert.equal(vis.pronta, true)
+    assert.equal(vis.resgatada, false)
+    const g = R.resgatarMissao(e, m.id)
+    assert.equal(g.ok, true, g.erro)
+    assert.equal(g.premio, vis.premio)
+    assert.equal(g.estado.caixa, e.caixa + vis.premio)
+    assert.equal(R.missoesComProgresso(g.estado).find(x => x.id === m.id).resgatada, true)
+    const de2 = R.resgatarMissao(g.estado, m.id)
+    assert.equal(de2.ok, false)
+    assert.match(de2.erro, /já/i)
+    assert.equal(R.resgatarMissao(g.estado, 'nao-existe').ok, false)
+    assert.equal(R.resgatarMissao(g.estado, { id: m.id }).ok, false)
+    // o progresso não passa da meta
+    const mais = R.imprimir(g.estado, 3)
+    assert.equal(R.missoesComProgresso(mais.estado).find(x => x.id === m.id).progresso, m.meta)
+  })
+
+  test('cada tipo conta a ação certa (tapete, imprimir, luxo, fusão, contrato)', () => {
+    assert.deepEqual(Object.keys(MISSOES.tipos).sort(), Object.keys(R.CONTAGEM_DA_MISSAO).sort())
+    let e = novo('cont')
+    e.caixa = 100_000
+    e = R.comprarLuxo(e, LUXOS[0].id).estado
+    assert.equal(e.contagem.luxos, 1)
+    const p = noAr(e, 'comum')
+    e = R.contratar(p.estado, p.id, 'infl_1').estado
+    assert.equal(e.contagem.contratos, 1)
+    // save antigo sem as contagens novas: atualizarEstado põe 0
+    const velho = novo()
+    delete velho.contagem.luxos; delete velho.contagem.contratos; delete velho.missoes
+    const at = R.atualizarEstado(velho)
+    assert.equal(at.contagem.luxos, 0)
+    assert.equal(at.contagem.contratos, 0)
+    assert.equal(R.prepararMissoes(at).missoes.lista.length, MISSOES.porDia)
+  })
+
+  test('dia seguinte: missões novas, nada é tirado; pronta e não resgatada fica para resgatar', () => {
+    let e = diaCom('m-dia', 'imprimir')
+    const m = e.missoes.lista.find(x => x.tipo === 'imprimir')
+    e.caixa = 10_000
+    e = R.imprimir(e, m.meta).estado
+    const caixa = e.caixa
+    const contagem = structuredClone(e.contagem)
+    const amanha = R.avancar(e, e.ultimoTempo + DIA).estado
+    const n = R.prepararMissoes(amanha)
+    assert.equal(n.missoes.dia, R.diaDoJogo(amanha.ultimoTempo))
+    assert.notEqual(n.missoes.dia, e.missoes.dia)
+    assert.equal(n.caixa, amanha.caixa)
+    assert.ok(n.caixa >= caixa)
+    assert.deepEqual(n.contagem, contagem)
+    const novas = n.missoes.lista.filter(x => x.id.startsWith(n.missoes.dia.replaceAll('-', '')))
+    assert.equal(novas.length, MISSOES.porDia)
+    for (const x of R.missoesComProgresso(n)) if (novas.some(y => y.id === x.id)) assert.equal(x.progresso, 0)
+    // a pronta de ontem continua lá e paga
+    const ontem = R.missoesComProgresso(n).find(x => x.id === m.id)
+    assert.ok(ontem && ontem.pronta && !ontem.resgatada)
+    assert.equal(R.resgatarMissao(n, m.id).ok, true)
+    // a não pronta de ontem some sem cobrar nada
+    const naoPronta = e.missoes.lista.find(x => x.id !== m.id)
+    assert.equal(n.missoes.lista.some(x => x.id === naoPronta.id), false)
+  })
+
+  test('sem luxo para comprar, a missão de luxo não é sorteada', () => {
+    for (let d = 0; d < 30; d++) {
+      const e = R.estadoInicial({ semente: 'todos-luxos', agora: T0 + d * DIA })
+      e.luxos = LUXOS.map(l => l.id)
+      assert.equal(R.prepararMissoes(e).missoes.lista.some(m => m.tipo === 'luxo'), false)
+    }
+  })
 })

@@ -10,6 +10,7 @@
 //   GET /api/sessao → { ok, conta | null } · POST /api/sessao/sair → { ok } (apaga no banco e o cookie)
 //   POST /api/apelido {apelido} → { ok, apelido, conta } | { ok:false, codigo:'apelido_invalido', chaveTexto, erro }
 //   Rotas do jogo sem sessão → 401 sem_sessao. conta = { tipo, apelido, carteiraCurta, pedirApelido }.
+// Lotes e missão do dia (21/11): POST /api/imprimir {quantidade?} · POST /api/fundir/tudo · POST /api/missao/:id.
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -59,8 +60,11 @@ const emManutencao = () => process.env.MANUTENCAO === '1'
 const soLeitura = () => process.env.SAVE_SO_LEITURA === '1'
 
 const ROTAS_POST = [
-  { re: /^\/api\/imprimir$/, acao: 'imprimir', dados: () => ({}) },
+  // {quantidade} opcional: lote de 1 a LOTE.maximoImpressoes (sem ela = 1 folha, como antes)
+  { re: /^\/api\/imprimir$/, acao: 'imprimir', dados: (_m, c) => (c.quantidade === undefined ? {} : { quantidade: c.quantidade }) },
   { re: /^\/api\/fundir$/, acao: 'fundir', dados: (_m, c) => ({ ideia: c.ideia }) },
+  { re: /^\/api\/fundir\/tudo$/, acao: 'fundirTudo', dados: () => ({}) },
+  { re: /^\/api\/missao\/([0-9]{8}-[a-z]{1,20})$/, acao: 'missao', dados: m => ({ missaoId: m[1] }) },
   { re: /^\/api\/lancar$/, acao: 'lancar', dados: (_m, c) => ({ cartaId: c.cartaId }) },
   { re: /^\/api\/projeto\/(\d{1,9})\/tapete$/, acao: 'tapete', dados: m => ({ projetoId: Number(m[1]) }) },
   { re: /^\/api\/batida$/, acao: 'batida', dados: (_m, c) => ({ escolha: c.escolha }) },

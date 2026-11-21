@@ -6,7 +6,7 @@
 // O relógio entra por parâmetro (agora, em ms). A tela recebe só estadoParaTela: sem semente, sem contador do sorteio.
 import * as R from '../comum/regras.js'
 import { TEXTOS, citar } from '../comum/nomes.js'
-import { LUXOS, INFLUENCIADORES, CONTRATO, CALOR, GAVETA, FUSAO, RARIDADES, PRESTIGIO } from '../comum/config.js'
+import { LUXOS, INFLUENCIADORES, CONTRATO, CALOR, GAVETA, FUSAO, RARIDADES, PRESTIGIO, LOTE } from '../comum/config.js'
 import {
   transacao, anotarDiario, buscarPedido, gravarPedido,
   buscarConta, contaConvidadaLocal, carregarSaveDaConta, gravarSaveDaConta, somaDoDiarioDaConta,
@@ -29,8 +29,10 @@ function contaDoPedido(db, contaId) {
 
 /** Ações que a tela pode pedir: nome → (estado, dados) → resultado de regras.js. */
 export const ACOES = Object.freeze({
-  imprimir: (e) => R.imprimir(e),
+  imprimir: (e, d) => R.imprimir(e, d.quantidade === undefined ? 1 : d.quantidade), // lote: 1 a LOTE.maximoImpressoes
   fundir: (e, d) => R.fundir(e, d.ideia),
+  fundirTudo: (e) => R.fundirTudo(e),
+  missao: (e, d) => R.resgatarMissao(e, d.missaoId),
   lancar: (e, d) => R.lancar(e, d.cartaId),
   tapete: (e, d) => R.puxarTapete(e, d.projetoId),
   batida: (e, d) => R.resolverBatida(e, d.escolha),
@@ -81,11 +83,12 @@ export function agir(db, { acao, dados = {}, chave, agora, textos = TEXTOS, cont
       }
       const inicio = R.atualizarEstado(carregarSaveDaConta(db, conta.id))
       const avanco = R.avancar(inicio, agora)
-      const r = ACOES[acao](avanco.estado, dados)
+      const pronto = R.prepararMissoes(avanco.estado) // missões do dia antes da ação (a ação já conta); não mexe no caixa
+      const r = ACOES[acao](pronto, dados)
       if (!r || r.ok !== true) throw new Recusa(r?.erro || ERRO_GENERICO, 'recusado')
       const fim = r.estado
-      anotarComMulta(db, conta.id, inicio.caixa, avanco.estado.caixa, avanco.eventos, 'rendimento', agora, chave)
-      anotarComMulta(db, conta.id, avanco.estado.caixa, fim.caixa, r.eventos, acao, agora, chave)
+      anotarComMulta(db, conta.id, inicio.caixa, pronto.caixa, avanco.eventos, 'rendimento', agora, chave)
+      anotarComMulta(db, conta.id, pronto.caixa, fim.caixa, r.eventos, acao, agora, chave)
       gravarSaveDaConta(db, conta.id, fim, agora)
       const resultado = limparResultado(r, fim, textos)
       resultado.eventosDoTempo = avanco.eventos
@@ -111,13 +114,14 @@ export function verEstado(db, agora, { textos = TEXTOS, gravar = true, contaId }
     if (!conta) return falha(ERRO_CONTA, 'conta_invalida')
     const inicio = R.atualizarEstado(carregarSaveDaConta(db, conta.id))
     const avanco = R.avancar(inicio, agora)
+    const pronto = R.prepararMissoes(avanco.estado) // dia novo = missões novas; não mexe no caixa
     if (gravar) {
-      anotarComMulta(db, conta.id, inicio.caixa, avanco.estado.caixa, avanco.eventos, 'rendimento', agora, null)
-      gravarSaveDaConta(db, conta.id, avanco.estado, agora)
+      anotarComMulta(db, conta.id, inicio.caixa, pronto.caixa, avanco.eventos, 'rendimento', agora, null)
+      gravarSaveDaConta(db, conta.id, pronto, agora)
     }
     return {
       ok: true,
-      estado: estadoParaTela(avanco.estado, { textos, conta }),
+      estado: estadoParaTela(pronto, { textos, conta }),
       segundos: avanco.segundos,
       online: avanco.online,
       rendeu: avanco.rendeu,
@@ -210,6 +214,8 @@ function limparResultado(r, estado, textos) {
   const { estado: _fora, ok: _ok, ...resto } = r
   const out = structuredClone(resto)
   if (out.carta) out.carta.nome = nomeIdeia(out.carta.ideia, textos)
+  for (const lista of [out.cartas, out.entraram, out.sairam]) if (Array.isArray(lista)) for (const c of lista) c.nome = nomeIdeia(c.ideia, textos)
+  if (Array.isArray(out.passos)) for (const p of out.passos) if (p.carta) p.carta.nome = nomeIdeia(p.carta.ideia, textos)
   if (out.projeto) out.projeto.nome = nomeProjeto(out.projeto, textos)
   if (out.projetoId) {
     const p = estado.projetos.find(x => x.id === out.projetoId)
@@ -395,6 +401,9 @@ export function estadoParaTela(estado, { textos = TEXTOS, conta = null } = {}) {
 
   const pb = R.previaBatida(estado)
   const alvo = pb ? estado.projetos.find(p => p.id === pb.projetoId) : null
+  const comNome = c => ({ id: c.id, ideia: c.ideia, raridade: c.raridade, nome: nomeIdeia(c.ideia, textos) })
+  const pLote = R.previaImprimir(estado, LOTE.maximoImpressoes)
+  const pTudo = R.previaFundirTudo(estado)
 
   return {
     versao: estado.versao,
@@ -417,6 +426,14 @@ export function estadoParaTela(estado, { textos = TEXTOS, conta = null } = {}) {
       chances: R.chancesDaImpressora(),
       gaveta: estado.cartas.length,
       gavetaMaxima: GAVETA.maximoDeCartas,
+      // botão "imprimir N": prévia do lote máximo (mesma conta da ação; a gaveta cheia corta a quantidade)
+      lote: {
+        maximo: LOTE.maximoImpressoes,
+        quantidade: pLote.quantidade ?? 0,
+        custo: pLote.custo ?? null,
+        cortada: !!pLote.cortada,
+        pode: pLote.ok === true,
+      },
     },
     cartas: estado.cartas.map(c => ({
       id: c.id,
@@ -425,7 +442,11 @@ export function estadoParaTela(estado, { textos = TEXTOS, conta = null } = {}) {
       nome: nomeIdeia(c.ideia, textos),
       podeFundir: c.raridade !== ultimaRaridade && contagemIdeia[c.ideia] >= FUSAO.quantidade,
     })),
-    fusao: { quantidade: FUSAO.quantidade },
+    fusao: {
+      quantidade: FUSAO.quantidade,
+      // "fundir tudo": o que vai sair e entrar ANTES de decidir (null = nada a fundir ou batida pendente)
+      previaTudo: pTudo.ok ? { fusoes: pTudo.fusoes, entraram: pTudo.entraram.map(comNome), sairam: pTudo.sairam.map(comNome) } : null,
+    },
     projetos,
     batida: pb ? {
       ...pb,
@@ -461,6 +482,18 @@ export function estadoParaTela(estado, { textos = TEXTOS, conta = null } = {}) {
     chat,
     album: Object.keys(estado.album).filter(k => estado.album[k]).map(ideia => ({ ideia, nome: nomeIdeia(ideia, textos) })),
     contagem: { ...estado.contagem },
+    // missão do dia: progresso contado pelo servidor; texto pela chave missao.<tipo> com {n} = meta
+    missoes: R.missoesComProgresso(estado).map(m => ({
+      id: m.id,
+      tipo: m.tipo,
+      chaveTexto: `missao.${m.tipo}`,
+      texto: texto(textos, `missao.${m.tipo}`).replaceAll('{n}', String(m.meta)),
+      progresso: m.progresso,
+      meta: m.meta,
+      premio: m.premio,
+      pronta: m.pronta,
+      resgatada: m.resgatada,
+    })),
     conta: contaParaTela(conta, estado),
   }
 }

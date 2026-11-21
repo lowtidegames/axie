@@ -151,3 +151,22 @@ export const INFLUENCIADORES = [
   { id: 'infl_5', tamanho: 'mega', liberaComTapetes: 14 },
   { id: 'infl_6', tamanho: 'mega', liberaComTapetes: 20 },
 ]
+
+// ---------------------------------------------------------------------------------------------
+// PROVISÓRIO (núcleo, 21/11) — designer-de-progressao ajusta
+// 11. Lote: imprimir até maximoImpressoes folhas numa ação (custo = soma das folhas; a gaveta cheia corta).
+// 12. Missão do dia (não pune: perder o dia não tira nada). porDia missões por dia (data em UTC), de tipos
+//     diferentes; meta sorteada de `metas`; prêmio = premioPorUnidade × meta (caixa fictício).
+// ---------------------------------------------------------------------------------------------
+export const LOTE = { maximoImpressoes: 10 }
+
+export const MISSOES = {
+  porDia: 3,
+  tipos: {
+    tapete: { metas: [2, 3, 4], premioPorUnidade: 60 }, // puxar N tapetes
+    imprimir: { metas: [3, 5, 8], premioPorUnidade: 25 }, // imprimir N folhas
+    luxo: { metas: [1], premioPorUnidade: 150 }, // comprar 1 luxo (só sorteada se ainda falta algum)
+    fusao: { metas: [1], premioPorUnidade: 120 }, // fazer 1 fusão
+    contrato: { metas: [1], premioPorUnidade: 100 }, // contratar 1 influenciador (vídeo 1)
+  },
+}

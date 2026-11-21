@@ -138,7 +138,7 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | P24 | Servidor manda trazidasV1 do contrato | nucleo-do-jogo | porao/servidor/jogo.mjs, porao/tests/jogo.test.js | P23 | PRONTO (4e1b64f) |
 | P25 | Tela: nome do projeto vindo do servidor (rebrand aparece), número do vídeo 1 de volta, balão da vó sem cobrir o monitor no celular | dev-tela | porao/tela/monitores.js, vo.js, api.js, estilo.css | P23 | PRONTO (6bc2767; texto da vó no celular em 14px) |
 | P29 | Textos das missões do dia | humorista | porao/comum/nomes.js, porao/tests/nomes.test.js | P28 | PRONTO (a302dec; regra do teste de marcadores mudou: {n} vale só em missao.<tipo>) |
-| P30 | Tela: imprimir em lote, fundir tudo com prévia, janela de missões do dia | dev-tela | porao/tela/monitores.js, api.js | P26, P28 | RODANDO |
+| P30 | Tela: imprimir em lote, fundir tudo com prévia, janela de missões do dia | dev-tela | porao/tela/monitores.js, api.js | P26, P28 | PRONTO (668694a; D86 Cg88 Ch95) |
 | PA | Piloto de arte lado a lado (PixelLab × pacote itch.io) | diretor-de-arte | arte/piloto-porao/ | — | PRONTO (f38a44b juntado; PixelLab ganhou, 11 gerações; lote de produção espera o "sim") |
 | A1 | Régua de arte do Porão + porão inteiro com móveis soltos (âncora de escala) | diretor-de-arte (Fable) | docs/porao/regua-de-arte.md, arte/porao/regua/, docs/custos.md | PA | PRONTO (c11510c; 30 gerações) |
 | A2 | Objetos e gente: Rugrigo em poses, luxos, trouxas, influenciadores, molduras de carta | artista-pixel | arte/porao/objetos/, porao/tela/arte/ (só os seus nomes) | A1 | PRONTO (f622fce; 31 de 70 gerações; 33 peças + 11 retratos) |
@@ -160,3 +160,4 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | P26 | Conserto do QA na tela: contratar (influenciadorId), chances exatas, texto do servidor sem contradição, janelas sem sobra, impressora após recarregar, batida abre sozinha, concordância; e2e contra o servidor real | dev-tela (Opus) | porao/tela/api.js, monitores.js, porao/tests/abertura.e2e.mjs | Q1 | PRONTO (2e5f948; 11 falhas antes no servidor real, verde depois; tela.e2e sem instabilidade: espera o boot) |
 | P27 | Vó dirigida pelo estado do jogo (some quando a tarefa acaba, aponta a janela certa, não cobre botões no celular) | dev-tela | porao/tela/vo.js, estilo.css | Q1 | PRONTO (f943d4a; D85 Cg88 Ch92; falas de "onde" ainda em vo.js) |
 | P28 | Lotes (imprimir N, fundir tudo) + missão do dia sem punição (servidor) | nucleo-do-jogo | porao/comum/regras.js, porao/servidor/jogo.mjs, index.mjs, porao/tests/regras.test.js, jogo.test.js, api.test.js | Q1 | PRONTO (c54158c; 182 testes; simulador 7/7; GO do seguranca sem achados) |
+| Q2 | QA rodada 2 (nota nova) | qa-jogador | — | P26–P30 | RODANDO |

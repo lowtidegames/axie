@@ -137,7 +137,7 @@ O diretor escreve aqui ANTES de despachar (skill `diretor`). Duas tarefas no mes
 | P23 | BUG: com o servidor de verdade o porão não desenha (tela lê formato do modo falso) | dev-tela (Opus) | porao/tela/api.js, monitores.js, app.js, vo.js, porao/tests/abertura.e2e.mjs | P21 | PRONTO (cbafd5c; abertura.e2e com servidor real exigindo a tela inteira, 3 rodadas verdes) |
 | P24 | Servidor manda trazidasV1 do contrato | nucleo-do-jogo | porao/servidor/jogo.mjs, porao/tests/jogo.test.js | P23 | PRONTO (4e1b64f) |
 | P25 | Tela: nome do projeto vindo do servidor (rebrand aparece), número do vídeo 1 de volta, balão da vó sem cobrir o monitor no celular | dev-tela | porao/tela/monitores.js, vo.js, api.js, estilo.css | P23 | PRONTO (6bc2767; texto da vó no celular em 14px) |
-| P29 | Textos das missões do dia | humorista | porao/comum/nomes.js, porao/tests/nomes.test.js | P28 | RODANDO |
+| P29 | Textos das missões do dia | humorista | porao/comum/nomes.js, porao/tests/nomes.test.js | P28 | PRONTO (a302dec; regra do teste de marcadores mudou: {n} vale só em missao.<tipo>) |
 | P30 | Tela: imprimir em lote, fundir tudo com prévia, janela de missões do dia | dev-tela | porao/tela/monitores.js, api.js | P26, P28 | FILA |
 | PA | Piloto de arte lado a lado (PixelLab × pacote itch.io) | diretor-de-arte | arte/piloto-porao/ | — | PRONTO (f38a44b juntado; PixelLab ganhou, 11 gerações; lote de produção espera o "sim") |
 | A1 | Régua de arte do Porão + porão inteiro com móveis soltos (âncora de escala) | diretor-de-arte (Fable) | docs/porao/regua-de-arte.md, arte/porao/regua/, docs/custos.md | PA | PRONTO (c11510c; 30 gerações) |

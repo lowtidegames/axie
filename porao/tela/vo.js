@@ -328,7 +328,12 @@ export function criarTutorial({ api, conta, cena, menos = () => false }) {
 
   // folha com ideia ainda saindo (etapa 0–2); folha em branco não conta
   const revelando = () => [...document.querySelectorAll('[data-pm="folha"]')].some((f) => !f.classList.contains('pm-folha--vazia') && f.dataset.etapa !== '3');
-  const tapeteNaTela = () => !!document.querySelector('[data-pm="tapete"]');
+  const tapeteNaTela = () => !!document.querySelector('[data-pm="tapete"], [data-pm="ganho-gigante"]');
+  // qualquer janela por cima do jogo (fundir tudo, batida, celular, apelido, história): a vó some e espera
+  const modalAberto = () => !!document.querySelector('.pm-janela, .vo-fundo');
+  // a festa do tapete: o apelido só vem um tempo DEPOIS que o resumo fechou (nunca com o resumo na tela)
+  const FOLGA_FESTA_MS = 1200;
+  let tapeteSumiuEm = 0;
 
   /** Aperta IMPRIMIR na impressora (com a chave fixa): a 1ª ideia sai sozinha, com a revelação de sempre. */
   function imprimirSozinha(tentativa = 0) {
@@ -374,14 +379,19 @@ export function criarTutorial({ api, conta, cena, menos = () => false }) {
   function pensar() {
     if (!vivo || !visao) return;
     const e = visao.estado;
-    // apelido + história: depois do 1º tapete, com a cena do tapete já fechada
-    if (fluxo === 'esperando' && e.contagem.tapetes >= 1 && !tapeteNaTela() && !e.batida) {
+    const tapete = tapeteNaTela();
+    if (tapete) tapeteSumiuEm = 0; else if (!tapeteSumiuEm) tapeteSumiuEm = Date.now();
+    const festaAcabou = !tapete && Date.now() - tapeteSumiuEm >= FOLGA_FESTA_MS;
+    // apelido + história: depois do 1º tapete, com o resumo já fechado pelo jogador e sem outra janela aberta
+    if (fluxo === 'esperando' && e.contagem.tapetes >= 1 && festaAcabou && !modalAberto() && !e.batida) {
       const c = e.conta ?? visao.conta ?? contaAtual;
       const precisa = (c?.pedirApelido && !apelidoAdiado) || (ativo && !guardado.historia);
       if (precisa) { apelidoEHistoria(); return; }
       fluxo = 'feito';
     }
     if (!ativo || fluxo === 'aberto') return;
+    // janela aberta por cima: a vó some (sem contar como dispensada) e volta com a fala certa quando fechar
+    if (modalAberto()) { if (atual.n) esconder(); return; }
     posicionar();
     const n = passoDaVisao(visao, { revelando: revelando() });
     // tapete na tela, ou ainda sem apelido/história: a vó espera quieta
@@ -408,6 +418,9 @@ export function criarTutorial({ api, conta, cena, menos = () => false }) {
     }
   }
   const relogio = setInterval(pensar, 700);
+  // janela abriu ou fechou: pensa já (a vó some na hora e volta logo depois)
+  const obsJanelas = new MutationObserver((l) => { if (l.some((m) => [...m.addedNodes, ...m.removedNodes].some((n) => n.classList?.contains('pm-janela') || n.classList?.contains('vo-fundo')))) pensar(); });
+  obsJanelas.observe(document.body, { childList: true });
 
   return {
     api: apiJogo,
@@ -427,6 +440,6 @@ export function criarTutorial({ api, conta, cena, menos = () => false }) {
       }
       setTimeout(pensar, 0); // depois que os monitores desenharam esta visão
     },
-    destruir() { vivo = false; clearInterval(relogio); clearTimeout(timerPasso); window.removeEventListener('resize', posicionar); limparAvisos(); caixa.remove(); },
+    destruir() { vivo = false; clearInterval(relogio); obsJanelas.disconnect(); clearTimeout(timerPasso); window.removeEventListener('resize', posicionar); limparAvisos(); caixa.remove(); },
   };
 }

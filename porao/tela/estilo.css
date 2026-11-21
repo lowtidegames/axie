@@ -326,6 +326,10 @@ body {
 .vo-apelido__sugestoes { display: flex; flex-wrap: wrap; gap: 6px; }
 .vo-sugestao { flex: 1 1 auto; min-height: 40px; padding: 6px 10px; font-size: 14px; }
 .vo-apelido .ab-btn { max-width: none; }
+/* celular: a janela do apelido rola por dentro e o botão de assinar fica preso embaixo, sempre à vista (até com o teclado aberto) */
+.vo-fundo--apelido { justify-content: safe center; }
+.vo-apelido { max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
+.vo-apelido [data-pm="apelido-ok"] { position: sticky; bottom: 0; z-index: 1; }
 
 /* história: 3 quadros, toque passa, Pular fecha */
 .vo-historia { gap: 14px; cursor: pointer; background: var(--noite-funda); }

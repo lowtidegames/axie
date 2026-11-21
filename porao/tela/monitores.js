@@ -311,6 +311,25 @@ select.pm-btn option { color: var(--acao-texto); }
 /* celular (tela estreita): a janela do celular fica embaixo e deixa o topo (com o botão do celular) à vista e tocável */
 @media (max-width: 720px) { .pm-janela--celular { align-items: flex-end; } .pm-janela--celular .pm-janela__caixa { max-height: calc(100dvh - 190px); } }
 .pm-cel-btn.pm-cel-novo { border-color: var(--aviso); box-shadow: 0 0 0 3px var(--aviso); }
+
+/* ---- rodapé fixo das janelas: os botões principais sempre à vista; a lista rola por cima ---- */
+.pm-janela__corpo { flex: 1 1 auto; min-height: 0; }
+.pm-janela__rodape { flex: none; padding: 8px 10px 10px; background: var(--noite-funda); border-top: 3px solid var(--borda); }
+.pm-janela__rodape[hidden] { display: none; }
+.pm-janela__rodape .pm-botoes { margin: 0; }
+.pm-botoes--pilha { flex-direction: column; }
+.pm-botoes--pilha .pm-btn { flex: none; width: 100%; }
+.pm-janela__corpo > .pm-abas:first-child { position: sticky; top: -10px; z-index: 2; margin: -10px -10px 0; }
+/* resultado do lote (dentro da janela da impressora): Ver/Fechar presos embaixo enquanto a grade rola */
+.pm-lote-caixa > .pm-botoes { position: sticky; bottom: -8px; z-index: 3; padding: 8px 0; background: var(--painel); }
+
+/* ---- meta grande (topo da aba Metas): álbum e caixa desta vida, números do servidor ---- */
+.pm-longa { display: flex; flex-direction: column; gap: 6px; }
+.pm-longa h3 { margin: 0; }
+.pm-longa__album { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 3px; }
+.pm-longa__ideia { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: var(--linho-apagado);
+  background: var(--noite-funda); border: 2px dashed var(--borda); min-width: 0; }
+.pm-longa__ideia--vista { border-style: solid; border-color: var(--rc); background: var(--rc); }
 `;
 
 function h(tag, props = {}, ...filhos) {
@@ -954,10 +973,11 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   function conteudoFundirTudo(pt) {
     return [
       h('p', {}, `${pt.fusoes} ${pt.fusoes === 1 ? 'fusão' : 'fusões'} de uma vez (3 iguais viram 1 do tamanho seguinte, sem sorteio).`),
+      h('p', { class: 'pm-pequeno', 'data-pm': 'fundir-cascata' }, 'Fusões em sequência: 3 iguais viram 1 maior, que pode fundir de novo.'),
       h('strong', {}, `Sai da gaveta (${pt.sairam.length})`), listaFusao(pt.sairam, 'fundir-sai'),
       h('p', { class: 'pm-fusao-seta', 'aria-hidden': 'true' }, '↓'),
       h('strong', {}, `Entra na gaveta (${pt.entraram.length})`), listaFusao(pt.entraram, 'fundir-entra'),
-      h('div', { class: 'pm-botoes' },
+      h('div', { class: 'pm-botoes pm-rodape' },
         h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'fundir-confirmar', onclick: confirmarFundirTudo }, 'Confirmar'),
         h('button', { type: 'button', class: 'pm-btn', 'data-pm': 'fundir-cancelar', onclick: () => janelaFusao?.fechar() }, 'Cancelar')),
     ];
@@ -980,7 +1000,7 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
       h('p', { class: 'pm-meta__ok', 'data-pm': 'fundir-feito' }, `Feito: ${res.fusoes} ${res.fusoes === 1 ? 'fusão' : 'fusões'}.`),
       h('strong', {}, `Entrou na gaveta (${res.entraram.length})`), listaFusao(res.entraram, 'fundir-entrou'),
       h('strong', {}, `Saiu (${res.sairam.length})`), listaFusao(res.sairam, 'fundir-saiu'),
-      h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'fundir-ok', onclick: () => janelaFusao?.fechar() }, 'Beleza'),
+      h('div', { class: 'pm-botoes pm-rodape' }, h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'fundir-ok', onclick: () => janelaFusao?.fechar() }, 'Beleza')),
     ]);
   }
 
@@ -1172,11 +1192,13 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
       h('div', { class: 'pm-opcao' },
         h('strong', {}, 'Fazer rebrand'),
         h('p', {}, `Custa ${din(b.custoRebrand)} de caixa. O Calor cai para ${b.calorDepoisDoRebrand}. ${nome} continua no ar com outro nome.`),
-        b.podeRebrand ? null : h('p', { class: 'pm-aviso-texto' }, `Falta ${din(b.custoRebrand - visao.estado.caixa)} para pagar.`),
-        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'rebrand', disabled: !b.podeRebrand, onclick: () => resolverBatida('rebrand') }, `Pagar ${din(b.custoRebrand)} e fazer rebrand`, novoNome ? h('span', { class: 'pm-btn__sub', 'data-pm': 'rebrand-nome' }, `vira: ${novoNome}`) : null)),
+        b.podeRebrand ? null : h('p', { class: 'pm-aviso-texto' }, `Falta ${din(b.custoRebrand - visao.estado.caixa)} para pagar.`)),
       h('div', { class: 'pm-opcao' },
         h('strong', {}, 'Perder o projeto'),
-        h('p', {}, `${nome} é apreendido e você não ganha mais nada com ele. O Calor cai para ${b.calorDepoisDePerder}.`),
+        h('p', {}, `${nome} é apreendido e você não ganha mais nada com ele. O Calor cai para ${b.calorDepoisDePerder}.`)),
+      // as duas escolhas ficam no rodapé fixo (sempre à vista no celular)
+      h('div', { class: 'pm-botoes pm-botoes--pilha pm-rodape' },
+        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'rebrand', disabled: !b.podeRebrand, onclick: () => resolverBatida('rebrand') }, `Pagar ${din(b.custoRebrand)} e fazer rebrand`, novoNome ? h('span', { class: 'pm-btn__sub', 'data-pm': 'rebrand-nome' }, `vira: ${novoNome}`) : null),
         h('button', { type: 'button', class: 'pm-btn pm-btn--perigo', 'data-pm': 'perder', onclick: () => resolverBatida('perder') }, `Perder ${nome}`)),
     ];
   }
@@ -1200,16 +1222,26 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   // =============================================================================================
   function janela({ titulo, classe = '', dado, corpo, aoFechar, retrato: foto = null }) {
     const antes = document.activeElement;
-    const corpoEl = h('div', { class: 'pm-janela__corpo' }, corpo);
+    const corpoEl = h('div', { class: 'pm-janela__corpo' });
+    // rodapé fixo: os botões principais (marcados com .pm-rodape) ficam sempre à vista; a lista rola por cima
+    const rodapeEl = h('div', { class: 'pm-janela__rodape', 'data-pm': 'janela-rodape' });
+    const montar = (novo) => {
+      const l = [].concat(novo).filter(Boolean);
+      const pe = l.filter((n) => n.classList?.contains('pm-rodape'));
+      corpoEl.replaceChildren(...l.filter((n) => !pe.includes(n)));
+      rodapeEl.replaceChildren(...pe);
+      rodapeEl.hidden = !pe.length;
+    };
+    montar(corpo);
     const fechar = () => { document.removeEventListener('keydown', tecla, true); fundo.remove(); aoFechar?.(); antes?.focus?.({ preventScroll: true }); };
     const x = h('button', { type: 'button', class: 'pm-btn', 'aria-label': 'Fechar janela', 'data-pm': 'janela-x', onclick: fechar }, '✕');
-    const caixa = h('div', { class: 'pm-janela__caixa', role: 'dialog', 'aria-modal': 'true', 'aria-label': titulo }, h('div', { class: 'pm-janela__topo' }, foto, h('h2', {}, titulo), x), corpoEl);
+    const caixa = h('div', { class: 'pm-janela__caixa', role: 'dialog', 'aria-modal': 'true', 'aria-label': titulo }, h('div', { class: 'pm-janela__topo' }, foto, h('h2', {}, titulo), x), corpoEl, rodapeEl);
     const fundo = h('div', { class: `pm-janela ${classe}`, 'data-pm': `janela-${dado}`, onclick: (e) => { if (e.target === fundo) fechar(); } }, caixa);
     function tecla(e) { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); fechar(); } }
     document.addEventListener('keydown', tecla, true);
     document.body.append(fundo);
     x.focus({ preventScroll: true });
-    return { fechar, atualizar(novo) { const rol = corpoEl.scrollTop; corpoEl.replaceChildren(...[].concat(novo)); corpoEl.scrollTop = rol; } };
+    return { fechar, atualizar(novo) { const rol = corpoEl.scrollTop; montar(novo); corpoEl.scrollTop = rol; } };
   }
 
   // =============================================================================================
@@ -1223,7 +1255,8 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     const prontas = metasProntas().length;
     const tabs = h('div', { class: 'pm-abas', role: 'tablist' }, [['mensagens', 'Mensagens'], ['contratar', 'Contratar'], ['metas', prontas ? `Metas (${prontas})` : 'Metas']].map(([a, rot]) =>
       h('button', { type: 'button', class: 'pm-aba', role: 'tab', 'data-aba': `cel-${a}`, 'aria-selected': String(abaCelular === a), onclick: () => { abaCelular = a; if (a === 'metas') metasVistas(); janelaCelular.atualizar(conteudoCelular()); } }, rot)));
-    return [tabs, abaCelular === 'mensagens' ? mensagens() : abaCelular === 'metas' ? metas() : contratar()];
+    return [tabs, abaCelular === 'mensagens' ? mensagens() : abaCelular === 'metas' ? metas() : contratar(),
+      h('div', { class: 'pm-botoes pm-rodape' }, h('button', { type: 'button', class: 'pm-btn', 'data-pm': 'celular-fechar', onclick: () => janelaCelular?.fechar() }, 'Fechar o celular'))];
   }
 
   // ----- METAS DO DIA (aba do celular): texto, progresso e prêmio do servidor; resgate pelo servidor -----
@@ -1233,9 +1266,43 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   let metaVista = new Set(); // prontas que o jogador já viu na aba
   let resgatando = null, popMeta = null; // id em resgate; { id, premio } para a festa pequena
   function metasVistas() { metasProntas().forEach((m) => metaVista.add(m.id)); atualizarCelularNovo(); }
+  /** Hora local em que o dia do jogo vira (meia-noite UTC depois do relógio do servidor). Só informa: sem contagem regressiva. */
+  function horaDaVirada() {
+    const ms = Number(visao?.estado.ultimoTempo);
+    if (!Number.isFinite(ms)) return null;
+    const d = new Date(ms);
+    const virada = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1);
+    return new Date(virada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+  /** Meta de longo prazo: álbum (vistas do servidor de 30) e prestígio (caixa desta vida até a meta do servidor). */
+  function metaLonga() {
+    const vistas = visao.estado.album || {};
+    const total = RARIDADES.reduce((s, r) => s + IDEIAS_POR_RARIDADE[r], 0);
+    const nVistas = RARIDADES.reduce((s, r) => s + Array.from({ length: IDEIAS_POR_RARIDADE[r] }, (_, i) => `${r}_${i + 1}`).filter((id) => vistas[id]).length, 0);
+    const pr = visao.prestigio || {};
+    const ganho = Number(visao.estado.caixaTotal) || 0;
+    const metaPr = Number(pr.meta) || 0;
+    const fracPr = metaPr > 0 ? Math.max(0, Math.min(1, ganho / metaPr)) : 0;
+    return h('div', { class: 'pm-card pm-longa', 'data-pm': 'meta-longa' },
+      h('h3', {}, 'Meta grande'),
+      h('div', { class: 'pm-linha' }, h('strong', {}, 'Álbum de ideias'), h('span', { class: 'pm-meta__conta', 'data-pm': 'meta-album-conta' }, `${nVistas} de ${total}`)),
+      h('div', { class: 'pm-longa__album', role: 'img', 'aria-label': `Álbum: ${nVistas} de ${total} ideias vistas` },
+        RARIDADES.flatMap((r) => Array.from({ length: IDEIAS_POR_RARIDADE[r] }, (_, i) => {
+          const visto = !!vistas[`${r}_${i + 1}`];
+          return h('span', { class: `pm-longa__ideia pm-rar--${r}${visto ? ' pm-longa__ideia--vista' : ''}`, 'data-pm': visto ? 'meta-album-vista' : 'meta-album-falta', title: visto ? nomeIdeia(`${r}_${i + 1}`) : 'Ainda não vista' }, visto ? '' : '?');
+        }))),
+      metaPr > 0 ? [
+        h('div', { class: 'pm-linha' }, h('strong', {}, 'Caixa desta vida'), h('span', { class: 'pm-meta__conta', 'data-pm': 'meta-prestigio-conta' }, `${din(ganho)} de ${din(metaPr)}`)),
+        h('div', { class: 'pm-medidor', role: 'progressbar', 'aria-label': 'Caixa desta vida até poder ir preso', 'aria-valuemin': '0', 'aria-valuemax': String(metaPr), 'aria-valuenow': String(Math.min(ganho, metaPr)) },
+          h('div', { class: 'pm-medidor__cheio', style: `width:${fracPr * 100}%` })),
+        h('p', { class: 'pm-pequeno' }, pr.liberado ? 'Chegou: já pode ir preso e voltar com bônus (no Caixa).' : 'Ao chegar, você pode ir preso e voltar com bônus para sempre.'),
+      ] : null);
+  }
   function metas() {
     const l = listaMetas();
-    const caixa = h('div', { class: 'pm-metas', 'data-pm': 'metas' }, h('h3', { style: 'margin:0' }, T('missao.titulo', 'Metas do dia')));
+    const vira = horaDaVirada();
+    const caixa = h('div', { class: 'pm-metas', 'data-pm': 'metas' }, metaLonga(), h('h3', { style: 'margin:0' }, T('missao.titulo', 'Metas do dia')),
+      h('p', { class: 'pm-pequeno', 'data-pm': 'metas-sub' }, `Metas só suas, do dia. Mudam à meia-noite UTC${vira ? ` (aqui, às ${vira})` : ''}. Meta pronta não some.`));
     if (!l.length) { caixa.append(h('p', { class: 'pm-vazio', 'data-pm': 'metas-vazia' }, T('missao.vazia', 'Sem metas hoje.'))); return caixa; }
     l.forEach((m) => {
       const meta = Math.max(1, Number(m.meta) || 1);
@@ -1401,6 +1468,8 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     const antes = visao;
     visao = nova;
     aoAtualizar?.(nova);
+    const t0 = Number(nova.estado.ultimoTempo);
+    if (Number.isFinite(t0)) { relogioSrv = t0; relogioRecebido = Date.now(); andarHora(); }
     const e = nova.estado;
     // amostras do gráfico: o que o servidor pagaria agora
     for (const p of projetosNoAr()) {
@@ -1443,6 +1512,17 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     }
   }
 
+  // "Hora" da barra de status: anda sozinha entre as atualizações (relógio do servidor + tempo passado aqui; só mostra)
+  let relogioSrv = null, relogioRecebido = 0;
+  function andarHora() {
+    if (relogioSrv == null) return;
+    const el = document.querySelector('[data-pm="status-hora"] .pagina-chip__valor');
+    if (!el) return;
+    const txt = new Date(relogioSrv + Math.max(0, Date.now() - relogioRecebido)).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    if (el.textContent !== txt) el.textContent = txt;
+  }
+  const timerHora = setInterval(andarHora, 1000);
+
   /** Cena do porão: trouxas, hype, luxos, aviso do celular e a pose do Rugrigo. */
   function pintarCena() {
     if (!visao) return;
@@ -1473,6 +1553,6 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     aoMudarVista(v) { if (v === 'monitores') requestAnimationFrame(limparVisiveis); },
     mostrarAviso: toast,
     get celularNovo() { return celularNovo; },
-    destruir() { obs.disconnect(); document.adoptedStyleSheets = document.adoptedStyleSheets.filter((f) => f !== folha); toasts.remove(); janelaBatida?.fechar(); janelaCelular?.fechar(); janelaFusao?.fechar(); },
+    destruir() { clearInterval(timerHora); obs.disconnect(); document.adoptedStyleSheets = document.adoptedStyleSheets.filter((f) => f !== folha); toasts.remove(); janelaBatida?.fechar(); janelaCelular?.fechar(); janelaFusao?.fechar(); },
   };
 }

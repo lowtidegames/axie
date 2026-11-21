@@ -541,6 +541,12 @@ try {
     confere(previa.sai >= 9 && previa.entra >= 1, `${rotulo}: prévia do fundir tudo mostra o que sai (${previa.sai}) e o que entra (${previa.entra})`)
     const cabeJ = await page.evaluate(() => { const r = document.querySelector('.pm-janela__caixa').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight })
     confere(cabeJ && await semRolagemLateral(page), `${rotulo}: a prévia do fundir tudo cabe na tela`)
+    const confirmarVisivel = await page.evaluate(() => ['fundir-confirmar', 'fundir-cancelar'].every((pm) => {
+      const b = document.querySelector(`[data-pm="${pm}"]`); const r = b?.getBoundingClientRect()
+      if (!r || r.top < 0 || r.bottom > innerHeight || r.height === 0) return false
+      const no = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!no && (no === b || b.contains(no))
+    }) && document.querySelector('.pm-janela__corpo').scrollTop === 0)
+    confere(confirmarVisivel, `${rotulo}: Confirmar e Cancelar à vista no rodapé da prévia, sem rolar`)
     await foto(page, `fundir-${rotulo}-1-previa`)
     await page.keyboard.press('Escape')
     confere(await page.waitForSelector('[data-pm="janela-fundir-tudo"]', { state: 'detached', timeout: 3000 }).then(() => true).catch(() => false), `${rotulo}: a prévia fecha com Esc sem fundir`)
@@ -580,6 +586,17 @@ try {
     confere(/ui_barra_cheia\.png/.test(barra), `${rotulo}: a barra da meta usa o kit de interface`)
     const cabeM = await page.evaluate(() => { const r = document.querySelector('.pm-janela__caixa').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight })
     confere(cabeM && await semRolagemLateral(page), `${rotulo}: a janela de metas cabe na tela`)
+    const longa = await page.evaluate(() => {
+      const v = window.poraoApp.api.depurar(() => {})
+      const vistas = Object.keys(v.estado.album).filter((k) => v.estado.album[k]).length
+      const conta = document.querySelector('[data-pm="meta-album-conta"]')?.textContent || ''
+      const silh = document.querySelectorAll('[data-pm="meta-album-falta"]').length
+      const pr = document.querySelector('[data-pm="meta-prestigio-conta"]')?.textContent || ''
+      const sub = document.querySelector('[data-pm="metas-sub"]')?.textContent || ''
+      const meta = Number(v.prestigio.meta).toLocaleString('pt-BR')
+      return { ok: conta === `${vistas} de 30` && silh === 30 - vistas && pr.includes(`$ ${meta}`) && /meia-noite UTC/.test(sub) && /às \d\d:\d\d/.test(sub), conta, silh, pr, sub }
+    })
+    confere(longa.ok, `${rotulo}: meta grande no topo das Metas (álbum ${longa.conta}, ${longa.silh} silhuetas; ${longa.pr}) e o aviso da virada do dia ("${longa.sub}")`)
     if (!menos) await foto(page, `metas-${rotulo}-1-pronta`)
     const c0 = await page.evaluate(() => window.poraoApp.api.depurar(() => {}).estado.caixa)
     await q(page, `[data-pm="meta"][data-id="${alvo.id}"] [data-pm="meta-resgatar"]`).click()
@@ -604,6 +621,25 @@ try {
     const bc = await q(page, '[data-pm="celular-btn"]').boundingBox()
     await page.mouse.click(bc.x + bc.width / 2, bc.y + bc.height / 2)
     confere(await page.locator('[data-pm="janela-celular"]').count() === 0, `${rotulo}: metas fecham tocando no ícone do celular`)
+    await ctx.close()
+  }
+
+  // ===================== HORA da barra de status anda sozinha entre as atualizações =====================
+  console.log('Hora da barra de status')
+  {
+    const { ctx, page } = await nova({ largura: 390, altura: 844, movel: true })
+    await page.clock.install()
+    await abrirPorao(page)
+    const hora = () => page.textContent('[data-pm="status-hora"] .pagina-chip__valor')
+    await page.waitForFunction(() => /^\d\d:\d\d$/.test(document.querySelector('[data-pm="status-hora"] .pagina-chip__valor')?.textContent || ''), null, { timeout: 8000 })
+    // para as atualizações (o pedido de estado não volta mais): só o relógio da tela pode mudar a hora
+    await page.evaluate(() => { window.poraoApp.api.estado = () => new Promise(() => {}) })
+    await page.clock.fastForward(4000)
+    const h0 = await hora()
+    await page.clock.fastForward('05:00')
+    const h1 = await hora()
+    const min = (t) => { const [a, b] = t.split(':').map(Number); return a * 60 + b }
+    confere(((min(h1) - min(h0) + 1440) % 1440) === 5, `a hora da barra anda sozinha sem atualização do servidor (${h0} → ${h1})`)
     await ctx.close()
   }
 

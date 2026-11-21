@@ -71,6 +71,16 @@ function mexerNoSave(srv, fn) {
   const e = JSON.parse(linhas[0].estado); fn(e)
   srv.db.prepare('UPDATE saves SET estado = ? WHERE conta_id = ?').run(JSON.stringify(e), linhas[0].conta_id)
 }
+/** A vó não está à vista (escondida, fora do DOM ou sem tamanho). */
+const voSumida = (page) => page.evaluate(() => { const v = document.querySelector('[data-pm="vo"]'); if (!v || v.hidden) return true; const r = v.getBoundingClientRect(); return r.width === 0 || r.height === 0 })
+/** O botão está inteiro dentro da tela, sem rolar nada, e é ele que recebe o toque no meio dele. */
+const botaoAVista = (page, sel) => page.evaluate((s) => {
+  const b = document.querySelector(s); if (!b) return false
+  const r = b.getBoundingClientRect()
+  if (!(r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight && r.right <= innerWidth && r.height > 0)) return false
+  const no = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+  return !!no && (no === b || b.contains(no))
+}, sel)
 const poraoPronto = (page) => page.waitForFunction(() => !!window.poraoApp && !document.querySelector('[data-pm="abertura"]'), null, { timeout: 15000 })
 const esperarPuxar = async (page) => {
   await page.locator('[data-pm-monitor="grafico"] .pm-icone[data-app="grafico"]').click()
@@ -118,6 +128,15 @@ try {
     confere(seg < 30, `${nome}: porão com a vó e 1ª ideia na tela em ${seg.toFixed(1)} s (limite 30 s)`)
     confere(await page.locator('[data-pm="abertura"]').count() === 0, `${nome}: a abertura saiu da tela`)
     confere(await semLateral(page), `${nome}: porão sem rolagem lateral`)
+    // janela aberta por cima: a vó some; fechou, ela volta com a fala do passo de agora
+    await page.waitForSelector('[data-pm="vo"]:not([hidden])', { timeout: 10000 })
+    await page.click('[data-pm="celular-btn"]')
+    await page.waitForSelector('[data-pm="janela-celular"]', { timeout: 3000 })
+    confere(await page.waitForFunction(() => { const v = document.querySelector('[data-pm="vo"]'); return !v || v.hidden }, null, { timeout: 3000 }).then(() => true).catch(() => false) && await voSumida(page), `${nome}: com a janela do celular aberta, a vó não aparece`)
+    await foto(page, `ab-${nome}-5b-celular-sem-vo`)
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('[data-pm="janela-celular"]', { state: 'detached', timeout: 3000 })
+    confere(await page.waitForSelector('[data-pm="vo"]:not([hidden])[data-passo]', { timeout: 5000 }).then(() => true).catch(() => false), `${nome}: fechou a janela, a vó volta com a fala`)
     await ctx.close()
   }
 
@@ -211,8 +230,14 @@ try {
     await esperarPuxar(page)
     await page.click('[data-pm="puxar"]')
     await page.waitForSelector('[data-pm="tapete-resumo"]', { timeout: 20000 })
+    // a festa termina primeiro: com o resumo do tapete aberto, o apelido não aparece (a vó pensa a cada 0,7 s: 4 voltas)
+    await page.waitForTimeout(3000)
+    confere(await page.locator('[data-pm="tapete-resumo"]').count() === 1 && await page.locator('[data-pm="apelido"]').count() === 0, 'servidor: o apelido não aparece enquanto o resumo do tapete está aberto')
+    await foto(page, 'ab-srv-2b-resumo-sem-apelido')
     await page.click('[data-pm="tapete-fechar"]')
     await page.waitForSelector('[data-pm="apelido"]', { timeout: 8000 })
+    confere(await voSumida(page), 'servidor: com a janela do apelido aberta, a vó não aparece')
+    confere(await botaoAVista(page, '[data-pm="apelido-ok"]'), 'servidor: o botão de assinar o apelido fica à vista no celular')
     await foto(page, 'ab-srv-3-apelido')
     const apelido = 'dev_' + Math.random().toString(36).slice(2, 8)
     await page.fill('[data-pm="apelido-campo"]', apelido)
@@ -387,6 +412,10 @@ try {
       confere(await somaN('[data-pm="fundir-sai"]') === pt.sairam.length && await somaN('[data-pm="fundir-entra"]') === pt.entraram.length, `servidor: a prévia na tela mostra o que sai (${pt.sairam.length}) e o que entra (${pt.entraram.length})`)
       const cabeFusao = await page.evaluate(() => { const r = document.querySelector('.pm-janela__caixa').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight })
       confere(cabeFusao && await semLateral(page), 'servidor: a prévia do fundir tudo cabe no celular')
+      const rolou = await page.evaluate(() => document.querySelector('.pm-janela__corpo').scrollTop)
+      confere(rolou === 0 && await botaoAVista(page, '[data-pm="fundir-confirmar"]') && await botaoAVista(page, '[data-pm="fundir-cancelar"]'), 'servidor: Confirmar e Cancelar do fundir tudo à vista em 390×844 sem rolar')
+      confere(/sequência/.test(await page.textContent('[data-pm="fundir-cascata"]').catch(() => '')), 'servidor: a prévia explica as fusões em sequência')
+      confere(await voSumida(page), 'servidor: com a prévia do fundir tudo aberta, a vó não aparece')
       await foto(page, 'ab-srv-13-fundir-previa')
       const respTudo = page.waitForResponse((r) => /\/api\/fundir\/tudo$/.test(r.url()), { timeout: 8000 })
       await page.click('[data-pm="fundir-confirmar"]')

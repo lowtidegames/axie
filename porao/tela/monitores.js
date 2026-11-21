@@ -333,7 +333,7 @@ select.pm-btn option { color: var(--acao-texto); }
 .pm-longa__ideia--vista.pm-moldura { border-width: 6px; }
 .pm-longa__ideia--vista[aria-pressed="true"] { outline: 2px solid var(--linho); outline-offset: 1px; }
 .pm-longa__arte { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
-.pm-longa__nome { position: relative; font-size: 9px; line-height: 1.05; font-weight: 800; color: var(--linho); text-align: center; overflow: hidden; max-height: 100%; word-break: break-word; text-shadow: 0 1px 0 var(--noite-funda); }
+.pm-longa__nome { position: relative; font-size: 11px; line-height: 1.1; font-weight: 800; color: var(--linho); text-align: center; overflow: hidden; max-height: 100%; word-break: break-word; text-shadow: 0 1px 0 var(--noite-funda); }
 .pm-longa__qual { margin: 0; min-height: 1.2em; font-weight: 700; overflow-wrap: anywhere; }
 `;
 

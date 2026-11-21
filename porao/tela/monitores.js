@@ -266,6 +266,51 @@ select.pm-btn option { color: var(--acao-texto); }
 .pm-janela__topo h2 { flex: 1; min-width: 0; }
 .pm-cel-btn { display: inline-flex; align-items: center; gap: 6px; }
 .pm-cel-icone { width: 32px; height: 32px; margin: -6px 0; }
+
+/* ---- impressora em lote: botões 1 e N; revelação em sequência (a mais rara por último) ---- */
+.pm-imp-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pm-imp-botoes .pm-btn--grande { width: auto; min-width: 0; }
+.pm-imp-botoes .pm-btn--so { grid-column: 1 / -1; }
+.pm-lote { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 6px; padding: 8px 6px 6px; background: var(--noite-funda); border: 2px solid var(--borda); flex: none; }
+.pm-lote__c { position: relative; min-width: 0; min-height: 60px; padding: 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-align: center;
+  background: var(--painel); color: var(--linho); font-size: 13px; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+.pm-lote__c .pm-chip { font-size: 12px; padding: 0 6px; }
+.pm-lote__c[data-mostra="0"] { border-image-source: none; border-color: var(--borda); border-style: dashed; color: var(--linho-apagado); }
+.pm-lote__c[data-mostra="0"] > * { visibility: hidden; }
+.pm-lote__c[data-mostra="0"]::after { content: "?"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+.pm-lote__c[data-mostra="1"] { animation: pm-lote-entra 0.28s ease-out both; }
+.pm-lote__c--pico[data-mostra="1"] { animation: pm-lote-pico 0.7s cubic-bezier(.2, 1.6, .4, 1) both; box-shadow: 0 0 0 3px var(--rc), 0 0 16px var(--rc); z-index: 1; }
+.pm-lote__estrela { position: absolute; top: 0; right: 2px; line-height: 1; font-size: 18px; color: var(--rc); text-shadow: 1px 1px 0 var(--pix-contorno); }
+@keyframes pm-lote-entra { from { transform: scale(0.6); opacity: 0.2; } to { transform: scale(1); opacity: 1; } }
+@keyframes pm-lote-pico { from { transform: scale(0.4); } 55% { transform: scale(1.18); } to { transform: scale(1); } }
+.cena--menos .pm-lote__c, .pm-lote--parado .pm-lote__c, .pm-lote__c.pm-lote__c--fixa { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .pm-lote__c { animation: none !important; } }
+.pm-lote-caixa { display: flex; flex-direction: column; gap: 8px; flex: none; }
+.pm-lote-resumo { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+
+/* ---- fundir tudo: prévia antes de confirmar ---- */
+.pm-fusao-lista { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.pm-fusao-lista li { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 4px 6px; background: var(--noite-funda); border-left: 4px solid var(--rc, var(--borda)); overflow-wrap: anywhere; }
+.pm-fusao-seta { text-align: center; font-family: var(--fonte-gorda); font-weight: 900; font-size: 1.3rem; color: var(--ouro); margin: 0; }
+
+/* ---- metas do dia (aba do celular) ---- */
+.pm-metas { display: flex; flex-direction: column; gap: 8px; }
+.pm-meta { display: flex; flex-direction: column; gap: 6px; position: relative; }
+.pm-meta__txt { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.pm-meta__conta { font-family: var(--fonte-num); font-variant-numeric: tabular-nums; font-size: 13px; flex: none; }
+.pm-meta__barra { display: flex; align-items: center; gap: 8px; }
+.pm-meta__barra .pm-medidor { flex: 1; }
+.pm-meta--pronta { border-color: var(--ganho); }
+.pm-meta--feita { opacity: 0.8; }
+.pm-meta__ok { margin: 0; color: var(--ganho); font-weight: 800; overflow-wrap: anywhere; }
+.pm-meta__pop { position: absolute; right: 8px; top: -6px; pointer-events: none; font-family: var(--fonte-gorda); font-weight: 900; font-size: 1.4rem; color: var(--ganho);
+  -webkit-text-stroke: 4px var(--pix-contorno); paint-order: stroke fill; animation: pm-meta-pop 1.2s ease-out both; }
+@keyframes pm-meta-pop { from { transform: translateY(8px) scale(0.5); opacity: 0; } 30% { transform: translateY(0) scale(1.15); opacity: 1; } to { transform: translateY(-14px) scale(1); opacity: 0; } }
+.cena--menos .pm-meta__pop, .pm-meta__pop--parado { animation: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .pm-meta__pop { animation: none; opacity: 1; } }
+/* celular (tela estreita): a janela do celular fica embaixo e deixa o topo (com o botão do celular) à vista e tocável */
+@media (max-width: 720px) { .pm-janela--celular { align-items: flex-end; } .pm-janela--celular .pm-janela__caixa { max-height: calc(100dvh - 190px); } }
+.pm-cel-btn.pm-cel-novo { border-color: var(--aviso); box-shadow: 0 0 0 3px var(--aviso); }
 `;
 
 function h(tag, props = {}, ...filhos) {
@@ -851,6 +896,14 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     const g = gaveta();
     t.corpo.append(h('div', { class: 'pm-linha' }, h('strong', {}, 'Gaveta'), h('span', { class: 'pm-pequeno' }, `${visao.estado.cartas.length} / ${GAVETA.maximoDeCartas}`)));
     if (!g.length) t.corpo.append(h('p', { class: 'pm-vazio' }, 'Gaveta vazia. A impressora faz ideias novas.'));
+    // "Fundir tudo": só com a prévia do servidor (fusao.previaTudo); o jogador vê o que sai e o que entra antes de confirmar
+    const pt = visao.estado.fusao?.previaTudo;
+    if (pt && api.fundirTudo) {
+      t.corpo.append(h('div', { class: 'pm-card', 'data-pm': 'fundir-tudo-card' },
+        h('div', { class: 'pm-linha' }, h('strong', {}, 'Copiar e colar tudo'), h('span', { class: 'pm-pequeno' }, `${pt.fusoes} ${pt.fusoes === 1 ? 'fusão' : 'fusões'}`)),
+        h('p', { class: 'pm-pequeno' }, `Saem ${pt.sairam.length} ideias, entram ${pt.entraram.length}. Você vê tudo antes de confirmar.`),
+        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'fundir-tudo', 'data-k': 'fundir-tudo', onclick: abrirFundirTudo }, 'Fundir tudo')));
+    }
     g.forEach((x) => {
       const maior = x.raridade === RARIDADES[RARIDADES.length - 1];
       // com arte, a moldura fica só em volta da imagem; sem arte, em volta da carta inteira
@@ -888,36 +941,95 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     aplicar(r, r.ok ? `Fundiu: saiu ${nomeIdeia(r.resultado.carta.ideia)} (${ROTULO_RARIDADE[r.resultado.carta.raridade]}).` : null);
   }
 
+  // ----- fundir tudo: prévia (do servidor) → confirmar → resultado (do servidor) -----
+  let janelaFusao = null, sigFusao = '';
+  /** Agrupa cartas iguais: [{ ideia, raridade, n }] da maior raridade para a menor. */
+  const agrupar = (lista) => {
+    const m = new Map();
+    for (const c of lista) { const k = c.ideia; if (!m.has(k)) m.set(k, { ideia: c.ideia, raridade: c.raridade, n: 0 }); m.get(k).n++; }
+    return [...m.values()].sort((a, b) => RARIDADES.indexOf(b.raridade) - RARIDADES.indexOf(a.raridade) || a.ideia.localeCompare(b.ideia));
+  };
+  const listaFusao = (lista, dado) => h('ul', { class: 'pm-fusao-lista', 'data-pm': dado },
+    agrupar(lista).map((x) => h('li', { class: `pm-rar--${x.raridade}`, 'data-ideia': x.ideia, 'data-n': String(x.n) }, h('span', {}, `${x.n}× ${nomeIdeia(x.ideia)}`), chipRar(x.raridade))));
+  function conteudoFundirTudo(pt) {
+    return [
+      h('p', {}, `${pt.fusoes} ${pt.fusoes === 1 ? 'fusão' : 'fusões'} de uma vez (3 iguais viram 1 do tamanho seguinte, sem sorteio).`),
+      h('strong', {}, `Sai da gaveta (${pt.sairam.length})`), listaFusao(pt.sairam, 'fundir-sai'),
+      h('p', { class: 'pm-fusao-seta', 'aria-hidden': 'true' }, '↓'),
+      h('strong', {}, `Entra na gaveta (${pt.entraram.length})`), listaFusao(pt.entraram, 'fundir-entra'),
+      h('div', { class: 'pm-botoes' },
+        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'fundir-confirmar', onclick: confirmarFundirTudo }, 'Confirmar'),
+        h('button', { type: 'button', class: 'pm-btn', 'data-pm': 'fundir-cancelar', onclick: () => janelaFusao?.fechar() }, 'Cancelar')),
+    ];
+  }
+  function abrirFundirTudo() {
+    const pt = visao?.estado.fusao?.previaTudo;
+    if (!pt) return;
+    janelaFusao?.fechar();
+    sigFusao = JSON.stringify(pt);
+    janelaFusao = janela({ titulo: 'Fundir tudo', dado: 'fundir-tudo', corpo: conteudoFundirTudo(pt), aoFechar: () => { janelaFusao = null; sigFusao = ''; } });
+  }
+  async function confirmarFundirTudo() {
+    sigFusao = ''; // daqui em diante a janela mostra o resultado (não troca pela prévia nova)
+    janelaFusao?.atualizar(h('p', { class: 'pm-pequeno' }, 'Copiando e colando…'));
+    const r = await api.fundirTudo();
+    aplicar(r, null);
+    if (!r.ok) { janelaFusao?.fechar(); return; }
+    const res = r.resultado;
+    janelaFusao?.atualizar([
+      h('p', { class: 'pm-meta__ok', 'data-pm': 'fundir-feito' }, `Feito: ${res.fusoes} ${res.fusoes === 1 ? 'fusão' : 'fusões'}.`),
+      h('strong', {}, `Entrou na gaveta (${res.entraram.length})`), listaFusao(res.entraram, 'fundir-entrou'),
+      h('strong', {}, `Saiu (${res.sairam.length})`), listaFusao(res.sairam, 'fundir-saiu'),
+      h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'fundir-ok', onclick: () => janelaFusao?.fechar() }, 'Beleza'),
+    ]);
+  }
+
   // ----- impressora e a revelação -----
   let timersRev = [];
+  // lote impresso nesta visita: { cartas (na ordem da revelação: a mais rara por último), custo, pedida, cortada, mostradas }
+  let loteRev = null;
   function renderImpressora(t) {
     const custo = visao.impressora.custo;
-    const folha = h('div', { class: 'pm-folha pm-folha--vazia', 'data-pm': 'folha', 'data-etapa': '0', 'aria-live': 'polite' });
-    const rar = h('div', { class: 'pm-folha__rar' }), nome = h('div', { class: 'pm-folha__nome' });
-    // sem impressão nesta visita (ex.: depois de recarregar): a folha mostra a última ideia da gaveta (a do servidor)
-    if (!revelada.carta) {
-      const ultima = visao.estado.cartas.filter((x) => !guardadas.has(x.id)).reduce((m, x) => (!m || x.id > m.id ? x : m), null);
-      if (ultima) revelada.carta = { id: ultima.id, ideia: ultima.ideia, raridade: ultima.raridade };
-    }
+    const lote = visao.impressora.lote || null;
     const nGaveta = visao.estado.cartas.length;
-    const vazia = nGaveta ? `Na gaveta: ${nGaveta} ${nGaveta === 1 ? 'ideia' : 'ideias'}` : 'Folha em branco';
-    folha.append(h('div', { style: 'opacity:.55;font-weight:700' }, revelada.carta ? '' : vazia), rar, nome);
-    if (revelada.carta) {
-      const c = revelada.carta;
-      folha.className = `pm-folha pm-moldura pm-rar--${c.raridade}`; folha.dataset.etapa = cenaAtiva.revelacao ? '0' : '3';
-      rar.append(chipRar(c.raridade)); nome.textContent = nomeIdeia(c.ideia);
-      const arte = imgCarta(c.ideia, 'pm-arte pm-folha__arte');
-      if (arte) { folha.classList.add('pm-folha--arte'); folha.prepend(arte); }
-      if (cenaAtiva.revelacao) iniciarRevelacao(folha);
+    if (loteRev) t.corpo.append(painelLote());
+    else {
+      const folha = h('div', { class: 'pm-folha pm-folha--vazia', 'data-pm': 'folha', 'data-etapa': '0', 'aria-live': 'polite' });
+      const rar = h('div', { class: 'pm-folha__rar' }), nome = h('div', { class: 'pm-folha__nome' });
+      // sem impressão nesta visita (ex.: depois de recarregar): a folha mostra a última ideia da gaveta (a do servidor)
+      if (!revelada.carta) {
+        const ultima = visao.estado.cartas.filter((x) => !guardadas.has(x.id)).reduce((m, x) => (!m || x.id > m.id ? x : m), null);
+        if (ultima) revelada.carta = { id: ultima.id, ideia: ultima.ideia, raridade: ultima.raridade };
+      }
+      const vazia = nGaveta ? `Na gaveta: ${nGaveta} ${nGaveta === 1 ? 'ideia' : 'ideias'}` : 'Folha em branco';
+      folha.append(h('div', { style: 'opacity:.55;font-weight:700' }, revelada.carta ? '' : vazia), rar, nome);
+      if (revelada.carta) {
+        const c = revelada.carta;
+        folha.className = `pm-folha pm-moldura pm-rar--${c.raridade}`; folha.dataset.etapa = cenaAtiva.revelacao ? '0' : '3';
+        rar.append(chipRar(c.raridade)); nome.textContent = nomeIdeia(c.ideia);
+        const arte = imgCarta(c.ideia, 'pm-arte pm-folha__arte');
+        if (arte) { folha.classList.add('pm-folha--arte'); folha.prepend(arte); }
+        if (cenaAtiva.revelacao) iniciarRevelacao(folha);
+      }
+      t.corpo.append(h('div', { class: 'pm-slot', 'data-pm': 'slot' }, folha));
     }
-    t.corpo.append(h('div', { class: 'pm-slot', 'data-pm': 'slot' }, folha));
-    const cheia = visao.estado.cartas.length >= GAVETA.maximoDeCartas;
-    t.corpo.append(h('button', { type: 'button', class: 'pm-btn pm-btn--acao pm-btn--grande', 'data-pm': 'imprimir', 'data-k': 'imprimir',
-      disabled: cenaAtiva.revelacao || cheia || visao.estado.caixa < custo, onclick: imprimir },
-      custo === 0 ? 'IMPRIMIR IDEIA — grátis' : `IMPRIMIR IDEIA — ${din(custo)}`));
-    if (cheia) t.corpo.append(h('p', { class: 'pm-aviso-texto' }, 'Gaveta cheia: lance ou funda ideias.'));
+    const cheia = nGaveta >= GAVETA.maximoDeCartas;
+    // "Imprimir N": N e o custo somado vêm do servidor (impressora.lote, a mesma conta da ação); só aparece se couber mais de 1
+    const temLote = !!lote && lote.quantidade >= 2 && lote.custo != null;
+    const precoDe = (v) => (v === 0 ? 'grátis' : din(v));
+    t.corpo.append(h('div', { class: 'pm-imp-botoes' },
+      h('button', { type: 'button', class: `pm-btn pm-btn--acao pm-btn--grande${temLote ? '' : ' pm-btn--so'}`, 'data-pm': 'imprimir', 'data-k': 'imprimir',
+        disabled: cenaAtiva.revelacao || cheia || visao.estado.caixa < custo, onclick: imprimir },
+        'IMPRIMIR 1', h('span', { class: 'pm-btn__sub', 'data-pm': 'imprimir-custo' }, precoDe(custo))),
+      temLote ? h('button', { type: 'button', class: 'pm-btn pm-btn--acao pm-btn--grande', 'data-pm': 'imprimir-lote', 'data-k': 'imprimir-lote',
+        'data-quantidade': String(lote.quantidade), 'data-custo': String(lote.custo),
+        disabled: cenaAtiva.revelacao || !lote.pode, onclick: () => imprimirLote(lote.quantidade) },
+        `IMPRIMIR ${lote.quantidade}`, h('span', { class: 'pm-btn__sub', 'data-pm': 'imprimir-lote-custo' }, `${precoDe(lote.custo)} no total`)) : null));
+    if (cheia) t.corpo.append(h('p', { class: 'pm-aviso-texto', 'data-pm': 'gaveta-cheia' }, 'Gaveta cheia: lance ou funda ideias.'));
     else if (visao.estado.caixa < custo) t.corpo.append(h('p', { class: 'pm-pequeno' }, `Falta caixa: você tem ${din(visao.estado.caixa)}.`));
-    if (revelada.carta && !cenaAtiva.revelacao) {
+    else if (temLote && lote.cortada) t.corpo.append(h('p', { class: 'pm-aviso-texto', 'data-pm': 'lote-cortado' }, `A gaveta só tem lugar para ${lote.quantidade}: o lote para aí.`));
+    else if (temLote && !lote.pode) t.corpo.append(h('p', { class: 'pm-pequeno', 'data-pm': 'lote-falta' }, `Para ${lote.quantidade} de uma vez falta ${din(lote.custo - visao.estado.caixa)}.`));
+    if (!loteRev && revelada.carta && !cenaAtiva.revelacao) {
       const c = revelada.carta;
       const viva = visao.estado.cartas.some((x) => x.id === c.id);
       if (viva) t.corpo.append(h('div', { class: 'pm-botoes' },
@@ -931,14 +1043,83 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
         h('span', { class: 'pm-barra__pct' }, `${pct(chance)}%`)))));
   }
 
+  /** Grade do lote: cada carta vira na sua vez; a última (a mais rara) com mais festa. Menos animação: tudo parado de uma vez. */
+  function painelLote() {
+    const L = loteRev;
+    const grade = h('div', { class: `pm-lote${menos() ? ' pm-lote--parado' : ''}`, 'data-fim': String(L.mostradas >= L.cartas.length), 'data-pm': 'lote', 'aria-live': 'polite', 'data-total': String(L.cartas.length) });
+    L.cartas.forEach((c, i) => {
+      const pico = i === L.cartas.length - 1 && L.cartas.length > 1;
+      // já virada antes deste desenho: fica parada (redesenhar não repete a animação); só a recém-virada anima
+      const fixa = i < L.mostradas && i !== L.recem;
+      grade.append(h('div', { class: `pm-lote__c pm-moldura pm-rar--${c.raridade}${pico ? ' pm-lote__c--pico' : ''}${fixa ? ' pm-lote__c--fixa' : ''}`, 'data-pm': 'lote-carta', 'data-mostra': i < L.mostradas ? '1' : '0', 'data-raridade': c.raridade },
+        pico ? h('span', { class: 'pm-lote__estrela', 'aria-hidden': 'true' }, '★') : null,
+        chipRar(c.raridade), h('span', {}, nomeIdeia(c.ideia))));
+    });
+    const fim = L.mostradas >= L.cartas.length;
+    const conta = {};
+    for (const c of L.cartas) conta[c.raridade] = (conta[c.raridade] || 0) + 1;
+    const partes = RARIDADES.filter((r) => conta[r]).reverse().map((r) => `${conta[r]} ${ROTULO_RARIDADE[r]}`);
+    if (!fim) grade.addEventListener('click', pularLote, { once: true });
+    return h('div', { class: 'pm-lote-caixa' }, grade,
+      fim ? h('p', { class: 'pm-lote-resumo', 'data-pm': 'lote-resumo' }, `${L.cartas.length} ideias por ${L.custo === 0 ? 'nada' : din(L.custo)}: ${partes.join(' · ')}.`) : null,
+      fim && L.cortada ? h('p', { class: 'pm-aviso-texto' }, `A gaveta encheu: saíram ${L.cartas.length} das ${L.pedida} pedidas.`) : null,
+      fim ? h('div', { class: 'pm-botoes' },
+        h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'lote-ver', 'data-k': 'lote-ver', onclick: () => { loteRev = null; trazer('ideias'); render('projeto'); } }, 'Ver na gaveta'),
+        h('button', { type: 'button', class: 'pm-btn', 'data-pm': 'lote-fechar', 'data-k': 'lote-fechar', onclick: () => { loteRev = null; render('projeto'); } }, 'Fechar o lote')) : null);
+  }
+  function pularLote() {
+    if (!loteRev) return;
+    timersRev.forEach(clearTimeout); timersRev = [];
+    loteRev.mostradas = loteRev.cartas.length; cenaAtiva.revelacao = false; render('projeto');
+  }
+
   async function imprimir() {
     if (cenaAtiva.revelacao) return;
     const r = await api.imprimir();
     aplicar(r, null, true);
     if (!r.ok) return;
+    loteRev = null;
     revelada.carta = r.resultado.carta;
     cenaAtiva.revelacao = true;
     render('projeto');
+  }
+  async function imprimirLote(n) {
+    if (cenaAtiva.revelacao) return;
+    const r = await (api.imprimirLote ? api.imprimirLote(n) : Promise.resolve({ ok: false, erro: 'Lote indisponível.' }));
+    aplicar(r, null, true);
+    if (!r.ok) return;
+    const res = r.resultado;
+    const lista = Array.isArray(res.cartas) ? res.cartas : [res.carta].filter(Boolean);
+    // ordem da revelação: a mais rara por último (mesma raridade: a ordem em que o servidor imprimiu)
+    const cartas = lista.map((c, i) => ({ c, i })).sort((a, b) => RARIDADES.indexOf(a.c.raridade) - RARIDADES.indexOf(b.c.raridade) || a.i - b.i).map((x) => x.c);
+    revelada.carta = null;
+    cartas.forEach((c) => guardadas.add(c.id)); // a folha única não repete as do lote
+    loteRev = { cartas, custo: res.custo, pedida: res.pedida ?? n, cortada: !!res.cortada, mostradas: menos() ? cartas.length : 0, recem: -1 };
+    if (res.cortada) toast(`A gaveta encheu: saíram ${cartas.length} das ${res.pedida ?? n} pedidas.`);
+    cenaAtiva.revelacao = !menos();
+    render('projeto');
+    if (menos()) return;
+    timersRev.forEach(clearTimeout); timersRev = [];
+    const passo = 260; // revelação rápida; a última espera um pouco mais (expectativa)
+    cartas.forEach((_, i) => {
+      const ms = 200 + i * passo + (i === cartas.length - 1 && cartas.length > 1 ? 450 : 0);
+      timersRev.push(setTimeout(() => {
+        if (!loteRev) return;
+        loteRev.mostradas = i + 1;
+        const corpo = apps.impressora.corpo;
+        const el = corpo.querySelectorAll('[data-pm="lote-carta"]')[i];
+        if (el) { el.dataset.mostra = '1'; mostrarNaJanela(corpo, el); }
+        if (i === cartas.length - 1) { loteRev.recem = i; cenaAtiva.revelacao = false; render('projeto'); loteRev.recem = -1; const pico = corpo.querySelector('.pm-lote__c--pico'); if (pico) mostrarNaJanela(corpo, pico); }
+      }, ms));
+    });
+  }
+  /** Rola só a janela (nunca a página nem o trilho dos monitores) até o elemento ficar à vista. */
+  function mostrarNaJanela(corpo, el) {
+    // posição de layout (sem o zoom da animação): a grade é o offsetParent das cartas
+    const g = el.offsetParent?.getBoundingClientRect?.() ?? el.getBoundingClientRect();
+    const c = corpo.getBoundingClientRect(), r = { top: g.top + el.offsetTop, bottom: g.top + el.offsetTop + el.offsetHeight };
+    if (r.bottom > c.bottom) corpo.scrollTop += r.bottom - c.bottom + 8;
+    else if (r.top < c.top) corpo.scrollTop -= c.top - r.top + 8;
   }
   function iniciarRevelacao(folha) {
     timersRev.forEach(clearTimeout); timersRev = [];
@@ -1039,9 +1220,49 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
   const pendentes = () => (visao ? visao.estado.projetos.filter((p) => p.contrato && ((p.contrato.fase === 'V1_NO_AR' && p.contrato.proposta !== null) || p.contrato.fase === 'PEDE_MAIS')) : []);
 
   function conteudoCelular() {
-    const tabs = h('div', { class: 'pm-abas', role: 'tablist' }, [['mensagens', 'Mensagens'], ['contratar', 'Contratar']].map(([a, rot]) =>
-      h('button', { type: 'button', class: 'pm-aba', role: 'tab', 'data-aba': `cel-${a}`, 'aria-selected': String(abaCelular === a), onclick: () => { abaCelular = a; janelaCelular.atualizar(conteudoCelular()); } }, rot)));
-    return [tabs, abaCelular === 'mensagens' ? mensagens() : contratar()];
+    const prontas = metasProntas().length;
+    const tabs = h('div', { class: 'pm-abas', role: 'tablist' }, [['mensagens', 'Mensagens'], ['contratar', 'Contratar'], ['metas', prontas ? `Metas (${prontas})` : 'Metas']].map(([a, rot]) =>
+      h('button', { type: 'button', class: 'pm-aba', role: 'tab', 'data-aba': `cel-${a}`, 'aria-selected': String(abaCelular === a), onclick: () => { abaCelular = a; if (a === 'metas') metasVistas(); janelaCelular.atualizar(conteudoCelular()); } }, rot)));
+    return [tabs, abaCelular === 'mensagens' ? mensagens() : abaCelular === 'metas' ? metas() : contratar()];
+  }
+
+  // ----- METAS DO DIA (aba do celular): texto, progresso e prêmio do servidor; resgate pelo servidor -----
+  const listaMetas = () => (Array.isArray(visao?.estado.missoes) ? visao.estado.missoes : []);
+  const metasProntas = () => listaMetas().filter((m) => m.pronta && !m.resgatada);
+  let metasAvisadas = new Set(); // missões prontas que já acenderam o aviso (não repete)
+  let metaVista = new Set(); // prontas que o jogador já viu na aba
+  let resgatando = null, popMeta = null; // id em resgate; { id, premio } para a festa pequena
+  function metasVistas() { metasProntas().forEach((m) => metaVista.add(m.id)); atualizarCelularNovo(); }
+  function metas() {
+    const l = listaMetas();
+    const caixa = h('div', { class: 'pm-metas', 'data-pm': 'metas' }, h('h3', { style: 'margin:0' }, T('missao.titulo', 'Metas do dia')));
+    if (!l.length) { caixa.append(h('p', { class: 'pm-vazio', 'data-pm': 'metas-vazia' }, T('missao.vazia', 'Sem metas hoje.'))); return caixa; }
+    l.forEach((m) => {
+      const meta = Math.max(1, Number(m.meta) || 1);
+      const prog = Math.max(0, Math.min(meta, Number(m.progresso) || 0));
+      const card = h('div', { class: `pm-card pm-meta${m.resgatada ? ' pm-meta--feita' : m.pronta ? ' pm-meta--pronta' : ''}`, 'data-pm': 'meta', 'data-id': m.id, 'data-pronta': String(!!m.pronta), 'data-resgatada': String(!!m.resgatada) },
+        h('p', { class: 'pm-meta__txt' }, m.texto || T(m.chaveTexto || `missao.${m.tipo}`, m.tipo).replaceAll('{n}', String(m.meta))),
+        h('div', { class: 'pm-meta__barra' },
+          h('div', { class: 'pm-medidor', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(meta), 'aria-valuenow': String(prog), 'aria-label': `${prog} de ${meta}` },
+            h('div', { class: 'pm-medidor__cheio', style: `width:${(prog / meta) * 100}%` })),
+          h('span', { class: 'pm-meta__conta', 'data-pm': 'meta-conta' }, `${prog}/${meta}`)),
+        h('div', { class: 'pm-linha' }, h('span', {}, 'Prêmio'), h('span', { class: 'pm-num', 'data-pm': 'meta-premio' }, din(m.premio))),
+        m.resgatada ? h('p', { class: 'pm-meta__ok', 'data-pm': 'meta-feita' }, `✓ ${T('missao.resgatada', 'Resgatada.')}`)
+          : m.pronta ? h('button', { type: 'button', class: 'pm-btn pm-btn--acao', 'data-pm': 'meta-resgatar', 'data-k': `meta-${m.id}`, disabled: resgatando === m.id, onclick: () => resgatarMeta(m.id) }, `${T('missao.resgatar', 'Resgatar')} ${din(m.premio)}`)
+            : null,
+        popMeta?.id === m.id ? h('span', { class: `pm-meta__pop${menos() ? ' pm-meta__pop--parado' : ''}`, 'data-pm': 'meta-pop', 'aria-hidden': 'true' }, `+${din(popMeta.premio)}`) : null);
+      caixa.append(card);
+    });
+    return caixa;
+  }
+  async function resgatarMeta(id) {
+    if (resgatando) return;
+    resgatando = id; janelaCelular?.atualizar(conteudoCelular());
+    const r = await api.missao(id);
+    resgatando = null;
+    if (r.ok) { popMeta = { id, premio: r.resultado?.premio ?? 0 }; setTimeout(() => { if (popMeta?.id === id) popMeta = null; }, 1300); }
+    aplicar(r, r.ok ? `+${din(r.resultado?.premio ?? 0)} no caixa. ${T('missao.resgatada', '')}` : null);
+    janelaCelular?.atualizar(conteudoCelular());
   }
 
   /** Falas do influenciador neste contrato: as do servidor (estado.celular, já com nome e valor); no modo falso,
@@ -1136,17 +1357,26 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
 
   function abrirCelular(aba0, projetoId) {
     if (!visao) return;
+    const propostaNova = pendentes().some((p) => !celularVistas.has(chaveProposta(p)));
     if (aba0) abaCelular = aba0;
+    else if (!propostaNova && metasProntas().some((m) => !metaVista.has(m.id))) abaCelular = 'metas'; // meta pronta: abre já nas Metas
     if (projetoId) projetoContratar = projetoId;
     pendentes().forEach((p) => celularVistas.add(chaveProposta(p)));
+    if (abaCelular === 'metas') metasProntas().forEach((m) => metaVista.add(m.id));
     atualizarCelularNovo();
     if (janelaCelular) { janelaCelular.atualizar(conteudoCelular()); return; }
-    janelaCelular = janela({ titulo: 'Celular da mesa', dado: 'celular', corpo: conteudoCelular(), retrato: retratoRugrigo('malandro', 'p'), aoFechar: () => { janelaCelular = null; } });
+    janelaCelular = janela({ titulo: 'Celular da mesa', classe: 'pm-janela--celular', dado: 'celular', corpo: conteudoCelular(), retrato: retratoRugrigo('malandro', 'p'), aoFechar: () => { janelaCelular = null; } });
   }
 
   function atualizarCelularNovo() {
     const novo = pendentes().some((p) => !celularVistas.has(chaveProposta(p)));
-    if (novo !== celularNovo) { celularNovo = novo; botaoCel?.classList.toggle('pm-cel-novo', novo); if (botaoCel) botaoCel.querySelector('.pm-cel-rot').textContent = novo ? 'Celular (1 nova)' : 'Celular'; }
+    const meta = metasProntas().some((m) => !metaVista.has(m.id));
+    if (novo !== celularNovo) celularNovo = novo;
+    if (botaoCel) {
+      const rot = novo ? 'Celular (1 nova)' : meta ? 'Celular (meta pronta)' : 'Celular';
+      botaoCel.classList.toggle('pm-cel-novo', novo || meta);
+      const el = botaoCel.querySelector('.pm-cel-rot'); if (el.textContent !== rot) el.textContent = rot;
+    }
     return novo;
   }
 
@@ -1194,11 +1424,21 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     if (!e.batida && janelaBatida) janelaBatida.fechar();
     else if (e.batida && janelaBatida) janelaBatida.atualizar(conteudoBatida());
     if (antes && !cenaAtiva.revelacao) { /* chat anda só nas atualizações de rotina */ }
+    // meta do dia que acabou de ficar pronta: borda no monitor 3 e aviso (uma vez por meta; sem contagem regressiva)
+    const novasProntas = metasProntas().filter((m) => !metasAvisadas.has(m.id));
+    novasProntas.forEach((m) => metasAvisadas.add(m.id));
+    if (antes && novasProntas.length) { avisar(2); toast(`Meta pronta: ${din(novasProntas[0].premio)} para embolsar no celular.`); }
+    if (janelaCelular && abaCelular === 'metas') metasProntas().forEach((m) => metaVista.add(m.id));
     if (atualizarCelularNovo()) avisar(2);
+    if (janelaFusao && sigFusao) {
+      const pt = e.fusao?.previaTudo;
+      if (!pt) janelaFusao.fechar();
+      else if (JSON.stringify(pt) !== sigFusao) { sigFusao = JSON.stringify(pt); janelaFusao.atualizar(conteudoFundirTudo(pt)); }
+    }
     pintarCena();
     for (const id of Object.keys(MESAS)) render(id, false);
     if (janelaCelular) {
-      const sc = JSON.stringify([e.projetos.map((p) => p.contrato), e.caixa, abaCelular, projetoContratar, e.contagem.tapetes]);
+      const sc = JSON.stringify([e.projetos.map((p) => p.contrato), e.caixa, abaCelular, projetoContratar, e.contagem.tapetes, e.missoes]);
       if (sc !== sigCelular) { sigCelular = sc; janelaCelular.atualizar(conteudoCelular()); }
     }
   }
@@ -1233,6 +1473,6 @@ export function criarMonitores({ cena, api, raiz, aoAtualizar }) {
     aoMudarVista(v) { if (v === 'monitores') requestAnimationFrame(limparVisiveis); },
     mostrarAviso: toast,
     get celularNovo() { return celularNovo; },
-    destruir() { obs.disconnect(); document.adoptedStyleSheets = document.adoptedStyleSheets.filter((f) => f !== folha); toasts.remove(); janelaBatida?.fechar(); janelaCelular?.fechar(); },
+    destruir() { obs.disconnect(); document.adoptedStyleSheets = document.adoptedStyleSheets.filter((f) => f !== folha); toasts.remove(); janelaBatida?.fechar(); janelaCelular?.fechar(); janelaFusao?.fechar(); },
   };
 }

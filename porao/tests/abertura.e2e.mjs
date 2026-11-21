@@ -16,6 +16,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { iniciarServidor } from '../servidor/index.mjs'
+import { IMPRESSORA } from '../comum/config.js'
+import { CONTAGEM_DA_MISSAO } from '../comum/regras.js'
 
 const require = createRequire('/opt/node-tools/node_modules/')
 const { chromium } = require('playwright')
@@ -337,6 +339,100 @@ try {
       confere(vaza.length === 0, `servidor PC: só a janela da frente mostra conteúdo${vaza.length ? ' (vazam: ' + vaza.join(', ') + ')' : ''}`)
       await foto(pc.page, 'ab-srv-10-pc-janelas')
       await pc.ctx.close()
+    }
+
+    // (8) LOTE, FUNDIR TUDO e METAS DO DIA pela tela, no servidor de verdade (21/11)
+    {
+      const somaDiario = (motivo, pedido) => srv.db.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(valor), 0) AS soma FROM diario WHERE motivo = ? AND pedido = ?').get(motivo, pedido)
+      const atualizarTela = () => page.evaluate(() => window.poraoApp.api.estado().then((r) => r.visao && window.poraoApp.monitores.atualizar(r.visao)))
+      // gaveta com 25 cartas (9 iguais = fusão em cascata garantida): o lote de 10 é cortado para 5 pela gaveta
+      mexerNoSave(srv, (e) => {
+        e.caixa = 20000
+        const ideias = [...Array(9).fill('comum_1'), ...['incomum_1', 'incomum_2', 'incomum_3', 'incomum_4', 'incomum_5', 'raro_1', 'raro_2', 'raro_3'].flatMap((x) => [x, x])]
+        e.cartas = ideias.map((ideia) => ({ id: e.proximoId++, ideia, raridade: ideia.split('_')[0] }))
+      })
+      await atualizarTela()
+      await irMonitor(2)
+      await app('projeto', 'impressora')
+      const btnLote = page.locator('[data-pm="imprimir-lote"]')
+      const loteOk = await page.waitForSelector('[data-pm="imprimir-lote"][data-quantidade="5"]:not([disabled])', { timeout: 8000 }).then(() => true).catch(() => false)
+      confere(loteOk, 'servidor: botão "IMPRIMIR 5" (a gaveta corta o lote de 10 para 5) ligado')
+      const custoTela = Number(await btnLote.getAttribute('data-custo'))
+      const custoEsperado = 5 * IMPRESSORA.custo
+      confere(custoTela === custoEsperado && (await btnLote.textContent()).includes(`$ ${custoEsperado.toLocaleString('pt-BR')} no total`), `servidor: o botão mostra o custo total antes ($ ${custoTela}, esperado $ ${custoEsperado})`)
+      confere(await page.locator('[data-pm="lote-cortado"]').count() === 1, 'servidor: a tela avisa que a gaveta corta o lote')
+      const pedLote = page.waitForRequest((r) => /\/api\/imprimir$/.test(r.url()) && r.method() === 'POST', { timeout: 8000 })
+      const respLote = page.waitForResponse((r) => /\/api\/imprimir$/.test(r.url()), { timeout: 8000 })
+      await btnLote.click()
+      const chaveLote = (await pedLote).headers()['idempotency-key']
+      const jl = await (await respLote).json().catch(() => ({}))
+      await page.waitForSelector('[data-pm="lote-resumo"]', { timeout: 10000 })
+      const nCartas = await page.locator('[data-pm="lote-carta"][data-mostra="1"]').count()
+      confere(jl.ok === true && jl.resultado?.cartas?.length === 5 && nCartas === 5, `servidor: imprimir 5 pela tela mostra 5 cartas (servidor ${jl.resultado?.cartas?.length}, tela ${nCartas})`)
+      const dl = somaDiario('imprimir', chaveLote)
+      confere(dl.n === 1 && dl.soma === -custoEsperado && jl.resultado?.custo === custoEsperado, `servidor: o lote debitou o total certo uma vez (diário ${dl.soma}, esperado -${custoEsperado})`)
+      const ordemRar = await page.evaluate(() => [...document.querySelectorAll('[data-pm="lote-carta"]')].map((c) => c.dataset.raridade))
+      const idx = (r) => ['comum', 'incomum', 'raro', 'epico', 'lendario', 'mitico'].indexOf(r)
+      confere(idx(ordemRar.at(-1)) === Math.max(...ordemRar.map(idx)), `servidor: a mais rara do lote vem por último (${ordemRar.join(', ')})`)
+      confere(await semLateral(page), 'servidor: lote sem rolagem lateral')
+      await foto(page, 'ab-srv-12-lote')
+
+      // fundir tudo: a prévia (do servidor) bate com o resultado
+      await app('projeto', 'ideias')
+      const pt = (await estadoSrv()).fusao.previaTudo
+      confere(!!pt && pt.fusoes >= 1, `servidor: há prévia do fundir tudo (${pt?.fusoes} fusões)`)
+      await page.click('[data-pm="fundir-tudo"]')
+      await page.waitForSelector('[data-pm="janela-fundir-tudo"] [data-pm="fundir-sai"]', { timeout: 5000 })
+      const somaN = (sel) => page.evaluate((s) => [...document.querySelectorAll(`${s} li`)].reduce((t, li) => t + Number(li.dataset.n), 0), sel)
+      confere(await somaN('[data-pm="fundir-sai"]') === pt.sairam.length && await somaN('[data-pm="fundir-entra"]') === pt.entraram.length, `servidor: a prévia na tela mostra o que sai (${pt.sairam.length}) e o que entra (${pt.entraram.length})`)
+      const cabeFusao = await page.evaluate(() => { const r = document.querySelector('.pm-janela__caixa').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight })
+      confere(cabeFusao && await semLateral(page), 'servidor: a prévia do fundir tudo cabe no celular')
+      await foto(page, 'ab-srv-13-fundir-previa')
+      const respTudo = page.waitForResponse((r) => /\/api\/fundir\/tudo$/.test(r.url()), { timeout: 8000 })
+      await page.click('[data-pm="fundir-confirmar"]')
+      const jt = await (await respTudo).json().catch(() => ({}))
+      const ids = (l) => (l || []).map((c) => `${c.ideia}:${c.raridade}`).sort().join(',')
+      const saiuIds = (l) => (l || []).map((c) => c.id).sort((a, b) => a - b).join(',')
+      confere(jt.ok === true && jt.resultado.fusoes === pt.fusoes && ids(jt.resultado.entraram) === ids(pt.entraram) && saiuIds(jt.resultado.sairam) === saiuIds(pt.sairam), 'servidor: fundir tudo bate com a prévia (mesmas fusões, mesmas cartas que saem e entram)')
+      confere(await page.waitForSelector('[data-pm="fundir-feito"]', { timeout: 5000 }).then(() => true).catch(() => false), 'servidor: a tela mostra o resultado do fundir tudo')
+      await foto(page, 'ab-srv-14-fundir-feito')
+      await page.click('[data-pm="fundir-ok"]')
+      await page.waitForSelector('[data-pm="janela-fundir-tudo"]', { state: 'detached', timeout: 3000 })
+
+      // missão do dia: fica pronta (a tela avisa) e o resgate soma o prêmio uma vez
+      const ms = (await estadoSrv()).missoes
+      const alvo = ms.find((m) => !m.pronta && !m.resgatada) || ms.find((m) => !m.resgatada)
+      confere(!!alvo, `servidor: há missão do dia para completar (${ms.map((m) => m.id).join(', ')})`)
+      mexerNoSave(srv, (e) => { const m = e.missoes.lista.find((x) => x.id === alvo.id); const k = CONTAGEM_DA_MISSAO[m.tipo]; e.contagem[k] = Math.max(e.contagem[k] || 0, m.base + m.meta) })
+      await atualizarTela()
+      // (o botão pode dizer "1 nova" se houver proposta de influenciador pendente: a proposta tem a vez no rótulo)
+      const avisou = await page.waitForFunction(() => document.querySelector('[data-pm="celular-btn"]')?.classList.contains('pm-cel-novo') && [...document.querySelectorAll('.pm-toast')].some((t) => /Meta pronta/.test(t.textContent)), null, { timeout: 5000 }).then(() => true).catch(() => false)
+      const vistoAviso = avisou ? '' : await page.evaluate(() => `botão "${document.querySelector('[data-pm="celular-btn"]')?.textContent}", recados: ${[...document.querySelectorAll('.pm-toast')].map((t) => t.textContent).join(' | ')}`)
+      confere(avisou, `servidor: missão pronta acende o aviso (botão do celular e recado)${vistoAviso ? ' — ' + vistoAviso : ''}`)
+      await page.click('[data-pm="celular-btn"]')
+      await page.click('[data-aba="cel-metas"]')
+      await page.waitForSelector('[data-aba="cel-metas"][aria-selected="true"]', { timeout: 3000 })
+      const cardSel = `[data-pm="meta"][data-id="${alvo.id}"]`
+      const txtMeta = await page.textContent(cardSel)
+      confere(txtMeta.includes(alvo.texto) && txtMeta.includes(`${alvo.meta}/${alvo.meta}`) && txtMeta.includes(`$ ${alvo.premio.toLocaleString('pt-BR')}`), `servidor: a meta mostra o texto, o progresso e o prêmio do servidor ("${alvo.texto.slice(0, 30)}…")`)
+      confere(await semLateral(page), 'servidor: metas sem rolagem lateral')
+      await foto(page, 'ab-srv-15-metas-pronta')
+      const pedMeta = page.waitForRequest((r) => /\/api\/missao\//.test(r.url()), { timeout: 8000 })
+      const respMeta = page.waitForResponse((r) => /\/api\/missao\//.test(r.url()), { timeout: 8000 })
+      await page.click(`${cardSel} [data-pm="meta-resgatar"]`)
+      const chaveMeta = (await pedMeta).headers()['idempotency-key']
+      const jm = await (await respMeta).json().catch(() => ({}))
+      confere(jm.ok === true && jm.resultado?.premio === alvo.premio, `servidor: resgate aceito com o prêmio da meta ($ ${jm.resultado?.premio})`)
+      confere(await page.waitForSelector(`${cardSel}[data-resgatada="true"] [data-pm="meta-feita"]`, { timeout: 5000 }).then(() => true).catch(() => false) && await page.locator(`${cardSel} [data-pm="meta-resgatar"]`).count() === 0, 'servidor: a meta fica como embolsada, sem botão')
+      await foto(page, 'ab-srv-16-metas-embolsada')
+      // 2º pedido de resgate (fora da página, com a mesma sessão): o servidor recusa
+      const biscoito = (await ctx.cookies()).map((c) => `${c.name}=${c.value}`).join('; ')
+      const outra = await fetch(`${REAL}api/missao/${alvo.id}`, { method: 'POST', headers: { cookie: biscoito, 'X-Porao': '1', 'content-type': 'application/json', 'Idempotency-Key': `e2e-${Date.now()}` }, body: '{}' }).then((r) => r.json()).catch(() => ({ ok: 'sem resposta' }))
+      const todas = srv.db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(valor), 0) AS soma FROM diario WHERE motivo = 'missao'").get()
+      const dm = somaDiario('missao', chaveMeta)
+      confere(outra.ok === false && dm.n === 1 && dm.soma === alvo.premio && todas.n === 1 && todas.soma === alvo.premio, `servidor: o prêmio somou uma vez só (diário ${todas.soma} em ${todas.n} linha(s); 2º pedido ${outra.ok ? 'aceito!' : 'recusado'})`)
+      await page.keyboard.press('Escape')
+      await page.waitForSelector('[data-pm="janela-celular"]', { state: 'detached', timeout: 3000 }).catch(() => {})
     }
 
     // (6) batida: a janela abre sozinha; depois de recarregar continua aberta (Menos animação: sem tremida)

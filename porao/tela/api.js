@@ -17,17 +17,18 @@
 // quando crypto.subtle tem Ed25519; senão assinatura fingida, aceita SÓ pelo modo falso).
 import * as R from '../comum/regras.js';
 import { TEXTOS } from '../comum/nomes.js';
-import { LUXOS, INFLUENCIADORES, CONTRATO } from '../comum/config.js';
+import { LUXOS, INFLUENCIADORES, CONTRATO, LOTE, FUSAO } from '../comum/config.js';
 // carteira-navegador.js (e o base58 dele) só carrega quando a carteira de teste é usada:
 // a página do jogo abre mesmo se esse arquivo faltar.
 const paraBase58 = async (bytes) => (await import('./carteira-navegador.js')).paraBase58(bytes);
 
 const chaveNova = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
+const nomeDaIdeia = (ideia) => { const [r, n] = String(ideia).split('_'); return TEXTOS[`ideia.${r}.${n}.nome`] ?? ideia; };
+
 /** Nome do projeto como o servidor manda (jogo.mjs nomeProjeto): nome da ideia, ou a frase rebrand.N depois do golpe. */
 function nomeDoProjeto(p) {
-  const [r, n] = String(p.ideia).split('_');
-  const base = TEXTOS[`ideia.${r}.${n}.nome`] ?? p.ideia;
+  const base = nomeDaIdeia(p.ideia);
   if (!(p.rebrands > 0)) return base;
   let q = 0; while (typeof TEXTOS[`rebrand.${q + 1}`] === 'string') q++;
   if (!q) return base;
@@ -47,13 +48,26 @@ export function montarVisao(estado, agora = Date.now(), extra = {}) {
     if (previa.ok) tapete[p.id] = previa;
   }
   const liberados = R.influenciadoresLiberados(estado);
+  // lote, "fundir tudo" e missões: as mesmas funções puras que o servidor usa (jogo.mjs estadoParaTela), mesmo formato
+  const pLote = R.previaImprimir(estado, LOTE.maximoImpressoes);
+  const pTudo = R.previaFundirTudo(estado);
+  const comNome = (c) => ({ id: c.id, ideia: c.ideia, raridade: c.raridade, nome: nomeDaIdeia(c.ideia) });
+  const missoes = R.missoesComProgresso(estado).map((m) => ({
+    ...m, chaveTexto: `missao.${m.tipo}`, texto: String(TEXTOS[`missao.${m.tipo}`] ?? m.tipo).replaceAll('{n}', String(m.meta)),
+  }));
   return {
-    estado: { ...pub, projetos: pub.projetos.map((p) => ({ ...p, nome: nomeDoProjeto(p) })) },
+    estado: {
+      ...pub, projetos: pub.projetos.map((p) => ({ ...p, nome: nomeDoProjeto(p) })), missoes,
+      fusao: { quantidade: FUSAO.quantidade, previaTudo: pTudo.ok ? { fusoes: pTudo.fusoes, entraram: pTudo.entraram.map(comNome), sairam: pTudo.sairam.map(comNome) } : null },
+    },
     agora,
     previas: { tapete, batida: R.previaBatida(estado) },
     rendimentos,
     bonus: R.bonus(estado),
-    impressora: { custo: R.custoImpressao(estado), chances: R.chancesDaImpressora() },
+    impressora: {
+      custo: R.custoImpressao(estado), chances: R.chancesDaImpressora(),
+      lote: { maximo: LOTE.maximoImpressoes, quantidade: pLote.quantidade ?? 0, custo: pLote.custo ?? null, cortada: !!pLote.cortada, pode: pLote.ok === true },
+    },
     luxos: LUXOS.map((l) => ({ id: l.id, custo: l.custo, bonus: l.bonus, comprado: estado.luxos.includes(l.id) })),
     influenciadores: INFLUENCIADORES.map((i) => ({
       id: i.id, tamanho: i.tamanho, p1: CONTRATO.tamanhos[i.tamanho].p1, liberado: liberados.includes(i.id),
@@ -240,7 +254,8 @@ function criarApiFalsa({ janela = janelaPadrao() } = {}) {
   const vistas = new Map(); // chave de pedido → resposta (não conta duas vezes)
 
   const visao = () => montarVisao(est);
-  function avancar() { est = R.avancar(est, Date.now()).estado; }
+  // como o servidor (jogo.mjs): avança o tempo e prepara as missões do dia antes da ação
+  function avancar() { est = R.prepararMissoes(R.avancar(est, Date.now()).estado); }
 
   async function agir(chave, fn) {
     if (chave && vistas.has(chave)) return vistas.get(chave);
@@ -301,7 +316,9 @@ function criarApiFalsa({ janela = janelaPadrao() } = {}) {
     carteiraDeTeste: teste.carteira,
     async estado() { avancar(); return { ok: true, visao: visao() }; },
     imprimir: (chave = chaveNova()) => agir(chave, (e) => R.imprimir(e)),
+    imprimirLote: (quantidade, chave = chaveNova()) => agir(chave, (e) => R.imprimir(e, quantidade)),
     fundir: (ideia, chave = chaveNova()) => agir(chave, (e) => R.fundir(e, ideia)),
+    fundirTudo: (chave = chaveNova()) => agir(chave, (e) => R.fundirTudo(e)),
     lancar: (cartaId, chave = chaveNova()) => agir(chave, (e) => R.lancar(e, cartaId)),
     tapete: (projetoId, chave = chaveNova()) => agir(chave, (e) => R.puxarTapete(e, projetoId)),
     batida: (escolha, chave = chaveNova()) => agir(chave, (e) => R.resolverBatida(e, escolha)),
@@ -309,7 +326,7 @@ function criarApiFalsa({ janela = janelaPadrao() } = {}) {
     contrato: (projetoId, influenciador, chave = chaveNova()) => agir(chave, (e) => R.contratar(e, projetoId, influenciador)),
     resposta: (projetoId, resposta, chave = chaveNova()) => agir(chave, (e) => R.responderContrato(e, projetoId, resposta)),
     prestigio: (chave = chaveNova()) => agir(chave, (e) => R.irPreso(e)),
-    missao: async () => ({ ok: false, erro: 'Missões ainda não existem no modo de teste.', visao: visao() }),
+    missao: (id, chave = chaveNova()) => agir(chave, (e) => R.resgatarMissao(e, id)),
     /** Só no modo falso, para conferência: muda o estado na mão (ex.: Calor alto para ver a batida). */
     depurar(fn) { const c = structuredClone(est); fn(c); est = c; return visao(); },
   };
@@ -378,7 +395,10 @@ function criarApiReal(base = '', { janela = janelaPadrao() } = {}) {
     apelido: (nome) => sessaoChamar('POST', '/api/apelido', { apelido: nome }),
     estado: () => chamar('GET', '/api/estado'),
     imprimir: (chave) => post('/api/imprimir', {}, chave),
+    // lote: 1 a impressora.lote.maximo folhas numa ação (o servidor corta se a gaveta encher e cobra a soma)
+    imprimirLote: (quantidade, chave) => post('/api/imprimir', { quantidade }, chave),
     fundir: (ideia, chave) => post('/api/fundir', { ideia }, chave),
+    fundirTudo: (chave) => post('/api/fundir/tudo', {}, chave),
     lancar: (cartaId, chave) => post('/api/lancar', { cartaId }, chave),
     tapete: (projetoId, chave) => post(`/api/projeto/${encodeURIComponent(projetoId)}/tapete`, {}, chave),
     batida: (escolha, chave) => post('/api/batida', { escolha }, chave),

@@ -478,6 +478,135 @@ try {
   }
   await rm(arteTemp, { recursive: true, force: true }); arteTemp = null
 
+  // ===================== LOTE, FUNDIR TUDO e METAS DO DIA (modo falso: as mesmas funções de regras.js) =====================
+  console.log('Lote, fundir tudo e metas')
+  for (const [rotulo, vp, movel, menos] of [['pc', [1280, 800], false, false], ['cel', [390, 844], true, false], ['menos', [390, 844], true, true]]) {
+    const { ctx, page } = await nova({ largura: vp[0], altura: vp[1], movel, menos })
+    await abrirPorao(page)
+    await q(page, '.cena__btn--primario').click()
+    await q(page, '.cena__zoom--aberto').waitFor({ timeout: 5000 })
+    if (movel) {
+      await page.locator('.cena__ponto').nth(2).click()
+      await page.waitForFunction(() => { const r = document.querySelector('[data-monitor="projeto"]').getBoundingClientRect(); return r.left >= -2 && r.right <= innerWidth + 2 }, null, { timeout: 5000 })
+    }
+    // 9 iguais na gaveta (fusão em cascata) e caixa para o lote inteiro
+    await page.evaluate(() => window.poraoApp.monitores.atualizar(window.poraoApp.api.depurar((e) => {
+      e.caixa = 50000
+      e.cartas = Array.from({ length: 9 }, () => ({ id: e.proximoId++, ideia: 'comum_1', raridade: 'comum' }))
+    })))
+    await aba(page, 'projeto', 'impressora')
+    const lote = page.locator('[data-pm="imprimir-lote"]')
+    await page.waitForSelector('[data-pm="imprimir-lote"][data-quantidade="10"]:not([disabled])', { timeout: 8000 })
+    confere(/IMPRIMIR 10/.test(await lote.textContent()) && (await lote.textContent()).includes(`$ ${Number(await lote.getAttribute('data-custo')).toLocaleString('pt-BR')} no total`), `${rotulo}: botão IMPRIMIR 10 com o custo total à vista`)
+    const caixa0 = await page.evaluate(() => window.poraoApp.api.depurar(() => {}).estado.caixa)
+    const custo = Number(await lote.getAttribute('data-custo'))
+    await lote.click()
+    if (!menos) {
+      // sequência: no meio da revelação há cartas viradas e cartas ainda escondidas
+      const meio = await page.waitForFunction(() => { const c = [...document.querySelectorAll('[data-pm="lote-carta"]')]; const v = c.filter((x) => x.dataset.mostra === '1').length; return v > 0 && v < c.length }, null, { timeout: 4000 }).then(() => true).catch(() => false)
+      confere(meio, `${rotulo}: o lote vira uma carta de cada vez`)
+      await foto(page, `lote-${rotulo}-1-virando`)
+      // a última carta (a mais rara) entra com a festa maior: a animação dela no momento em que vira
+      const pico = await page.waitForFunction(() => { const c = document.querySelector('.pm-lote__c--pico[data-mostra="1"]'); return c ? getComputedStyle(c).animationName : false }, null, { timeout: 6000, polling: 'raf' }).then((h) => h.jsonValue()).catch(() => '')
+      confere(pico === 'pm-lote-pico', `${rotulo}: a última carta (a mais rara) tem a festa maior (${pico})`)
+      // foto do fim: espera as animações do lote acabarem (nada pela metade)
+      await page.waitForFunction(() => [...document.querySelectorAll('[data-pm="lote-carta"]')].every((c) => c.getAnimations().every((a) => a.playState === 'finished')), null, { timeout: 4000 }).catch(() => {})
+    } else {
+      confere(await page.locator('[data-pm="lote-carta"][data-mostra="0"]').count() === 0, 'Menos animação: o lote aparece todo de uma vez (lista parada)')
+      const anim = await page.evaluate(() => [...document.querySelectorAll('[data-pm="lote-carta"]')].map((c) => getComputedStyle(c).animationName))
+      confere(anim.every((a) => a === 'none'), `Menos animação: cartas do lote sem animação (${[...new Set(anim)].join(', ')})`)
+    }
+    await page.waitForSelector('[data-pm="lote-resumo"]', { timeout: 8000 })
+    const depois = await page.evaluate(() => window.poraoApp.api.depurar(() => {}).estado)
+    confere(await page.locator('[data-pm="lote-carta"][data-mostra="1"]').count() === 10, `${rotulo}: as 10 cartas do lote na tela`)
+    confere(depois.caixa === caixa0 - custo && depois.cartas.length === 19, `${rotulo}: o lote cobrou o total mostrado e pôs 10 na gaveta`)
+    confere(await semRolagemLateral(page), `${rotulo}: lote sem rolagem lateral`)
+    const cabeLote = await page.evaluate(() => [...document.querySelectorAll('[data-pm="lote-carta"]')].every((c) => c.scrollWidth <= c.clientWidth + 1))
+    confere(cabeLote, `${rotulo}: nomes das cartas do lote sem cortar`)
+    await foto(page, `lote-${rotulo}-2-pronto`)
+    // gaveta quase cheia: o lote é cortado e a tela avisa
+    await q(page, '[data-pm="lote-fechar"]').click()
+    await page.evaluate(() => window.poraoApp.monitores.atualizar(window.poraoApp.api.depurar((e) => { while (e.cartas.length < 27) e.cartas.push({ id: e.proximoId++, ideia: 'raro_2', raridade: 'raro' }) })))
+    confere(await page.waitForSelector('[data-pm="imprimir-lote"][data-quantidade="3"]', { timeout: 5000 }).then(() => true).catch(() => false) && await page.locator('[data-pm="lote-cortado"]').count() === 1, `${rotulo}: gaveta quase cheia corta o lote para 3 e avisa`)
+    if (rotulo === 'pc' || rotulo === 'cel') await foto(page, `lote-${rotulo}-3-cortado`)
+
+    // fundir tudo: prévia → confirmar → resultado
+    await aba(page, 'projeto', 'ideias')
+    await q(page, '[data-pm="fundir-tudo"]').click()
+    await q(page, '[data-pm="janela-fundir-tudo"] [data-pm="fundir-sai"]').waitFor({ timeout: 5000 })
+    const previa = await page.evaluate(() => {
+      const n = (s) => [...document.querySelectorAll(`${s} li`)].reduce((t, li) => t + Number(li.dataset.n), 0)
+      return { sai: n('[data-pm="fundir-sai"]'), entra: n('[data-pm="fundir-entra"]') }
+    })
+    confere(previa.sai >= 9 && previa.entra >= 1, `${rotulo}: prévia do fundir tudo mostra o que sai (${previa.sai}) e o que entra (${previa.entra})`)
+    const cabeJ = await page.evaluate(() => { const r = document.querySelector('.pm-janela__caixa').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight })
+    confere(cabeJ && await semRolagemLateral(page), `${rotulo}: a prévia do fundir tudo cabe na tela`)
+    await foto(page, `fundir-${rotulo}-1-previa`)
+    await page.keyboard.press('Escape')
+    confere(await page.waitForSelector('[data-pm="janela-fundir-tudo"]', { state: 'detached', timeout: 3000 }).then(() => true).catch(() => false), `${rotulo}: a prévia fecha com Esc sem fundir`)
+    await q(page, '[data-pm="fundir-tudo"]').click()
+    await q(page, '[data-pm="fundir-confirmar"]').click()
+    await q(page, '[data-pm="fundir-feito"]').waitFor({ timeout: 5000 })
+    const res = await page.evaluate(() => {
+      const n = (s) => [...document.querySelectorAll(`${s} li`)].reduce((t, li) => t + Number(li.dataset.n), 0)
+      return { saiu: n('[data-pm="fundir-saiu"]'), entrou: n('[data-pm="fundir-entrou"]'), gaveta: window.poraoApp.api.depurar(() => {}).estado.cartas.length }
+    })
+    confere(res.saiu === previa.sai && res.entrou === previa.entra && res.gaveta === 27 - previa.sai + previa.entra, `${rotulo}: fundir tudo fez o que a prévia mostrou (saiu ${res.saiu}, entrou ${res.entrou})`)
+    await foto(page, `fundir-${rotulo}-2-feito`)
+    await q(page, '[data-pm="fundir-ok"]').click()
+
+    // metas do dia: uma fica pronta → aviso; resgate soma o prêmio uma vez; 4 jeitos de fechar
+    const alvo = await page.evaluate(() => {
+      const v = window.poraoApp.api.depurar(() => {})
+      return v.estado.missoes.find((m) => !m.pronta && !m.resgatada) || null
+    })
+    confere(!!alvo, `${rotulo}: há meta do dia por fazer`)
+    if (movel) await page.locator('.cena__ponto').nth(0).click() // no celular, fica no monitor 1: a borda do monitor 3 acende
+    await page.evaluate((id) => window.poraoApp.monitores.atualizar(window.poraoApp.api.depurar((e) => {
+      const m = e.missoes.lista.find((x) => x.id === id)
+      const k = { tapete: 'tapetes', imprimir: 'impressoes', luxo: 'luxos', fusao: 'fusoes', contrato: 'contratos' }[m.tipo]
+      e.contagem[k] = Math.max(e.contagem[k] || 0, m.base + m.meta)
+    })), alvo.id)
+    confere(await page.waitForFunction(() => /meta pronta/.test(document.querySelector('[data-pm="celular-btn"]')?.textContent || ''), null, { timeout: 5000 }).then(() => true).catch(() => false), `${rotulo}: meta pronta acende o botão do celular`)
+    if (movel) {
+      confere(await page.waitForFunction(() => document.querySelector('[data-monitor="projeto"]').classList.contains('cena__monitor--aviso'), null, { timeout: 5000 }).then(() => true).catch(() => false), `${rotulo}: meta pronta acende a borda do monitor 3 (fora da vista)`)
+      if (!menos) await foto(page, `metas-${rotulo}-0-aviso-borda`)
+    }
+    await q(page, '[data-pm="celular-btn"]').click()
+    await q(page, '[data-aba="cel-metas"][aria-selected="true"]').waitFor({ timeout: 3000 })
+    const n3 = await page.locator('[data-pm="meta"]').count()
+    confere(n3 >= 3, `${rotulo}: a janela de metas mostra as metas do dia (${n3})`)
+    const barra = await page.evaluate((id) => { const c = document.querySelector(`[data-pm="meta"][data-id="${id}"]`); const f = c?.querySelector('.pm-medidor__cheio'); return f ? getComputedStyle(f).borderImageSource : '' }, alvo.id)
+    confere(/ui_barra_cheia\.png/.test(barra), `${rotulo}: a barra da meta usa o kit de interface`)
+    const cabeM = await page.evaluate(() => { const r = document.querySelector('.pm-janela__caixa').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight })
+    confere(cabeM && await semRolagemLateral(page), `${rotulo}: a janela de metas cabe na tela`)
+    if (!menos) await foto(page, `metas-${rotulo}-1-pronta`)
+    const c0 = await page.evaluate(() => window.poraoApp.api.depurar(() => {}).estado.caixa)
+    await q(page, `[data-pm="meta"][data-id="${alvo.id}"] [data-pm="meta-resgatar"]`).click()
+    await q(page, `[data-pm="meta"][data-id="${alvo.id}"][data-resgatada="true"]`).waitFor({ timeout: 5000 })
+    const pop = await page.evaluate(() => { const p = document.querySelector('[data-pm="meta-pop"]'); return p ? getComputedStyle(p).animationName : null })
+    confere(menos ? pop === 'none' : pop === 'pm-meta-pop', `${rotulo}: festa pequena no resgate (${pop})`)
+    const c1 = await page.evaluate(() => window.poraoApp.api.depurar(() => {}).estado.caixa)
+    const de2 = await page.evaluate((id) => window.poraoApp.api.missao(id), alvo.id)
+    const c2 = await page.evaluate(() => window.poraoApp.api.depurar(() => {}).estado.caixa)
+    confere(c1 - c0 === alvo.premio && de2.ok === false && c2 === c1, `${rotulo}: o resgate somou $ ${alvo.premio} uma vez (2º pedido recusado)`)
+    if (!menos) await foto(page, `metas-${rotulo}-2-embolsada`)
+    // fecha pelos 4 jeitos: X, Esc, clicar fora, ícone (o ícone fica atrás do fundo: tocar nele é tocar fora)
+    await q(page, '[data-pm="janela-x"]').click()
+    confere(await page.locator('[data-pm="janela-celular"]').count() === 0, `${rotulo}: metas fecham no X`)
+    await q(page, '[data-pm="celular-btn"]').click(); await q(page, '[data-aba="cel-metas"]').click()
+    await page.keyboard.press('Escape')
+    confere(await page.locator('[data-pm="janela-celular"]').count() === 0, `${rotulo}: metas fecham com Esc`)
+    await q(page, '[data-pm="celular-btn"]').click(); await q(page, '[data-aba="cel-metas"]').click()
+    await page.mouse.click(4, 4)
+    confere(await page.locator('[data-pm="janela-celular"]').count() === 0, `${rotulo}: metas fecham clicando fora`)
+    await q(page, '[data-pm="celular-btn"]').click(); await q(page, '[data-aba="cel-metas"]').click()
+    const bc = await q(page, '[data-pm="celular-btn"]').boundingBox()
+    await page.mouse.click(bc.x + bc.width / 2, bc.y + bc.height / 2)
+    confere(await page.locator('[data-pm="janela-celular"]').count() === 0, `${rotulo}: metas fecham tocando no ícone do celular`)
+    await ctx.close()
+  }
+
   confere(erros.length === 0, `sem erro no console nem pedido quebrado${erros.length ? ': ' + erros.slice(0, 5).join(' | ') : ''}`)
 } catch (e) {
   falha('o robô quebrou: ' + (e && e.message))
